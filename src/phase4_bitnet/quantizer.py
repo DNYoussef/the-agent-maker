@@ -243,3 +243,66 @@ class BitNetQuantizer:
             Statistics dictionary
         """
         return self.stats.copy()
+
+
+def activation_quant(x: torch.Tensor) -> torch.Tensor:
+    """
+    8-bit per-token activation quantization (BitNet paper Algorithm 1).
+
+    This is the activation quantization function used in BitLinear layers.
+    Implements absmax quantization with per-token scaling.
+
+    Args:
+        x: Input tensor (..., hidden_dim)
+
+    Returns:
+        Quantized tensor in FP32 format (for STE compatibility)
+
+    Formula:
+        Q_b(x) = Clip(x * (127 / gamma), -128, 127) * (gamma / 127)
+        where gamma = ||x||_inf (max absolute value per token)
+
+    Paper Reference:
+        BitNet b1.58 - arXiv:2402.17764, Section 2.2, Algorithm 1
+    """
+    # Per-token scaling: find max absolute value
+    gamma = x.abs().max(dim=-1, keepdim=True).values.clamp_(min=1e-5)
+
+    # Quantization range: [-127, 127] (8-bit signed)
+    Q_b = 127.0
+
+    # Scale to quantization range
+    scale = Q_b / gamma
+
+    # Quantize with clipping
+    x_quant = (x * scale).round().clamp_(-128, 127)
+
+    # Dequantize back to original scale
+    x_dequant = x_quant / scale
+
+    return x_dequant
+
+
+def apply_ste(x: torch.Tensor, x_quantized: torch.Tensor) -> torch.Tensor:
+    """
+    Apply Straight-Through Estimator (STE) for gradient flow.
+
+    STE allows gradients to flow through quantization operations
+    by using quantized values in forward pass but bypassing
+    quantization in backward pass.
+
+    Args:
+        x: Original full-precision tensor
+        x_quantized: Quantized version of x
+
+    Returns:
+        Tensor that uses x_quantized in forward, x in backward
+
+    Formula:
+        y = x + (x_quantized - x).detach()
+
+    Paper Reference:
+        BitNet b1.58 - arXiv:2402.17764, Section 2.2
+        "Estimating Gradients of Ternary Weights"
+    """
+    return x + (x_quantized - x).detach()

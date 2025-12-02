@@ -11,7 +11,7 @@ import copy
 import random
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import torch
 import torch.nn as nn
@@ -32,7 +32,17 @@ class EvolutionConfig:
     fitness_weights: Dict[str, float] = field(
         default_factory=lambda: {"perplexity": 0.4, "accuracy": 0.3, "speed": 0.2, "memory": 0.1}
     )
-    target_fitness_gain: float = 0.20  # 20% improvement target
+    target_fitness_gain: float = 0.235  # 23.5% improvement target (paper)
+
+    # New: Real fitness evaluation options
+    use_real_fitness: bool = False  # Use GSM8K/MGSM benchmarks instead of proxies
+    benchmark_name: str = "gsm8k"  # gsm8k, mgsm
+    max_benchmark_samples: int = 100  # Limit samples for fast eval
+
+    # New: CMA-ES and hybrid PS+DFS options
+    use_cmaes: bool = False  # Use CMA-ES optimizer for coefficient optimization
+    use_hybrid_ps_dfs: bool = False  # Use hybrid PS+DFS merging (paper's best)
+    ps_candidates_multiplier: int = 3  # For hybrid: create M = N * multiplier candidates
 
     @classmethod
     def from_dict(cls, config_dict: Dict) -> "EvolutionConfig":
@@ -109,13 +119,19 @@ class Phase2Pipeline:
             pass
         return mergers
 
-    def run(self, input_models: List[nn.Module], session_id: Optional[str] = None) -> nn.Module:
+    def run(
+        self,
+        input_models: List[nn.Module],
+        session_id: Optional[str] = None,
+        tokenizer: Optional[Any] = None,
+    ) -> nn.Module:
         """
         Run Phase 2 evolution.
 
         Args:
             input_models: 3 models from Phase 1 (reasoning, memory, speed)
             session_id: Optional session identifier for tracking
+            tokenizer: Optional tokenizer for real fitness evaluation (required if use_real_fitness=True)
 
         Returns:
             Champion model after evolution
@@ -132,9 +148,28 @@ class Phase2Pipeline:
         print(f"Generations: {self.config.num_generations}")
         print(f"Population: {self.config.population_size}")
         print(f"Merge techniques: {list(self._mergers.keys())}")
+
+        # Check for hybrid PS+DFS mode
+        if self.config.use_hybrid_ps_dfs:
+            print(f"Mode: HYBRID PS+DFS (Paper's best approach)")
+            print(f"PS candidates: {len(input_models) * self.config.ps_candidates_multiplier}")
+        elif self.config.use_cmaes:
+            print(f"Mode: CMA-ES Parameter Space Optimization")
+        else:
+            print(f"Mode: Standard Evolutionary Search")
+
+        if self.config.use_real_fitness:
+            print(f"Fitness: Real benchmarks ({self.config.benchmark_name})")
+        else:
+            print(f"Fitness: Parameter-based proxy (fast)")
+
         print("=" * 60 + "\n")
 
         start_time = time.time()
+
+        # HYBRID PS+DFS MODE (Paper's best approach)
+        if self.config.use_hybrid_ps_dfs:
+            return self._run_hybrid_ps_dfs(input_models, tokenizer)
 
         # Step 1: Initialize population from input models
         self._init_population(input_models)
@@ -306,6 +341,88 @@ class Phase2Pipeline:
     def get_metrics(self) -> Dict:
         """Return collected metrics."""
         return self.metrics
+
+    def _run_hybrid_ps_dfs(self, input_models: List[nn.Module], tokenizer: Optional[Any]) -> nn.Module:
+        """
+        Run hybrid PS+DFS merging (paper's best approach).
+
+        Args:
+            input_models: Base models from Phase 1
+            tokenizer: Tokenizer for real fitness evaluation
+
+        Returns:
+            Champion model
+        """
+        from phase2_evomerge.merge.hybrid_ps_dfs import HybridConfig, hybrid_merge
+
+        # Create fitness function
+        if self.config.use_real_fitness:
+            if tokenizer is None:
+                raise ValueError("tokenizer is required for real fitness evaluation")
+
+            from phase2_evomerge.fitness.benchmarks import BenchmarkConfig, evaluate_benchmark
+
+            benchmark_config = BenchmarkConfig(
+                benchmark_name=self.config.benchmark_name,
+                max_samples=self.config.max_benchmark_samples,
+            )
+
+            def fitness_fn(model: nn.Module) -> float:
+                return evaluate_benchmark(model, tokenizer, self.config.benchmark_name, benchmark_config)
+
+        else:
+            # Use proxy fitness
+            fitness_fn = lambda model: self._quick_fitness(model)["composite"]
+
+        # Configure hybrid merge
+        hybrid_config = HybridConfig(
+            ps_candidates_multiplier=self.config.ps_candidates_multiplier,
+            ps_generations=self.config.num_generations,
+            dfs_optimization_iterations=100,
+        )
+
+        # Run hybrid merge
+        champion, metrics = hybrid_merge(
+            input_models, fitness_fn, config=hybrid_config, tokenizer=tokenizer, verbose=True
+        )
+
+        # Store metrics
+        self.metrics = {
+            "initial_fitness": metrics["baseline_fitness"],
+            "final_fitness": metrics["champion_fitness"],
+            "fitness_gain": metrics["fitness_improvement"],
+            "generations": self.config.num_generations,
+            "population_size": len(input_models) * self.config.ps_candidates_multiplier,
+            "duration_seconds": 0,  # Will be updated by caller
+            "merge_strategy": "hybrid_ps_dfs",
+            "ps_candidates": metrics["n_ps_candidates"],
+            "ps_best_fitness": metrics["ps_best_fitness"],
+        }
+
+        self.champion = champion
+        return champion
+
+    def _create_real_fitness_fn(self, tokenizer: Any) -> callable:
+        """
+        Create fitness function using real benchmarks.
+
+        Args:
+            tokenizer: Tokenizer for model
+
+        Returns:
+            Fitness function
+        """
+        from phase2_evomerge.fitness.benchmarks import BenchmarkConfig, evaluate_benchmark
+
+        benchmark_config = BenchmarkConfig(
+            benchmark_name=self.config.benchmark_name, max_samples=self.config.max_benchmark_samples
+        )
+
+        def fitness_fn(model: nn.Module) -> float:
+            """Evaluate model on real benchmark."""
+            return evaluate_benchmark(model, tokenizer, self.config.benchmark_name, benchmark_config)
+
+        return fitness_fn
 
 
 __all__ = ["Phase2Pipeline", "EvolutionConfig"]

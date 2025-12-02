@@ -1,6 +1,6 @@
 """
 Compressed Model Wrapper
-STE-enabled wrapper for quantized models with BitLinear support
+STE-enabled wrapper for quantized models
 """
 
 from typing import Dict, Optional
@@ -8,43 +8,25 @@ from typing import Dict, Optional
 import torch
 import torch.nn as nn
 
-from src.phase4_bitnet.bitlinear import BitLinear, replace_linear_with_bitlinear
 from src.phase4_bitnet.config import Phase4Config
 from src.phase4_bitnet.quantizer import BitNetQuantizer
 
 
 class CompressedModel(nn.Module):
     """
-    Wrapper for BitNet compressed models with two modes:
-
-    Mode 1 (BitLinear Replacement - Recommended):
-    - Replaces nn.Linear layers with BitLinear in-place
-    - Automatic quantization during forward pass
-    - True 1.58-bit inference with hardware acceleration
-    - Preserves model architecture and gradient flow
-
-    Mode 2 (Legacy Quantization):
-    - Quantizes entire model state dict
-    - Manual quantization/dequantization
-    - Compatible with existing Phase 4 pipeline
+    Wrapper for BitNet compressed models
 
     Features:
     - Transparent quantization/dequantization
     - Straight-Through Estimator (STE) for gradients
     - Compatible with standard PyTorch training
-    - Maintains full-precision shadow weights (Mode 2 only)
+    - Maintains full-precision shadow weights
 
     Forward Pass: Uses quantized weights
     Backward Pass: Gradients flow to full-precision weights (STE)
     """
 
-    def __init__(
-        self,
-        base_model: nn.Module,
-        quantizer: BitNetQuantizer,
-        config: Phase4Config,
-        use_bitlinear: bool = True,
-    ):
+    def __init__(self, base_model: nn.Module, quantizer: BitNetQuantizer, config: Phase4Config):
         """
         Initialize compressed model
 
@@ -52,48 +34,27 @@ class CompressedModel(nn.Module):
             base_model: Original model to compress
             quantizer: BitNet quantizer instance
             config: Phase 4 configuration
-            use_bitlinear: If True, use BitLinear replacement (recommended)
-                          If False, use legacy quantization
         """
         super().__init__()
 
         self.config = config
         self.quantizer = quantizer
-        self.use_bitlinear = use_bitlinear
+        self.base_model = base_model
 
-        if use_bitlinear:
-            # Mode 1: Replace nn.Linear with BitLinear
-            self.base_model = replace_linear_with_bitlinear(
-                base_model,
-                weight_sparsity_threshold=config.sparsity_threshold,
-                exclude_patterns=config.preserve_layers,
-            )
-            self.is_compressed = True
-        else:
-            # Mode 2: Legacy quantization
-            self.base_model = base_model
+        # Store quantized and scale factors
+        self.quantized_state = {}
+        self.scale_factors = {}
 
-            # Store quantized and scale factors
-            self.quantized_state = {}
-            self.scale_factors = {}
+        # Shadow weights (full precision for gradients)
+        self.shadow_weights = {}
 
-            # Shadow weights (full precision for gradients)
-            self.shadow_weights = {}
-
-            # Compression performed flag
-            self.is_compressed = False
+        # Compression performed flag
+        self.is_compressed = False
 
     def compress(self):
         """
-        Compress the model using BitNet quantization (Mode 2 only)
-
-        For Mode 1 (BitLinear), compression happens automatically in forward pass.
+        Compress the model using BitNet quantization
         """
-        if self.use_bitlinear:
-            # Already compressed via BitLinear replacement
-            return
-
-        # Mode 2: Legacy quantization
         # Quantize model
         quantized_dict, scales = self.quantizer.quantize_model(self.base_model)
 
@@ -111,18 +72,10 @@ class CompressedModel(nn.Module):
         """
         Forward pass with quantized weights
 
-        Mode 1 (BitLinear): Automatic quantization in BitLinear layers
-        Mode 2 (Legacy): Manual quantization with STE
-
         Uses Straight-Through Estimator:
         - Forward: Quantized weights
         - Backward: Gradients to full-precision weights
         """
-        if self.use_bitlinear:
-            # Mode 1: BitLinear handles quantization automatically
-            return self.base_model(*args, **kwargs)
-
-        # Mode 2: Legacy quantization
         if not self.is_compressed:
             # Not compressed, use base model directly
             return self.base_model(*args, **kwargs)
@@ -168,18 +121,6 @@ class CompressedModel(nn.Module):
         Returns:
             Dequantized state dictionary
         """
-        if self.use_bitlinear:
-            # Mode 1: Extract from BitLinear layers
-            state_dict = {}
-            for name, module in self.base_model.named_modules():
-                if isinstance(module, BitLinear):
-                    # Get full-precision weights (not quantized)
-                    state_dict[f"{name}.weight"] = module.weight.data.half()
-                    if module.bias is not None:
-                        state_dict[f"{name}.bias"] = module.bias.data.half()
-            return state_dict
-
-        # Mode 2: Legacy dequantization
         if not self.is_compressed:
             # Return original state dict in FP16
             state_dict = self.base_model.state_dict()
@@ -195,19 +136,6 @@ class CompressedModel(nn.Module):
         Returns:
             Quantized state dictionary
         """
-        if self.use_bitlinear:
-            # Mode 1: Extract quantized state from BitLinear
-            quantized_dict = {}
-            for name, module in self.base_model.named_modules():
-                if isinstance(module, BitLinear):
-                    quant_state = module.get_quantized_state()
-                    quantized_dict[f"{name}.quantized_weight"] = quant_state["quantized_weight"]
-                    quantized_dict[f"{name}.scale_factor"] = quant_state["scale_factor"]
-                    if quant_state["bias"] is not None:
-                        quantized_dict[f"{name}.bias"] = quant_state["bias"]
-            return quantized_dict
-
-        # Mode 2: Legacy quantization
         if not self.is_compressed:
             raise RuntimeError("Model not compressed yet")
 
@@ -220,16 +148,6 @@ class CompressedModel(nn.Module):
         Returns:
             Scale factor dictionary
         """
-        if self.use_bitlinear:
-            # Mode 1: Extract from BitLinear
-            scales = {}
-            for name, module in self.base_model.named_modules():
-                if isinstance(module, BitLinear):
-                    quant_state = module.get_quantized_state()
-                    scales[f"{name}.weight"] = quant_state["scale_factor"]
-            return scales
-
-        # Mode 2: Legacy
         if not self.is_compressed:
             raise RuntimeError("Model not compressed yet")
 
@@ -246,32 +164,8 @@ class CompressedModel(nn.Module):
             return {
                 "is_compressed": False,
                 "compression_ratio": 1.0,
-                "mode": "uncompressed",
             }
 
-        if self.use_bitlinear:
-            # Mode 1: Calculate from BitLinear layers
-            total_original = 0
-            total_quantized = 0
-            num_bitlinear = 0
-
-            for module in self.base_model.modules():
-                if isinstance(module, BitLinear):
-                    footprint = module.get_memory_footprint()
-                    total_original += footprint["original_fp32"]
-                    total_quantized += footprint["quantized_1.58bit"]
-                    num_bitlinear += 1
-
-            return {
-                "is_compressed": True,
-                "mode": "bitlinear",
-                "num_bitlinear_layers": num_bitlinear,
-                "original_size_mb": total_original / (1024**2),
-                "quantized_size_mb": total_quantized / (1024**2),
-                "compression_ratio": total_original / total_quantized if total_quantized > 0 else 1.0,
-            }
-
-        # Mode 2: Legacy stats
         # Calculate sizes
         original_size_mb = self._calculate_state_dict_size(self.base_model.state_dict())
 
@@ -283,7 +177,6 @@ class CompressedModel(nn.Module):
 
         return {
             "is_compressed": True,
-            "mode": "legacy",
             "original_size_mb": original_size_mb,
             "quantized_size_mb": quantized_size_mb,
             "compression_ratio": compression_ratio,
