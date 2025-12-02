@@ -87,3 +87,9 @@ Thumbs.db
 # Claude Code
 .claude/
 CLAUDE.md
+
+# Generated/temporary files
+coverage.xml
+mypy_results.txt
+debug_*.py
+verify_*.py
