@@ -93,3 +93,6 @@ coverage.xml
 mypy_results.txt
 debug_*.py
 verify_*.py
+nul
+.benchmarks/
+.mypy_cache/
