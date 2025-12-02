@@ -24,7 +24,7 @@ Research:
 
 import copy
 import logging
-from typing import List
+from typing import List, Optional
 
 import torch
 import torch.nn as nn

@@ -8,7 +8,7 @@ pytest-timeout>=2.2.0
 pytest-mock>=3.12.0
 
 # Code Quality
-black>=23.12.0  # Auto-formatter
+black==23.12.1  # Auto-formatter - pinned
 isort>=5.13.0  # Import sorter
 flake8>=7.0.0  # Linter
 pylint>=3.0.0  # Advanced linter
