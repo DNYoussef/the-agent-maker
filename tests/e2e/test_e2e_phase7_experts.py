@@ -1,9 +1,10 @@
 """E2E tests for Phase 7: Self-Guided Experts (MoE + ADAS)"""
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-import torch
 import sys
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+import torch
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
@@ -13,7 +14,7 @@ class TestPhase7ExpertsE2E:
 
     def test_experts_engine_initialization(self, mock_model, mock_tokenizer):
         """Test experts engine can be initialized."""
-        from phase7_experts.experts_engine import ExpertsEngine, ExpertsConfig
+        from phase7_experts.experts_engine import ExpertsConfig, ExpertsEngine
 
         config = ExpertsConfig()
         engine = ExpertsEngine(config=config)
@@ -22,12 +23,9 @@ class TestPhase7ExpertsE2E:
 
     def test_expert_discovery_initialization(self, mock_model, mock_tokenizer):
         """Test expert discovery component initialization."""
-        from phase7_experts.expert_discovery import ExpertDiscovery, DiscoveryConfig
+        from phase7_experts.expert_discovery import DiscoveryConfig, ExpertDiscovery
 
-        config = DiscoveryConfig(
-            min_experts=3,
-            max_experts=10
-        )
+        config = DiscoveryConfig(min_experts=3, max_experts=10)
 
         discovery = ExpertDiscovery(config=config)
 
@@ -37,7 +35,7 @@ class TestPhase7ExpertsE2E:
 
     def test_expert_count_discovery(self, mock_model, mock_tokenizer):
         """Test model determines its own expert count (N=3-10)."""
-        from phase7_experts.expert_discovery import ExpertDiscovery, DiscoveryConfig
+        from phase7_experts.expert_discovery import DiscoveryConfig, ExpertDiscovery
 
         config = DiscoveryConfig()
         discovery = ExpertDiscovery(config=config)
@@ -56,7 +54,7 @@ class TestPhase7ExpertsE2E:
 
     def test_expert_capability_identification(self, mock_model, mock_tokenizer):
         """Test model identifies expert specializations."""
-        from phase7_experts.expert_discovery import ExpertDiscovery, DiscoveryConfig
+        from phase7_experts.expert_discovery import DiscoveryConfig, ExpertDiscovery
 
         config = DiscoveryConfig()
         discovery = ExpertDiscovery(config=config)
@@ -67,19 +65,15 @@ class TestPhase7ExpertsE2E:
         assert len(expert_profiles) > 0
         # Each profile should have capabilities
         for profile in expert_profiles:
-            assert hasattr(profile, 'capabilities')
+            assert hasattr(profile, "capabilities")
             assert isinstance(profile.capabilities, list)
             assert len(profile.capabilities) > 0
 
     def test_svf_trainer_initialization(self, mock_model, mock_tokenizer):
         """Test Transformer^2 SVF trainer initialization."""
-        from phase7_experts.svf_trainer import SVFTrainer, SVFConfig
+        from phase7_experts.svf_trainer import SVFConfig, SVFTrainer
 
-        config = SVFConfig(
-            num_singular_values=32,
-            num_epochs=5,
-            learning_rate=1e-4
-        )
+        config = SVFConfig(num_singular_values=32, num_epochs=5, learning_rate=1e-4)
 
         trainer = SVFTrainer(config=config)
 
@@ -88,8 +82,8 @@ class TestPhase7ExpertsE2E:
 
     def test_svf_training_step(self, mock_model, mock_tokenizer):
         """Test SVF training executes one step with REINFORCE."""
-        from phase7_experts.svf_trainer import SVFTrainer, SVFConfig
         from phase7_experts.expert_discovery import ExpertProfile
+        from phase7_experts.svf_trainer import SVFConfig, SVFTrainer
 
         config = SVFConfig(num_singular_values=32)
         trainer = SVFTrainer(config=config)
@@ -100,7 +94,7 @@ class TestPhase7ExpertsE2E:
             name="test_expert",
             capabilities=["reasoning"],
             strength_score=0.8,
-            activation_pattern=[0.5, 0.6, 0.7]
+            activation_pattern=[0.5, 0.6, 0.7],
         )
 
         # Train expert (simplified test)
@@ -108,7 +102,7 @@ class TestPhase7ExpertsE2E:
             model=mock_model,
             expert_id=0,
             expert_capabilities=["reasoning"],
-            tokenizer=mock_tokenizer
+            tokenizer=mock_tokenizer,
         )
 
         assert trained_model is not None
@@ -116,12 +110,9 @@ class TestPhase7ExpertsE2E:
 
     def test_svf_muongrokfast_fallback(self, mock_model, mock_tokenizer):
         """Test SVF falls back to MuonGrokfast if REINFORCE unstable."""
-        from phase7_experts.svf_trainer import SVFTrainer, SVFConfig
+        from phase7_experts.svf_trainer import SVFConfig, SVFTrainer
 
-        config = SVFConfig(
-            num_singular_values=32,
-            num_epochs=5
-        )
+        config = SVFConfig(num_singular_values=32, num_epochs=5)
 
         trainer = SVFTrainer(config=config)
 
@@ -132,13 +123,10 @@ class TestPhase7ExpertsE2E:
 
     def test_adas_optimizer_initialization(self):
         """Test ADAS (NSGA-II) optimizer initialization."""
-        from phase7_experts.adas_optimizer import ADASOptimizer, ADASConfig
+        from phase7_experts.adas_optimizer import ADASConfig, ADASOptimizer
 
         config = ADASConfig(
-            population_size=50,
-            num_generations=100,
-            mutation_rate=0.1,
-            crossover_rate=0.7
+            population_size=50, num_generations=100, mutation_rate=0.1, crossover_rate=0.7
         )
 
         optimizer = ADASOptimizer(config=config)
@@ -149,7 +137,7 @@ class TestPhase7ExpertsE2E:
 
     def test_adas_population_initialization(self):
         """Test ADAS initializes population of architectures."""
-        from phase7_experts.adas_optimizer import ADASOptimizer, ADASConfig
+        from phase7_experts.adas_optimizer import ADASConfig, ADASOptimizer
 
         config = ADASConfig(population_size=10)
         optimizer = ADASOptimizer(config=config)
@@ -159,11 +147,11 @@ class TestPhase7ExpertsE2E:
 
         assert len(optimizer.population) == 10
         # Each individual has routing weights
-        assert all(hasattr(ind, 'routing_weights') for ind in optimizer.population)
+        assert all(hasattr(ind, "routing_weights") for ind in optimizer.population)
 
     def test_adas_nsga2_selection(self):
         """Test NSGA-II multi-objective selection."""
-        from phase7_experts.adas_optimizer import ADASOptimizer, ADASConfig, Individual
+        from phase7_experts.adas_optimizer import ADASConfig, ADASOptimizer, Individual
 
         config = ADASConfig(population_size=3)
         optimizer = ADASOptimizer(config=config)
@@ -173,17 +161,17 @@ class TestPhase7ExpertsE2E:
             Individual(
                 routing_weights=[0.3, 0.3, 0.4],
                 expert_configs={},
-                fitness_scores={'accuracy': 0.85, 'latency': 0.6, 'diversity': 0.7}
+                fitness_scores={"accuracy": 0.85, "latency": 0.6, "diversity": 0.7},
             ),
             Individual(
                 routing_weights=[0.5, 0.3, 0.2],
                 expert_configs={},
-                fitness_scores={'accuracy': 0.82, 'latency': 0.8, 'diversity': 0.6}
+                fitness_scores={"accuracy": 0.82, "latency": 0.8, "diversity": 0.6},
             ),
             Individual(
                 routing_weights=[0.4, 0.4, 0.2],
                 expert_configs={},
-                fitness_scores={'accuracy': 0.88, 'latency': 0.5, 'diversity': 0.8}
+                fitness_scores={"accuracy": 0.88, "latency": 0.5, "diversity": 0.8},
             ),
         ]
 
@@ -195,16 +183,14 @@ class TestPhase7ExpertsE2E:
 
     def test_adas_architecture_mutation(self):
         """Test architecture mutation operation."""
-        from phase7_experts.adas_optimizer import ADASOptimizer, ADASConfig, Individual
+        from phase7_experts.adas_optimizer import ADASConfig, ADASOptimizer, Individual
 
         config = ADASConfig(mutation_rate=0.1)
         optimizer = ADASOptimizer(config=config)
 
         # Create individual
         individual = Individual(
-            routing_weights=[0.3, 0.3, 0.4],
-            expert_configs={},
-            fitness_scores={}
+            routing_weights=[0.3, 0.3, 0.4], expert_configs={}, fitness_scores={}
         )
 
         # Mutate individual (modifies in-place)
@@ -216,7 +202,7 @@ class TestPhase7ExpertsE2E:
 
     def test_adas_architecture_crossover(self):
         """Test architecture crossover operation."""
-        from phase7_experts.adas_optimizer import ADASOptimizer, ADASConfig, Individual
+        from phase7_experts.adas_optimizer import ADASConfig, ADASOptimizer, Individual
 
         config = ADASConfig(crossover_rate=0.8)
         optimizer = ADASOptimizer(config=config)
@@ -224,13 +210,13 @@ class TestPhase7ExpertsE2E:
         # Mock parent individuals
         parent1 = Individual(
             routing_weights=[0.3, 0.3, 0.4],
-            expert_configs={'expert_0': {'threshold': 0.5}},
-            fitness_scores={}
+            expert_configs={"expert_0": {"threshold": 0.5}},
+            fitness_scores={},
         )
         parent2 = Individual(
             routing_weights=[0.5, 0.2, 0.3],
-            expert_configs={'expert_0': {'threshold': 0.7}},
-            fitness_scores={}
+            expert_configs={"expert_0": {"threshold": 0.7}},
+            fitness_scores={},
         )
 
         # Crossover
@@ -244,39 +230,30 @@ class TestPhase7ExpertsE2E:
 
     def test_adas_model_guided_fitness(self, mock_model, mock_tokenizer):
         """Test model-guided fitness evaluation (self-guided)."""
-        from phase7_experts.adas_optimizer import ADASOptimizer, ADASConfig, Individual
+        from phase7_experts.adas_optimizer import ADASConfig, ADASOptimizer, Individual
 
         config = ADASConfig()
         optimizer = ADASOptimizer(config=config)
 
         # Mock individual
         individual = Individual(
-            routing_weights=[0.3, 0.3, 0.4],
-            expert_configs={},
-            fitness_scores={}
+            routing_weights=[0.3, 0.3, 0.4], expert_configs={}, fitness_scores={}
         )
 
         # Evaluate individual
         fitness = optimizer._evaluate_individual(
-            individual,
-            model=mock_model,
-            experts=[],
-            tokenizer=mock_tokenizer,
-            evaluator=None
+            individual, model=mock_model, experts=[], tokenizer=mock_tokenizer, evaluator=None
         )
 
-        assert 'accuracy' in fitness
-        assert 'latency' in fitness
-        assert 'diversity' in fitness
+        assert "accuracy" in fitness
+        assert "latency" in fitness
+        assert "diversity" in fitness
 
     def test_adas_generation_evolution(self):
         """Test one generation of ADAS evolution."""
-        from phase7_experts.adas_optimizer import ADASOptimizer, ADASConfig
+        from phase7_experts.adas_optimizer import ADASConfig, ADASOptimizer
 
-        config = ADASConfig(
-            population_size=10,
-            num_generations=1
-        )
+        config = ADASConfig(population_size=10, num_generations=1)
         optimizer = ADASOptimizer(config=config)
 
         # Initialize population
@@ -284,17 +261,16 @@ class TestPhase7ExpertsE2E:
 
         # Verify initialization
         assert len(optimizer.population) == 10
-        assert all(hasattr(ind, 'routing_weights') for ind in optimizer.population)
+        assert all(hasattr(ind, "routing_weights") for ind in optimizer.population)
         assert all(len(ind.routing_weights) == 3 for ind in optimizer.population)
 
     def test_full_adas_search(self, mock_model, mock_tokenizer):
         """Test complete ADAS search (100 gen x 50 pop)."""
-        from phase7_experts.adas_optimizer import ADASOptimizer, ADASConfig
+        from phase7_experts.adas_optimizer import ADASConfig, ADASOptimizer
         from phase7_experts.expert_discovery import ExpertProfile
 
         config = ADASConfig(
-            population_size=5,  # Small for test
-            num_generations=2   # Small for test
+            population_size=5, num_generations=2  # Small for test  # Small for test
         )
         optimizer = ADASOptimizer(config=config)
 
@@ -305,16 +281,14 @@ class TestPhase7ExpertsE2E:
                 name=f"expert_{i}",
                 capabilities=["reasoning"],
                 strength_score=0.8,
-                activation_pattern=[0.5, 0.6]
+                activation_pattern=[0.5, 0.6],
             )
             for i in range(3)
         ]
 
         # Run optimization
         optimized_model, result = optimizer.optimize(
-            model=mock_model,
-            experts=experts,
-            tokenizer=mock_tokenizer
+            model=mock_model, experts=experts, tokenizer=mock_tokenizer
         )
 
         assert result.success is True
@@ -323,7 +297,7 @@ class TestPhase7ExpertsE2E:
 
     def test_routing_configuration_post_adas(self, mock_model, mock_tokenizer):
         """Test expert routing configuration after ADAS."""
-        from phase7_experts.adas_optimizer import ADASOptimizer, ADASConfig, Individual
+        from phase7_experts.adas_optimizer import ADASConfig, ADASOptimizer, Individual
         from phase7_experts.expert_discovery import ExpertProfile
 
         # Create optimizer and mock experts
@@ -334,7 +308,7 @@ class TestPhase7ExpertsE2E:
                 name=f"expert_{i}",
                 capabilities=["reasoning"],
                 strength_score=0.8,
-                activation_pattern=[0.5]
+                activation_pattern=[0.5],
             )
             for i in range(3)
         ]
@@ -342,21 +316,21 @@ class TestPhase7ExpertsE2E:
         # Create a best individual
         best = Individual(
             routing_weights=[0.3, 0.3, 0.4],
-            expert_configs={'expert_0': {'threshold': 0.5}},
-            fitness_scores={'accuracy': 0.85, 'latency': 0.6, 'diversity': 0.7}
+            expert_configs={"expert_0": {"threshold": 0.5}},
+            fitness_scores={"accuracy": 0.85, "latency": 0.6, "diversity": 0.7},
         )
 
         # Apply routing to model
         optimized_model = optimizer._apply_routing(mock_model, experts, best)
 
         # Verify routing config was added
-        assert hasattr(optimized_model, '_expert_routing')
-        assert 'weights' in optimized_model._expert_routing
-        assert 'num_experts' in optimized_model._expert_routing
+        assert hasattr(optimized_model, "_expert_routing")
+        assert "weights" in optimized_model._expert_routing
+        assert "num_experts" in optimized_model._expert_routing
 
     def test_expert_integration_with_model(self, mock_model, mock_tokenizer):
         """Test experts integrate into base model."""
-        from phase7_experts.experts_engine import ExpertsEngine, ExpertsConfig
+        from phase7_experts.experts_engine import ExpertsConfig, ExpertsEngine
 
         config = ExpertsConfig()
         engine = ExpertsEngine(config=config)
@@ -367,18 +341,18 @@ class TestPhase7ExpertsE2E:
         # Verify model was returned
         assert result.model is not None
         # Model should have expert routing if successful
-        if result.success and hasattr(result.model, '_expert_routing'):
-            assert 'weights' in result.model._expert_routing
+        if result.success and hasattr(result.model, "_expert_routing"):
+            assert "weights" in result.model._expert_routing
 
     def test_phase7_full_pipeline(self, mock_model, mock_tokenizer):
         """Test complete Phase 7 pipeline (discovery -> SVF -> ADAS -> routing)."""
-        from phase7_experts.experts_engine import ExpertsEngine, ExpertsConfig
+        from phase7_experts.experts_engine import ExpertsConfig, ExpertsEngine
 
         config = ExpertsConfig(
             min_experts=3,
             max_experts=5,
             svf_epochs=2,  # Small for test
-            adas_generations=2  # Small for test
+            adas_generations=2,  # Small for test
         )
         engine = ExpertsEngine(config=config)
 
@@ -387,14 +361,14 @@ class TestPhase7ExpertsE2E:
 
         # Verify result structure
         assert result is not None
-        assert hasattr(result, 'success')
-        assert hasattr(result, 'model')
-        assert hasattr(result, 'num_experts')
-        assert hasattr(result, 'expert_profiles')
-        assert hasattr(result, 'routing_config')
-        assert hasattr(result, 'metrics')
+        assert hasattr(result, "success")
+        assert hasattr(result, "model")
+        assert hasattr(result, "num_experts")
+        assert hasattr(result, "expert_profiles")
+        assert hasattr(result, "routing_config")
+        assert hasattr(result, "metrics")
 
         # Verify metrics
-        assert 'discovery_time' in result.metrics
-        assert 'svf_time' in result.metrics
-        assert 'adas_time' in result.metrics
+        assert "discovery_time" in result.metrics
+        assert "svf_time" in result.metrics
+        assert "adas_time" in result.metrics

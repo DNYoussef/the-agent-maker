@@ -10,13 +10,14 @@ Tests:
 Target: >=90% coverage for EMAModel class
 """
 
+import sys
+from copy import deepcopy
+from pathlib import Path
+
 import pytest
 import torch
 import torch.nn as nn
-from copy import deepcopy
 
-import sys
-from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from phase1_cognate.training.trainer import EMAModel
@@ -83,8 +84,8 @@ class TestEMAInitialization:
 
         ema = EMAModel(model, decay=0.999)
 
-        assert 'linear1.weight' not in ema.shadow
-        assert 'linear2.weight' in ema.shadow
+        assert "linear1.weight" not in ema.shadow
+        assert "linear2.weight" in ema.shadow
 
     def test_custom_decay(self):
         """Test custom decay values."""
@@ -352,6 +353,7 @@ class TestEdgeCases:
 
     def test_empty_model(self):
         """Test with model that has no trainable params."""
+
         class NoParamModel(nn.Module):
             def forward(self, x):
                 return x
@@ -382,10 +384,10 @@ class TestEdgeCases:
         ema = EMAModel(model, decay=0.999)
 
         # Only linear2 should be tracked
-        assert 'linear1.weight' not in ema.shadow
-        assert 'linear1.bias' not in ema.shadow
-        assert 'linear2.weight' in ema.shadow
-        assert 'linear2.bias' in ema.shadow
+        assert "linear1.weight" not in ema.shadow
+        assert "linear1.bias" not in ema.shadow
+        assert "linear2.weight" in ema.shadow
+        assert "linear2.bias" in ema.shadow
 
     def test_device_consistency(self):
         """Test EMA maintains device consistency."""

@@ -8,7 +8,7 @@ This module re-exports from the canonical location for backwards compatibility.
 # DEPRECATED: Import from canonical location
 from cross_phase.utils import MockTokenizer, get_tokenizer
 
-__all__ = ['MockTokenizer', 'get_tokenizer', 'get_tokenizer_for_model']
+__all__ = ["MockTokenizer", "get_tokenizer", "get_tokenizer_for_model"]
 
 
 def get_tokenizer_for_model(model_name: str = "gpt2"):

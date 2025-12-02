@@ -13,63 +13,66 @@ Reference: https://github.com/princeton-nlp/SWE-bench
 Paper: "SWE-bench: Can Language Models Resolve Real-World GitHub Issues?"
 """
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any, Callable, Tuple
-from pathlib import Path
-from enum import Enum
-import json
 import ast
+import json
 import re
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
 class EvaluationMode(Enum):
     """Evaluation strictness levels."""
-    EXACT = "exact"           # Exact patch match
-    SEMANTIC = "semantic"     # Semantically equivalent
-    PARTIAL = "partial"       # Partial line overlap
-    SYNTAX = "syntax"         # Just check syntax validity
+
+    EXACT = "exact"  # Exact patch match
+    SEMANTIC = "semantic"  # Semantically equivalent
+    PARTIAL = "partial"  # Partial line overlap
+    SYNTAX = "syntax"  # Just check syntax validity
 
 
 @dataclass
 class SWEBenchTask:
     """Single SWE-Bench evaluation task."""
+
     instance_id: str
     repo: str
     base_commit: str
     problem_statement: str
     hints_text: str = ""
-    patch: str = ""              # Ground truth patch
-    test_patch: str = ""         # Tests for the patch
+    patch: str = ""  # Ground truth patch
+    test_patch: str = ""  # Tests for the patch
     fail_to_pass: List[str] = field(default_factory=list)  # Tests that should pass after fix
     pass_to_pass: List[str] = field(default_factory=list)  # Tests that should still pass
     environment_setup_commit: str = ""
     version: str = ""
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'SWEBenchTask':
+    def from_dict(cls, data: Dict[str, Any]) -> "SWEBenchTask":
         """Create task from dictionary."""
         return cls(
-            instance_id=data.get('instance_id', ''),
-            repo=data.get('repo', ''),
-            base_commit=data.get('base_commit', ''),
-            problem_statement=data.get('problem_statement', ''),
-            hints_text=data.get('hints_text', ''),
-            patch=data.get('patch', ''),
-            test_patch=data.get('test_patch', ''),
-            fail_to_pass=data.get('fail_to_pass', []),
-            pass_to_pass=data.get('pass_to_pass', []),
-            environment_setup_commit=data.get('environment_setup_commit', ''),
-            version=data.get('version', '')
+            instance_id=data.get("instance_id", ""),
+            repo=data.get("repo", ""),
+            base_commit=data.get("base_commit", ""),
+            problem_statement=data.get("problem_statement", ""),
+            hints_text=data.get("hints_text", ""),
+            patch=data.get("patch", ""),
+            test_patch=data.get("test_patch", ""),
+            fail_to_pass=data.get("fail_to_pass", []),
+            pass_to_pass=data.get("pass_to_pass", []),
+            environment_setup_commit=data.get("environment_setup_commit", ""),
+            version=data.get("version", ""),
         )
 
 
 @dataclass
 class EvaluationResult:
     """Result of evaluating a single task."""
+
     instance_id: str
-    exact_match: float       # 1.0 if prediction matches patch exactly
-    partial_match: float     # Fraction of lines matching (Jaccard similarity)
-    syntax_valid: float      # 1.0 if syntactically valid Python
+    exact_match: float  # 1.0 if prediction matches patch exactly
+    partial_match: float  # Fraction of lines matching (Jaccard similarity)
+    syntax_valid: float  # 1.0 if syntactically valid Python
     semantic_similar: float  # Cosine similarity of code embeddings (if available)
     prediction: str = ""
     ground_truth: str = ""
@@ -80,10 +83,10 @@ class EvaluationResult:
     def composite_score(self) -> float:
         """Weighted composite score."""
         return (
-            0.4 * self.exact_match +
-            0.3 * self.partial_match +
-            0.2 * self.syntax_valid +
-            0.1 * self.semantic_similar
+            0.4 * self.exact_match
+            + 0.3 * self.partial_match
+            + 0.2 * self.syntax_valid
+            + 0.1 * self.semantic_similar
         )
 
 
@@ -108,10 +111,7 @@ class SWEBenchEvaluator:
     """
 
     def __init__(
-        self,
-        data_path: Optional[str] = None,
-        subset: str = "lite",
-        cache_dir: Optional[str] = None
+        self, data_path: Optional[str] = None, subset: str = "lite", cache_dir: Optional[str] = None
     ):
         """
         Initialize SWE-Bench evaluator.
@@ -132,7 +132,7 @@ class SWEBenchEvaluator:
         self,
         max_tasks: Optional[int] = None,
         repos: Optional[List[str]] = None,
-        min_difficulty: Optional[int] = None
+        min_difficulty: Optional[int] = None,
     ) -> List[SWEBenchTask]:
         """
         Load SWE-Bench tasks from JSON file.
@@ -154,13 +154,10 @@ class SWEBenchEvaluator:
             return self._create_synthetic_tasks(max_tasks or 10)
 
     def _load_from_file(
-        self,
-        max_tasks: Optional[int],
-        repos: Optional[List[str]],
-        min_difficulty: Optional[int]
+        self, max_tasks: Optional[int], repos: Optional[List[str]], min_difficulty: Optional[int]
     ) -> List[SWEBenchTask]:
         """Load tasks from JSON file."""
-        with open(self.data_path, 'r', encoding='utf-8') as f:
+        with open(self.data_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         # Handle both list and dict formats
@@ -171,13 +168,12 @@ class SWEBenchEvaluator:
 
         # Filter by repos
         if repos:
-            items = [item for item in items if item.get('repo') in repos]
+            items = [item for item in items if item.get("repo") in repos]
 
         # Filter by difficulty (patch size as proxy)
         if min_difficulty:
             items = [
-                item for item in items
-                if len(item.get('patch', '').split('\n')) >= min_difficulty
+                item for item in items if len(item.get("patch", "").split("\n")) >= min_difficulty
             ]
 
         # Limit count
@@ -240,7 +236,7 @@ class SWEBenchEvaluator:
                 repo=base.repo,
                 base_commit=f"commit{len(synthetic_tasks)}",
                 problem_statement=base.problem_statement,
-                patch=base.patch
+                patch=base.patch,
             )
             synthetic_tasks.append(new_task)
 
@@ -249,10 +245,7 @@ class SWEBenchEvaluator:
         return self.tasks
 
     def evaluate_single(
-        self,
-        task: SWEBenchTask,
-        prediction: str,
-        mode: EvaluationMode = EvaluationMode.PARTIAL
+        self, task: SWEBenchTask, prediction: str, mode: EvaluationMode = EvaluationMode.PARTIAL
     ) -> EvaluationResult:
         """
         Evaluate a single prediction against ground truth.
@@ -266,6 +259,7 @@ class SWEBenchEvaluator:
             EvaluationResult with scores
         """
         import time
+
         start_time = time.time()
 
         try:
@@ -277,7 +271,7 @@ class SWEBenchEvaluator:
                 semantic_similar=self._semantic_similarity(prediction, task.patch),
                 prediction=prediction,
                 ground_truth=task.patch,
-                evaluation_time_ms=(time.time() - start_time) * 1000
+                evaluation_time_ms=(time.time() - start_time) * 1000,
             )
         except Exception as e:
             result = EvaluationResult(
@@ -287,7 +281,7 @@ class SWEBenchEvaluator:
                 syntax_valid=0.0,
                 semantic_similar=0.0,
                 error=str(e),
-                evaluation_time_ms=(time.time() - start_time) * 1000
+                evaluation_time_ms=(time.time() - start_time) * 1000,
             )
 
         self.results.append(result)
@@ -295,22 +289,25 @@ class SWEBenchEvaluator:
 
     def _exact_match(self, pred: str, target: str) -> float:
         """Check for exact match after normalizing whitespace."""
+
         def normalize(s: str) -> str:
             # Remove leading/trailing whitespace, normalize line endings
-            lines = [line.strip() for line in s.strip().split('\n')]
-            return '\n'.join(line for line in lines if line)
+            lines = [line.strip() for line in s.strip().split("\n")]
+            return "\n".join(line for line in lines if line)
 
         return 1.0 if normalize(pred) == normalize(target) else 0.0
 
     def _line_overlap(self, pred: str, target: str) -> float:
         """Compute Jaccard similarity of line sets."""
         pred_lines = set(
-            line.strip() for line in pred.split('\n')
-            if line.strip() and not line.strip().startswith('#')
+            line.strip()
+            for line in pred.split("\n")
+            if line.strip() and not line.strip().startswith("#")
         )
         target_lines = set(
-            line.strip() for line in target.split('\n')
-            if line.strip() and not line.strip().startswith('#')
+            line.strip()
+            for line in target.split("\n")
+            if line.strip() and not line.strip().startswith("#")
         )
 
         if not target_lines:
@@ -329,17 +326,17 @@ class SWEBenchEvaluator:
             return 1.0
         except SyntaxError:
             # Maybe it's a diff/patch format
-            if code.startswith('+') or code.startswith('-') or code.startswith('@@'):
+            if code.startswith("+") or code.startswith("-") or code.startswith("@@"):
                 # Extract actual code lines from diff
                 code_lines = []
-                for line in code.split('\n'):
-                    if line.startswith('+') and not line.startswith('+++'):
+                for line in code.split("\n"):
+                    if line.startswith("+") and not line.startswith("+++"):
                         code_lines.append(line[1:])
-                    elif not line.startswith('-') and not line.startswith('@@'):
+                    elif not line.startswith("-") and not line.startswith("@@"):
                         code_lines.append(line)
 
                 try:
-                    ast.parse('\n'.join(code_lines))
+                    ast.parse("\n".join(code_lines))
                     return 0.8  # Partial credit for valid diff
                 except SyntaxError:
                     return 0.0
@@ -352,12 +349,13 @@ class SWEBenchEvaluator:
         Uses simple token overlap as a proxy. For production, consider
         using code embeddings (CodeBERT, GraphCodeBERT, etc.).
         """
+
         # Tokenize by splitting on whitespace and punctuation
         def tokenize(code: str) -> set:
             # Remove comments
-            code = re.sub(r'#.*$', '', code, flags=re.MULTILINE)
+            code = re.sub(r"#.*$", "", code, flags=re.MULTILINE)
             # Split on non-alphanumeric
-            tokens = re.findall(r'\w+', code.lower())
+            tokens = re.findall(r"\w+", code.lower())
             return set(tokens)
 
         pred_tokens = tokenize(pred)
@@ -381,34 +379,31 @@ class SWEBenchEvaluator:
         """
         if not self.results:
             return {
-                'exact_match': 0.0,
-                'partial_match': 0.0,
-                'syntax_valid': 0.0,
-                'semantic_similar': 0.0,
-                'composite_score': 0.0,
-                'count': 0,
-                'error_count': 0
+                "exact_match": 0.0,
+                "partial_match": 0.0,
+                "syntax_valid": 0.0,
+                "semantic_similar": 0.0,
+                "composite_score": 0.0,
+                "count": 0,
+                "error_count": 0,
             }
 
         n = len(self.results)
         error_count = sum(1 for r in self.results if r.error is not None)
 
         return {
-            'exact_match': sum(r.exact_match for r in self.results) / n,
-            'partial_match': sum(r.partial_match for r in self.results) / n,
-            'syntax_valid': sum(r.syntax_valid for r in self.results) / n,
-            'semantic_similar': sum(r.semantic_similar for r in self.results) / n,
-            'composite_score': sum(r.composite_score for r in self.results) / n,
-            'count': n,
-            'error_count': error_count,
-            'avg_eval_time_ms': sum(r.evaluation_time_ms for r in self.results) / n
+            "exact_match": sum(r.exact_match for r in self.results) / n,
+            "partial_match": sum(r.partial_match for r in self.results) / n,
+            "syntax_valid": sum(r.syntax_valid for r in self.results) / n,
+            "semantic_similar": sum(r.semantic_similar for r in self.results) / n,
+            "composite_score": sum(r.composite_score for r in self.results) / n,
+            "count": n,
+            "error_count": error_count,
+            "avg_eval_time_ms": sum(r.evaluation_time_ms for r in self.results) / n,
         }
 
     def run_evaluation(
-        self,
-        generate_fn: Callable[[str], str],
-        max_tasks: int = 50,
-        verbose: bool = True
+        self, generate_fn: Callable[[str], str], max_tasks: int = 50, verbose: bool = True
     ) -> Dict[str, float]:
         """
         Run full evaluation using a generation function.
@@ -438,14 +433,16 @@ class SWEBenchEvaluator:
             except Exception as e:
                 if verbose:
                     print(f"  Error: {e}")
-                self.results.append(EvaluationResult(
-                    instance_id=task.instance_id,
-                    exact_match=0.0,
-                    partial_match=0.0,
-                    syntax_valid=0.0,
-                    semantic_similar=0.0,
-                    error=str(e)
-                ))
+                self.results.append(
+                    EvaluationResult(
+                        instance_id=task.instance_id,
+                        exact_match=0.0,
+                        partial_match=0.0,
+                        syntax_valid=0.0,
+                        semantic_similar=0.0,
+                        error=str(e),
+                    )
+                )
 
         metrics = self.aggregate_results()
 
@@ -461,7 +458,9 @@ class SWEBenchEvaluator:
 
         return metrics
 
-    def get_failed_tasks(self, threshold: float = 0.5) -> List[Tuple[SWEBenchTask, EvaluationResult]]:
+    def get_failed_tasks(
+        self, threshold: float = 0.5
+    ) -> List[Tuple[SWEBenchTask, EvaluationResult]]:
         """Get tasks where the model scored below threshold."""
         failed = []
         for task, result in zip(self.tasks, self.results):
@@ -475,8 +474,8 @@ class SWEBenchEvaluator:
 
 
 __all__ = [
-    'SWEBenchEvaluator',
-    'SWEBenchTask',
-    'EvaluationResult',
-    'EvaluationMode',
+    "SWEBenchEvaluator",
+    "SWEBenchTask",
+    "EvaluationResult",
+    "EvaluationMode",
 ]

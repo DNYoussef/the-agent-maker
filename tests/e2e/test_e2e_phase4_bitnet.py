@@ -8,12 +8,13 @@ Tests the complete quantization pipeline including:
 - Fine-tuning step with STE (Straight-Through Estimator)
 """
 
+import sys
+from pathlib import Path
+from unittest.mock import Mock, patch
+
 import pytest
 import torch
 import torch.nn as nn
-from pathlib import Path
-from unittest.mock import Mock, patch
-import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
@@ -89,7 +90,7 @@ class TestPhase4BitNetE2E:
         inputs = mock_tokenizer("Test activation quantization")
 
         with torch.no_grad():
-            outputs = mock_model(inputs['input_ids'])
+            outputs = mock_model(inputs["input_ids"])
             activations = outputs.hidden_states
 
             # Quantize activations to 8-bit
@@ -97,9 +98,9 @@ class TestPhase4BitNetE2E:
             activation_max = activations.max()
             scale = (activation_max - activation_min) / 255
 
-            quantized_activations = torch.round(
-                (activations - activation_min) / scale
-            ).clamp(0, 255)
+            quantized_activations = torch.round((activations - activation_min) / scale).clamp(
+                0, 255
+            )
 
             # Verify 8-bit range
             assert quantized_activations.min() >= 0
@@ -122,7 +123,7 @@ class TestPhase4BitNetE2E:
         first_param.data = quantized_weight
 
         # Forward pass with quantized weights
-        outputs = mock_model(inputs['input_ids'])
+        outputs = mock_model(inputs["input_ids"])
 
         assert outputs.logits is not None
 
@@ -134,7 +135,7 @@ class TestPhase4BitNetE2E:
         batch = next(iter(mock_dataloader))
 
         # Forward pass
-        outputs = mock_model(batch['input_ids'], labels=batch['labels'])
+        outputs = mock_model(batch["input_ids"], labels=batch["labels"])
         loss = outputs.loss
 
         # Backward pass (STE: gradients bypass quantization)
@@ -157,7 +158,7 @@ class TestPhase4BitNetE2E:
         optimizer.zero_grad()
 
         # Forward (with quantized weights in real implementation)
-        outputs = mock_model(batch['input_ids'], labels=batch['labels'])
+        outputs = mock_model(batch["input_ids"], labels=batch["labels"])
         loss = outputs.loss
 
         # Backward (gradients to full-precision weights)
@@ -175,7 +176,7 @@ class TestPhase4BitNetE2E:
         mock_model.eval()
         with torch.no_grad():
             batch = next(iter(mock_dataloader))
-            initial_loss = mock_model(batch['input_ids'], labels=batch['labels']).loss.item()
+            initial_loss = mock_model(batch["input_ids"], labels=batch["labels"]).loss.item()
 
         # Fine-tune 3 steps
         mock_model.train()
@@ -186,7 +187,7 @@ class TestPhase4BitNetE2E:
                 break
 
             optimizer.zero_grad()
-            outputs = mock_model(batch['input_ids'], labels=batch['labels'])
+            outputs = mock_model(batch["input_ids"], labels=batch["labels"])
             outputs.loss.backward()
             optimizer.step()
 
@@ -194,7 +195,7 @@ class TestPhase4BitNetE2E:
         mock_model.eval()
         with torch.no_grad():
             batch = next(iter(mock_dataloader))
-            final_loss = mock_model(batch['input_ids'], labels=batch['labels']).loss.item()
+            final_loss = mock_model(batch["input_ids"], labels=batch["labels"]).loss.item()
 
         # Loss should be reasonable (may increase or decrease slightly)
         assert final_loss > 0
@@ -216,8 +217,8 @@ class TestPhase4BitNetE2E:
 
             # Store quantized + scale
             quantized_state[name] = {
-                'quantized': quantized.to(torch.int8),  # Store as int8
-                'scale': scale
+                "quantized": quantized.to(torch.int8),  # Store as int8
+                "scale": scale,
             }
 
         quant_path = temp_checkpoint_dir / "quantized.pt"
@@ -238,7 +239,7 @@ class TestPhase4BitNetE2E:
         with torch.no_grad():
             start_fp = time.time()
             for _ in range(10):
-                outputs_fp = mock_model(inputs['input_ids'])
+                outputs_fp = mock_model(inputs["input_ids"])
             time_fp = time.time() - start_fp
 
         # Quantized inference (simulated - would be faster with real BitNet)
@@ -246,7 +247,7 @@ class TestPhase4BitNetE2E:
         with torch.no_grad():
             start_quant = time.time()
             for _ in range(10):
-                outputs_quant = mock_model(inputs['input_ids'])
+                outputs_quant = mock_model(inputs["input_ids"])
             time_quant = time.time() - start_quant
 
         # Both should complete successfully
@@ -265,10 +266,7 @@ class TestPhase4BitNetE2E:
                 normalized = weight / (scale + 1e-8)
                 quantized = torch.sign(normalized)
 
-                quantized_layers[name] = {
-                    'quantized': quantized,
-                    'scale': scale
-                }
+                quantized_layers[name] = {"quantized": quantized, "scale": scale}
 
         # Should have quantized embeddings and lm_head at minimum
         assert len(quantized_layers) >= 1
@@ -333,7 +331,7 @@ class TestPhase4BitNetE2E:
         batch = next(iter(mock_dataloader))
 
         optimizer.zero_grad()
-        outputs = mock_model(batch['input_ids'], labels=batch['labels'])
+        outputs = mock_model(batch["input_ids"], labels=batch["labels"])
         outputs.loss.backward()
 
         # Clip gradients
@@ -345,7 +343,7 @@ class TestPhase4BitNetE2E:
         for param in mock_model.parameters():
             if param.grad is not None:
                 total_norm += param.grad.norm().item() ** 2
-        total_norm = total_norm ** 0.5
+        total_norm = total_norm**0.5
 
         assert total_norm <= max_norm + 1e-6  # Allow small numerical error
 
@@ -355,15 +353,15 @@ class TestPhase4BitNetE2E:
         quantization_map = {}
 
         for name, param in mock_model.named_parameters():
-            if 'embedding' in name.lower():
+            if "embedding" in name.lower():
                 # Keep full precision
-                quantization_map[name] = 'fp32'
+                quantization_map[name] = "fp32"
             else:
                 # Quantize to 1.58-bit
-                quantization_map[name] = '1.58bit'
+                quantization_map[name] = "1.58bit"
 
-        assert 'fp32' in quantization_map.values()
-        assert '1.58bit' in quantization_map.values()
+        assert "fp32" in quantization_map.values()
+        assert "1.58bit" in quantization_map.values()
 
     def test_quantization_error_measurement(self, mock_model):
         """Test quantization error measurement."""
@@ -389,7 +387,7 @@ class TestPhase4BitNetE2E:
 
         for batch in mock_dataloader:
             # Simulated activations
-            activations = batch['input_ids'].float()
+            activations = batch["input_ids"].float()
 
             activation_mins.append(activations.min().item())
             activation_maxs.append(activations.max().item())

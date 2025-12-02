@@ -2,9 +2,10 @@
 Model Browser Page
 Browse all models in the registry with filtering and search
 """
-import streamlit as st
 import sys
 from pathlib import Path
+
+import streamlit as st
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -14,8 +15,7 @@ from cross_phase.storage.model_registry import ModelRegistry
 
 def render():
     """Render model browser page"""
-    st.markdown('<h1 class="main-header">Model Browser</h1>',
-                unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">Model Browser</h1>', unsafe_allow_html=True)
 
     # Initialize registry
     registry = ModelRegistry()
@@ -26,16 +26,14 @@ def render():
     with col1:
         phase_filter = st.multiselect(
             "Filter by Phase",
-            ["phase1", "phase2", "phase3", "phase4",
-             "phase5", "phase6", "phase7", "phase8"],
-            default=[]
+            ["phase1", "phase2", "phase3", "phase4", "phase5", "phase6", "phase7", "phase8"],
+            default=[],
         )
 
     with col2:
         size_filter = st.selectbox(
             "Model Size",
-            ["All", "Tiny (<50M)", "Small (50-500M)",
-             "Medium (500M-2B)", "Large (>2B)"]
+            ["All", "Tiny (<50M)", "Small (50-500M)", "Medium (500M-2B)", "Large (>2B)"],
         )
 
     with col3:
@@ -46,26 +44,27 @@ def render():
     # Get all models from registry with filters
     try:
         models = registry.get_all_models(
-            phase_filter=phase_filter if phase_filter else None,
-            limit=100
+            phase_filter=phase_filter if phase_filter else None, limit=100
         )
 
         # Apply size filter
         if size_filter != "All":
             if size_filter == "Tiny (<50M)":
-                models = [m for m in models if m['params'] < 50_000_000]
+                models = [m for m in models if m["params"] < 50_000_000]
             elif size_filter == "Small (50-500M)":
-                models = [m for m in models if 50_000_000 <= m['params'] < 500_000_000]
+                models = [m for m in models if 50_000_000 <= m["params"] < 500_000_000]
             elif size_filter == "Medium (500M-2B)":
-                models = [m for m in models if 500_000_000 <= m['params'] < 2_000_000_000]
+                models = [m for m in models if 500_000_000 <= m["params"] < 2_000_000_000]
             elif size_filter == "Large (>2B)":
-                models = [m for m in models if m['params'] >= 2_000_000_000]
+                models = [m for m in models if m["params"] >= 2_000_000_000]
 
         # Apply search filter
         if search:
-            models = [m for m in models
-                      if search.lower() in m['name'].lower()
-                      or search.lower() in m['model_id'].lower()]
+            models = [
+                m
+                for m in models
+                if search.lower() in m["name"].lower() or search.lower() in m["model_id"].lower()
+            ]
 
     except Exception as e:
         st.warning(f"Could not load models from registry: {e}")
@@ -74,11 +73,13 @@ def render():
 
         # Apply filters to example data
         if phase_filter:
-            models = [m for m in models if m['phase'] in phase_filter]
+            models = [m for m in models if m["phase"] in phase_filter]
         if search:
-            models = [m for m in models
-                      if search.lower() in m['name'].lower()
-                      or search.lower() in m['model_id'].lower()]
+            models = [
+                m
+                for m in models
+                if search.lower() in m["name"].lower() or search.lower() in m["model_id"].lower()
+            ]
 
     # Display models
     st.subheader(f"Models Found: {len(models)}")
@@ -118,12 +119,14 @@ def render():
                     st.info("Export functionality coming soon")
 
             with col3:
-                if st.button(f"Compare {model['model_id'][:8]}", key=f"compare_{model['model_id']}"):
+                if st.button(
+                    f"Compare {model['model_id'][:8]}", key=f"compare_{model['model_id']}"
+                ):
                     st.info("Comparison view coming soon")
 
             with col4:
                 if st.button(f"Delete {model['model_id'][:8]}", key=f"delete_{model['model_id']}"):
-                    if registry.delete_model(model['model_id']):
+                    if registry.delete_model(model["model_id"]):
                         st.success(f"Deleted {model['name']}")
                         st.rerun()
                     else:
@@ -146,7 +149,7 @@ def _get_example_models():
             "perplexity": 12.3,
             "created": "2025-10-16 10:30",
             "session_id": "session_001",
-            "status": "complete"
+            "status": "complete",
         },
         {
             "model_id": "phase1_model2_memory_session001",
@@ -159,7 +162,7 @@ def _get_example_models():
             "perplexity": 11.2,
             "created": "2025-10-16 11:45",
             "session_id": "session_001",
-            "status": "complete"
+            "status": "complete",
         },
         {
             "model_id": "phase2_champion_generation25_session001",
@@ -172,6 +175,6 @@ def _get_example_models():
             "perplexity": 9.4,
             "created": "2025-10-16 15:20",
             "session_id": "session_001",
-            "status": "complete"
-        }
+            "status": "complete",
+        },
     ]

@@ -4,16 +4,17 @@ Phase 4: BitNet 1.58-bit Compression - Streamlit UI Dashboard
 Real-time visualization of compression progress, metrics, and dual model outputs.
 """
 
-import streamlit as st
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
-import pandas as pd
-import numpy as np
-from pathlib import Path
-from typing import Dict, List, Optional
 import json
 import time
+from pathlib import Path
+from typing import Dict, List, Optional
+
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
+from plotly.subplots import make_subplots
 
 
 def render_phase4_dashboard():
@@ -27,13 +28,15 @@ def render_phase4_dashboard():
         render_config_panel()
 
     # Main content tabs
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "📊 Overview",
-        "⚡ Real-Time Progress",
-        "📈 Metrics & Analysis",
-        "🔬 Quality Validation",
-        "💾 Dual Model Outputs"
-    ])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(
+        [
+            "📊 Overview",
+            "⚡ Real-Time Progress",
+            "📈 Metrics & Analysis",
+            "🔬 Quality Validation",
+            "💾 Dual Model Outputs",
+        ]
+    )
 
     with tab1:
         render_overview_tab()
@@ -58,7 +61,7 @@ def render_config_panel():
     # Model size detection
     model_size = st.selectbox(
         "Model Size Category",
-        ["Auto-detect", "Tiny (<50M)", "Small (<500M)", "Medium (<2B)", "Large (>2B)"]
+        ["Auto-detect", "Tiny (<50M)", "Small (<500M)", "Medium (<2B)", "Large (>2B)"],
     )
 
     # Compression target
@@ -69,21 +72,21 @@ def render_config_panel():
             max_value=12.0,
             value=8.0,
             step=0.5,
-            help="Will auto-adapt based on model size"
+            help="Will auto-adapt based on model size",
         )
     else:
         size_targets = {
             "Tiny (<50M)": 6.0,
             "Small (<500M)": 8.0,
             "Medium (<2B)": 10.0,
-            "Large (>2B)": 12.0
+            "Large (>2B)": 12.0,
         }
         target_ratio = st.slider(
             "Target Compression Ratio",
             min_value=4.0,
             max_value=12.0,
             value=size_targets.get(model_size, 8.0),
-            step=0.5
+            step=0.5,
         )
 
     st.metric("Target Compression", f"{target_ratio:.1f}×")
@@ -96,7 +99,7 @@ def render_config_panel():
         max_value=0.15,
         value=0.08,
         step=0.01,
-        help="Weights below τ × scale become 0"
+        help="Weights below τ × scale become 0",
     )
 
     target_sparsity = st.slider(
@@ -105,7 +108,7 @@ def render_config_panel():
         max_value=0.50,
         value=0.35,
         step=0.05,
-        help="Percentage of weights to set to 0"
+        help="Percentage of weights to set to 0",
     )
 
     # Fine-tuning settings
@@ -118,7 +121,7 @@ def render_config_panel():
             min_value=1,
             max_value=10,
             value=2,
-            help="More epochs = better recovery, longer time"
+            help="More epochs = better recovery, longer time",
         )
 
         grokfast_lambda = st.slider(
@@ -127,16 +130,14 @@ def render_config_panel():
             max_value=5.0,
             value=2.0,
             step=0.5,
-            help="Higher = more aggressive filtering"
+            help="Higher = more aggressive filtering",
         )
 
     # Output settings
     st.subheader("Output Options")
     save_quantized = st.checkbox("Save Quantized (int8, ~12MB)", value=True)
     save_dequantized = st.checkbox(
-        "Save Dequantized FP16 (~50MB) [PRIMARY]",
-        value=True,
-        help="Required for Phase 5 training"
+        "Save Dequantized FP16 (~50MB) [PRIMARY]", value=True, help="Required for Phase 5 training"
     )
 
     # Action buttons
@@ -158,16 +159,16 @@ def render_overview_tab():
     with col1:
         st.metric(
             "Phase Status",
-            "Ready" if not st.session_state.get('compression_running') else "Running",
-            delta="Phase 3 → 4"
+            "Ready" if not st.session_state.get("compression_running") else "Running",
+            delta="Phase 3 → 4",
         )
 
     with col2:
         st.metric(
             "Model Size",
             "50.2 MB",
-            delta="-38.0 MB" if st.session_state.get('compression_complete') else None,
-            delta_color="normal"
+            delta="-38.0 MB" if st.session_state.get("compression_complete") else None,
+            delta_color="normal",
         )
 
     with col3:
@@ -175,7 +176,7 @@ def render_overview_tab():
             "Compression",
             f"{st.session_state.get('compression_ratio', 1.0):.2f}×",
             delta=f"{st.session_state.get('compression_ratio', 1.0) - 1.0:.2f}×",
-            delta_color="normal"
+            delta_color="normal",
         )
 
     with col4:
@@ -183,7 +184,7 @@ def render_overview_tab():
             "Sparsity",
             f"{st.session_state.get('sparsity_ratio', 0.0):.1%}",
             delta=f"+{st.session_state.get('sparsity_ratio', 0.0):.1%}",
-            delta_color="inverse"
+            delta_color="inverse",
         )
 
     # Process flow diagram
@@ -226,24 +227,28 @@ def render_overview_tab():
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("""
+        st.markdown(
+            """
         **Compression Techniques:**
         - ✅ Ternary quantization {-1, 0, +1}
         - ✅ Per-channel scaling (α = mean(|W|))
         - ✅ Sparsity injection (25-45%)
         - ✅ Straight-Through Estimator (STE)
         - ✅ MuGrokfast fine-tuning
-        """)
+        """
+        )
 
     with col2:
-        st.markdown("""
+        st.markdown(
+            """
         **Dual Model Output:**
         - 📦 **Quantized** (int8, ~12MB) → Inference
         - 🎯 **Dequantized FP16** (~50MB) → **PRIMARY** for Phase 5
         - ✅ Gradient flow validated
         - ✅ 99% model reconstruction
         - ✅ Auto-cleanup enabled
-        """)
+        """
+        )
 
 
 def render_realtime_progress_tab():
@@ -271,22 +276,24 @@ def render_realtime_progress_tab():
 
     compression_data = np.random.uniform(6.0, 10.0, (len(layers), len(param_types)))
 
-    fig = go.Figure(data=go.Heatmap(
-        z=compression_data,
-        x=param_types,
-        y=layers,
-        colorscale='RdYlGn',
-        colorbar=dict(title="Compression<br>Ratio"),
-        text=compression_data.round(2),
-        texttemplate='%{text}×',
-        textfont={"size": 9}
-    ))
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=compression_data,
+            x=param_types,
+            y=layers,
+            colorscale="RdYlGn",
+            colorbar=dict(title="Compression<br>Ratio"),
+            text=compression_data.round(2),
+            texttemplate="%{text}×",
+            textfont={"size": 9},
+        )
+    )
 
     fig.update_layout(
         title="Layer-wise Compression Ratios",
         xaxis_title="Parameter Type",
         yaxis_title="Transformer Layer",
-        height=600
+        height=600,
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -294,36 +301,35 @@ def render_realtime_progress_tab():
     # Sparsity distribution
     st.markdown("#### Sparsity Distribution Across Layers")
 
-    sparsity_data = pd.DataFrame({
-        'Layer': layers,
-        'Sparsity': np.random.uniform(0.25, 0.45, len(layers)),
-        'Zero Count': np.random.randint(50000, 150000, len(layers))
-    })
+    sparsity_data = pd.DataFrame(
+        {
+            "Layer": layers,
+            "Sparsity": np.random.uniform(0.25, 0.45, len(layers)),
+            "Zero Count": np.random.randint(50000, 150000, len(layers)),
+        }
+    )
 
     fig2 = go.Figure()
 
-    fig2.add_trace(go.Bar(
-        x=sparsity_data['Layer'],
-        y=sparsity_data['Sparsity'],
-        name='Sparsity Ratio',
-        marker_color='lightblue',
-        text=sparsity_data['Sparsity'].apply(lambda x: f'{x:.1%}'),
-        textposition='outside'
-    ))
-
-    fig2.add_hline(
-        y=0.35,
-        line_dash="dash",
-        line_color="red",
-        annotation_text="Target: 35%"
+    fig2.add_trace(
+        go.Bar(
+            x=sparsity_data["Layer"],
+            y=sparsity_data["Sparsity"],
+            name="Sparsity Ratio",
+            marker_color="lightblue",
+            text=sparsity_data["Sparsity"].apply(lambda x: f"{x:.1%}"),
+            textposition="outside",
+        )
     )
+
+    fig2.add_hline(y=0.35, line_dash="dash", line_color="red", annotation_text="Target: 35%")
 
     fig2.update_layout(
         title="Sparsity Injection per Layer",
         xaxis_title="Layer",
         yaxis_title="Sparsity Ratio",
-        yaxis_tickformat='.0%',
-        height=400
+        yaxis_tickformat=".0%",
+        height=400,
     )
 
     st.plotly_chart(fig2, use_container_width=True)
@@ -335,46 +341,28 @@ def render_metrics_analysis_tab():
 
     # Metric comparison table
     metrics_data = {
-        'Metric': [
-            'Model Size',
-            'Parameter Count',
-            'Memory (GPU)',
-            'Inference Latency',
-            'Perplexity',
-            'GSM8K Accuracy',
-            'Compression Ratio',
-            'Sparsity'
+        "Metric": [
+            "Model Size",
+            "Parameter Count",
+            "Memory (GPU)",
+            "Inference Latency",
+            "Perplexity",
+            "GSM8K Accuracy",
+            "Compression Ratio",
+            "Sparsity",
         ],
-        'Pre-Compression': [
-            '50.2 MB',
-            '25.0M',
-            '1.2 GB',
-            '45 ms',
-            '12.3',
-            '67.2%',
-            '1.0×',
-            '0.0%'
+        "Pre-Compression": ["50.2 MB", "25.0M", "1.2 GB", "45 ms", "12.3", "67.2%", "1.0×", "0.0%"],
+        "Post-Compression": [
+            "12.1 MB",
+            "25.0M (quantized)",
+            "0.3 GB",
+            "18 ms",
+            "12.8",
+            "65.5%",
+            "8.2×",
+            "35.2%",
         ],
-        'Post-Compression': [
-            '12.1 MB',
-            '25.0M (quantized)',
-            '0.3 GB',
-            '18 ms',
-            '12.8',
-            '65.5%',
-            '8.2×',
-            '35.2%'
-        ],
-        'Change': [
-            '-76.0%',
-            '0 params',
-            '-75.0%',
-            '-60.0%',
-            '+4.1%',
-            '-2.5%',
-            '+720%',
-            '+35.2%'
-        ]
+        "Change": ["-76.0%", "0 params", "-75.0%", "-60.0%", "+4.1%", "-2.5%", "+720%", "+35.2%"],
     }
 
     df = pd.DataFrame(metrics_data)
@@ -387,12 +375,12 @@ def render_metrics_analysis_tab():
             "Metric": st.column_config.TextColumn("Metric", width="medium"),
             "Pre-Compression": st.column_config.TextColumn("Pre-Compression", width="medium"),
             "Post-Compression": st.column_config.TextColumn("Post-Compression", width="medium"),
-            "Change": st.column_config.TextColumn("Change", width="small")
-        }
+            "Change": st.column_config.TextColumn("Change", width="small"),
+        },
     )
 
     # Fine-tuning loss curve
-    if st.session_state.get('enable_finetune', True):
+    if st.session_state.get("enable_finetune", True):
         st.markdown("#### 🔧 Fine-Tuning Loss Curve")
 
         epochs = np.arange(1, 11)
@@ -400,21 +388,23 @@ def render_metrics_analysis_tab():
 
         fig = go.Figure()
 
-        fig.add_trace(go.Scatter(
-            x=epochs,
-            y=loss,
-            mode='lines+markers',
-            name='Training Loss',
-            line=dict(color='blue', width=2),
-            marker=dict(size=8)
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=epochs,
+                y=loss,
+                mode="lines+markers",
+                name="Training Loss",
+                line=dict(color="blue", width=2),
+                marker=dict(size=8),
+            )
+        )
 
         fig.update_layout(
             title="Fine-Tuning Progress (MuGrokfast STE Mode)",
             xaxis_title="Epoch",
             yaxis_title="Loss",
             height=350,
-            hovermode='x unified'
+            hovermode="x unified",
         )
 
         st.plotly_chart(fig, use_container_width=True)
@@ -442,7 +432,7 @@ def render_quality_validation_tab():
             "actual": "8.2×",
             "status": "pass",
             "threshold": 6.0,
-            "value": 8.2
+            "value": 8.2,
         },
         {
             "name": "Accuracy Preservation",
@@ -450,7 +440,7 @@ def render_quality_validation_tab():
             "actual": "97.5%",
             "status": "pass",
             "threshold": 95.0,
-            "value": 97.5
+            "value": 97.5,
         },
         {
             "name": "Perplexity Degradation",
@@ -458,7 +448,7 @@ def render_quality_validation_tab():
             "actual": "4.1%",
             "status": "pass",
             "threshold": 10.0,
-            "value": 4.1
+            "value": 4.1,
         },
         {
             "name": "Sparsity Range",
@@ -466,7 +456,7 @@ def render_quality_validation_tab():
             "actual": "35.2%",
             "status": "pass",
             "threshold": (25.0, 45.0),
-            "value": 35.2
+            "value": 35.2,
         },
         {
             "name": "Gradient Flow Test",
@@ -474,8 +464,8 @@ def render_quality_validation_tab():
             "actual": "PASS",
             "status": "pass",
             "threshold": True,
-            "value": True
-        }
+            "value": True,
+        },
     ]
 
     for gate in gates:
@@ -510,7 +500,8 @@ def render_quality_validation_tab():
     col1, col2 = st.columns(2)
 
     with col1:
-        st.info("""
+        st.info(
+            """
         **What is Gradient Flow Testing?**
 
         Phase 5-7 require gradient-based training. This test validates that:
@@ -518,10 +509,12 @@ def render_quality_validation_tab():
         - All layers have gradients flowing
         - No NaN or Inf values
         - STE mode works correctly
-        """)
+        """
+        )
 
     with col2:
-        st.success("""
+        st.success(
+            """
         **Test Results:**
 
         ✅ Forward pass: SUCCESS
@@ -531,7 +524,8 @@ def render_quality_validation_tab():
         ✅ No NaN/Inf values
 
         **Status: READY FOR PHASE 5**
-        """)
+        """
+        )
 
     # Layer-wise gradient norms
     st.markdown("#### Gradient Norms by Layer")
@@ -541,21 +535,23 @@ def render_quality_validation_tab():
 
     fig = go.Figure()
 
-    fig.add_trace(go.Bar(
-        x=layers,
-        y=grad_norms,
-        marker_color='green',
-        text=grad_norms.round(4),
-        textposition='outside',
-        textfont=dict(size=8)
-    ))
+    fig.add_trace(
+        go.Bar(
+            x=layers,
+            y=grad_norms,
+            marker_color="green",
+            text=grad_norms.round(4),
+            textposition="outside",
+            textfont=dict(size=8),
+        )
+    )
 
     fig.update_layout(
         title="Gradient Norm Distribution",
         xaxis_title="Layer",
         yaxis_title="Gradient Norm",
         yaxis_type="log",
-        height=350
+        height=350,
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -565,18 +561,21 @@ def render_dual_outputs_tab():
     """Dual model outputs comparison"""
     st.subheader("💾 Dual Model Outputs")
 
-    st.markdown("""
+    st.markdown(
+        """
     Phase 4 produces **two models**:
     1. **Quantized (int8)** - Compressed for inference (12MB)
     2. **Dequantized (FP16)** - PRIMARY for Phase 5 training (50MB)
-    """)
+    """
+    )
 
     # Model comparison
     col1, col2 = st.columns(2)
 
     with col1:
         st.markdown("### 📦 Quantized Model (int8)")
-        st.code("""
+        st.code(
+            """
 bitnet_quantized_model.pt (12.1 MB)
 ├── state_dict (int8 weights)
 ├── scale_factors (per-channel α)
@@ -585,7 +584,9 @@ bitnet_quantized_model.pt (12.1 MB)
 Usage: Fast inference
 Compression: 8.2× from original
 Format: {-1, 0, +1} ternary
-        """, language="yaml")
+        """,
+            language="yaml",
+        )
 
         st.metric("File Size", "12.1 MB", delta="-38.1 MB")
         st.metric("Inference Speed", "18 ms", delta="-60%", delta_color="normal")
@@ -593,7 +594,8 @@ Format: {-1, 0, +1} ternary
 
     with col2:
         st.markdown("### 🎯 Dequantized Model (FP16) **[PRIMARY]**")
-        st.code("""
+        st.code(
+            """
 bitnet_dequantized_fp16.pt (50.2 MB)
 └── state_dict (FP16 weights)
     ├── Gradient-compatible ✅
@@ -603,7 +605,9 @@ bitnet_dequantized_fp16.pt (50.2 MB)
 Usage: Phase 5-7 training (REQUIRED)
 Compression: None (full precision)
 Format: FP16 tensors
-        """, language="yaml")
+        """,
+            language="yaml",
+        )
 
         st.metric("File Size", "50.2 MB", delta="0 MB (original)")
         st.metric("Gradient Flow", "PASS", delta="100%")
@@ -612,7 +616,8 @@ Format: FP16 tensors
     # Output file tree
     st.markdown("#### 📂 Output Directory Structure")
 
-    st.code("""
+    st.code(
+        """
 phase4_output/
 ├── bitnet_quantized_model.pt        # 12.1 MB (int8)
 ├── bitnet_dequantized_fp16.pt       # 50.2 MB (FP16) ← PRIMARY
@@ -626,7 +631,9 @@ phase4_output/
     ├── layers_quantized: 24
     ├── gradient_flow_test: PASS
     └── timestamp: 2025-10-16T...
-    """, language="bash")
+    """,
+        language="bash",
+    )
 
     # Handoff validation
     st.markdown("#### 🤝 Phase 4 → Phase 5 Handoff")
@@ -653,12 +660,12 @@ phase4_output/
 def reset_session_state():
     """Reset all session state variables"""
     keys_to_reset = [
-        'compression_running',
-        'compression_complete',
-        'compression_ratio',
-        'sparsity_ratio',
-        'layers_quantized',
-        'enable_finetune'
+        "compression_running",
+        "compression_complete",
+        "compression_ratio",
+        "sparsity_ratio",
+        "layers_quantized",
+        "enable_finetune",
     ]
     for key in keys_to_reset:
         if key in st.session_state:
@@ -666,16 +673,16 @@ def reset_session_state():
 
 
 # Initialize session state
-if 'compression_running' not in st.session_state:
+if "compression_running" not in st.session_state:
     st.session_state.compression_running = False
 
-if 'compression_complete' not in st.session_state:
+if "compression_complete" not in st.session_state:
     st.session_state.compression_complete = False
 
-if 'compression_ratio' not in st.session_state:
+if "compression_ratio" not in st.session_state:
     st.session_state.compression_ratio = 8.2
 
-if 'sparsity_ratio' not in st.session_state:
+if "sparsity_ratio" not in st.session_state:
     st.session_state.sparsity_ratio = 0.352
 
 

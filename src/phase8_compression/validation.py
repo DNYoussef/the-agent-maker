@@ -17,9 +17,9 @@ Usage:
     print(f"Pipeline valid: {result.all_passed}")
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
 import math
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -28,6 +28,7 @@ import torch.nn as nn
 @dataclass
 class StageValidationResult:
     """Result from validating a single compression stage."""
+
     stage_name: str
     target_compression: float
     achieved_compression: float
@@ -42,6 +43,7 @@ class StageValidationResult:
 @dataclass
 class PipelineValidationResult:
     """Result from validating the full compression pipeline."""
+
     stages: List[StageValidationResult]
     cumulative_compression: float
     cumulative_retention: float
@@ -56,6 +58,7 @@ class PipelineValidationResult:
 @dataclass
 class CompressionTargets:
     """Compression targets for validation."""
+
     # SeedLM
     seedlm_compression: float = 2.0
     seedlm_retention: float = 0.95
@@ -75,7 +78,7 @@ class CompressionTargets:
 
     # Tolerance for validation
     compression_tolerance: float = 0.1  # 10% tolerance
-    retention_tolerance: float = 0.02   # 2% tolerance
+    retention_tolerance: float = 0.02  # 2% tolerance
 
 
 class CompressionValidator:
@@ -99,10 +102,7 @@ class CompressionValidator:
         self.targets = targets or CompressionTargets()
 
     def validate_seedlm(
-        self,
-        original_size_mb: float,
-        compressed_size_mb: float,
-        retention: float
+        self, original_size_mb: float, compressed_size_mb: float, retention: float
     ) -> StageValidationResult:
         """
         Validate SeedLM stage.
@@ -130,17 +130,11 @@ class CompressionValidator:
             achieved_retention=retention,
             retention_passed=retention_passed,
             passed=compression_passed and retention_passed,
-            details={
-                'original_mb': original_size_mb,
-                'compressed_mb': compressed_size_mb
-            }
+            details={"original_mb": original_size_mb, "compressed_mb": compressed_size_mb},
         )
 
     def validate_vptq(
-        self,
-        original_size_mb: float,
-        compressed_size_mb: float,
-        retention: float
+        self, original_size_mb: float, compressed_size_mb: float, retention: float
     ) -> StageValidationResult:
         """
         Validate VPTQ stage.
@@ -166,10 +160,7 @@ class CompressionValidator:
             achieved_retention=retention,
             retention_passed=retention_passed,
             passed=compression_passed and retention_passed,
-            details={
-                'original_mb': original_size_mb,
-                'compressed_mb': compressed_size_mb
-            }
+            details={"original_mb": original_size_mb, "compressed_mb": compressed_size_mb},
         )
 
     def validate_hypercompression(
@@ -177,7 +168,7 @@ class CompressionValidator:
         original_size_mb: float,
         compressed_size_mb: float,
         retention: float,
-        r_squared: float = None
+        r_squared: float = None,
     ) -> StageValidationResult:
         """
         Validate Hypercompression stage.
@@ -194,17 +185,14 @@ class CompressionValidator:
             self.targets.hyper_retention - self.targets.retention_tolerance
         )
 
-        details = {
-            'original_mb': original_size_mb,
-            'compressed_mb': compressed_size_mb
-        }
+        details = {"original_mb": original_size_mb, "compressed_mb": compressed_size_mb}
 
         # Optional R^2 check
         r_squared_passed = True
         if r_squared is not None:
             r_squared_passed = r_squared >= 0.95
-            details['r_squared'] = r_squared
-            details['r_squared_passed'] = r_squared_passed
+            details["r_squared"] = r_squared
+            details["r_squared_passed"] = r_squared_passed
 
         return StageValidationResult(
             stage_name="Hypercompression",
@@ -215,12 +203,11 @@ class CompressionValidator:
             achieved_retention=retention,
             retention_passed=retention_passed,
             passed=compression_passed and retention_passed and r_squared_passed,
-            details=details
+            details=details,
         )
 
     def validate_cumulative(
-        self,
-        stages: List[StageValidationResult]
+        self, stages: List[StageValidationResult]
     ) -> Tuple[float, float, bool, bool]:
         """
         Validate cumulative compression and retention.
@@ -240,26 +227,21 @@ class CompressionValidator:
         # Check cumulative targets
         compression_passed = (
             self.targets.cumulative_compression_min * (1 - self.targets.compression_tolerance)
-            <= cumulative_compression <=
-            self.targets.cumulative_compression_max * (1 + self.targets.compression_tolerance)
+            <= cumulative_compression
+            <= self.targets.cumulative_compression_max * (1 + self.targets.compression_tolerance)
         )
 
         retention_passed = cumulative_retention >= (
             self.targets.cumulative_retention - self.targets.retention_tolerance
         )
 
-        return (
-            cumulative_compression,
-            cumulative_retention,
-            compression_passed,
-            retention_passed
-        )
+        return (cumulative_compression, cumulative_retention, compression_passed, retention_passed)
 
     def validate_full_pipeline(
         self,
         seedlm_result: Optional[Dict] = None,
         vptq_result: Optional[Dict] = None,
-        hyper_result: Optional[Dict] = None
+        hyper_result: Optional[Dict] = None,
     ) -> PipelineValidationResult:
         """
         Validate the full compression pipeline.
@@ -276,26 +258,32 @@ class CompressionValidator:
 
         # Validate each stage if provided
         if seedlm_result:
-            stages.append(self.validate_seedlm(
-                seedlm_result['original_size'],
-                seedlm_result['compressed_size'],
-                seedlm_result['retention']
-            ))
+            stages.append(
+                self.validate_seedlm(
+                    seedlm_result["original_size"],
+                    seedlm_result["compressed_size"],
+                    seedlm_result["retention"],
+                )
+            )
 
         if vptq_result:
-            stages.append(self.validate_vptq(
-                vptq_result['original_size'],
-                vptq_result['compressed_size'],
-                vptq_result['retention']
-            ))
+            stages.append(
+                self.validate_vptq(
+                    vptq_result["original_size"],
+                    vptq_result["compressed_size"],
+                    vptq_result["retention"],
+                )
+            )
 
         if hyper_result:
-            stages.append(self.validate_hypercompression(
-                hyper_result['original_size'],
-                hyper_result['compressed_size'],
-                hyper_result['retention'],
-                hyper_result.get('r_squared')
-            ))
+            stages.append(
+                self.validate_hypercompression(
+                    hyper_result["original_size"],
+                    hyper_result["compressed_size"],
+                    hyper_result["retention"],
+                    hyper_result.get("r_squared"),
+                )
+            )
 
         # Validate cumulative
         if stages:
@@ -303,7 +291,7 @@ class CompressionValidator:
                 cumulative_compression,
                 cumulative_retention,
                 compression_passed,
-                retention_passed
+                retention_passed,
             ) = self.validate_cumulative(stages)
         else:
             cumulative_compression = 1.0
@@ -322,7 +310,7 @@ class CompressionValidator:
             cumulative_retention,
             compression_passed,
             retention_passed,
-            all_passed
+            all_passed,
         )
 
         return PipelineValidationResult(
@@ -331,13 +319,13 @@ class CompressionValidator:
             cumulative_retention=cumulative_retention,
             target_cumulative_compression=(
                 self.targets.cumulative_compression_min,
-                self.targets.cumulative_compression_max
+                self.targets.cumulative_compression_max,
             ),
             target_cumulative_retention=self.targets.cumulative_retention,
             cumulative_compression_passed=compression_passed,
             cumulative_retention_passed=retention_passed,
             all_passed=all_passed,
-            summary=summary
+            summary=summary,
         )
 
     def _generate_summary(
@@ -347,29 +335,32 @@ class CompressionValidator:
         cumulative_retention: float,
         compression_passed: bool,
         retention_passed: bool,
-        all_passed: bool
+        all_passed: bool,
     ) -> str:
         """Generate human-readable validation summary."""
-        lines = [
-            "=" * 60,
-            "COMPRESSION PIPELINE VALIDATION REPORT",
-            "=" * 60,
-            ""
-        ]
+        lines = ["=" * 60, "COMPRESSION PIPELINE VALIDATION REPORT", "=" * 60, ""]
 
         # Stage-by-stage results
         for stage in stages:
             status = "PASS" if stage.passed else "FAIL"
             lines.append(f"{stage.stage_name}: [{status}]")
-            lines.append(f"  Compression: {stage.achieved_compression:.2f}x (target: {stage.target_compression}x) - {'PASS' if stage.compression_passed else 'FAIL'}")
-            lines.append(f"  Retention: {stage.achieved_retention:.2%} (target: {stage.target_retention:.0%}) - {'PASS' if stage.retention_passed else 'FAIL'}")
+            lines.append(
+                f"  Compression: {stage.achieved_compression:.2f}x (target: {stage.target_compression}x) - {'PASS' if stage.compression_passed else 'FAIL'}"
+            )
+            lines.append(
+                f"  Retention: {stage.achieved_retention:.2%} (target: {stage.target_retention:.0%}) - {'PASS' if stage.retention_passed else 'FAIL'}"
+            )
             lines.append("")
 
         # Cumulative results
         lines.append("-" * 60)
         lines.append("CUMULATIVE RESULTS:")
-        lines.append(f"  Total Compression: {cumulative_compression:.1f}x (target: {self.targets.cumulative_compression_min}-{self.targets.cumulative_compression_max}x) - {'PASS' if compression_passed else 'FAIL'}")
-        lines.append(f"  Total Retention: {cumulative_retention:.2%} (target: {self.targets.cumulative_retention:.0%}) - {'PASS' if retention_passed else 'FAIL'}")
+        lines.append(
+            f"  Total Compression: {cumulative_compression:.1f}x (target: {self.targets.cumulative_compression_min}-{self.targets.cumulative_compression_max}x) - {'PASS' if compression_passed else 'FAIL'}"
+        )
+        lines.append(
+            f"  Total Retention: {cumulative_retention:.2%} (target: {self.targets.cumulative_retention:.0%}) - {'PASS' if retention_passed else 'FAIL'}"
+        )
         lines.append("")
 
         # Overall status
@@ -404,7 +395,7 @@ def validate_compression_targets(
     seedlm_retention: float = 0.97,
     vptq_retention: float = 0.96,
     hyper_retention: float = 0.92,
-    hyper_r_squared: float = 0.96
+    hyper_r_squared: float = 0.96,
 ) -> PipelineValidationResult:
     """
     Quick validation function with example values.
@@ -426,21 +417,21 @@ def validate_compression_targets(
 
     result = validator.validate_full_pipeline(
         seedlm_result={
-            'original_size': original_size_mb,
-            'compressed_size': seedlm_size_mb,
-            'retention': seedlm_retention
+            "original_size": original_size_mb,
+            "compressed_size": seedlm_size_mb,
+            "retention": seedlm_retention,
         },
         vptq_result={
-            'original_size': seedlm_size_mb,
-            'compressed_size': vptq_size_mb,
-            'retention': vptq_retention
+            "original_size": seedlm_size_mb,
+            "compressed_size": vptq_size_mb,
+            "retention": vptq_retention,
         },
         hyper_result={
-            'original_size': vptq_size_mb,
-            'compressed_size': hyper_size_mb,
-            'retention': hyper_retention,
-            'r_squared': hyper_r_squared
-        }
+            "original_size": vptq_size_mb,
+            "compressed_size": hyper_size_mb,
+            "retention": hyper_retention,
+            "r_squared": hyper_r_squared,
+        },
     )
 
     print(result.summary)
@@ -448,9 +439,9 @@ def validate_compression_targets(
 
 
 __all__ = [
-    'CompressionValidator',
-    'CompressionTargets',
-    'StageValidationResult',
-    'PipelineValidationResult',
-    'validate_compression_targets'
+    "CompressionValidator",
+    "CompressionTargets",
+    "StageValidationResult",
+    "PipelineValidationResult",
+    "validate_compression_targets",
 ]

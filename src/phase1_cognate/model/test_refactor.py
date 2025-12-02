@@ -8,17 +8,11 @@ This script verifies that:
 """
 
 import torch
-from model.model_config import TitansMAGConfig
-from model.titans_mag import TitansMAGBackbone, TitansMAGLayer
 
 # Also verify direct component imports work
-from model.components import (
-    RMSNorm,
-    SwiGLUMLP,
-    SlidingWindowAttention,
-    LongTermMemory,
-    MAGGate
-)
+from model.components import LongTermMemory, MAGGate, RMSNorm, SlidingWindowAttention, SwiGLUMLP
+from model.model_config import TitansMAGConfig
+from model.titans_mag import TitansMAGBackbone, TitansMAGLayer
 
 
 def test_component_imports():
@@ -108,9 +102,9 @@ def test_memory_reset():
 
 
 if __name__ == "__main__":
-    print("="*60)
+    print("=" * 60)
     print("Titans-MAG Refactoring Verification Tests")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     try:
         # Test 1: Component imports
@@ -125,16 +119,17 @@ if __name__ == "__main__":
         # Test 4: Memory reset
         test_memory_reset()
 
-        print("="*60)
+        print("=" * 60)
         print("ALL TESTS PASSED!")
-        print("="*60)
+        print("=" * 60)
         print("\nRefactoring successful! The modular structure maintains")
         print("full backward compatibility with the original implementation.")
 
     except Exception as e:
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("TEST FAILED!")
-        print("="*60)
+        print("=" * 60)
         print(f"\nError: {e}")
         import traceback
+
         traceback.print_exc()

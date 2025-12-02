@@ -6,7 +6,8 @@ for multi-objective optimization.
 """
 
 from typing import List
-from .config import Individual, ADASConfig
+
+from .config import ADASConfig, Individual
 
 
 def assign_ranks(population: List[Individual], config: ADASConfig) -> None:
@@ -70,10 +71,7 @@ def _dominates(ind1: Individual, ind2: Individual, config: ADASConfig) -> bool:
     return at_least_one_better
 
 
-def calculate_crowding_distance(
-    population: List[Individual],
-    config: ADASConfig
-) -> None:
+def calculate_crowding_distance(population: List[Individual], config: ADASConfig) -> None:
     """
     Calculate crowding distance for diversity preservation.
 
@@ -103,28 +101,25 @@ def calculate_crowding_distance(
             rank_inds.sort(key=lambda x: x.fitness_scores.get(obj, 0))
 
             # Boundary points get infinite distance
-            rank_inds[0].crowding_distance = float('inf')
-            rank_inds[-1].crowding_distance = float('inf')
+            rank_inds[0].crowding_distance = float("inf")
+            rank_inds[-1].crowding_distance = float("inf")
 
             # Calculate distance for others
-            obj_range = (
-                rank_inds[-1].fitness_scores.get(obj, 0) -
-                rank_inds[0].fitness_scores.get(obj, 0)
+            obj_range = rank_inds[-1].fitness_scores.get(obj, 0) - rank_inds[0].fitness_scores.get(
+                obj, 0
             )
 
             if obj_range > 0:
                 for i in range(1, n - 1):
                     dist = (
-                        rank_inds[i + 1].fitness_scores.get(obj, 0) -
-                        rank_inds[i - 1].fitness_scores.get(obj, 0)
+                        rank_inds[i + 1].fitness_scores.get(obj, 0)
+                        - rank_inds[i - 1].fitness_scores.get(obj, 0)
                     ) / obj_range
                     rank_inds[i].crowding_distance += dist
 
 
 def tournament_selection(
-    population: List[Individual],
-    config: ADASConfig,
-    num_parents: int = None
+    population: List[Individual], config: ADASConfig, num_parents: int = None
 ) -> List[Individual]:
     """
     Tournament selection based on rank and crowding distance.
@@ -155,9 +150,7 @@ def tournament_selection(
 
 
 def survivor_selection(
-    population: List[Individual],
-    offspring: List[Individual],
-    config: ADASConfig
+    population: List[Individual], offspring: List[Individual], config: ADASConfig
 ) -> List[Individual]:
     """
     Elitist survivor selection.
@@ -181,4 +174,4 @@ def survivor_selection(
     combined.sort(key=lambda x: (x.rank, -x.crowding_distance))
 
     # Keep best
-    return combined[:config.population_size]
+    return combined[: config.population_size]

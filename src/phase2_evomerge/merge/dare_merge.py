@@ -22,11 +22,12 @@ Research:
     - Shows 90% sparsity maintains performance
 """
 
-from typing import List
 import copy
+import logging
+from typing import List
+
 import torch
 import torch.nn as nn
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -51,10 +52,7 @@ class DAREMerge:
         """
         self.drop_rate = drop_rate
         self.keep_rate = 1.0 - drop_rate
-        self.rescale_factor = (
-            rescale_factor if rescale_factor is not None
-            else 1.0 / self.keep_rate
-        )
+        self.rescale_factor = rescale_factor if rescale_factor is not None else 1.0 / self.keep_rate
 
     def merge(self, model_finetuned: nn.Module, model_base: nn.Module) -> nn.Module:
         """
@@ -80,9 +78,7 @@ class DAREMerge:
         with torch.no_grad():
             for param_name, base_param in model_base.named_parameters():
                 try:
-                    finetuned_param = dict(model_finetuned.named_parameters())[
-                        param_name
-                    ]
+                    finetuned_param = dict(model_finetuned.named_parameters())[param_name]
                     result_param = dict(result_model.named_parameters())[param_name]
                 except KeyError:
                     logger.warning(
@@ -94,15 +90,11 @@ class DAREMerge:
                 delta = finetuned_param - base_param
 
                 # Create random mask (keep 10%)
-                mask = torch.bernoulli(
-                    torch.full_like(delta, self.keep_rate)
-                ).bool()
+                mask = torch.bernoulli(torch.full_like(delta, self.keep_rate)).bool()
 
                 # Apply mask and rescale
                 sparse_delta = torch.where(
-                    mask,
-                    delta * self.rescale_factor,
-                    torch.zeros_like(delta)
+                    mask, delta * self.rescale_factor, torch.zeros_like(delta)
                 )
 
                 # Apply to result
@@ -110,9 +102,7 @@ class DAREMerge:
 
         return result_model
 
-    def _check_compatibility(
-        self, model1: nn.Module, model2: nn.Module
-    ) -> bool:
+    def _check_compatibility(self, model1: nn.Module, model2: nn.Module) -> bool:
         """
         Check if two models have compatible architectures.
 

@@ -3,37 +3,37 @@
 Interactive 3D scatter plot for comparing models across 8 phases
 """
 
-import streamlit as st
+from typing import Any, Dict, List, Optional
+
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import numpy as np
-from typing import List, Optional, Dict, Any
-
+import streamlit as st
 
 # Phase colors - futuristic theme matching design system
 PHASE_COLORS = {
-    'phase1': '#00F5D4',  # Cyan
-    'phase2': '#0099FF',  # Blue
-    'phase3': '#9D4EDD',  # Purple
-    'phase4': '#FF006E',  # Magenta
-    'phase5': '#FB5607',  # Orange
-    'phase6': '#FFBE0B',  # Yellow
-    'phase7': '#06FFA5',  # Green
-    'phase8': '#F72585',  # Pink
+    "phase1": "#00F5D4",  # Cyan
+    "phase2": "#0099FF",  # Blue
+    "phase3": "#9D4EDD",  # Purple
+    "phase4": "#FF006E",  # Magenta
+    "phase5": "#FB5607",  # Orange
+    "phase6": "#FFBE0B",  # Yellow
+    "phase7": "#06FFA5",  # Green
+    "phase8": "#F72585",  # Pink
 }
 
 # Status symbols
 STATUS_SYMBOLS = {
-    'complete': 'circle',
-    'running': 'diamond',
-    'failed': 'x',
-    'pending': 'square',
+    "complete": "circle",
+    "running": "diamond",
+    "failed": "x",
+    "pending": "square",
 }
 
 # Dark theme background
-BACKGROUND_COLOR = '#0D1B2A'
-GRID_COLOR = '#1B263B'
-TEXT_COLOR = '#E0E1DD'
+BACKGROUND_COLOR = "#0D1B2A"
+GRID_COLOR = "#1B263B"
+TEXT_COLOR = "#E0E1DD"
 
 
 def create_model_comparison_3d(
@@ -41,7 +41,7 @@ def create_model_comparison_3d(
     highlighted_ids: Optional[List[str]] = None,
     show_phases: Optional[List[str]] = None,
     show_pareto: bool = False,
-    animate: bool = True
+    animate: bool = True,
 ) -> go.Figure:
     """
     Create 3D model comparison scatter plot.
@@ -66,37 +66,37 @@ def create_model_comparison_3d(
     """
     # Filter by phases if specified
     if show_phases:
-        models_df = models_df[models_df['phase'].isin(show_phases)]
+        models_df = models_df[models_df["phase"].isin(show_phases)]
 
     # Create figure
     fig = go.Figure()
 
     # Add traces for each phase
-    for phase in sorted(models_df['phase'].unique()):
-        phase_data = models_df[models_df['phase'] == phase]
+    for phase in sorted(models_df["phase"].unique()):
+        phase_data = models_df[models_df["phase"] == phase]
 
         # Get phase-specific data
-        x_data = phase_data['params'] / 1_000_000  # Convert to millions
-        y_data = phase_data['accuracy']
-        z_data = phase_data['latency']
+        x_data = phase_data["params"] / 1_000_000  # Convert to millions
+        y_data = phase_data["accuracy"]
+        z_data = phase_data["latency"]
 
         # Size based on compression ratio (if available)
-        if 'compression' in phase_data.columns:
-            sizes = phase_data['compression'] * 5 + 5  # Scale for visibility
+        if "compression" in phase_data.columns:
+            sizes = phase_data["compression"] * 5 + 5  # Scale for visibility
         else:
             sizes = 10
 
         # Color for this phase
-        color = PHASE_COLORS.get(phase, '#FFFFFF')
+        color = PHASE_COLORS.get(phase, "#FFFFFF")
 
         # Symbol based on status
-        symbols = [STATUS_SYMBOLS.get(s, 'circle') for s in phase_data['status']]
+        symbols = [STATUS_SYMBOLS.get(s, "circle") for s in phase_data["status"]]
 
         # Hover text with full details
         hover_text = []
         for _, row in phase_data.iterrows():
-            is_highlighted = highlighted_ids and row['id'] in highlighted_ids
-            champion_badge = ' [CHAMPION]' if is_highlighted else ''
+            is_highlighted = highlighted_ids and row["id"] in highlighted_ids
+            champion_badge = " [CHAMPION]" if is_highlighted else ""
 
             text = (
                 f"<b>{row['name']}{champion_badge}</b><br>"
@@ -108,7 +108,7 @@ def create_model_comparison_3d(
                 f"Latency: {row['latency']:.1f} ms<br>"
             )
 
-            if 'compression' in row:
+            if "compression" in row:
                 text += f"Compression: {row['compression']:.2f}x<br>"
 
             text += f"<br>Status: {row['status']}"
@@ -116,72 +116,84 @@ def create_model_comparison_3d(
 
         # Determine if any models in this phase are highlighted
         if highlighted_ids:
-            highlighted_mask = phase_data['id'].isin(highlighted_ids)
+            highlighted_mask = phase_data["id"].isin(highlighted_ids)
 
             # Add non-highlighted models first
             if (~highlighted_mask).any():
                 non_highlighted = phase_data[~highlighted_mask]
-                fig.add_trace(go.Scatter3d(
-                    x=x_data[~highlighted_mask],
-                    y=y_data[~highlighted_mask],
-                    z=z_data[~highlighted_mask],
-                    mode='markers',
-                    name=f'{phase.upper()}',
-                    marker=dict(
-                        size=sizes if isinstance(sizes, int) else sizes[~highlighted_mask],
-                        color=color,
-                        opacity=0.6,
-                        symbol=[STATUS_SYMBOLS.get(s, 'circle')
-                               for s in non_highlighted['status']],
-                        line=dict(color=BACKGROUND_COLOR, width=0.5)
-                    ),
-                    text=[hover_text[i] for i in range(len(hover_text))
-                          if not highlighted_mask.iloc[i]],
-                    hovertemplate='%{text}<extra></extra>',
-                    showlegend=True
-                ))
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=x_data[~highlighted_mask],
+                        y=y_data[~highlighted_mask],
+                        z=z_data[~highlighted_mask],
+                        mode="markers",
+                        name=f"{phase.upper()}",
+                        marker=dict(
+                            size=sizes if isinstance(sizes, int) else sizes[~highlighted_mask],
+                            color=color,
+                            opacity=0.6,
+                            symbol=[
+                                STATUS_SYMBOLS.get(s, "circle") for s in non_highlighted["status"]
+                            ],
+                            line=dict(color=BACKGROUND_COLOR, width=0.5),
+                        ),
+                        text=[
+                            hover_text[i]
+                            for i in range(len(hover_text))
+                            if not highlighted_mask.iloc[i]
+                        ],
+                        hovertemplate="%{text}<extra></extra>",
+                        showlegend=True,
+                    )
+                )
 
             # Add highlighted models with emphasis
             if highlighted_mask.any():
                 highlighted = phase_data[highlighted_mask]
-                fig.add_trace(go.Scatter3d(
-                    x=x_data[highlighted_mask],
-                    y=y_data[highlighted_mask],
-                    z=z_data[highlighted_mask],
-                    mode='markers',
-                    name=f'{phase.upper()} (Champion)',
-                    marker=dict(
-                        size=sizes if isinstance(sizes, int) else sizes[highlighted_mask] * 1.5,
-                        color=color,
-                        opacity=1.0,
-                        symbol=[STATUS_SYMBOLS.get(s, 'circle')
-                               for s in highlighted['status']],
-                        line=dict(color='#FFFFFF', width=3)
-                    ),
-                    text=[hover_text[i] for i in range(len(hover_text))
-                          if highlighted_mask.iloc[i]],
-                    hovertemplate='%{text}<extra></extra>',
-                    showlegend=True
-                ))
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=x_data[highlighted_mask],
+                        y=y_data[highlighted_mask],
+                        z=z_data[highlighted_mask],
+                        mode="markers",
+                        name=f"{phase.upper()} (Champion)",
+                        marker=dict(
+                            size=sizes if isinstance(sizes, int) else sizes[highlighted_mask] * 1.5,
+                            color=color,
+                            opacity=1.0,
+                            symbol=[STATUS_SYMBOLS.get(s, "circle") for s in highlighted["status"]],
+                            line=dict(color="#FFFFFF", width=3),
+                        ),
+                        text=[
+                            hover_text[i]
+                            for i in range(len(hover_text))
+                            if highlighted_mask.iloc[i]
+                        ],
+                        hovertemplate="%{text}<extra></extra>",
+                        showlegend=True,
+                    )
+                )
         else:
             # No highlighting - add all models for this phase
-            fig.add_trace(go.Scatter3d(
-                x=x_data,
-                y=y_data,
-                z=z_data,
-                mode='markers',
-                name=f'{phase.upper()}',
-                marker=dict(
-                    size=sizes,
-                    color=color,
-                    opacity=0.7,
-                    symbol=symbols,
-                    line=dict(color=BACKGROUND_COLOR, width=0.5)
-                ),
-                text=hover_text,
-                hovertemplate='%{text}<extra></extra>',
-                showlegend=True
-            ))
+            fig.add_trace(
+                go.Scatter3d(
+                    x=x_data,
+                    y=y_data,
+                    z=z_data,
+                    mode="markers",
+                    name=f"{phase.upper()}",
+                    marker=dict(
+                        size=sizes,
+                        color=color,
+                        opacity=0.7,
+                        symbol=symbols,
+                        line=dict(color=BACKGROUND_COLOR, width=0.5),
+                    ),
+                    text=hover_text,
+                    hovertemplate="%{text}<extra></extra>",
+                    showlegend=True,
+                )
+            )
 
     # Add Pareto frontier surface (optional)
     if show_pareto and len(models_df) > 3:
@@ -193,51 +205,45 @@ def create_model_comparison_3d(
     layout_kwargs = dict(
         scene=dict(
             xaxis=dict(
-                title='Model Size (M params)',
-                backgroundcolor=BACKGROUND_COLOR,
-                gridcolor=GRID_COLOR,
-                showbackground=True,
-                zerolinecolor=GRID_COLOR,
-                color=TEXT_COLOR
-            ),
-            yaxis=dict(
-                title='Accuracy (%)',
-                backgroundcolor=BACKGROUND_COLOR,
-                gridcolor=GRID_COLOR,
-                showbackground=True,
-                zerolinecolor=GRID_COLOR,
-                color=TEXT_COLOR
-            ),
-            zaxis=dict(
-                title='Inference Speed (ms)',
+                title="Model Size (M params)",
                 backgroundcolor=BACKGROUND_COLOR,
                 gridcolor=GRID_COLOR,
                 showbackground=True,
                 zerolinecolor=GRID_COLOR,
                 color=TEXT_COLOR,
-                autorange='reversed'  # Lower latency is better (top)
+            ),
+            yaxis=dict(
+                title="Accuracy (%)",
+                backgroundcolor=BACKGROUND_COLOR,
+                gridcolor=GRID_COLOR,
+                showbackground=True,
+                zerolinecolor=GRID_COLOR,
+                color=TEXT_COLOR,
+            ),
+            zaxis=dict(
+                title="Inference Speed (ms)",
+                backgroundcolor=BACKGROUND_COLOR,
+                gridcolor=GRID_COLOR,
+                showbackground=True,
+                zerolinecolor=GRID_COLOR,
+                color=TEXT_COLOR,
+                autorange="reversed",  # Lower latency is better (top)
             ),
             bgcolor=BACKGROUND_COLOR,
             camera=dict(
-                eye=dict(x=1.5, y=1.5, z=1.3),
-                center=dict(x=0, y=0, z=0),
-                up=dict(x=0, y=0, z=1)
-            )
+                eye=dict(x=1.5, y=1.5, z=1.3), center=dict(x=0, y=0, z=0), up=dict(x=0, y=0, z=1)
+            ),
         ),
         paper_bgcolor=BACKGROUND_COLOR,
         plot_bgcolor=BACKGROUND_COLOR,
-        font=dict(
-            family="'Inter', sans-serif",
-            size=12,
-            color=TEXT_COLOR
-        ),
+        font=dict(family="'Inter', sans-serif", size=12, color=TEXT_COLOR),
         legend=dict(
-            bgcolor='rgba(27, 38, 59, 0.8)',
+            bgcolor="rgba(27, 38, 59, 0.8)",
             bordercolor=GRID_COLOR,
             borderwidth=1,
-            font=dict(color=TEXT_COLOR)
+            font=dict(color=TEXT_COLOR),
         ),
-        hovermode='closest',
+        hovermode="closest",
         margin=dict(l=0, r=0, b=0, t=30),
     )
 
@@ -256,17 +262,14 @@ def create_model_comparison_3d(
                 frame_trace = go.Scatter3d(
                     x=trace.x * progress,
                     y=trace.y * progress + (1 - progress) * 50,  # Start from middle
-                    z=trace.z * progress + (1 - progress) *
-                      (models_df['latency'].mean() if len(models_df) > 0 else 100),
+                    z=trace.z * progress
+                    + (1 - progress) * (models_df["latency"].mean() if len(models_df) > 0 else 100),
                     mode=trace.mode,
-                    marker=dict(
-                        **trace.marker,
-                        opacity=trace.marker.opacity * progress
-                    ),
+                    marker=dict(**trace.marker, opacity=trace.marker.opacity * progress),
                     text=trace.text,
                     hovertemplate=trace.hovertemplate,
                     showlegend=trace.showlegend,
-                    name=trace.name
+                    name=trace.name,
                 )
                 frame_data.append(frame_trace)
 
@@ -275,22 +278,31 @@ def create_model_comparison_3d(
         fig.frames = frames
 
         # Add animation controls
-        layout_kwargs['updatemenus'] = [dict(
-            type='buttons',
-            showactive=False,
-            buttons=[
-                dict(label='Play',
-                     method='animate',
-                     args=[None, dict(frame=dict(duration=50, redraw=True),
-                                     fromcurrent=True,
-                                     mode='immediate',
-                                     transition=dict(duration=0))])
-            ],
-            x=0.1,
-            xanchor='right',
-            y=1.0,
-            yanchor='top'
-        )]
+        layout_kwargs["updatemenus"] = [
+            dict(
+                type="buttons",
+                showactive=False,
+                buttons=[
+                    dict(
+                        label="Play",
+                        method="animate",
+                        args=[
+                            None,
+                            dict(
+                                frame=dict(duration=50, redraw=True),
+                                fromcurrent=True,
+                                mode="immediate",
+                                transition=dict(duration=0),
+                            ),
+                        ],
+                    )
+                ],
+                x=0.1,
+                xanchor="right",
+                y=1.0,
+                yanchor="top",
+            )
+        ]
 
     fig.update_layout(**layout_kwargs)
 
@@ -315,12 +327,15 @@ def _compute_pareto_surface(models_df: pd.DataFrame) -> Optional[go.Surface]:
 
     try:
         # Normalize metrics to [0, 1] for Pareto computation
-        params_norm = (models_df['params'] - models_df['params'].min()) / \
-                     (models_df['params'].max() - models_df['params'].min() + 1e-8)
-        accuracy_norm = (models_df['accuracy'] - models_df['accuracy'].min()) / \
-                       (models_df['accuracy'].max() - models_df['accuracy'].min() + 1e-8)
-        latency_norm = (models_df['latency'] - models_df['latency'].min()) / \
-                      (models_df['latency'].max() - models_df['latency'].min() + 1e-8)
+        params_norm = (models_df["params"] - models_df["params"].min()) / (
+            models_df["params"].max() - models_df["params"].min() + 1e-8
+        )
+        accuracy_norm = (models_df["accuracy"] - models_df["accuracy"].min()) / (
+            models_df["accuracy"].max() - models_df["accuracy"].min() + 1e-8
+        )
+        latency_norm = (models_df["latency"] - models_df["latency"].min()) / (
+            models_df["latency"].max() - models_df["latency"].min() + 1e-8
+        )
 
         # Find Pareto-optimal points
         # A point is Pareto-optimal if no other point dominates it
@@ -332,12 +347,16 @@ def _compute_pareto_surface(models_df: pd.DataFrame) -> Optional[go.Surface]:
                 if i != j:
                     # Check if j dominates i
                     # Better: higher accuracy, lower latency, lower params
-                    if (accuracy_norm.iloc[j] >= accuracy_norm.iloc[i] and
-                        latency_norm.iloc[j] <= latency_norm.iloc[i] and
-                        params_norm.iloc[j] <= params_norm.iloc[i] and
-                        (accuracy_norm.iloc[j] > accuracy_norm.iloc[i] or
-                         latency_norm.iloc[j] < latency_norm.iloc[i] or
-                         params_norm.iloc[j] < params_norm.iloc[i])):
+                    if (
+                        accuracy_norm.iloc[j] >= accuracy_norm.iloc[i]
+                        and latency_norm.iloc[j] <= latency_norm.iloc[i]
+                        and params_norm.iloc[j] <= params_norm.iloc[i]
+                        and (
+                            accuracy_norm.iloc[j] > accuracy_norm.iloc[i]
+                            or latency_norm.iloc[j] < latency_norm.iloc[i]
+                            or params_norm.iloc[j] < params_norm.iloc[i]
+                        )
+                    ):
                         is_pareto[i] = False
                         break
 
@@ -349,9 +368,9 @@ def _compute_pareto_surface(models_df: pd.DataFrame) -> Optional[go.Surface]:
 
         # Create a mesh surface through Pareto points
         # Use convex hull or interpolation
-        x = pareto_points['params'].values / 1_000_000
-        y = pareto_points['accuracy'].values
-        z = pareto_points['latency'].values
+        x = pareto_points["params"].values / 1_000_000
+        y = pareto_points["accuracy"].values
+        z = pareto_points["latency"].values
 
         # Sort by x-axis for surface creation
         sorted_idx = np.argsort(x)
@@ -366,19 +385,19 @@ def _compute_pareto_surface(models_df: pd.DataFrame) -> Optional[go.Surface]:
 
         # Interpolate z values
         from scipy.interpolate import griddata
-        zi_grid = griddata((x, y), z, (xi_grid, yi_grid), method='linear')
+
+        zi_grid = griddata((x, y), z, (xi_grid, yi_grid), method="linear")
 
         # Create surface trace
         surface = go.Surface(
             x=xi_grid,
             y=yi_grid,
             z=zi_grid,
-            colorscale=[[0, 'rgba(0, 245, 212, 0.1)'],
-                       [1, 'rgba(0, 245, 212, 0.3)']],
+            colorscale=[[0, "rgba(0, 245, 212, 0.1)"], [1, "rgba(0, 245, 212, 0.3)"]],
             showscale=False,
-            name='Pareto Frontier',
-            hoverinfo='skip',
-            opacity=0.3
+            name="Pareto Frontier",
+            hoverinfo="skip",
+            opacity=0.3,
         )
 
         return surface
@@ -389,10 +408,7 @@ def _compute_pareto_surface(models_df: pd.DataFrame) -> Optional[go.Surface]:
         return None
 
 
-def render_model_browser_3d(
-    models: List[Dict[str, Any]],
-    key: str = "model_browser_3d"
-) -> None:
+def render_model_browser_3d(models: List[Dict[str, Any]], key: str = "model_browser_3d") -> None:
     """
     Streamlit component for 3D model browser.
 
@@ -414,11 +430,11 @@ def render_model_browser_3d(
     df = pd.DataFrame(models)
 
     # Normalize column names
-    if 'model_id' in df.columns:
-        df['id'] = df['model_id']
+    if "model_id" in df.columns:
+        df["id"] = df["model_id"]
 
     # Ensure required columns exist
-    required_cols = ['id', 'name', 'phase', 'params', 'accuracy', 'latency', 'status']
+    required_cols = ["id", "name", "phase", "params", "accuracy", "latency", "status"]
     missing_cols = [c for c in required_cols if c not in df.columns]
 
     if missing_cols:
@@ -426,8 +442,8 @@ def render_model_browser_3d(
         return
 
     # Add default compression if not present
-    if 'compression' not in df.columns:
-        df['compression'] = 1.0
+    if "compression" not in df.columns:
+        df["compression"] = 1.0
 
     # Controls
     col1, col2, col3 = st.columns(3)
@@ -435,30 +451,22 @@ def render_model_browser_3d(
     with col1:
         show_phases = st.multiselect(
             "Filter Phases",
-            options=[f'phase{i}' for i in range(1, 9)],
-            default=[f'phase{i}' for i in range(1, 9)],
-            key=f"{key}_phases"
+            options=[f"phase{i}" for i in range(1, 9)],
+            default=[f"phase{i}" for i in range(1, 9)],
+            key=f"{key}_phases",
         )
 
     with col2:
-        highlight_champions = st.checkbox(
-            "Highlight Champions",
-            value=True,
-            key=f"{key}_champions"
-        )
+        highlight_champions = st.checkbox("Highlight Champions", value=True, key=f"{key}_champions")
 
     with col3:
-        show_pareto = st.checkbox(
-            "Show Pareto Frontier",
-            value=False,
-            key=f"{key}_pareto"
-        )
+        show_pareto = st.checkbox("Show Pareto Frontier", value=False, key=f"{key}_pareto")
 
     # Find champion models (best accuracy per phase)
     highlighted_ids = None
     if highlight_champions:
-        champions = df.loc[df.groupby('phase')['accuracy'].idxmax()]
-        highlighted_ids = champions['id'].tolist()
+        champions = df.loc[df.groupby("phase")["accuracy"].idxmax()]
+        highlighted_ids = champions["id"].tolist()
 
     # Create 3D plot
     fig = create_model_comparison_3d(
@@ -466,7 +474,7 @@ def render_model_browser_3d(
         highlighted_ids=highlighted_ids,
         show_phases=show_phases if show_phases else None,
         show_pareto=show_pareto,
-        animate=True
+        animate=True,
     )
 
     # Render
@@ -478,7 +486,7 @@ def render_model_browser_3d(
 
     col1, col2, col3, col4 = st.columns(4)
 
-    filtered_df = df[df['phase'].isin(show_phases)] if show_phases else df
+    filtered_df = df[df["phase"].isin(show_phases)] if show_phases else df
 
     with col1:
         st.metric("Total Models", len(filtered_df))
@@ -495,17 +503,14 @@ def render_model_browser_3d(
     # Phase breakdown
     st.markdown("#### Phase Breakdown")
 
-    phase_stats = filtered_df.groupby('phase').agg({
-        'accuracy': 'mean',
-        'latency': 'mean',
-        'params': 'count'
-    }).round(2)
-    phase_stats.columns = ['Avg Accuracy (%)', 'Avg Latency (ms)', 'Model Count']
-
-    st.dataframe(
-        phase_stats,
-        use_container_width=True
+    phase_stats = (
+        filtered_df.groupby("phase")
+        .agg({"accuracy": "mean", "latency": "mean", "params": "count"})
+        .round(2)
     )
+    phase_stats.columns = ["Avg Accuracy (%)", "Avg Latency (ms)", "Model Count"]
+
+    st.dataframe(phase_stats, use_container_width=True)
 
 
 def get_sample_data() -> List[Dict[str, Any]]:
@@ -515,7 +520,7 @@ def get_sample_data() -> List[Dict[str, Any]]:
     models = []
 
     for phase_num in range(1, 9):
-        phase = f'phase{phase_num}'
+        phase = f"phase{phase_num}"
         n_models = np.random.randint(3, 8)
 
         # Base metrics that improve with phases
@@ -531,31 +536,28 @@ def get_sample_data() -> List[Dict[str, Any]]:
 
             # Random status
             status = np.random.choice(
-                ['complete', 'running', 'failed', 'pending'],
-                p=[0.7, 0.15, 0.1, 0.05]
+                ["complete", "running", "failed", "pending"], p=[0.7, 0.15, 0.1, 0.05]
             )
 
-            models.append({
-                'id': f'{phase}_model_{i}',
-                'name': f'{phase.upper()} Model {i+1}',
-                'phase': phase,
-                'params': 25_000_000,
-                'accuracy': accuracy,
-                'latency': latency,
-                'compression': compression,
-                'status': status
-            })
+            models.append(
+                {
+                    "id": f"{phase}_model_{i}",
+                    "name": f"{phase.upper()} Model {i+1}",
+                    "phase": phase,
+                    "params": 25_000_000,
+                    "accuracy": accuracy,
+                    "latency": latency,
+                    "compression": compression,
+                    "status": status,
+                }
+            )
 
     return models
 
 
 # Demo/Testing
 if __name__ == "__main__":
-    st.set_page_config(
-        page_title="3D Model Browser",
-        page_icon=":rocket:",
-        layout="wide"
-    )
+    st.set_page_config(page_title="3D Model Browser", page_icon=":rocket:", layout="wide")
 
     st.title("3D Model Comparison Visualization")
 
@@ -567,7 +569,8 @@ if __name__ == "__main__":
 
     # Add documentation
     with st.expander("About this visualization"):
-        st.markdown("""
+        st.markdown(
+            """
         ### 3D Model Space Visualization
 
         This interactive 3D scatter plot shows all models across the 8-phase pipeline
@@ -598,4 +601,5 @@ if __name__ == "__main__":
         **Interpretation:**
         Models in the upper-left-front region represent the best trade-offs:
         high accuracy, low latency, and small model size.
-        """)
+        """
+        )

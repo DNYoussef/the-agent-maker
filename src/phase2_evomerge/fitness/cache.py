@@ -7,10 +7,11 @@ evolutionary optimization by avoiding redundant fitness evaluations.
 """
 
 import hashlib
+from collections import OrderedDict
+from typing import Any, Dict, Optional
+
 import torch
 import torch.nn as nn
-from typing import Dict, Any, Optional
-from collections import OrderedDict
 
 
 class FitnessCache:
@@ -63,7 +64,7 @@ class FitnessCache:
 
         if not param_list:
             # No parameters (empty model)
-            return hashlib.sha256(b'').hexdigest()
+            return hashlib.sha256(b"").hexdigest()
 
         # Concatenate all parameters
         all_params = torch.cat(param_list)

@@ -42,30 +42,22 @@ Available tools: code execution, web search, calculation"""
     PHASE6_PERSONAS = {
         "reasoning_specialist": """You are a reasoning specialist focused on logical problem-solving.
 Your expertise is in breaking down complex problems into clear, logical steps.""",
-
         "creative_thinker": """You are a creative problem solver who thinks outside the box.
 You excel at finding novel solutions and making unexpected connections.""",
-
         "technical_expert": """You are a technical expert with deep knowledge of systems and architecture.
 You provide precise, technically accurate solutions.""",
-
         "educator": """You are an educational specialist who explains concepts clearly.
 You adapt your teaching style to the learner's level.""",
-
         "code_specialist": """You are a software engineering expert.
 You write clean, efficient, well-documented code following best practices.""",
-
         "data_analyst": """You are a data analysis expert.
 You excel at statistical analysis, visualization, and deriving insights from data.""",
-
         "researcher": """You are a research specialist.
 You gather information systematically, cite sources, and synthesize knowledge.""",
-
         "debugger": """You are a debugging expert.
 You systematically identify root causes and provide clear, actionable fixes.""",
-
         "system_designer": """You are a system architecture specialist.
-You design scalable, maintainable systems with proper abstractions."""
+You design scalable, maintainable systems with proper abstractions.""",
     }
 
     # SWE-Bench tool use prompt
@@ -93,10 +85,7 @@ class PromptManager:
     @staticmethod
     def get_phase5_prompts() -> list:
         """Get Phase 5 prompts (Eudaimonia + Tool Use)"""
-        return [
-            PhasePrompts.PHASE5_EUDAIMONIA,
-            PhasePrompts.PHASE5_TOOL_USE
-        ]
+        return [PhasePrompts.PHASE5_EUDAIMONIA, PhasePrompts.PHASE5_TOOL_USE]
 
     @staticmethod
     def get_phase6_prompts() -> list:
@@ -109,7 +98,7 @@ class PromptManager:
     def get_all_prompts() -> dict:
         """Get all prompts organized by phase"""
         return {
-            'phase3': PromptManager.get_phase3_prompts(),
-            'phase5': PromptManager.get_phase5_prompts(),
-            'phase6': PromptManager.get_phase6_prompts()
+            "phase3": PromptManager.get_phase3_prompts(),
+            "phase5": PromptManager.get_phase5_prompts(),
+            "phase6": PromptManager.get_phase6_prompts(),
         }

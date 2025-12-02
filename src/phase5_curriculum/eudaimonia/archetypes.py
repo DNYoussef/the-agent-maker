@@ -13,17 +13,18 @@ The final moral direction is determined by averaging their vectors.
 
 Based on PHASE5_EUDAIMONIA_SYSTEM.md specification.
 """
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
-from enum import Enum
-from abc import ABC, abstractmethod
 import logging
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class ArchetypeType(Enum):
     """The three philosophical archetypes."""
+
     CHRIST = "christ"
     HARMONY = "harmony"  # Buddha/Lao Tzu combined
     STOIC = "stoic"
@@ -42,6 +43,7 @@ class ArchetypeGuidance:
         caution: What this archetype warns against
         vector: Numerical representation for averaging
     """
+
     archetype: ArchetypeType
     perspective: str
     recommendations: List[str]
@@ -67,10 +69,7 @@ class PhilosophicalArchetype(ABC):
 
     @abstractmethod
     def provide_guidance(
-        self,
-        situation: str,
-        eudaimonia_score: float,
-        context: Dict[str, Any]
+        self, situation: str, eudaimonia_score: float, context: Dict[str, Any]
     ) -> ArchetypeGuidance:
         """
         Provide guidance from this archetype's perspective.
@@ -115,14 +114,11 @@ class ChristArchetype(PhilosophicalArchetype):
             "service_orientation": 0.90,
             "sacrifice": 0.85,
             "patience": 0.90,
-            "unconditional_love": 0.95
+            "unconditional_love": 0.95,
         }
 
     def provide_guidance(
-        self,
-        situation: str,
-        eudaimonia_score: float,
-        context: Dict[str, Any]
+        self, situation: str, eudaimonia_score: float, context: Dict[str, Any]
     ) -> ArchetypeGuidance:
         """Provide guidance from Christ's perspective."""
         recommendations = []
@@ -130,25 +126,25 @@ class ChristArchetype(PhilosophicalArchetype):
 
         # Very low score: Emphasize redemption and reconciliation
         if eudaimonia_score < 0.40:
-            recommendations.extend([
-                "Acknowledge any harm done and seek to make amends",
-                "Approach the situation with compassion, not judgment",
-                "Ask: 'How can I serve those affected?'"
-            ])
-            perspective_parts.append(
-                "This situation calls for redemptive action and healing"
+            recommendations.extend(
+                [
+                    "Acknowledge any harm done and seek to make amends",
+                    "Approach the situation with compassion, not judgment",
+                    "Ask: 'How can I serve those affected?'",
+                ]
             )
+            perspective_parts.append("This situation calls for redemptive action and healing")
 
         # Low score: Emphasize teaching through love
         elif eudaimonia_score < 0.65:
-            recommendations.extend([
-                "Forgive any mistakes and help them learn",
-                "Consider a different teaching approach with patience",
-                "Lead by example rather than criticism"
-            ])
-            perspective_parts.append(
-                "Help them grow through patient, loving guidance"
+            recommendations.extend(
+                [
+                    "Forgive any mistakes and help them learn",
+                    "Consider a different teaching approach with patience",
+                    "Lead by example rather than criticism",
+                ]
             )
+            perspective_parts.append("Help them grow through patient, loving guidance")
 
         # Conflict situations
         if context.get("involves_conflict", False):
@@ -163,13 +159,13 @@ class ChristArchetype(PhilosophicalArchetype):
 
         # User repeated failure
         if context.get("repeated_failure", False):
-            recommendations.append(
-                "Don't give up on them. Try a new teaching method."
-            )
+            recommendations.append("Don't give up on them. Try a new teaching method.")
             recommendations.append("'Let's try a different approach together.'")
 
-        perspective = "; ".join(perspective_parts) if perspective_parts else (
-            "Approach this situation with compassion and unconditional positive regard"
+        perspective = (
+            "; ".join(perspective_parts)
+            if perspective_parts
+            else ("Approach this situation with compassion and unconditional positive regard")
         )
 
         return ArchetypeGuidance(
@@ -178,7 +174,7 @@ class ChristArchetype(PhilosophicalArchetype):
             recommendations=recommendations,
             key_virtue="Agape (unconditional love)",
             caution="Avoid self-righteousness; extend grace to all parties",
-            vector=self.weight_vector
+            vector=self.weight_vector,
         )
 
 
@@ -213,72 +209,61 @@ class HarmonyArchetype(PhilosophicalArchetype):
             "compassionate_detachment": 0.85,
             "presence": 0.85,
             "balance": 0.90,
-            "impermanence_awareness": 0.80
+            "impermanence_awareness": 0.80,
         }
 
     def provide_guidance(
-        self,
-        situation: str,
-        eudaimonia_score: float,
-        context: Dict[str, Any]
+        self, situation: str, eudaimonia_score: float, context: Dict[str, Any]
     ) -> ArchetypeGuidance:
         """Provide guidance from Buddha/Lao Tzu's perspective."""
         recommendations = []
         perspective_parts = []
 
         # Always start with mindful observation
-        recommendations.append(
-            "Pause and observe the situation with equanimity before acting"
-        )
+        recommendations.append("Pause and observe the situation with equanimity before acting")
 
         # Very low score: Examine attachments
         if eudaimonia_score < 0.40:
-            recommendations.extend([
-                "Examine what attachments are causing this suffering",
-                "Release expectations of specific outcomes",
-                "Accept what is, then act from clarity"
-            ])
-            perspective_parts.append(
-                "Suffering arises from attachment to outcomes"
+            recommendations.extend(
+                [
+                    "Examine what attachments are causing this suffering",
+                    "Release expectations of specific outcomes",
+                    "Accept what is, then act from clarity",
+                ]
             )
+            perspective_parts.append("Suffering arises from attachment to outcomes")
 
         # Low score: Find the middle path
         elif eudaimonia_score < 0.65:
-            recommendations.extend([
-                "Seek the middle path between action and inaction",
-                "Let go of attachment to your preferred solution",
-                "What is the natural, effortless response?"
-            ])
-            perspective_parts.append(
-                "The middle way avoids extremes"
+            recommendations.extend(
+                [
+                    "Seek the middle path between action and inaction",
+                    "Let go of attachment to your preferred solution",
+                    "What is the natural, effortless response?",
+                ]
             )
+            perspective_parts.append("The middle way avoids extremes")
 
         # User urgency
         if context.get("involves_urgency", False):
-            recommendations.append(
-                "Urgency itself may be an illusion. Act with calm clarity."
-            )
+            recommendations.append("Urgency itself may be an illusion. Act with calm clarity.")
             recommendations.append(
                 "The reed that bends in the storm survives; the oak that resists breaks."
             )
 
         # User stuck on problem
         if context.get("user_stuck", False):
-            recommendations.append(
-                "What if we step back and observe the larger pattern?"
-            )
-            recommendations.append(
-                "Sometimes the way forward is to stop pushing."
-            )
+            recommendations.append("What if we step back and observe the larger pattern?")
+            recommendations.append("Sometimes the way forward is to stop pushing.")
 
         # Conflict
         if context.get("involves_conflict", False):
-            recommendations.append(
-                "Water overcomes rock by flowing around it, not through force"
-            )
+            recommendations.append("Water overcomes rock by flowing around it, not through force")
 
-        perspective = "; ".join(perspective_parts) if perspective_parts else (
-            "All experiences are impermanent. Respond with mindful awareness."
+        perspective = (
+            "; ".join(perspective_parts)
+            if perspective_parts
+            else ("All experiences are impermanent. Respond with mindful awareness.")
         )
 
         return ArchetypeGuidance(
@@ -287,7 +272,7 @@ class HarmonyArchetype(PhilosophicalArchetype):
             recommendations=recommendations,
             key_virtue="Prajna (wisdom through non-attachment)",
             caution="Avoid confusing detachment with indifference",
-            vector=self.weight_vector
+            vector=self.weight_vector,
         )
 
 
@@ -322,75 +307,66 @@ class StoicArchetype(PhilosophicalArchetype):
             "focus_on_controllable": 0.85,
             "rationality": 0.85,
             "equanimity": 0.80,
-            "integrity": 0.90
+            "integrity": 0.90,
         }
 
     def provide_guidance(
-        self,
-        situation: str,
-        eudaimonia_score: float,
-        context: Dict[str, Any]
+        self, situation: str, eudaimonia_score: float, context: Dict[str, Any]
     ) -> ArchetypeGuidance:
         """Provide guidance from Stoic perspective."""
         recommendations = []
         perspective_parts = []
 
         # Always start with the dichotomy of control
-        recommendations.append(
-            "Distinguish what is within your control from what is not"
-        )
+        recommendations.append("Distinguish what is within your control from what is not")
 
         # Very low score: Focus on virtue despite outcome
         if eudaimonia_score < 0.40:
-            recommendations.extend([
-                "Focus on acting virtuously regardless of the outcome",
-                "Accept that some things cannot be changed",
-                "What is within your control right now?"
-            ])
-            perspective_parts.append(
-                "Virtue is the only thing fully within our control"
+            recommendations.extend(
+                [
+                    "Focus on acting virtuously regardless of the outcome",
+                    "Accept that some things cannot be changed",
+                    "What is within your control right now?",
+                ]
             )
+            perspective_parts.append("Virtue is the only thing fully within our control")
 
         # Low score: Apply reason
         elif eudaimonia_score < 0.65:
-            recommendations.extend([
-                "Apply reason to identify the virtuous path forward",
-                "Do not let emotion cloud your judgment",
-                "What would a person of wisdom do in this situation?"
-            ])
-            perspective_parts.append(
-                "Reason must govern our responses, not impulse"
+            recommendations.extend(
+                [
+                    "Apply reason to identify the virtuous path forward",
+                    "Do not let emotion cloud your judgment",
+                    "What would a person of wisdom do in this situation?",
+                ]
             )
+            perspective_parts.append("Reason must govern our responses, not impulse")
 
         # External pressure
         if context.get("external_pressure", False):
             recommendations.append(
                 "External pressures cannot compromise your integrity unless you allow it"
             )
-            recommendations.append(
-                "You control your character; others control their opinions"
-            )
+            recommendations.append("You control your character; others control their opinions")
 
         # Beyond capabilities
         if context.get("beyond_capabilities", False):
             recommendations.append(
                 "Acknowledge your limits with humility: 'I don't know, but I can learn with you'"
             )
-            recommendations.append(
-                "There is wisdom in knowing what you do not know"
-            )
+            recommendations.append("There is wisdom in knowing what you do not know")
 
         # User frustration
         if context.get("user_frustrated", False):
             recommendations.append(
                 "Their frustration is not within your control. Your response is."
             )
-            recommendations.append(
-                "Respond with clarity and patience, not defensiveness"
-            )
+            recommendations.append("Respond with clarity and patience, not defensiveness")
 
-        perspective = "; ".join(perspective_parts) if perspective_parts else (
-            "Act according to virtue and reason; accept what follows"
+        perspective = (
+            "; ".join(perspective_parts)
+            if perspective_parts
+            else ("Act according to virtue and reason; accept what follows")
         )
 
         return ArchetypeGuidance(
@@ -399,7 +375,7 @@ class StoicArchetype(PhilosophicalArchetype):
             recommendations=recommendations,
             key_virtue="Sophrosyne (temperance/self-control)",
             caution="Avoid cold rationality that ignores legitimate human feeling",
-            vector=self.weight_vector
+            vector=self.weight_vector,
         )
 
 
@@ -429,14 +405,11 @@ class ArchetypeCouncil:
         self.archetypes: List[PhilosophicalArchetype] = [
             ChristArchetype(),
             HarmonyArchetype(),
-            StoicArchetype()
+            StoicArchetype(),
         ]
 
     def consult(
-        self,
-        situation: str,
-        eudaimonia_score: float,
-        context: Optional[Dict[str, Any]] = None
+        self, situation: str, eudaimonia_score: float, context: Optional[Dict[str, Any]] = None
     ) -> List[ArchetypeGuidance]:
         """
         Consult all archetypes for guidance.
@@ -454,18 +427,13 @@ class ArchetypeCouncil:
 
         for archetype in self.archetypes:
             guidance = archetype.provide_guidance(
-                situation=situation,
-                eudaimonia_score=eudaimonia_score,
-                context=context
+                situation=situation, eudaimonia_score=eudaimonia_score, context=context
             )
             guidances.append(guidance)
 
         return guidances
 
-    def synthesize(
-        self,
-        guidances: List[ArchetypeGuidance]
-    ) -> Dict[str, Any]:
+    def synthesize(self, guidances: List[ArchetypeGuidance]) -> Dict[str, Any]:
         """
         Synthesize multiple archetype perspectives into unified direction.
 
@@ -507,13 +475,12 @@ class ArchetypeCouncil:
                     word_counts[word] = word_counts.get(word, 0) + 1
 
         common_themes = [
-            word for word, count in sorted(
-                word_counts.items(),
-                key=lambda x: x[1],
-                reverse=True
-            )
+            word
+            for word, count in sorted(word_counts.items(), key=lambda x: x[1], reverse=True)
             if count >= 2
-        ][:10]  # Top 10 common themes
+        ][
+            :10
+        ]  # Top 10 common themes
 
         # Collect key virtues
         virtues = [g.key_virtue for g in guidances]
@@ -544,16 +511,11 @@ class ArchetypeCouncil:
             "key_virtues": virtues,
             "cautions": [g.caution for g in guidances],
             "synthesis_statement": synthesis_statement,
-            "archetype_perspectives": {
-                g.archetype.value: g.perspective for g in guidances
-            }
+            "archetype_perspectives": {g.archetype.value: g.perspective for g in guidances},
         }
 
     def get_moral_direction(
-        self,
-        situation: str,
-        eudaimonia_score: float,
-        context: Optional[Dict[str, Any]] = None
+        self, situation: str, eudaimonia_score: float, context: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Complete moral compass consultation - consult and synthesize.
@@ -577,5 +539,5 @@ __all__ = [
     "PhilosophicalArchetype",
     "ChristArchetype",
     "HarmonyArchetype",
-    "StoicArchetype"
+    "StoicArchetype",
 ]

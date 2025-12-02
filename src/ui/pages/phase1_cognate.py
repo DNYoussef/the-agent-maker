@@ -13,19 +13,19 @@ Features:
 - Model comparison and handoff validation
 """
 
-import streamlit as st
-import streamlit.components.v1 as components
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
-import pandas as pd
-import numpy as np
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 import json
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
+import streamlit.components.v1 as components
+from plotly.subplots import make_subplots
 
 # ============================================================================
 # CUSTOM PLOTLY THEME - Dark Command Center
@@ -33,42 +33,36 @@ from datetime import datetime, timedelta
 
 CUSTOM_PLOTLY_TEMPLATE = go.layout.Template(
     layout=go.Layout(
-        paper_bgcolor='#0D1B2A',
-        plot_bgcolor='#1B2838',
+        paper_bgcolor="#0D1B2A",
+        plot_bgcolor="#1B2838",
         font=dict(
-            family='Space Grotesk, Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+            family="Space Grotesk, Inter, -apple-system, BlinkMacSystemFont, sans-serif",
             size=12,
-            color='#E0E1DD'
+            color="#E0E1DD",
         ),
         title=dict(
-            font=dict(size=18, color='#00F5D4', family='Space Grotesk'),
-            x=0.5,
-            xanchor='center'
+            font=dict(size=18, color="#00F5D4", family="Space Grotesk"), x=0.5, xanchor="center"
         ),
         xaxis=dict(
-            gridcolor='#2E3F4F',
-            zerolinecolor='#2E3F4F',
-            color='#E0E1DD',
-            linecolor='#2E3F4F',
+            gridcolor="#2E3F4F",
+            zerolinecolor="#2E3F4F",
+            color="#E0E1DD",
+            linecolor="#2E3F4F",
             showgrid=True,
-            gridwidth=0.5
+            gridwidth=0.5,
         ),
         yaxis=dict(
-            gridcolor='#2E3F4F',
-            zerolinecolor='#2E3F4F',
-            color='#E0E1DD',
-            linecolor='#2E3F4F',
+            gridcolor="#2E3F4F",
+            zerolinecolor="#2E3F4F",
+            color="#E0E1DD",
+            linecolor="#2E3F4F",
             showgrid=True,
-            gridwidth=0.5
+            gridwidth=0.5,
         ),
-        colorway=['#00F5D4', '#FF006E', '#8338EC', '#FB5607', '#FFBE0B', '#3A86FF'],
-        hovermode='closest',
+        colorway=["#00F5D4", "#FF006E", "#8338EC", "#FB5607", "#FFBE0B", "#3A86FF"],
+        hovermode="closest",
         margin=dict(l=60, r=40, t=60, b=60),
-        hoverlabel=dict(
-            bgcolor='#1B2838',
-            font_size=12,
-            font_family='Space Grotesk'
-        )
+        hoverlabel=dict(bgcolor="#1B2838", font_size=12, font_family="Space Grotesk"),
     )
 )
 
@@ -77,18 +71,27 @@ CUSTOM_PLOTLY_TEMPLATE = go.layout.Template(
 # UTILITY FUNCTIONS
 # ============================================================================
 
+
 def create_gradient_metric(
     label: str,
     value: str,
     delta: str = None,
-    gradient_start: str = '#00F5D4',
-    gradient_end: str = '#8338EC',
-    glow: bool = True
+    gradient_start: str = "#00F5D4",
+    gradient_end: str = "#8338EC",
+    glow: bool = True,
 ) -> str:
     """Create a futuristic metric card with gradient background and glow effect"""
-    delta_html = f'<div style="color: #00F5D4; font-size: 14px; margin-top: 5px; font-weight: 600;">{delta}</div>' if delta else ''
+    delta_html = (
+        f'<div style="color: #00F5D4; font-size: 14px; margin-top: 5px; font-weight: 600;">{delta}</div>'
+        if delta
+        else ""
+    )
 
-    glow_effect = 'box-shadow: 0 4px 20px rgba(0, 245, 212, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);' if glow else 'box-shadow: 0 4px 12px rgba(0, 245, 212, 0.1);'
+    glow_effect = (
+        "box-shadow: 0 4px 20px rgba(0, 245, 212, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);"
+        if glow
+        else "box-shadow: 0 4px 12px rgba(0, 245, 212, 0.1);"
+    )
 
     html = f"""
     <div style="
@@ -123,7 +126,7 @@ def create_model_card(
     total_epochs: int,
     current_loss: float,
     eta_minutes: int,
-    status: str = "training"
+    status: str = "training",
 ) -> str:
     """Create a futuristic model training card"""
 
@@ -132,17 +135,12 @@ def create_model_card(
         "training": "#00F5D4",
         "completed": "#00D084",
         "paused": "#FFBE0B",
-        "error": "#FF006E"
+        "error": "#FF006E",
     }
     status_color = status_colors.get(status, "#8B9DAF")
 
     # Status icons
-    status_icons = {
-        "training": "⚡",
-        "completed": "✓",
-        "paused": "⏸",
-        "error": "⚠"
-    }
+    status_icons = {"training": "⚡", "completed": "✓", "paused": "⏸", "error": "⚠"}
     status_icon = status_icons.get(status, "◯")
 
     # Progress bar
@@ -253,7 +251,9 @@ def generate_mock_training_data(model_idx: int, num_epochs: int = 50) -> Dict:
     epochs = np.arange(num_epochs)
 
     # Training loss with exponential decay + noise
-    train_loss = base_losses[model_idx] * np.exp(-epochs * convergence_rates[model_idx] / num_epochs)
+    train_loss = base_losses[model_idx] * np.exp(
+        -epochs * convergence_rates[model_idx] / num_epochs
+    )
     train_loss += np.random.normal(0, 0.05, num_epochs)
     train_loss = np.clip(train_loss, 0.3, 4.0)
 
@@ -284,14 +284,14 @@ def generate_mock_training_data(model_idx: int, num_epochs: int = 50) -> Dict:
     ltm_capacity = np.clip(ltm_capacity, 40, 95)
 
     return {
-        'epochs': epochs.tolist(),
-        'train_loss': train_loss.tolist(),
-        'val_loss': val_loss.tolist(),
-        'learning_rate': lr.tolist(),
-        'grad_norms': grad_norms.tolist(),
-        'memory_usage': memory_usage.tolist(),
-        'act_steps': act_steps.tolist(),
-        'ltm_capacity': ltm_capacity.tolist()
+        "epochs": epochs.tolist(),
+        "train_loss": train_loss.tolist(),
+        "val_loss": val_loss.tolist(),
+        "learning_rate": lr.tolist(),
+        "grad_norms": grad_norms.tolist(),
+        "memory_usage": memory_usage.tolist(),
+        "act_steps": act_steps.tolist(),
+        "ltm_capacity": ltm_capacity.tolist(),
     }
 
 
@@ -300,39 +300,40 @@ def create_loss_curve_chart(data: Dict, model_name: str) -> go.Figure:
     fig = go.Figure()
 
     # Validation loss (background)
-    fig.add_trace(go.Scatter(
-        x=data['epochs'],
-        y=data['val_loss'],
-        name='Validation Loss',
-        mode='lines',
-        line=dict(color='#FF006E', width=2),
-        opacity=0.7,
-        hovertemplate='<b>Val Loss</b><br>Epoch: %{x}<br>Loss: %{y:.4f}<extra></extra>'
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=data["epochs"],
+            y=data["val_loss"],
+            name="Validation Loss",
+            mode="lines",
+            line=dict(color="#FF006E", width=2),
+            opacity=0.7,
+            hovertemplate="<b>Val Loss</b><br>Epoch: %{x}<br>Loss: %{y:.4f}<extra></extra>",
+        )
+    )
 
     # Training loss (foreground with glow)
-    fig.add_trace(go.Scatter(
-        x=data['epochs'],
-        y=data['train_loss'],
-        name='Training Loss',
-        mode='lines',
-        line=dict(color='#00F5D4', width=3),
-        hovertemplate='<b>Train Loss</b><br>Epoch: %{x}<br>Loss: %{y:.4f}<extra></extra>'
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=data["epochs"],
+            y=data["train_loss"],
+            name="Training Loss",
+            mode="lines",
+            line=dict(color="#00F5D4", width=3),
+            hovertemplate="<b>Train Loss</b><br>Epoch: %{x}<br>Loss: %{y:.4f}<extra></extra>",
+        )
+    )
 
     fig.update_layout(
         template=CUSTOM_PLOTLY_TEMPLATE,
-        title=f'{model_name} - Loss Convergence',
-        xaxis_title='Epoch',
-        yaxis_title='Loss',
+        title=f"{model_name} - Loss Convergence",
+        xaxis_title="Epoch",
+        yaxis_title="Loss",
         height=350,
         showlegend=True,
         legend=dict(
-            x=0.7, y=0.95,
-            bgcolor='rgba(27, 40, 56, 0.6)',
-            bordercolor='#2E3F4F',
-            borderwidth=1
-        )
+            x=0.7, y=0.95, bgcolor="rgba(27, 40, 56, 0.6)", bordercolor="#2E3F4F", borderwidth=1
+        ),
     )
 
     return fig
@@ -458,55 +459,86 @@ def create_architecture_diagram() -> str:
 def create_metrics_grid(data_list: List[Dict]) -> go.Figure:
     """Create real-time metrics dashboard with multiple subplots"""
     fig = make_subplots(
-        rows=2, cols=2,
-        subplot_titles=('Learning Rate Schedule', 'Gradient Norms',
-                       'GPU Memory Usage', 'ACT Steps'),
-        specs=[[{'type': 'scatter'}, {'type': 'scatter'}],
-               [{'type': 'scatter'}, {'type': 'scatter'}]],
+        rows=2,
+        cols=2,
+        subplot_titles=(
+            "Learning Rate Schedule",
+            "Gradient Norms",
+            "GPU Memory Usage",
+            "ACT Steps",
+        ),
+        specs=[
+            [{"type": "scatter"}, {"type": "scatter"}],
+            [{"type": "scatter"}, {"type": "scatter"}],
+        ],
         vertical_spacing=0.12,
-        horizontal_spacing=0.1
+        horizontal_spacing=0.1,
     )
 
-    model_names = ['Reasoning Model', 'Memory Model', 'General Model']
-    colors = ['#00F5D4', '#FF006E', '#8338EC']
+    model_names = ["Reasoning Model", "Memory Model", "General Model"]
+    colors = ["#00F5D4", "#FF006E", "#8338EC"]
 
     for idx, (data, name, color) in enumerate(zip(data_list, model_names, colors)):
         # Learning Rate
         fig.add_trace(
-            go.Scatter(x=data['epochs'], y=data['learning_rate'],
-                      name=name, mode='lines', line=dict(color=color, width=2),
-                      showlegend=(idx == 0)),
-            row=1, col=1
+            go.Scatter(
+                x=data["epochs"],
+                y=data["learning_rate"],
+                name=name,
+                mode="lines",
+                line=dict(color=color, width=2),
+                showlegend=(idx == 0),
+            ),
+            row=1,
+            col=1,
         )
 
         # Gradient Norms
         fig.add_trace(
-            go.Scatter(x=data['epochs'], y=data['grad_norms'],
-                      name=name, mode='lines', line=dict(color=color, width=2),
-                      showlegend=False),
-            row=1, col=2
+            go.Scatter(
+                x=data["epochs"],
+                y=data["grad_norms"],
+                name=name,
+                mode="lines",
+                line=dict(color=color, width=2),
+                showlegend=False,
+            ),
+            row=1,
+            col=2,
         )
 
         # Memory Usage
         fig.add_trace(
-            go.Scatter(x=data['epochs'], y=data['memory_usage'],
-                      name=name, mode='lines', line=dict(color=color, width=2),
-                      showlegend=False),
-            row=2, col=1
+            go.Scatter(
+                x=data["epochs"],
+                y=data["memory_usage"],
+                name=name,
+                mode="lines",
+                line=dict(color=color, width=2),
+                showlegend=False,
+            ),
+            row=2,
+            col=1,
         )
 
         # ACT Steps
         fig.add_trace(
-            go.Scatter(x=data['epochs'], y=data['act_steps'],
-                      name=name, mode='lines', line=dict(color=color, width=2),
-                      showlegend=False),
-            row=2, col=2
+            go.Scatter(
+                x=data["epochs"],
+                y=data["act_steps"],
+                name=name,
+                mode="lines",
+                line=dict(color=color, width=2),
+                showlegend=False,
+            ),
+            row=2,
+            col=2,
         )
 
-    fig.update_xaxes(title_text="Epoch", gridcolor='#2E3F4F', color='#E0E1DD')
-    fig.update_yaxes(gridcolor='#2E3F4F', color='#E0E1DD')
+    fig.update_xaxes(title_text="Epoch", gridcolor="#2E3F4F", color="#E0E1DD")
+    fig.update_yaxes(gridcolor="#2E3F4F", color="#E0E1DD")
 
-    fig.update_yaxes(title_text="Learning Rate", row=1, col=1, type='log')
+    fig.update_yaxes(title_text="Learning Rate", row=1, col=1, type="log")
     fig.update_yaxes(title_text="Gradient Norm", row=1, col=2)
     fig.update_yaxes(title_text="VRAM (GB)", row=2, col=1)
     fig.update_yaxes(title_text="Compute Steps", row=2, col=2)
@@ -516,11 +548,8 @@ def create_metrics_grid(data_list: List[Dict]) -> go.Figure:
         height=600,
         showlegend=True,
         legend=dict(
-            x=0.02, y=0.98,
-            bgcolor='rgba(27, 40, 56, 0.6)',
-            bordercolor='#2E3F4F',
-            borderwidth=1
-        )
+            x=0.02, y=0.98, bgcolor="rgba(27, 40, 56, 0.6)", bordercolor="#2E3F4F", borderwidth=1
+        ),
     )
 
     return fig
@@ -528,24 +557,26 @@ def create_metrics_grid(data_list: List[Dict]) -> go.Figure:
 
 def create_comparison_table(data_list: List[Dict]) -> pd.DataFrame:
     """Create model comparison table"""
-    model_names = ['Reasoning Model', 'Memory Model', 'General Model']
+    model_names = ["Reasoning Model", "Memory Model", "General Model"]
 
     comparison_data = []
     for idx, (name, data) in enumerate(zip(model_names, data_list)):
-        final_train_loss = data['train_loss'][-1]
-        final_val_loss = data['val_loss'][-1]
-        avg_act_steps = np.mean(data['act_steps'])
-        final_ltm_capacity = data['ltm_capacity'][-1]
+        final_train_loss = data["train_loss"][-1]
+        final_val_loss = data["val_loss"][-1]
+        avg_act_steps = np.mean(data["act_steps"])
+        final_ltm_capacity = data["ltm_capacity"][-1]
 
-        comparison_data.append({
-            'Model': name,
-            'Parameters': '25M',
-            'Final Train Loss': f"{final_train_loss:.4f}",
-            'Final Val Loss': f"{final_val_loss:.4f}",
-            'Avg ACT Steps': f"{avg_act_steps:.2f}",
-            'LTM Capacity': f"{final_ltm_capacity:.1f}%",
-            'Training Time': f"{np.random.randint(180, 240)} min"
-        })
+        comparison_data.append(
+            {
+                "Model": name,
+                "Parameters": "25M",
+                "Final Train Loss": f"{final_train_loss:.4f}",
+                "Final Val Loss": f"{final_val_loss:.4f}",
+                "Avg ACT Steps": f"{avg_act_steps:.2f}",
+                "LTM Capacity": f"{final_ltm_capacity:.1f}%",
+                "Training Time": f"{np.random.randint(180, 240)} min",
+            }
+        )
 
     return pd.DataFrame(comparison_data)
 
@@ -554,11 +585,13 @@ def create_comparison_table(data_list: List[Dict]) -> pd.DataFrame:
 # MAIN DASHBOARD
 # ============================================================================
 
+
 def render_phase1_cognate():
     """Main rendering function for Phase 1 Cognate dashboard"""
 
     # Custom CSS
-    st.markdown("""
+    st.markdown(
+        """
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;800&display=swap');
 
@@ -615,13 +648,16 @@ def render_phase1_cognate():
             border-color: #2E3F4F !important;
         }
     </style>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     # ========================================================================
     # HERO SECTION
     # ========================================================================
 
-    st.markdown("""
+    st.markdown(
+        """
     <div class="hero-section">
         <div style="text-align: center;">
             <div style="font-size: 48px; font-weight: 800; color: #FFFFFF;
@@ -639,7 +675,9 @@ def render_phase1_cognate():
             </div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     # ========================================================================
     # GLOBAL METRICS
@@ -648,40 +686,52 @@ def render_phase1_cognate():
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.markdown(create_gradient_metric(
-            "Total Models",
-            "3",
-            delta="Reasoning + Memory + General",
-            gradient_start="#00F5D4",
-            gradient_end="#3A86FF"
-        ), unsafe_allow_html=True)
+        st.markdown(
+            create_gradient_metric(
+                "Total Models",
+                "3",
+                delta="Reasoning + Memory + General",
+                gradient_start="#00F5D4",
+                gradient_end="#3A86FF",
+            ),
+            unsafe_allow_html=True,
+        )
 
     with col2:
-        st.markdown(create_gradient_metric(
-            "Parameters",
-            "75M",
-            delta="25M × 3 models",
-            gradient_start="#8338EC",
-            gradient_end="#FF006E"
-        ), unsafe_allow_html=True)
+        st.markdown(
+            create_gradient_metric(
+                "Parameters",
+                "75M",
+                delta="25M × 3 models",
+                gradient_start="#8338EC",
+                gradient_end="#FF006E",
+            ),
+            unsafe_allow_html=True,
+        )
 
     with col3:
-        st.markdown(create_gradient_metric(
-            "Training Progress",
-            "67%",
-            delta="Epoch 34/50 (Average)",
-            gradient_start="#FF006E",
-            gradient_end="#FFBE0B"
-        ), unsafe_allow_html=True)
+        st.markdown(
+            create_gradient_metric(
+                "Training Progress",
+                "67%",
+                delta="Epoch 34/50 (Average)",
+                gradient_start="#FF006E",
+                gradient_end="#FFBE0B",
+            ),
+            unsafe_allow_html=True,
+        )
 
     with col4:
-        st.markdown(create_gradient_metric(
-            "ETA",
-            "2.5h",
-            delta="All models complete",
-            gradient_start="#FFBE0B",
-            gradient_end="#00F5D4"
-        ), unsafe_allow_html=True)
+        st.markdown(
+            create_gradient_metric(
+                "ETA",
+                "2.5h",
+                delta="All models complete",
+                gradient_start="#FFBE0B",
+                gradient_end="#00F5D4",
+            ),
+            unsafe_allow_html=True,
+        )
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -697,35 +747,35 @@ def render_phase1_cognate():
     # Current training status (simulated)
     training_status = [
         {
-            'name': 'Reasoning Model',
-            'type': '25M Param TRM × Titans-MAG',
-            'progress': 0.68,
-            'epoch': 34,
-            'total_epochs': 50,
-            'loss': model_data[0]['train_loss'][33],
-            'eta': 87,
-            'status': 'training'
+            "name": "Reasoning Model",
+            "type": "25M Param TRM × Titans-MAG",
+            "progress": 0.68,
+            "epoch": 34,
+            "total_epochs": 50,
+            "loss": model_data[0]["train_loss"][33],
+            "eta": 87,
+            "status": "training",
         },
         {
-            'name': 'Memory Model',
-            'type': '25M Param TRM × Titans-MAG',
-            'progress': 0.64,
-            'epoch': 32,
-            'total_epochs': 50,
-            'loss': model_data[1]['train_loss'][31],
-            'eta': 95,
-            'status': 'training'
+            "name": "Memory Model",
+            "type": "25M Param TRM × Titans-MAG",
+            "progress": 0.64,
+            "epoch": 32,
+            "total_epochs": 50,
+            "loss": model_data[1]["train_loss"][31],
+            "eta": 95,
+            "status": "training",
         },
         {
-            'name': 'General Model',
-            'type': '25M Param TRM × Titans-MAG',
-            'progress': 0.70,
-            'epoch': 35,
-            'total_epochs': 50,
-            'loss': model_data[2]['train_loss'][34],
-            'eta': 82,
-            'status': 'training'
-        }
+            "name": "General Model",
+            "type": "25M Param TRM × Titans-MAG",
+            "progress": 0.70,
+            "epoch": 35,
+            "total_epochs": 50,
+            "loss": model_data[2]["train_loss"][34],
+            "eta": 82,
+            "status": "training",
+        },
     ]
 
     # Display model cards in columns
@@ -734,14 +784,14 @@ def render_phase1_cognate():
     for idx, (col, status) in enumerate(zip([col1, col2, col3], training_status)):
         with col:
             card_html = create_model_card(
-                status['name'],
-                status['type'],
-                status['progress'],
-                status['epoch'],
-                status['total_epochs'],
-                status['loss'],
-                status['eta'],
-                status['status']
+                status["name"],
+                status["type"],
+                status["progress"],
+                status["epoch"],
+                status["total_epochs"],
+                status["loss"],
+                status["eta"],
+                status["status"],
             )
             components.html(card_html, height=400)
 
@@ -771,7 +821,9 @@ def render_phase1_cognate():
     # ARCHITECTURE VISUALIZATION
     # ========================================================================
 
-    st.markdown('<div class="section-header">Architecture Visualization</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-header">Architecture Visualization</div>', unsafe_allow_html=True
+    )
 
     arch_html = create_architecture_diagram()
     components.html(arch_html, height=650)
@@ -782,7 +834,9 @@ def render_phase1_cognate():
     # TRAINING METRICS (REAL-TIME)
     # ========================================================================
 
-    st.markdown('<div class="section-header">Real-Time Training Metrics</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-header">Real-Time Training Metrics</div>', unsafe_allow_html=True
+    )
 
     fig = create_metrics_grid(model_data)
     st.plotly_chart(fig, use_container_width=True)
@@ -795,11 +849,7 @@ def render_phase1_cognate():
 
     comparison_df = create_comparison_table(model_data)
 
-    st.dataframe(
-        comparison_df,
-        use_container_width=True,
-        hide_index=True
-    )
+    st.dataframe(comparison_df, use_container_width=True, hide_index=True)
 
     # ========================================================================
     # HANDOFF VALIDATION
@@ -810,7 +860,8 @@ def render_phase1_cognate():
     col1, col2 = st.columns([2, 1])
 
     with col1:
-        st.markdown("""
+        st.markdown(
+            """
         <div style="background: linear-gradient(135deg, #1B283833 0%, #2E3F4F33 100%);
                     border: 2px solid #00F5D466; border-radius: 16px; padding: 24px;
                     box-shadow: 0 4px 20px rgba(0, 245, 212, 0.1);">
@@ -832,10 +883,13 @@ def render_phase1_cognate():
                 </div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     with col2:
-        st.markdown("""
+        st.markdown(
+            """
         <div style="background: linear-gradient(135deg, #1B283833 0%, #2E3F4F33 100%);
                     border: 2px solid #00D08466; border-radius: 16px; padding: 24px;
                     box-shadow: 0 4px 20px rgba(0, 208, 132, 0.1); text-align: center;">
@@ -850,7 +904,9 @@ def render_phase1_cognate():
                 All models validated
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     # ========================================================================
     # FOOTER
@@ -858,11 +914,16 @@ def render_phase1_cognate():
 
     st.markdown("<br><br>", unsafe_allow_html=True)
 
-    st.markdown("""
+    st.markdown(
+        """
     <div style="text-align: center; color: #8B9DAF; font-size: 12px; padding: 20px;">
         Phase 1: Cognate Dashboard | Agent Forge V2 | Last Updated: {} UTC
     </div>
-    """.format(datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")), unsafe_allow_html=True)
+    """.format(
+            datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        ),
+        unsafe_allow_html=True,
+    )
 
 
 # ============================================================================
@@ -870,5 +931,4 @@ def render_phase1_cognate():
 # ============================================================================
 
 if __name__ == "__main__":
-
     render_phase1_cognate()

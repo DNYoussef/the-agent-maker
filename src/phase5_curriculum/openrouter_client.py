@@ -19,14 +19,15 @@ Usage:
         print(response.content)
         print(f"Cost: ${response.cost_usd:.6f}")
 """
-import os
 import asyncio
+import logging
+import os
 import time
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
 import httpx
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,7 @@ class ModelProvider(Enum):
     - GPT_51_DEEP_THINKING: openai/gpt-5.1-deep-thinking
     - CLAUDE_45_OPUS: anthropic/claude-4.5-opus
     """
+
     # FREE models for testing (no cost)
     QWEN_FREE = "qwen/qwen-2-7b-instruct:free"
     GEMMA_FREE = "google/gemma-7b-it:free"
@@ -61,6 +63,7 @@ class ModelProvider(Enum):
 @dataclass
 class ModelConfig:
     """Configuration for a frontier model."""
+
     name: str
     model_id: str
     cost_per_1m_input_tokens: float
@@ -80,7 +83,7 @@ MODEL_CONFIGS: Dict[ModelProvider, ModelConfig] = {
         cost_per_1m_output_tokens=0.0,
         max_tokens=4096,
         context_window=32768,
-        is_free=True
+        is_free=True,
     ),
     ModelProvider.GEMMA_FREE: ModelConfig(
         name="Gemma 7B IT (Free)",
@@ -89,7 +92,7 @@ MODEL_CONFIGS: Dict[ModelProvider, ModelConfig] = {
         cost_per_1m_output_tokens=0.0,
         max_tokens=4096,
         context_window=8192,
-        is_free=True
+        is_free=True,
     ),
     ModelProvider.MISTRAL_FREE: ModelConfig(
         name="Mistral 7B Instruct (Free)",
@@ -98,7 +101,7 @@ MODEL_CONFIGS: Dict[ModelProvider, ModelConfig] = {
         cost_per_1m_output_tokens=0.0,
         max_tokens=4096,
         context_window=32768,
-        is_free=True
+        is_free=True,
     ),
     ModelProvider.LLAMA_FREE: ModelConfig(
         name="Llama 3 8B Instruct (Free)",
@@ -107,7 +110,7 @@ MODEL_CONFIGS: Dict[ModelProvider, ModelConfig] = {
         cost_per_1m_output_tokens=0.0,
         max_tokens=4096,
         context_window=8192,
-        is_free=True
+        is_free=True,
     ),
     # Paid models (for production - latest frontier models)
     ModelProvider.GEMINI_3: ModelConfig(
@@ -116,7 +119,7 @@ MODEL_CONFIGS: Dict[ModelProvider, ModelConfig] = {
         cost_per_1m_input_tokens=5.00,
         cost_per_1m_output_tokens=15.00,
         max_tokens=32768,
-        context_window=2000000  # 2M context
+        context_window=2000000,  # 2M context
     ),
     ModelProvider.GPT_51_DEEP_THINKING: ModelConfig(
         name="GPT-5.1 Deep Thinking",
@@ -124,7 +127,7 @@ MODEL_CONFIGS: Dict[ModelProvider, ModelConfig] = {
         cost_per_1m_input_tokens=10.00,
         cost_per_1m_output_tokens=30.00,
         max_tokens=32768,
-        context_window=256000
+        context_window=256000,
     ),
     ModelProvider.CLAUDE_45_OPUS: ModelConfig(
         name="Claude 4.5 Opus",
@@ -132,7 +135,7 @@ MODEL_CONFIGS: Dict[ModelProvider, ModelConfig] = {
         cost_per_1m_input_tokens=15.00,
         cost_per_1m_output_tokens=75.00,
         max_tokens=32768,
-        context_window=500000
+        context_window=500000,
     ),
 }
 
@@ -140,6 +143,7 @@ MODEL_CONFIGS: Dict[ModelProvider, ModelConfig] = {
 @dataclass
 class CompletionResponse:
     """Structured response from model completion."""
+
     content: str
     model: str
     usage: Dict[str, int] = field(default_factory=dict)
@@ -174,7 +178,7 @@ class OpenRouterClient:
         default_model: ModelProvider = ModelProvider.QWEN_FREE,
         timeout: float = 120.0,
         max_retries: int = 3,
-        rate_limit_rpm: int = 60
+        rate_limit_rpm: int = 60,
     ):
         """
         Initialize OpenRouter client.
@@ -188,9 +192,7 @@ class OpenRouterClient:
         """
         self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
         if not self.api_key:
-            raise ValueError(
-                "OPENROUTER_API_KEY required. Set env var or pass api_key parameter."
-            )
+            raise ValueError("OPENROUTER_API_KEY required. Set env var or pass api_key parameter.")
 
         self.default_model = default_model
         self.timeout = timeout
@@ -231,11 +233,7 @@ class OpenRouterClient:
 
         self._last_request_time = time.time()
 
-    def _estimate_cost(
-        self,
-        model: ModelProvider,
-        usage: Dict[str, int]
-    ) -> float:
+    def _estimate_cost(self, model: ModelProvider, usage: Dict[str, int]) -> float:
         """Estimate cost based on token usage."""
         config = MODEL_CONFIGS.get(model)
         if not config:
@@ -258,7 +256,7 @@ class OpenRouterClient:
         model: Optional[ModelProvider] = None,
         system_prompt: Optional[str] = None,
         max_tokens: int = 4096,
-        temperature: float = 0.7
+        temperature: float = 0.7,
     ) -> CompletionResponse:
         """
         Generate a completion from the specified model.
@@ -282,10 +280,7 @@ class OpenRouterClient:
 
         if not config:
             return CompletionResponse(
-                content="",
-                model=model.value,
-                success=False,
-                error=f"Unknown model: {model}"
+                content="", model=model.value, success=False, error=f"Unknown model: {model}"
             )
 
         # Build messages
@@ -298,14 +293,14 @@ class OpenRouterClient:
             "model": config.model_id,
             "messages": messages,
             "max_tokens": min(max_tokens, config.max_tokens),
-            "temperature": temperature
+            "temperature": temperature,
         }
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://agent-maker.local",
-            "X-Title": "Agent Maker Phase 5"
+            "X-Title": "Agent Maker Phase 5",
         }
 
         # Retry loop with exponential backoff
@@ -314,11 +309,7 @@ class OpenRouterClient:
             try:
                 self._apply_rate_limit()
 
-                response = await self._client.post(
-                    self.BASE_URL,
-                    json=payload,
-                    headers=headers
-                )
+                response = await self._client.post(self.BASE_URL, json=payload, headers=headers)
 
                 if response.status_code == 200:
                     data = response.json()
@@ -343,19 +334,19 @@ class OpenRouterClient:
                         usage=usage,
                         cost_usd=cost,
                         latency_ms=latency_ms,
-                        success=True
+                        success=True,
                     )
 
                 elif response.status_code == 429:
                     # Rate limited - exponential backoff
-                    delay = 2 ** attempt
+                    delay = 2**attempt
                     logger.warning(f"Rate limited, retrying in {delay}s (attempt {attempt + 1})")
                     await asyncio.sleep(delay)
                     last_error = f"Rate limited (429)"
 
                 elif response.status_code >= 500:
                     # Server error - retry
-                    delay = 2 ** attempt
+                    delay = 2**attempt
                     logger.warning(f"Server error {response.status_code}, retrying in {delay}s")
                     await asyncio.sleep(delay)
                     last_error = f"Server error ({response.status_code})"
@@ -367,11 +358,11 @@ class OpenRouterClient:
                         content="",
                         model=config.model_id,
                         success=False,
-                        error=f"API error {response.status_code}: {error_text[:200]}"
+                        error=f"API error {response.status_code}: {error_text[:200]}",
                     )
 
             except httpx.TimeoutException:
-                delay = 2 ** attempt
+                delay = 2**attempt
                 logger.warning(f"Timeout, retrying in {delay}s (attempt {attempt + 1})")
                 await asyncio.sleep(delay)
                 last_error = "Request timeout"
@@ -386,7 +377,7 @@ class OpenRouterClient:
             content="",
             model=model.value,
             success=False,
-            error=f"Max retries exceeded: {last_error}"
+            error=f"Max retries exceeded: {last_error}",
         )
 
     async def complete_batch(
@@ -396,7 +387,7 @@ class OpenRouterClient:
         system_prompt: Optional[str] = None,
         max_tokens: int = 4096,
         temperature: float = 0.7,
-        concurrency: int = 5
+        concurrency: int = 5,
     ) -> List[CompletionResponse]:
         """
         Generate completions for multiple prompts with controlled concurrency.
@@ -421,7 +412,7 @@ class OpenRouterClient:
                     model=model,
                     system_prompt=system_prompt,
                     max_tokens=max_tokens,
-                    temperature=temperature
+                    temperature=temperature,
                 )
 
         tasks = [limited_complete(p) for p in prompts]
@@ -455,9 +446,8 @@ class OpenRouterClient:
             "total_output_tokens": self._total_output_tokens,
             "total_cost_usd": self._total_cost,
             "avg_cost_per_request": (
-                self._total_cost / self._request_count
-                if self._request_count > 0 else 0.0
-            )
+                self._total_cost / self._request_count if self._request_count > 0 else 0.0
+            ),
         }
 
 
@@ -468,7 +458,7 @@ def get_free_models() -> List[ModelProvider]:
         ModelProvider.QWEN_FREE,
         ModelProvider.GEMMA_FREE,
         ModelProvider.MISTRAL_FREE,
-        ModelProvider.LLAMA_FREE
+        ModelProvider.LLAMA_FREE,
     ]
 
 
@@ -477,7 +467,7 @@ def get_production_models() -> List[ModelProvider]:
     return [
         ModelProvider.GEMINI_3,
         ModelProvider.GPT_51_DEEP_THINKING,
-        ModelProvider.CLAUDE_45_OPUS
+        ModelProvider.CLAUDE_45_OPUS,
     ]
 
 
@@ -488,5 +478,5 @@ __all__ = [
     "CompletionResponse",
     "MODEL_CONFIGS",
     "get_free_models",
-    "get_production_models"
+    "get_production_models",
 ]

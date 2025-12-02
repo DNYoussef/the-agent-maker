@@ -3,16 +3,17 @@ Unit tests for W&B Integration
 Tests metrics tracking, artifact versioning, and continuity tracking
 """
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from cross_phase.monitoring.wandb_integration import (
-    WandBIntegration,
     METRICS_COUNT,
-    MetricContinuityTracker
+    MetricContinuityTracker,
+    WandBIntegration,
 )
 
 
@@ -69,10 +70,7 @@ class TestMetricContinuityTracker:
         """Test adding phase metrics"""
         tracker = MetricContinuityTracker()
 
-        tracker.add_phase_metrics(
-            phase="phase1",
-            metrics={"loss": 2.34, "accuracy": 45.2}
-        )
+        tracker.add_phase_metrics(phase="phase1", metrics={"loss": 2.34, "accuracy": 45.2})
 
         assert "phase1" in tracker.history
 

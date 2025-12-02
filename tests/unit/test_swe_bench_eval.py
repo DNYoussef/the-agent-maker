@@ -10,22 +10,23 @@ Tests:
 Target: >=90% coverage for SWE-Bench evaluation
 """
 
+import json
+import sys
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
 import torch
 import torch.nn as nn
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
-import json
-import tempfile
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from phase6_baking.swe_bench_eval import (
+    EvaluationMode,
+    EvaluationResult,
     SWEBenchEvaluator,
     SWEBenchTask,
-    EvaluationResult,
-    EvaluationMode,
 )
 
 
@@ -38,7 +39,7 @@ class TestSWEBenchTask:
             instance_id="test-1",
             repo="test/repo",
             base_commit="abc123",
-            problem_statement="Fix the bug"
+            problem_statement="Fix the bug",
         )
 
         assert task.instance_id == "test-1"
@@ -49,10 +50,7 @@ class TestSWEBenchTask:
     def test_optional_fields(self):
         """Test optional fields have defaults."""
         task = SWEBenchTask(
-            instance_id="test-1",
-            repo="test/repo",
-            base_commit="abc123",
-            problem_statement="Fix it"
+            instance_id="test-1", repo="test/repo", base_commit="abc123", problem_statement="Fix it"
         )
 
         assert task.hints_text == ""
@@ -68,7 +66,7 @@ class TestSWEBenchTask:
             problem_statement="QuerySet filter fails on empty list",
             hints_text="Check the filter method",
             patch="diff content here",
-            test_patch="test diff content"
+            test_patch="test diff content",
         )
 
         assert task.instance_id == "django-123"
@@ -82,7 +80,7 @@ class TestSWEBenchTask:
             "repo": "test/repo",
             "base_commit": "commit123",
             "problem_statement": "Test problem",
-            "patch": "test patch"
+            "patch": "test patch",
         }
 
         task = SWEBenchTask.from_dict(data)
@@ -103,7 +101,7 @@ class TestEvaluationResult:
             partial_match=0.5,
             syntax_valid=1.0,
             semantic_similar=0.7,
-            prediction="def fix(): pass"
+            prediction="def fix(): pass",
         )
 
         assert result.instance_id == "test-1"
@@ -118,7 +116,7 @@ class TestEvaluationResult:
             exact_match=0.0,
             partial_match=0.0,
             syntax_valid=0.0,
-            semantic_similar=0.0
+            semantic_similar=0.0,
         )
 
         assert result.prediction == ""
@@ -133,7 +131,7 @@ class TestEvaluationResult:
             partial_match=0.0,
             syntax_valid=0.0,
             semantic_similar=0.0,
-            error="Generation failed"
+            error="Generation failed",
         )
 
         assert result.error == "Generation failed"
@@ -145,7 +143,7 @@ class TestEvaluationResult:
             exact_match=1.0,
             partial_match=1.0,
             syntax_valid=1.0,
-            semantic_similar=1.0
+            semantic_similar=1.0,
         )
 
         # 0.4*1 + 0.3*1 + 0.2*1 + 0.1*1 = 1.0
@@ -158,7 +156,7 @@ class TestEvaluationResult:
             exact_match=0.0,
             partial_match=0.5,
             syntax_valid=1.0,
-            semantic_similar=0.0
+            semantic_similar=0.0,
         )
 
         # 0.4*0 + 0.3*0.5 + 0.2*1 + 0.1*0 = 0.35
@@ -170,10 +168,10 @@ class TestEvaluationMode:
 
     def test_modes_exist(self):
         """Test all modes exist."""
-        assert hasattr(EvaluationMode, 'EXACT')
-        assert hasattr(EvaluationMode, 'SEMANTIC')
-        assert hasattr(EvaluationMode, 'PARTIAL')
-        assert hasattr(EvaluationMode, 'SYNTAX')
+        assert hasattr(EvaluationMode, "EXACT")
+        assert hasattr(EvaluationMode, "SEMANTIC")
+        assert hasattr(EvaluationMode, "PARTIAL")
+        assert hasattr(EvaluationMode, "SYNTAX")
 
     def test_mode_values(self):
         """Test mode values."""
@@ -274,15 +272,11 @@ class TestSWEBenchEvaluator:
         def dummy_generate(problem: str) -> str:
             return "def fix(): pass"
 
-        metrics = evaluator.run_evaluation(
-            generate_fn=dummy_generate,
-            max_tasks=5,
-            verbose=False
-        )
+        metrics = evaluator.run_evaluation(generate_fn=dummy_generate, max_tasks=5, verbose=False)
 
-        assert 'composite_score' in metrics
-        assert metrics['composite_score'] >= 0.0
-        assert metrics['composite_score'] <= 1.0
+        assert "composite_score" in metrics
+        assert metrics["composite_score"] >= 0.0
+        assert metrics["composite_score"] <= 1.0
 
     def test_run_evaluation_stores_results(self):
         """Test evaluation stores results."""
@@ -292,11 +286,7 @@ class TestSWEBenchEvaluator:
         def dummy_generate(problem: str) -> str:
             return "def fix(): pass"
 
-        evaluator.run_evaluation(
-            generate_fn=dummy_generate,
-            max_tasks=5,
-            verbose=False
-        )
+        evaluator.run_evaluation(generate_fn=dummy_generate, max_tasks=5, verbose=False)
 
         assert len(evaluator.results) == 5
 
@@ -306,15 +296,21 @@ class TestSWEBenchEvaluator:
 
         # Manually add results
         evaluator.results = [
-            EvaluationResult("t1", exact_match=1.0, partial_match=1.0, syntax_valid=1.0, semantic_similar=1.0),
-            EvaluationResult("t2", exact_match=0.0, partial_match=0.5, syntax_valid=1.0, semantic_similar=0.5),
-            EvaluationResult("t3", exact_match=0.0, partial_match=0.0, syntax_valid=0.0, semantic_similar=0.0),
+            EvaluationResult(
+                "t1", exact_match=1.0, partial_match=1.0, syntax_valid=1.0, semantic_similar=1.0
+            ),
+            EvaluationResult(
+                "t2", exact_match=0.0, partial_match=0.5, syntax_valid=1.0, semantic_similar=0.5
+            ),
+            EvaluationResult(
+                "t3", exact_match=0.0, partial_match=0.0, syntax_valid=0.0, semantic_similar=0.0
+            ),
         ]
 
         metrics = evaluator.aggregate_results()
 
-        assert 'composite_score' in metrics
-        assert 'exact_match' in metrics
+        assert "composite_score" in metrics
+        assert "exact_match" in metrics
 
     def test_reset(self):
         """Test reset clears results."""
@@ -332,9 +328,15 @@ class TestSWEBenchEvaluator:
 
         # Manually set results with varying scores
         evaluator.results = [
-            EvaluationResult("t1", exact_match=0.0, partial_match=0.8, syntax_valid=1.0, semantic_similar=0.9),
-            EvaluationResult("t2", exact_match=0.0, partial_match=0.2, syntax_valid=0.0, semantic_similar=0.1),
-            EvaluationResult("t3", exact_match=1.0, partial_match=1.0, syntax_valid=1.0, semantic_similar=1.0),
+            EvaluationResult(
+                "t1", exact_match=0.0, partial_match=0.8, syntax_valid=1.0, semantic_similar=0.9
+            ),
+            EvaluationResult(
+                "t2", exact_match=0.0, partial_match=0.2, syntax_valid=0.0, semantic_similar=0.1
+            ),
+            EvaluationResult(
+                "t3", exact_match=1.0, partial_match=1.0, syntax_valid=1.0, semantic_similar=1.0
+            ),
         ]
 
         failed = evaluator.get_failed_tasks(threshold=0.5)
@@ -357,14 +359,10 @@ class TestSWEBenchWithMockModel:
             call_count[0] += 1
             return f"def solution_{call_count[0]}(): pass"
 
-        metrics = evaluator.run_evaluation(
-            generate_fn=generate_fn,
-            max_tasks=3,
-            verbose=False
-        )
+        metrics = evaluator.run_evaluation(generate_fn=generate_fn, max_tasks=3, verbose=False)
 
         assert call_count[0] == 3, "Should call generate for each task"
-        assert 'composite_score' in metrics
+        assert "composite_score" in metrics
 
 
 class TestLoadFromFile:
@@ -380,7 +378,7 @@ class TestLoadFromFile:
                 "problem_statement": "Fix bug 1",
                 "base_commit": "abc123",
                 "patch": "diff 1",
-                "test_patch": "test 1"
+                "test_patch": "test 1",
             },
             {
                 "instance_id": "test-2",
@@ -388,11 +386,11 @@ class TestLoadFromFile:
                 "problem_statement": "Fix bug 2",
                 "base_commit": "def456",
                 "patch": "diff 2",
-                "test_patch": "test 2"
-            }
+                "test_patch": "test 2",
+            },
         ]
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(tasks_data, f)
             temp_path = f.name
 
@@ -425,7 +423,7 @@ class TestEdgeCases:
 
         metrics = evaluator.aggregate_results()
 
-        assert metrics['composite_score'] == 0.0
+        assert metrics["composite_score"] == 0.0
 
     def test_very_long_problem_statement(self):
         """Test with very long problem statement."""
@@ -436,7 +434,7 @@ class TestEdgeCases:
             instance_id="long-1",
             repo="test/repo",
             base_commit="abc123",
-            problem_statement=long_problem
+            problem_statement=long_problem,
         )
 
         result = evaluator.evaluate_single(task, "def fix(): pass")

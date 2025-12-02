@@ -10,21 +10,23 @@ Measures:
 Note: Actual speedup depends on hardware support for binary operations.
 Consumer GPUs may not see full theoretical speedup.
 """
+import time
+from contextlib import contextmanager
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
 import torch
 import torch.nn as nn
-import time
-from typing import Dict, Optional, Tuple, List
-from dataclasses import dataclass
-from contextlib import contextmanager
 
 from src.phase4_bitnet.compressed_model import CompressedModel
-from src.phase4_bitnet.quantizer import BitNetQuantizer
 from src.phase4_bitnet.config import Phase4Config
+from src.phase4_bitnet.quantizer import BitNetQuantizer
 
 
 @dataclass
 class BenchmarkResult:
     """Result of inference benchmark."""
+
     # Timing metrics (in milliseconds)
     fp32_latency_ms: float
     quantized_latency_ms: float
@@ -49,27 +51,27 @@ class BenchmarkResult:
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
         return {
-            'timing': {
-                'fp32_latency_ms': self.fp32_latency_ms,
-                'quantized_latency_ms': self.quantized_latency_ms,
-                'speedup_ratio': self.speedup_ratio,
+            "timing": {
+                "fp32_latency_ms": self.fp32_latency_ms,
+                "quantized_latency_ms": self.quantized_latency_ms,
+                "speedup_ratio": self.speedup_ratio,
             },
-            'memory': {
-                'fp32_memory_mb': self.fp32_memory_mb,
-                'quantized_memory_mb': self.quantized_memory_mb,
-                'memory_reduction_ratio': self.memory_reduction_ratio,
+            "memory": {
+                "fp32_memory_mb": self.fp32_memory_mb,
+                "quantized_memory_mb": self.quantized_memory_mb,
+                "memory_reduction_ratio": self.memory_reduction_ratio,
             },
-            'throughput': {
-                'fp32_tokens_per_sec': self.fp32_throughput,
-                'quantized_tokens_per_sec': self.quantized_throughput,
+            "throughput": {
+                "fp32_tokens_per_sec": self.fp32_throughput,
+                "quantized_tokens_per_sec": self.quantized_throughput,
             },
-            'config': {
-                'num_warmup_runs': self.num_warmup_runs,
-                'num_benchmark_runs': self.num_benchmark_runs,
-                'batch_size': self.batch_size,
-                'sequence_length': self.sequence_length,
-                'device': self.device,
-            }
+            "config": {
+                "num_warmup_runs": self.num_warmup_runs,
+                "num_benchmark_runs": self.num_benchmark_runs,
+                "batch_size": self.batch_size,
+                "sequence_length": self.sequence_length,
+                "device": self.device,
+            },
         }
 
 
@@ -85,7 +87,7 @@ def measure_latency(
     input_ids: torch.Tensor,
     attention_mask: Optional[torch.Tensor] = None,
     num_warmup: int = 5,
-    num_runs: int = 20
+    num_runs: int = 20,
 ) -> Tuple[float, float]:
     """
     Measure inference latency.
@@ -133,7 +135,7 @@ def measure_latency(
 
     mean_latency = sum(latencies) / len(latencies)
     variance = sum((x - mean_latency) ** 2 for x in latencies) / len(latencies)
-    std_latency = variance ** 0.5
+    std_latency = variance**0.5
 
     return mean_latency, std_latency
 
@@ -154,7 +156,7 @@ def measure_memory(model: nn.Module) -> float:
     for buffer in model.buffers():
         total_bytes += buffer.nelement() * buffer.element_size()
 
-    return total_bytes / (1024 ** 2)
+    return total_bytes / (1024**2)
 
 
 def benchmark_model(
@@ -164,7 +166,7 @@ def benchmark_model(
     sequence_length: int = 128,
     num_warmup: int = 5,
     num_runs: int = 20,
-    device: str = "cpu"
+    device: str = "cpu",
 ) -> BenchmarkResult:
     """
     Run full inference benchmark comparing FP32 and quantized models.
@@ -194,8 +196,7 @@ def benchmark_model(
     # Measure FP32 performance
     print("Benchmarking FP32 model...")
     fp32_latency, fp32_std = measure_latency(
-        base_model, input_ids,
-        num_warmup=num_warmup, num_runs=num_runs
+        base_model, input_ids, num_warmup=num_warmup, num_runs=num_runs
     )
     fp32_memory = measure_memory(base_model)
 
@@ -210,14 +211,13 @@ def benchmark_model(
     # Measure quantized performance
     print("Benchmarking quantized model...")
     quant_latency, quant_std = measure_latency(
-        compressed_model, input_ids,
-        num_warmup=num_warmup, num_runs=num_runs
+        compressed_model, input_ids, num_warmup=num_warmup, num_runs=num_runs
     )
     quant_memory = measure_memory(compressed_model)
 
     # Get compression stats for accurate memory comparison
     compression_stats = compressed_model.get_compression_stats()
-    actual_quantized_mb = compression_stats.get('quantized_size_mb', quant_memory)
+    actual_quantized_mb = compression_stats.get("quantized_size_mb", quant_memory)
 
     # Calculate metrics
     speedup = fp32_latency / quant_latency if quant_latency > 0 else 0
@@ -241,7 +241,7 @@ def benchmark_model(
         num_benchmark_runs=num_runs,
         batch_size=batch_size,
         sequence_length=sequence_length,
-        device=device
+        device=device,
     )
 
     return result
@@ -294,9 +294,7 @@ def print_benchmark_report(result: BenchmarkResult) -> None:
 
 
 def validate_speedup_target(
-    result: BenchmarkResult,
-    min_speedup: float = 1.5,
-    min_memory_reduction: float = 2.0
+    result: BenchmarkResult, min_speedup: float = 1.5, min_memory_reduction: float = 2.0
 ) -> Tuple[bool, List[str]]:
     """
     Validate benchmark results against targets.
@@ -312,9 +310,7 @@ def validate_speedup_target(
     issues = []
 
     if result.speedup_ratio < min_speedup:
-        issues.append(
-            f"Speedup {result.speedup_ratio:.2f}x below minimum {min_speedup}x"
-        )
+        issues.append(f"Speedup {result.speedup_ratio:.2f}x below minimum {min_speedup}x")
 
     if result.memory_reduction_ratio < min_memory_reduction:
         issues.append(
@@ -354,14 +350,12 @@ if __name__ == "__main__":
             if labels is not None:
                 # Simple MSE loss for benchmark
                 loss = nn.MSELoss()(logits, labels.unsqueeze(-1).expand_as(logits).to(logits.dtype))
-                return type('Output', (), {'loss': loss, 'logits': logits})()
+                return type("Output", (), {"loss": loss, "logits": logits})()
 
             return logits
 
     # Create model and run benchmark
-    config = Phase4Config(
-        preserve_embedding_precision=False  # Keep all layers same dtype
-    )
+    config = Phase4Config(preserve_embedding_precision=False)  # Keep all layers same dtype
     model = SimpleTestModel()
 
     # Determine device
@@ -376,7 +370,7 @@ if __name__ == "__main__":
         sequence_length=64,
         num_warmup=3,
         num_runs=10,
-        device=device
+        device=device,
     )
 
     # Print report

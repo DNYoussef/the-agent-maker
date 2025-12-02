@@ -8,10 +8,10 @@ Research: NSGA-II, Automated Design of Agentic Systems
 Key insight: Multi-objective optimization for routing architecture.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple, Callable
-import random
 import copy
+import random
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -20,20 +20,20 @@ import torch.nn as nn
 @dataclass
 class ADASConfig:
     """Configuration for ADAS optimization."""
+
     population_size: int = 50
     num_generations: int = 100
     mutation_rate: float = 0.1
     crossover_rate: float = 0.7
     tournament_size: int = 3
-    objectives: List[str] = field(default_factory=lambda: [
-        "accuracy", "latency", "diversity"
-    ])
+    objectives: List[str] = field(default_factory=lambda: ["accuracy", "latency", "diversity"])
     elite_ratio: float = 0.1
 
 
 @dataclass
 class Individual:
     """An individual in the NSGA-II population."""
+
     routing_weights: List[float]  # Expert routing probabilities
     expert_configs: Dict[str, Any]  # Per-expert configuration
     fitness_scores: Dict[str, float]  # Multi-objective fitness
@@ -44,6 +44,7 @@ class Individual:
 @dataclass
 class ADASResult:
     """Result from ADAS optimization."""
+
     success: bool
     best_individual: Individual
     pareto_front: List[Individual]
@@ -85,7 +86,7 @@ class ADASOptimizer:
         model: nn.Module,
         experts: List[Any],  # List of ExpertProfile
         tokenizer: Any,
-        evaluator: Callable = None
+        evaluator: Callable = None,
     ) -> Tuple[nn.Module, ADASResult]:
         """
         Run ADAS optimization.
@@ -128,8 +129,8 @@ class ADASOptimizer:
             self.generation_history.append(gen_stats)
 
             if gen % 20 == 0:
-                best_acc = gen_stats['best_accuracy']
-                best_lat = gen_stats['best_latency']
+                best_acc = gen_stats["best_accuracy"]
+                best_lat = gen_stats["best_latency"]
                 print(f"    Gen {gen}: best_acc={best_acc:.3f}, best_lat={best_lat:.3f}")
 
             # Selection
@@ -148,8 +149,10 @@ class ADASOptimizer:
 
         # Step 4: Select best individual (knee point)
         best = self._select_knee_point()
-        print(f"  Best solution: acc={best.fitness_scores.get('accuracy', 0):.3f}, "
-              f"lat={best.fitness_scores.get('latency', 0):.3f}")
+        print(
+            f"  Best solution: acc={best.fitness_scores.get('accuracy', 0):.3f}, "
+            f"lat={best.fitness_scores.get('latency', 0):.3f}"
+        )
 
         # Step 5: Apply routing to model
         optimized_model = self._apply_routing(model, experts, best)
@@ -160,10 +163,10 @@ class ADASOptimizer:
             pareto_front=self.pareto_front,
             generation_history=self.generation_history,
             metrics={
-                'final_population_size': len(self.population),
-                'pareto_front_size': len(self.pareto_front),
-                'total_evaluations': self.config.population_size * self.config.num_generations
-            }
+                "final_population_size": len(self.population),
+                "pareto_front_size": len(self.pareto_front),
+                "total_evaluations": self.config.population_size * self.config.num_generations,
+            },
         )
 
     def _initialize_population(self, num_experts: int):
@@ -178,26 +181,20 @@ class ADASOptimizer:
 
             # Random expert configs
             expert_configs = {
-                f'expert_{i}': {
-                    'threshold': random.uniform(0.1, 0.9),
-                    'temperature': random.uniform(0.5, 2.0)
+                f"expert_{i}": {
+                    "threshold": random.uniform(0.1, 0.9),
+                    "temperature": random.uniform(0.5, 2.0),
                 }
                 for i in range(num_experts)
             }
 
             individual = Individual(
-                routing_weights=weights,
-                expert_configs=expert_configs,
-                fitness_scores={}
+                routing_weights=weights, expert_configs=expert_configs, fitness_scores={}
             )
             self.population.append(individual)
 
     def _evaluate_population(
-        self,
-        model: nn.Module,
-        experts: List[Any],
-        tokenizer: Any,
-        evaluator: Callable = None
+        self, model: nn.Module, experts: List[Any], tokenizer: Any, evaluator: Callable = None
     ):
         """Evaluate fitness for all individuals."""
         for individual in self.population:
@@ -212,7 +209,7 @@ class ADASOptimizer:
         model: nn.Module,
         experts: List[Any],
         tokenizer: Any,
-        evaluator: Callable = None
+        evaluator: Callable = None,
     ) -> Dict[str, float]:
         """Evaluate a single individual."""
         if evaluator is not None:
@@ -228,18 +225,18 @@ class ADASOptimizer:
         normalized_entropy = entropy / max_entropy if max_entropy > 0 else 0
 
         # Higher entropy = more balanced routing = potentially better
-        scores['accuracy'] = 0.5 + 0.5 * normalized_entropy + random.uniform(-0.1, 0.1)
-        scores['accuracy'] = max(0, min(1, scores['accuracy']))
+        scores["accuracy"] = 0.5 + 0.5 * normalized_entropy + random.uniform(-0.1, 0.1)
+        scores["accuracy"] = max(0, min(1, scores["accuracy"]))
 
         # Objective 2: Latency (lower is better, sparse routing is faster)
         max_weight = max(weights) if weights else 0
         sparsity = max_weight  # Higher max = more sparse = faster
-        scores['latency'] = sparsity + random.uniform(-0.1, 0.1)
-        scores['latency'] = max(0, min(1, scores['latency']))
+        scores["latency"] = sparsity + random.uniform(-0.1, 0.1)
+        scores["latency"] = max(0, min(1, scores["latency"]))
 
         # Objective 3: Diversity (expert utilization)
         active_experts = sum(1 for w in weights if w > 0.1)
-        scores['diversity'] = active_experts / len(weights) if weights else 0
+        scores["diversity"] = active_experts / len(weights) if weights else 0
 
         return scores
 
@@ -311,20 +308,19 @@ class ADASOptimizer:
                 rank_inds.sort(key=lambda x: x.fitness_scores.get(obj, 0))
 
                 # Boundary points get infinite distance
-                rank_inds[0].crowding_distance = float('inf')
-                rank_inds[-1].crowding_distance = float('inf')
+                rank_inds[0].crowding_distance = float("inf")
+                rank_inds[-1].crowding_distance = float("inf")
 
                 # Calculate distance for others
-                obj_range = (
-                    rank_inds[-1].fitness_scores.get(obj, 0) -
-                    rank_inds[0].fitness_scores.get(obj, 0)
-                )
+                obj_range = rank_inds[-1].fitness_scores.get(obj, 0) - rank_inds[
+                    0
+                ].fitness_scores.get(obj, 0)
 
                 if obj_range > 0:
                     for i in range(1, n - 1):
                         dist = (
-                            rank_inds[i + 1].fitness_scores.get(obj, 0) -
-                            rank_inds[i - 1].fitness_scores.get(obj, 0)
+                            rank_inds[i + 1].fitness_scores.get(obj, 0)
+                            - rank_inds[i - 1].fitness_scores.get(obj, 0)
                         ) / obj_range
                         rank_inds[i].crowding_distance += dist
 
@@ -342,11 +338,7 @@ class ADASOptimizer:
 
         return parents
 
-    def _create_offspring(
-        self,
-        parents: List[Individual],
-        num_experts: int
-    ) -> List[Individual]:
+    def _create_offspring(self, parents: List[Individual], num_experts: int) -> List[Individual]:
         """Create offspring via crossover and mutation."""
         offspring = []
 
@@ -373,13 +365,10 @@ class ADASOptimizer:
 
             offspring.extend([child1, child2])
 
-        return offspring[:self.config.population_size]
+        return offspring[: self.config.population_size]
 
     def _crossover(
-        self,
-        parent1: Individual,
-        parent2: Individual,
-        num_experts: int
+        self, parent1: Individual, parent2: Individual, num_experts: int
     ) -> Tuple[Individual, Individual]:
         """Uniform crossover."""
         # Crossover routing weights
@@ -400,12 +389,12 @@ class ADASOptimizer:
         child1 = Individual(
             routing_weights=weights1,
             expert_configs=copy.deepcopy(parent1.expert_configs),
-            fitness_scores={}
+            fitness_scores={},
         )
         child2 = Individual(
             routing_weights=weights2,
             expert_configs=copy.deepcopy(parent2.expert_configs),
-            fitness_scores={}
+            fitness_scores={},
         )
 
         return child1, child2
@@ -435,18 +424,18 @@ class ADASOptimizer:
         combined.sort(key=lambda x: (x.rank, -x.crowding_distance))
 
         # Keep best
-        self.population = combined[:self.config.population_size]
+        self.population = combined[: self.config.population_size]
 
     def _get_generation_stats(self) -> Dict:
         """Get statistics for current generation."""
-        accuracies = [ind.fitness_scores.get('accuracy', 0) for ind in self.population]
-        latencies = [ind.fitness_scores.get('latency', 0) for ind in self.population]
+        accuracies = [ind.fitness_scores.get("accuracy", 0) for ind in self.population]
+        latencies = [ind.fitness_scores.get("latency", 0) for ind in self.population]
 
         return {
-            'best_accuracy': max(accuracies) if accuracies else 0,
-            'mean_accuracy': sum(accuracies) / len(accuracies) if accuracies else 0,
-            'best_latency': max(latencies) if latencies else 0,
-            'pareto_front_size': len([ind for ind in self.population if ind.rank == 0])
+            "best_accuracy": max(accuracies) if accuracies else 0,
+            "mean_accuracy": sum(accuracies) / len(accuracies) if accuracies else 0,
+            "best_latency": max(latencies) if latencies else 0,
+            "pareto_front_size": len([ind for ind in self.population if ind.rank == 0]),
         }
 
     def _select_knee_point(self) -> Individual:
@@ -456,24 +445,19 @@ class ADASOptimizer:
 
         # Simple: select by balanced accuracy and latency
         def balance_score(ind):
-            acc = ind.fitness_scores.get('accuracy', 0)
-            lat = ind.fitness_scores.get('latency', 0)
+            acc = ind.fitness_scores.get("accuracy", 0)
+            lat = ind.fitness_scores.get("latency", 0)
             return acc + lat  # Both maximized
 
         return max(self.pareto_front, key=balance_score)
 
-    def _apply_routing(
-        self,
-        model: nn.Module,
-        experts: List[Any],
-        best: Individual
-    ) -> nn.Module:
+    def _apply_routing(self, model: nn.Module, experts: List[Any], best: Individual) -> nn.Module:
         """Apply optimal routing to model."""
         # Store routing configuration as model attribute
         model._expert_routing = {
-            'weights': best.routing_weights,
-            'configs': best.expert_configs,
-            'num_experts': len(experts)
+            "weights": best.routing_weights,
+            "configs": best.expert_configs,
+            "num_experts": len(experts),
         }
 
         return model
@@ -482,4 +466,4 @@ class ADASOptimizer:
 # Import math for entropy calculation
 import math
 
-__all__ = ['ADASOptimizer', 'ADASConfig', 'ADASResult', 'Individual']
+__all__ = ["ADASOptimizer", "ADASConfig", "ADASResult", "Individual"]

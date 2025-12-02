@@ -16,10 +16,10 @@ Curve Fitting Quality Metrics:
 Expected R^2 > 0.95 for production quality compression.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
 import copy
 import math
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -28,30 +28,33 @@ import torch.nn as nn
 @dataclass
 class CurveFitMetrics:
     """Detailed metrics for curve fitting quality."""
-    r_squared: float           # Coefficient of determination (target > 0.95)
-    rmse: float               # Root mean squared error
-    mae: float                # Mean absolute error
-    max_error: float          # Maximum reconstruction error
+
+    r_squared: float  # Coefficient of determination (target > 0.95)
+    rmse: float  # Root mean squared error
+    mae: float  # Mean absolute error
+    max_error: float  # Maximum reconstruction error
     compression_ratio: float  # Size reduction ratio
-    num_parameters: int       # Number of curve parameters
+    num_parameters: int  # Number of curve parameters
 
 
 @dataclass
 class HyperConfig:
     """Configuration for hypercompression."""
+
     num_params: int = 8  # Parameters per curve
     curve_type: str = "bezier"  # bezier, polynomial, spline
     num_segments: int = 16  # Segments per layer
     optimization_steps: int = 100
     target_retention: float = 0.90
     preserve_layers: List[str] = None
-    min_r_squared: float = 0.90        # Minimum acceptable R^2
+    min_r_squared: float = 0.90  # Minimum acceptable R^2
     early_stop_r_squared: float = 0.99  # Stop optimization early if R^2 exceeds this
 
 
 @dataclass
 class HyperResult:
     """Result from hypercompression."""
+
     success: bool
     compressed_state: Dict[str, Any]
     original_size_mb: float
@@ -89,13 +92,10 @@ class HyperCompressor:
         """
         self.config = config or HyperConfig()
         if self.config.preserve_layers is None:
-            self.config.preserve_layers = ['embed', 'norm', 'ln_', 'layernorm', 'bias']
+            self.config.preserve_layers = ["embed", "norm", "ln_", "layernorm", "bias"]
 
     def compress(
-        self,
-        model: nn.Module,
-        calibration_data: List[Any] = None,
-        tokenizer: Any = None
+        self, model: nn.Module, calibration_data: List[Any] = None, tokenizer: Any = None
     ) -> Tuple[nn.Module, HyperResult]:
         """
         Compress model using hypercompression.
@@ -127,29 +127,26 @@ class HyperCompressor:
 
             if should_preserve or param.dim() < 2 or param.numel() < 100:
                 # Preserve layer
-                compressed_state[name] = {
-                    'type': 'preserved',
-                    'data': param.half()
-                }
+                compressed_state[name] = {"type": "preserved", "data": param.half()}
             else:
                 # Apply hypercompression with R^2 metrics
                 curve_params, retention, fit_metrics = self._fit_curves(param)
                 compressed_state[name] = {
-                    'type': 'hyper',
-                    'curve_params': curve_params,
-                    'shape': param.shape,
-                    'curve_type': self.config.curve_type
+                    "type": "hyper",
+                    "curve_params": curve_params,
+                    "shape": param.shape,
+                    "curve_type": self.config.curve_type,
                 }
 
                 curve_stats[name] = {
-                    'num_params': len(curve_params.flatten()),
-                    'original_params': param.numel(),
-                    'compression': param.numel() / max(len(curve_params.flatten()), 1),
-                    'retention': retention,
-                    'r_squared': fit_metrics.r_squared,
-                    'rmse': fit_metrics.rmse,
-                    'mae': fit_metrics.mae,
-                    'max_error': fit_metrics.max_error
+                    "num_params": len(curve_params.flatten()),
+                    "original_params": param.numel(),
+                    "compression": param.numel() / max(len(curve_params.flatten()), 1),
+                    "retention": retention,
+                    "r_squared": fit_metrics.r_squared,
+                    "rmse": fit_metrics.rmse,
+                    "mae": fit_metrics.mae,
+                    "max_error": fit_metrics.max_error,
                 }
 
                 layer_r_squared[name] = fit_metrics.r_squared
@@ -185,13 +182,11 @@ class HyperCompressor:
             curve_stats=curve_stats,
             mean_r_squared=mean_r_squared,
             mean_rmse=mean_rmse,
-            layer_r_squared=layer_r_squared
+            layer_r_squared=layer_r_squared,
         )
 
     def compute_r_squared(
-        self,
-        original: torch.Tensor,
-        reconstructed: torch.Tensor
+        self, original: torch.Tensor, reconstructed: torch.Tensor
     ) -> CurveFitMetrics:
         """
         Compute R^2 and other quality metrics for curve fitting.
@@ -220,7 +215,7 @@ class HyperCompressor:
         residuals = original - reconstructed
 
         # SS_res (residual sum of squares)
-        ss_res = (residuals ** 2).sum().item()
+        ss_res = (residuals**2).sum().item()
 
         # SS_tot (total sum of squares)
         y_mean = original.mean()
@@ -231,7 +226,7 @@ class HyperCompressor:
         r_squared = max(0.0, min(1.0, r_squared))
 
         # RMSE (root mean squared error)
-        mse = (residuals ** 2).mean().item()
+        mse = (residuals**2).mean().item()
         rmse = math.sqrt(mse)
 
         # MAE (mean absolute error)
@@ -250,13 +245,10 @@ class HyperCompressor:
             mae=mae,
             max_error=max_error,
             compression_ratio=compression_ratio,
-            num_parameters=0
+            num_parameters=0,
         )
 
-    def _fit_curves(
-        self,
-        tensor: torch.Tensor
-    ) -> Tuple[torch.Tensor, float, CurveFitMetrics]:
+    def _fit_curves(self, tensor: torch.Tensor) -> Tuple[torch.Tensor, float, CurveFitMetrics]:
         """
         Fit parametric curves to tensor with R^2 metrics.
 
@@ -297,7 +289,7 @@ class HyperCompressor:
         curve_params = torch.stack(all_params)
 
         # Reconstruct full tensor for overall metrics
-        full_reconstructed = torch.cat(all_reconstructed)[:len(flat)]
+        full_reconstructed = torch.cat(all_reconstructed)[: len(flat)]
 
         # Calculate overall metrics
         overall_metrics = self.compute_r_squared(flat, full_reconstructed)
@@ -358,7 +350,7 @@ class HyperCompressor:
         for i in range(num_control):
             # Bernstein basis polynomial
             binom = math.comb(degree, i)
-            basis = binom * (t ** i) * ((1 - t) ** (degree - i))
+            basis = binom * (t**i) * ((1 - t) ** (degree - i))
             result = result + basis * control_points[i]
 
         return result
@@ -395,7 +387,7 @@ class HyperCompressor:
         result = torch.zeros(n)
 
         for i, c in enumerate(coeffs):
-            result = result + c * (x ** i)
+            result = result + c * (x**i)
 
         return result
 
@@ -417,36 +409,32 @@ class HyperCompressor:
         total_bytes = 0
 
         for name, data in compressed_state.items():
-            if data['type'] == 'preserved':
-                total_bytes += data['data'].numel() * 2  # FP16
+            if data["type"] == "preserved":
+                total_bytes += data["data"].numel() * 2  # FP16
             else:  # hyper
-                total_bytes += data['curve_params'].numel() * 2  # FP16
+                total_bytes += data["curve_params"].numel() * 2  # FP16
 
         return total_bytes / (1024 * 1024)
 
     def _calculate_retention(self, curve_stats: Dict) -> float:
         """Calculate overall retention score."""
-        retentions = [stats['retention'] for stats in curve_stats.values()]
+        retentions = [stats["retention"] for stats in curve_stats.values()]
         return sum(retentions) / max(len(retentions), 1) if retentions else 1.0
 
     def _create_compressed_model(
-        self,
-        original_model: nn.Module,
-        compressed_state: Dict
+        self, original_model: nn.Module, compressed_state: Dict
     ) -> nn.Module:
         """Create model with decompressed weights."""
         model = copy.deepcopy(original_model)
 
         decompressed_state = {}
         for name, data in compressed_state.items():
-            if data['type'] == 'preserved':
-                decompressed_state[name] = data['data'].float()
+            if data["type"] == "preserved":
+                decompressed_state[name] = data["data"].float()
             else:
                 # Decompress from curves
                 decompressed = self._decompress_tensor(
-                    data['curve_params'],
-                    data['shape'],
-                    data['curve_type']
+                    data["curve_params"], data["shape"], data["curve_type"]
                 )
                 decompressed_state[name] = decompressed
 
@@ -454,10 +442,7 @@ class HyperCompressor:
         return model
 
     def _decompress_tensor(
-        self,
-        curve_params: torch.Tensor,
-        shape: torch.Size,
-        curve_type: str
+        self, curve_params: torch.Tensor, shape: torch.Size, curve_type: str
     ) -> torch.Tensor:
         """Decompress tensor from curve parameters."""
         original_size = 1
@@ -476,9 +461,4 @@ class HyperCompressor:
         return flat.reshape(shape)
 
 
-__all__ = [
-    'HyperCompressor',
-    'HyperConfig',
-    'HyperResult',
-    'CurveFitMetrics'
-]
+__all__ = ["HyperCompressor", "HyperConfig", "HyperResult", "CurveFitMetrics"]

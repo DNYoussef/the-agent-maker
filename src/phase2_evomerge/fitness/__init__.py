@@ -14,29 +14,29 @@ Example:
     >>> print(f"Composite fitness: {fitness['composite']:.4f}")
 """
 
+from typing import Any, Dict, List, Optional
+
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from typing import List, Dict, Any, Optional
 
-from .perplexity import calculate_perplexity
 from .accuracy import calculate_accuracy
-from .speed import benchmark_speed
-from .memory import measure_memory_usage
-from .composite import compute_composite_fitness, DEFAULT_WEIGHTS, DEFAULT_EXPECTED
 from .cache import FitnessCache
-
+from .composite import DEFAULT_EXPECTED, DEFAULT_WEIGHTS, compute_composite_fitness
+from .memory import measure_memory_usage
+from .perplexity import calculate_perplexity
+from .speed import benchmark_speed
 
 __all__ = [
-    'FitnessEvaluator',
-    'calculate_perplexity',
-    'calculate_accuracy',
-    'benchmark_speed',
-    'measure_memory_usage',
-    'compute_composite_fitness',
-    'FitnessCache',
-    'DEFAULT_WEIGHTS',
-    'DEFAULT_EXPECTED'
+    "FitnessEvaluator",
+    "calculate_perplexity",
+    "calculate_accuracy",
+    "benchmark_speed",
+    "measure_memory_usage",
+    "compute_composite_fitness",
+    "FitnessCache",
+    "DEFAULT_WEIGHTS",
+    "DEFAULT_EXPECTED",
 ]
 
 
@@ -75,11 +75,11 @@ class FitnessEvaluator:
         fitness_weights: Optional[Dict[str, float]] = None,
         expected_values: Optional[Dict[str, float]] = None,
         cache_enabled: bool = True,
-        device: str = 'cuda',
+        device: str = "cuda",
         mixed_precision: bool = True,
         max_batches: Optional[int] = None,
         benchmark_batch_size: int = 32,
-        benchmark_seq_len: int = 512
+        benchmark_seq_len: int = 512,
     ):
         """
         Initialize fitness evaluator with datasets and configuration.
@@ -106,9 +106,7 @@ class FitnessEvaluator:
 
         # Create benchmark batch for speed/memory tests
         self.benchmark_batch = torch.randint(
-            0, 1000,  # Vocab size dummy
-            (benchmark_batch_size, benchmark_seq_len),
-            device=device
+            0, 1000, (benchmark_batch_size, benchmark_seq_len), device=device  # Vocab size dummy
         )
 
         # Initialize cache
@@ -156,32 +154,21 @@ class FitnessEvaluator:
             self.validation_dataset,
             device=self.device,
             mixed_precision=self.mixed_precision,
-            max_batches=self.max_batches
+            max_batches=self.max_batches,
         )
 
         accuracy = calculate_accuracy(
-            model,
-            self.test_dataset,
-            device=self.device,
-            max_batches=self.max_batches
+            model, self.test_dataset, device=self.device, max_batches=self.max_batches
         )
 
-        speed = benchmark_speed(
-            model,
-            self.benchmark_batch,
-            device=self.device
-        )
+        speed = benchmark_speed(model, self.benchmark_batch, device=self.device)
 
         # Memory measurement requires CUDA
-        if self.device == 'cuda':
-            memory = measure_memory_usage(
-                model,
-                self.benchmark_batch,
-                device=self.device
-            )
+        if self.device == "cuda":
+            memory = measure_memory_usage(model, self.benchmark_batch, device=self.device)
         else:
             # Use expected value for CPU (no CUDA memory)
-            memory = self.expected_values['memory']
+            memory = self.expected_values["memory"]
 
         # Compute composite fitness
         fitness = compute_composite_fitness(
@@ -190,7 +177,7 @@ class FitnessEvaluator:
             speed=speed,
             memory=memory,
             weights=self.fitness_weights,
-            expected_values=self.expected_values
+            expected_values=self.expected_values,
         )
 
         # Cache result
@@ -222,7 +209,7 @@ class FitnessEvaluator:
 
         for model in models:
             fitness = self.evaluate(model)
-            composite_scores.append(fitness['composite'])
+            composite_scores.append(fitness["composite"])
 
         return composite_scores
 

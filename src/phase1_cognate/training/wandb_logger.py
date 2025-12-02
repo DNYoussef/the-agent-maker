@@ -7,11 +7,12 @@ ISS-017: Consolidated to use central WandBIntegration
 ISS-018: Uses error-handled logging from central module
 """
 
-import wandb
-from typing import Dict, Any, Optional
+import logging
+from typing import Any, Dict, Optional
+
 import torch
 import torch.nn as nn
-import logging
+import wandb
 
 # Import central W&B integration
 try:
@@ -35,12 +36,7 @@ class Phase1WandBLogger:
     - Final: total_params, training_time, diversity_score
     """
 
-    def __init__(
-        self,
-        config: Dict[str, Any],
-        model_name: str,
-        mode: str = "offline"
-    ):
+    def __init__(self, config: Dict[str, Any], model_name: str, mode: str = "offline"):
         """
         Initialize W&B using central integration (ISS-017).
 
@@ -54,8 +50,7 @@ class Phase1WandBLogger:
 
         # Use central integration
         self.integration = WandBIntegration(
-            project_name=config.get("wandb_project", "agent-forge-v2"),
-            mode=mode
+            project_name=config.get("wandb_project", "agent-forge-v2"), mode=mode
         )
 
         # Initialize run
@@ -65,7 +60,7 @@ class Phase1WandBLogger:
                 name=f"phase1-cognate-{model_name}",
                 config=config,
                 mode=mode,
-                tags=["phase1", "cognate", model_name, "pretraining"]
+                tags=["phase1", "cognate", model_name, "pretraining"],
             )
             logger.info(f"W&B initialized: {wandb.run.name}")
             self.run = wandb.run
@@ -82,11 +77,7 @@ class Phase1WandBLogger:
             log_freq: How often to log gradients (every N steps)
         """
         if self.run is not None:
-            self.run.watch(
-                model,
-                log="all",  # Log gradients and parameters
-                log_freq=log_freq
-            )
+            self.run.watch(model, log="all", log_freq=log_freq)  # Log gradients and parameters
             print(f"W&B watching model (log_freq={log_freq})")
 
     def log_step(
@@ -100,7 +91,7 @@ class Phase1WandBLogger:
         ltm_usage: float,
         gpu_memory_gb: float,
         gpu_util: Optional[float] = None,
-        tokens_per_sec: Optional[float] = None
+        tokens_per_sec: Optional[float] = None,
     ):
         """
         Log metrics at each training step
@@ -125,16 +116,13 @@ class Phase1WandBLogger:
             "train/perplexity": torch.exp(torch.tensor(loss)).item(),
             "train/learning_rate": learning_rate,
             "train/gradient_norm": grad_norm,
-
             # ACT metrics
             "act/avg_halting_steps": halting_steps.float().mean().item(),
             "act/max_halting_steps": halting_steps.max().item(),
             "act/min_halting_steps": halting_steps.min().item(),
             "act/halting_variance": halting_steps.float().var().item(),
-
             # LTM metrics
             "ltm/memory_usage": ltm_usage,
-
             # System metrics
             "system/gpu_memory_used_gb": gpu_memory_gb,
         }
@@ -154,7 +142,7 @@ class Phase1WandBLogger:
         val_perplexity: float,
         val_accuracies: Dict[str, float],
         curriculum_stage: int,
-        epoch_time_minutes: float
+        epoch_time_minutes: float,
     ):
         """
         Log metrics at end of epoch
@@ -187,7 +175,7 @@ class Phase1WandBLogger:
         final_loss: float,
         final_perplexity: float,
         model_size_mb: float,
-        diversity_metrics: Dict[str, float]
+        diversity_metrics: Dict[str, float],
     ):
         """
         Log final metrics at end of training
@@ -216,10 +204,7 @@ class Phase1WandBLogger:
 
         # Create diversity comparison table
         diversity_table = wandb.Table(
-            columns=["Metric", "Value"],
-            data=[
-                [k, v] for k, v in diversity_metrics.items()
-            ]
+            columns=["Metric", "Value"], data=[[k, v] for k, v in diversity_metrics.items()]
         )
         wandb.log({"diversity/metrics_table": diversity_table})
 
@@ -235,7 +220,7 @@ class Phase1WandBLogger:
             name=f"phase1-{self.model_name}-checkpoint",
             type="model",
             description=f"Phase 1 {self.model_name} model checkpoint",
-            metadata=metadata
+            metadata=metadata,
         )
         artifact.add_file(model_path)
         wandb.log_artifact(artifact)

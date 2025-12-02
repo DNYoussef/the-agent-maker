@@ -6,17 +6,18 @@ which is one component of the composite fitness score (20% weight).
 """
 
 import time
+from typing import Optional
+
 import torch
 import torch.nn as nn
-from typing import Optional
 
 
 def benchmark_speed(
     model: nn.Module,
     benchmark_batch: torch.Tensor,
-    device: str = 'cuda',
+    device: str = "cuda",
     num_warmup: int = 10,
-    num_iterations: int = 100
+    num_iterations: int = 100,
 ) -> float:
     """
     Benchmark inference speed (tokens/second).
@@ -60,7 +61,7 @@ def benchmark_speed(
             _ = model(benchmark_batch)
 
     # Synchronize before timing (if CUDA)
-    if device == 'cuda':
+    if device == "cuda":
         torch.cuda.synchronize()
 
     # Start timing
@@ -72,7 +73,7 @@ def benchmark_speed(
             _ = model(benchmark_batch)
 
     # Synchronize after timing (if CUDA)
-    if device == 'cuda':
+    if device == "cuda":
         torch.cuda.synchronize()
 
     # End timing

@@ -4,16 +4,15 @@ Genetic Operators
 Implements crossover and mutation operations for ADAS evolution.
 """
 
-import random
 import copy
-from typing import Tuple, List
-from .config import Individual, ADASConfig
+import random
+from typing import List, Tuple
+
+from .config import ADASConfig, Individual
 
 
 def crossover(
-    parent1: Individual,
-    parent2: Individual,
-    num_experts: int
+    parent1: Individual, parent2: Individual, num_experts: int
 ) -> Tuple[Individual, Individual]:
     """
     Uniform crossover for two parents.
@@ -44,12 +43,12 @@ def crossover(
     child1 = Individual(
         routing_weights=weights1,
         expert_configs=copy.deepcopy(parent1.expert_configs),
-        fitness_scores={}
+        fitness_scores={},
     )
     child2 = Individual(
         routing_weights=weights2,
         expert_configs=copy.deepcopy(parent2.expert_configs),
-        fitness_scores={}
+        fitness_scores={},
     )
 
     return child1, child2
@@ -75,9 +74,7 @@ def mutate(individual: Individual, num_experts: int) -> None:
 
 
 def create_offspring(
-    parents: List[Individual],
-    num_experts: int,
-    config: ADASConfig
+    parents: List[Individual], num_experts: int, config: ADASConfig
 ) -> List[Individual]:
     """
     Create offspring via crossover and mutation.
@@ -115,4 +112,4 @@ def create_offspring(
 
         offspring.extend([child1, child2])
 
-    return offspring[:config.population_size]
+    return offspring[: config.population_size]

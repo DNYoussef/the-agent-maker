@@ -21,11 +21,12 @@ Research:
     - Variance-based importance weighting
 """
 
-from typing import List
 import copy
+import logging
+from typing import List
+
 import torch
 import torch.nn as nn
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +49,7 @@ class DFSMerge:
         """
         self.epsilon = epsilon
 
-    def merge(
-        self, model_target: nn.Module, models_ref: List[nn.Module]
-    ) -> nn.Module:
+    def merge(self, model_target: nn.Module, models_ref: List[nn.Module]) -> nn.Module:
         """
         Merge models using inverse-variance weighting.
 
@@ -74,9 +73,7 @@ class DFSMerge:
         # Verify all models have same architecture
         for model in all_models:
             if not self._check_compatibility(all_models[0], model):
-                raise ValueError(
-                    "All models must have same architecture for DFS merge"
-                )
+                raise ValueError("All models must have same architecture for DFS merge")
 
         # Create result as copy of target
         result_model = copy.deepcopy(model_target)
@@ -84,9 +81,7 @@ class DFSMerge:
         with torch.no_grad():
             for param_name in dict(model_target.named_parameters()).keys():
                 # Collect parameters from all models
-                params = [
-                    dict(m.named_parameters())[param_name] for m in all_models
-                ]
+                params = [dict(m.named_parameters())[param_name] for m in all_models]
 
                 # Stack for variance calculation
                 stacked = torch.stack(params, dim=0)
@@ -132,9 +127,7 @@ class DFSMerge:
 
         return result_model
 
-    def _check_compatibility(
-        self, model1: nn.Module, model2: nn.Module
-    ) -> bool:
+    def _check_compatibility(self, model1: nn.Module, model2: nn.Module) -> bool:
         """
         Check if two models have compatible architectures.
 

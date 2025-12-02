@@ -7,9 +7,9 @@ Model discovers its own patterns and bakes persona prompts.
 Research: "Prompt Baking" (arXiv:2409.13697v1)
 """
 
-from dataclasses import dataclass
-from typing import Dict, List, Optional, Any, Tuple
 import random
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -19,6 +19,7 @@ import torch.nn.functional as F
 @dataclass
 class PersonaTask:
     """A persona evaluation task."""
+
     prompt: str
     expected_traits: List[str]
     difficulty: int  # 1-10
@@ -43,7 +44,7 @@ class BCycleOptimizer:
         lora_r: int = 16,
         lora_alpha: int = 32,
         num_epochs: int = 3,
-        learning_rate: float = 5e-5  # Fixed: was 1e-4, now 5e-5 per M4 spec
+        learning_rate: float = 5e-5,  # Fixed: was 1e-4, now 5e-5 per M4 spec
     ):
         """
         Initialize B-cycle optimizer.
@@ -62,11 +63,11 @@ class BCycleOptimizer:
         self.learning_rate = learning_rate
 
         self.state = {
-            'iterations': 0,
-            'scores': [],
-            'best_score': 0.0,
-            'discovered_traits': [],
-            'prompts_used': []
+            "iterations": 0,
+            "scores": [],
+            "best_score": 0.0,
+            "discovered_traits": [],
+            "prompts_used": [],
         }
 
         # Persona evaluation tasks
@@ -78,35 +79,32 @@ class BCycleOptimizer:
             PersonaTask(
                 prompt="How would you approach a complex problem?",
                 expected_traits=["step-by-step", "careful", "thorough"],
-                difficulty=3
+                difficulty=3,
             ),
             PersonaTask(
                 prompt="A user makes an error. How do you respond?",
                 expected_traits=["helpful", "patient", "constructive"],
-                difficulty=4
+                difficulty=4,
             ),
             PersonaTask(
                 prompt="You are unsure about something. What do you do?",
                 expected_traits=["honest", "transparent", "clarifying"],
-                difficulty=5
+                difficulty=5,
             ),
             PersonaTask(
                 prompt="How do you verify your answers?",
                 expected_traits=["verification", "double-check", "validate"],
-                difficulty=4
+                difficulty=4,
             ),
             PersonaTask(
                 prompt="Explain your reasoning process.",
                 expected_traits=["logical", "structured", "clear"],
-                difficulty=5
+                difficulty=5,
             ),
         ]
 
     def optimize(
-        self,
-        model: nn.Module,
-        tokenizer: Any,
-        evaluator: Any = None
+        self, model: nn.Module, tokenizer: Any, evaluator: Any = None
     ) -> Tuple[nn.Module, float]:
         """
         Run one B-cycle optimization iteration.
@@ -119,11 +117,11 @@ class BCycleOptimizer:
         Returns:
             Tuple of (optimized_model, score)
         """
-        self.state['iterations'] += 1
+        self.state["iterations"] += 1
 
         # Step 1: Self-discovery - analyze model's current patterns
         discovered = self._self_discover_patterns(model, tokenizer)
-        self.state['discovered_traits'].extend(discovered)
+        self.state["discovered_traits"].extend(discovered)
         print(f"    Discovered traits: {discovered[:3]}...")
 
         # Step 2: Evaluate current persona consistency
@@ -132,7 +130,7 @@ class BCycleOptimizer:
 
         # Step 3: Generate and select prompt based on discovery
         prompt = self._generate_persona_prompt(discovered)
-        self.state['prompts_used'].append(prompt)
+        self.state["prompts_used"].append(prompt)
 
         # Step 4: Bake the persona prompt
         baked_model = self._bake_persona_prompt(model, prompt, tokenizer)
@@ -142,17 +140,13 @@ class BCycleOptimizer:
         print(f"    Post-bake persona score: {post_score:.3f}")
 
         # Update state
-        self.state['scores'].append(post_score)
-        if post_score > self.state['best_score']:
-            self.state['best_score'] = post_score
+        self.state["scores"].append(post_score)
+        if post_score > self.state["best_score"]:
+            self.state["best_score"] = post_score
 
         return baked_model, post_score
 
-    def _self_discover_patterns(
-        self,
-        model: nn.Module,
-        tokenizer: Any
-    ) -> List[str]:
+    def _self_discover_patterns(self, model: nn.Module, tokenizer: Any) -> List[str]:
         """
         Model self-analyzes to discover behavioral patterns.
 
@@ -171,37 +165,48 @@ class BCycleOptimizer:
         with torch.no_grad():
             for prompt in discovery_prompts:
                 try:
-                    if hasattr(tokenizer, '__call__'):
+                    if hasattr(tokenizer, "__call__"):
                         inputs = tokenizer(
                             prompt,
                             return_tensors="pt",
                             max_length=128,
                             truncation=True,
-                            padding=True
+                            padding=True,
                         )
                     else:
-                        inputs = {'input_ids': torch.tensor([[1, 2, 3, 4, 5]])}
+                        inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
 
                     device = next(model.parameters()).device
-                    inputs = {k: v.to(device) for k, v in inputs.items()
-                              if isinstance(v, torch.Tensor)}
+                    inputs = {
+                        k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)
+                    }
 
-                    if hasattr(model, 'generate'):
+                    if hasattr(model, "generate"):
                         outputs = model.generate(
-                            **inputs,
-                            max_new_tokens=64,
-                            do_sample=True,
-                            temperature=0.7
+                            **inputs, max_new_tokens=64, do_sample=True, temperature=0.7
                         )
-                        output_text = tokenizer.decode(outputs[0], skip_special_tokens=True) if hasattr(tokenizer, 'decode') else ""
+                        output_text = (
+                            tokenizer.decode(outputs[0], skip_special_tokens=True)
+                            if hasattr(tokenizer, "decode")
+                            else ""
+                        )
                     else:
                         output_text = ""
 
                     # Extract traits from response
                     trait_keywords = [
-                        "careful", "thorough", "step-by-step", "logical",
-                        "helpful", "honest", "clear", "structured",
-                        "verify", "check", "analyze", "consider"
+                        "careful",
+                        "thorough",
+                        "step-by-step",
+                        "logical",
+                        "helpful",
+                        "honest",
+                        "clear",
+                        "structured",
+                        "verify",
+                        "check",
+                        "analyze",
+                        "consider",
                     ]
 
                     for trait in trait_keywords:
@@ -229,12 +234,7 @@ class BCycleOptimizer:
 
         return enhanced_prompt
 
-    def _evaluate_persona(
-        self,
-        model: nn.Module,
-        tokenizer: Any,
-        evaluator: Any = None
-    ) -> float:
+    def _evaluate_persona(self, model: nn.Module, tokenizer: Any, evaluator: Any = None) -> float:
         """Evaluate model's persona consistency."""
         if evaluator is not None:
             return evaluator.evaluate(model)
@@ -245,34 +245,36 @@ class BCycleOptimizer:
         with torch.no_grad():
             for task in self.persona_tasks:
                 try:
-                    if hasattr(tokenizer, '__call__'):
+                    if hasattr(tokenizer, "__call__"):
                         inputs = tokenizer(
                             task.prompt,
                             return_tensors="pt",
                             max_length=128,
                             truncation=True,
-                            padding=True
+                            padding=True,
                         )
                     else:
-                        inputs = {'input_ids': torch.tensor([[1, 2, 3, 4, 5]])}
+                        inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
 
                     device = next(model.parameters()).device
-                    inputs = {k: v.to(device) for k, v in inputs.items()
-                              if isinstance(v, torch.Tensor)}
+                    inputs = {
+                        k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)
+                    }
 
-                    if hasattr(model, 'generate'):
-                        outputs = model.generate(
-                            **inputs,
-                            max_new_tokens=64,
-                            do_sample=False
+                    if hasattr(model, "generate"):
+                        outputs = model.generate(**inputs, max_new_tokens=64, do_sample=False)
+                        output_text = (
+                            tokenizer.decode(outputs[0], skip_special_tokens=True)
+                            if hasattr(tokenizer, "decode")
+                            else ""
                         )
-                        output_text = tokenizer.decode(outputs[0], skip_special_tokens=True) if hasattr(tokenizer, 'decode') else ""
                     else:
                         output_text = ""
 
                     # Score based on trait presence
-                    trait_matches = sum(1 for trait in task.expected_traits
-                                       if trait in output_text.lower())
+                    trait_matches = sum(
+                        1 for trait in task.expected_traits if trait in output_text.lower()
+                    )
                     task_score = trait_matches / len(task.expected_traits)
                     total_score += task_score
 
@@ -281,14 +283,10 @@ class BCycleOptimizer:
 
         return total_score / max(1, len(self.persona_tasks))
 
-    def _bake_persona_prompt(
-        self,
-        model: nn.Module,
-        prompt: str,
-        tokenizer: Any
-    ) -> nn.Module:
+    def _bake_persona_prompt(self, model: nn.Module, prompt: str, tokenizer: Any) -> nn.Module:
         """Bake a persona prompt into the model."""
         import copy
+
         baked_model = copy.deepcopy(model)
 
         device = next(baked_model.parameters()).device
@@ -308,32 +306,33 @@ class BCycleOptimizer:
 
             for sample in calibration_samples:
                 try:
-                    if hasattr(tokenizer, '__call__'):
+                    if hasattr(tokenizer, "__call__"):
                         inputs = tokenizer(
                             sample,
                             return_tensors="pt",
                             max_length=256,
                             truncation=True,
-                            padding=True
+                            padding=True,
                         )
                     else:
-                        inputs = {'input_ids': torch.tensor([[1, 2, 3, 4, 5]])}
+                        inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
 
-                    inputs = {k: v.to(device) for k, v in inputs.items()
-                              if isinstance(v, torch.Tensor)}
+                    inputs = {
+                        k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)
+                    }
 
                     outputs = baked_model(**inputs)
 
-                    if hasattr(outputs, 'loss') and outputs.loss is not None:
+                    if hasattr(outputs, "loss") and outputs.loss is not None:
                         loss = outputs.loss
-                    elif hasattr(outputs, 'logits'):
+                    elif hasattr(outputs, "logits"):
                         logits = outputs.logits
                         shift_logits = logits[..., :-1, :].contiguous()
-                        shift_labels = inputs['input_ids'][..., 1:].contiguous()
+                        shift_labels = inputs["input_ids"][..., 1:].contiguous()
                         loss = F.cross_entropy(
                             shift_logits.view(-1, shift_logits.size(-1)),
                             shift_labels.view(-1),
-                            ignore_index=0
+                            ignore_index=0,
                         )
                     else:
                         continue
@@ -355,4 +354,4 @@ class BCycleOptimizer:
         return self.state.copy()
 
 
-__all__ = ['BCycleOptimizer', 'PersonaTask']
+__all__ = ["BCycleOptimizer", "PersonaTask"]

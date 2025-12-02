@@ -3,14 +3,15 @@ Integration tests for Pipeline Orchestrator
 Tests end-to-end phase sequencing and handoff validation
 """
 
-import pytest
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from cross_phase.orchestrator.pipeline import PipelineOrchestrator
 from cross_phase.orchestrator.phase_controller import PhaseResult
+from cross_phase.orchestrator.pipeline import PipelineOrchestrator
 
 
 @pytest.mark.integration
@@ -20,9 +21,7 @@ class TestPipelineIntegration:
     def test_pipeline_creation(self, sample_config, temp_dir):
         """Test pipeline creation"""
         config = sample_config.copy()
-        config["registry"] = {
-            "db_path": str(temp_dir / "test_pipeline.db")
-        }
+        config["registry"] = {"db_path": str(temp_dir / "test_pipeline.db")}
 
         with PipelineOrchestrator(config) as pipeline:
             assert pipeline is not None
@@ -31,9 +30,7 @@ class TestPipelineIntegration:
     def test_single_phase_execution(self, sample_config, temp_dir):
         """Test executing single phase"""
         config = sample_config.copy()
-        config["registry"] = {
-            "db_path": str(temp_dir / "test_single_phase.db")
-        }
+        config["registry"] = {"db_path": str(temp_dir / "test_single_phase.db")}
 
         # Note: This will fail without actual phase implementations
         # This is a placeholder test structure
@@ -45,9 +42,7 @@ class TestPipelineIntegration:
     def test_context_manager(self, sample_config, temp_dir):
         """Test context manager closes resources"""
         config = sample_config.copy()
-        config["registry"] = {
-            "db_path": str(temp_dir / "test_context.db")
-        }
+        config["registry"] = {"db_path": str(temp_dir / "test_context.db")}
 
         with PipelineOrchestrator(config) as pipeline:
             pass  # Context manager should close automatically
@@ -69,7 +64,7 @@ class TestPhaseHandoff:
             metrics={"loss": 2.34},
             duration=120.5,
             artifacts={"checkpoint": "/path/to/model.pt"},
-            config={"epochs": 10}
+            config={"epochs": 10},
         )
 
         assert result.success is True
@@ -87,7 +82,7 @@ class TestPhaseHandoff:
             duration=5.0,
             artifacts={},
             config={},
-            error="Test error message"
+            error="Test error message",
         )
 
         assert result.success is False

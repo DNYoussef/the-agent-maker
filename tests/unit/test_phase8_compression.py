@@ -11,21 +11,18 @@ Tests:
 Target: >=90% coverage for core functionality
 """
 
+import sys
+from dataclasses import asdict
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
 import torch
 import torch.nn as nn
-from unittest.mock import Mock, MagicMock, patch
-from dataclasses import asdict
 
-import sys
-from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from phase8_compression.compression_engine import (
-    CompressionEngine,
-    CompressionConfig,
-    Phase8Result
-)
+from phase8_compression.compression_engine import CompressionConfig, CompressionEngine, Phase8Result
 
 
 class TestCompressionConfig:
@@ -62,9 +59,7 @@ class TestCompressionConfig:
     def test_custom_config(self):
         """Test custom configuration."""
         config = CompressionConfig(
-            seedlm_enabled=False,
-            codebook_size=512,
-            min_retention_final=0.90
+            seedlm_enabled=False, codebook_size=512, min_retention_final=0.90
         )
 
         assert config.seedlm_enabled is False
@@ -77,16 +72,12 @@ class TestCompressionConfig:
         config_dict = asdict(config)
 
         assert isinstance(config_dict, dict)
-        assert 'seedlm_enabled' in config_dict
-        assert 'min_retention_final' in config_dict
+        assert "seedlm_enabled" in config_dict
+        assert "min_retention_final" in config_dict
 
     def test_disable_all_stages(self):
         """Test disabling all compression stages."""
-        config = CompressionConfig(
-            seedlm_enabled=False,
-            vptq_enabled=False,
-            hyper_enabled=False
-        )
+        config = CompressionConfig(seedlm_enabled=False, vptq_enabled=False, hyper_enabled=False)
 
         assert config.seedlm_enabled is False
         assert config.vptq_enabled is False
@@ -108,12 +99,12 @@ class TestPhase8Result:
             total_compression=250.0,
             retention_score=0.85,
             stage_results={
-                'seedlm': {'compression_ratio': 2.0},
-                'vptq': {'compression_ratio': 20.0},
-                'hyper': {'compression_ratio': 6.25}
+                "seedlm": {"compression_ratio": 2.0},
+                "vptq": {"compression_ratio": 20.0},
+                "hyper": {"compression_ratio": 6.25},
             },
-            benchmark_results={'accuracy': 0.9},
-            duration=3600.0
+            benchmark_results={"accuracy": 0.9},
+            duration=3600.0,
         )
 
         assert result.success is True
@@ -138,7 +129,7 @@ class TestPhase8Result:
             stage_results={},
             benchmark_results={},
             duration=10.0,
-            error="Compression failed"
+            error="Compression failed",
         )
 
         assert result.success is False
@@ -158,10 +149,10 @@ class TestPhase8Result:
             stage_results={},
             benchmark_results={},
             duration=1000.0,
-            rollback_stage='hyper'
+            rollback_stage="hyper",
         )
 
-        assert result.rollback_stage == 'hyper'
+        assert result.rollback_stage == "hyper"
 
 
 class TestCompressionEngine:
@@ -173,10 +164,10 @@ class TestCompressionEngine:
 
         assert engine.config is not None
         assert isinstance(engine.config, CompressionConfig)
-        assert 'seedlm' in engine.metrics
-        assert 'vptq' in engine.metrics
-        assert 'hyper' in engine.metrics
-        assert 'benchmarks' in engine.metrics
+        assert "seedlm" in engine.metrics
+        assert "vptq" in engine.metrics
+        assert "hyper" in engine.metrics
+        assert "benchmarks" in engine.metrics
 
     def test_initialization_custom_config(self):
         """Test engine initialization with custom config."""
@@ -189,10 +180,10 @@ class TestCompressionEngine:
         """Test metrics are initialized as empty dicts."""
         engine = CompressionEngine()
 
-        assert engine.metrics['seedlm'] == {}
-        assert engine.metrics['vptq'] == {}
-        assert engine.metrics['hyper'] == {}
-        assert engine.metrics['benchmarks'] == {}
+        assert engine.metrics["seedlm"] == {}
+        assert engine.metrics["vptq"] == {}
+        assert engine.metrics["hyper"] == {}
+        assert engine.metrics["benchmarks"] == {}
 
 
 @pytest.fixture
@@ -210,8 +201,8 @@ def mock_tokenizer():
     """Create mock tokenizer for testing."""
     tokenizer = Mock()
     tokenizer.return_value = {
-        'input_ids': torch.tensor([[1, 2, 3, 4, 5]]),
-        'attention_mask': torch.tensor([[1, 1, 1, 1, 1]])
+        "input_ids": torch.tensor([[1, 2, 3, 4, 5]]),
+        "attention_mask": torch.tensor([[1, 1, 1, 1, 1]]),
     }
     return tokenizer
 
@@ -254,10 +245,7 @@ class TestCompressionEngineRun:
     def test_run_returns_phase8_result(self, mock_model, mock_tokenizer):
         """Test run() returns Phase8Result."""
         config = CompressionConfig(
-            seedlm_enabled=False,
-            vptq_enabled=False,
-            hyper_enabled=False,
-            run_benchmarks=False
+            seedlm_enabled=False, vptq_enabled=False, hyper_enabled=False, run_benchmarks=False
         )
         engine = CompressionEngine(config=config)
         result = engine.run(mock_model, mock_tokenizer)
@@ -269,7 +257,7 @@ class TestCompressionEngineRun:
         config = CompressionConfig(seedlm_enabled=True)
         engine = CompressionEngine(config=config)
 
-        with patch('phase8_compression.compression_engine.SeedLMCompressor') as mock_seedlm:
+        with patch("phase8_compression.compression_engine.SeedLMCompressor") as mock_seedlm:
             mock_seedlm.side_effect = Exception("Compression failed")
             result = engine.run(mock_model, mock_tokenizer)
 
@@ -279,10 +267,7 @@ class TestCompressionEngineRun:
     def test_run_with_all_stages_disabled(self, mock_model, mock_tokenizer):
         """Test run with all compression stages disabled."""
         config = CompressionConfig(
-            seedlm_enabled=False,
-            vptq_enabled=False,
-            hyper_enabled=False,
-            run_benchmarks=False
+            seedlm_enabled=False, vptq_enabled=False, hyper_enabled=False, run_benchmarks=False
         )
         engine = CompressionEngine(config=config)
         result = engine.run(mock_model, mock_tokenizer)
@@ -304,9 +289,9 @@ class TestCompressionEngineBenchmarks:
 
         results = engine._run_benchmarks(mock_model, mock_tokenizer)
 
-        assert 'accuracy' in results
-        assert 'perplexity' in results
-        assert 'latency_ms' in results
+        assert "accuracy" in results
+        assert "perplexity" in results
+        assert "latency_ms" in results
 
     def test_run_benchmarks_custom_data(self, mock_model, mock_tokenizer):
         """Test benchmarks with custom data."""
@@ -338,9 +323,7 @@ class TestQualityGates:
     def test_custom_retention_thresholds(self):
         """Test custom retention thresholds."""
         config = CompressionConfig(
-            min_retention_seedlm=0.90,
-            min_retention_vptq=0.90,
-            min_retention_final=0.80
+            min_retention_seedlm=0.90, min_retention_vptq=0.90, min_retention_final=0.80
         )
 
         assert config.min_retention_seedlm == 0.90
@@ -359,11 +342,7 @@ class TestEdgeCases:
 
     def test_extreme_compression_targets(self):
         """Test extreme compression configurations."""
-        config = CompressionConfig(
-            seed_bits=1,
-            codebook_size=2,
-            num_curve_params=1
-        )
+        config = CompressionConfig(seed_bits=1, codebook_size=2, num_curve_params=1)
 
         assert config.seed_bits == 1
         assert config.codebook_size == 2

@@ -5,30 +5,31 @@ Pipeline integration with dual model output
 ISS-004: Updated to use secure SafeTensors checkpoint format.
 """
 
-import torch
 import json
+import time
 from pathlib import Path
 from typing import Dict, Optional, Tuple
-from transformers import AutoModel, AutoTokenizer
-import time
 
-from src.phase4_bitnet.config import Phase4Config
-from src.phase4_bitnet.quantizer import BitNetQuantizer
-from src.phase4_bitnet.compressed_model import CompressedModel
-from src.phase4_bitnet.calibration import create_calibration_dataloader
-from src.phase4_bitnet.fine_tuner import FineTuner
-from src.phase4_bitnet.utils import (
-    calculate_model_size_mb,
-    count_parameters,
-    calculate_sparsity_ratio,
-    test_gradient_flow,
-    save_compression_metadata,
-    validate_compression_quality,
-    estimate_inference_speedup,
-)
+import torch
 
 # ISS-004: Secure checkpoint utilities
 from safetensors.torch import save_file as safe_save_tensors
+from transformers import AutoModel, AutoTokenizer
+
+from src.phase4_bitnet.calibration import create_calibration_dataloader
+from src.phase4_bitnet.compressed_model import CompressedModel
+from src.phase4_bitnet.config import Phase4Config
+from src.phase4_bitnet.fine_tuner import FineTuner
+from src.phase4_bitnet.quantizer import BitNetQuantizer
+from src.phase4_bitnet.utils import (
+    calculate_model_size_mb,
+    calculate_sparsity_ratio,
+    count_parameters,
+    estimate_inference_speedup,
+    save_compression_metadata,
+    test_gradient_flow,
+    validate_compression_quality,
+)
 
 
 class Phase4Controller:
@@ -72,11 +73,7 @@ class Phase4Controller:
         self.compression_time = 0.0
         self.fine_tune_time = 0.0
 
-    def execute(
-        self,
-        phase3_output_path: str,
-        wandb_logger: Optional[object] = None
-    ) -> Dict:
+    def execute(self, phase3_output_path: str, wandb_logger: Optional[object] = None) -> Dict:
         """
         Execute Phase 4 compression
 
@@ -125,10 +122,7 @@ class Phase4Controller:
                 wandb_logger.log_phase4_compression(post_metrics)
 
             # Step 6: Fine-tuning (if needed)
-            fine_tune_needed = self._check_fine_tuning_needed(
-                pre_metrics,
-                post_metrics
-            )
+            fine_tune_needed = self._check_fine_tuning_needed(pre_metrics, post_metrics)
 
             if fine_tune_needed:
                 print("\n[6/7] Fine-tuning (quality recovery)...")
@@ -138,9 +132,7 @@ class Phase4Controller:
 
                 # Log to W&B
                 if wandb_logger:
-                    wandb_logger.log_phase4_fine_tuning(
-                        fine_tune_results
-                    )
+                    wandb_logger.log_phase4_fine_tuning(fine_tune_results)
             else:
                 print("\n[6/7] Skipping fine-tuning (quality acceptable)")
                 fine_tune_results = None
@@ -157,22 +149,22 @@ class Phase4Controller:
             total_time = time.time() - self.start_time
 
             results = {
-                'success': True,
-                'phase': 'phase4_bitnet',
-                'output_paths': output_paths,
-                'pre_compression': pre_metrics,
-                'post_compression': post_metrics,
-                'fine_tuning': fine_tune_results,
-                'gradient_flow_test': {
-                    'passed': gradient_test_passed,
-                    'error': gradient_error,
+                "success": True,
+                "phase": "phase4_bitnet",
+                "output_paths": output_paths,
+                "pre_compression": pre_metrics,
+                "post_compression": post_metrics,
+                "fine_tuning": fine_tune_results,
+                "gradient_flow_test": {
+                    "passed": gradient_test_passed,
+                    "error": gradient_error,
                 },
-                'timing': {
-                    'total_seconds': total_time,
-                    'compression_seconds': self.compression_time,
-                    'fine_tune_seconds': self.fine_tune_time,
+                "timing": {
+                    "total_seconds": total_time,
+                    "compression_seconds": self.compression_time,
+                    "fine_tune_seconds": self.fine_tune_time,
                 },
-                'metrics': self.metrics,
+                "metrics": self.metrics,
             }
 
             # Log phase summary to W&B
@@ -187,12 +179,13 @@ class Phase4Controller:
         except Exception as e:
             print(f"\n[FAIL] Phase 4 failed: {e}")
             import traceback
+
             traceback.print_exc()
 
             return {
-                'success': False,
-                'phase': 'phase4_bitnet',
-                'error': str(e),
+                "success": False,
+                "phase": "phase4_bitnet",
+                "error": str(e),
             }
 
     def _load_phase3_model(self, phase3_path: str):
@@ -200,18 +193,14 @@ class Phase4Controller:
         phase3_path = Path(phase3_path)
 
         # Load tokenizer
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            str(phase3_path)
-        )
+        self.tokenizer = AutoTokenizer.from_pretrained(str(phase3_path))
 
         # Load model
-        self.model = AutoModel.from_pretrained(
-            str(phase3_path)
-        )
+        self.model = AutoModel.from_pretrained(str(phase3_path))
 
         # Count parameters and adapt config
         params = count_parameters(self.model)
-        self.config.adapt_to_model_size(params['total'])
+        self.config.adapt_to_model_size(params["total"])
 
         print(f"  Model loaded: {params['total']:,} parameters")
         print(f"  Size category: {self.config.get_size_category(params['total'])}")
@@ -226,9 +215,9 @@ class Phase4Controller:
         params = count_parameters(self.model)
 
         metrics = {
-            'original_size_mb': original_size_mb,
-            'total_params': params['total'],
-            'trainable_params': params['trainable'],
+            "original_size_mb": original_size_mb,
+            "total_params": params["total"],
+            "trainable_params": params["trainable"],
         }
 
         print(f"  Original size: {original_size_mb:.1f} MB")
@@ -240,10 +229,7 @@ class Phase4Controller:
     def _run_calibration(self):
         """Run calibration data collection"""
         # Create calibration dataloader
-        dataloader = create_calibration_dataloader(
-            self.tokenizer,
-            self.config
-        )
+        dataloader = create_calibration_dataloader(self.tokenizer, self.config)
 
         print(f"  Dataset: {self.config.calibration_dataset}")
         print(f"  Samples: {self.config.calibration_samples}")
@@ -255,9 +241,7 @@ class Phase4Controller:
         """Compress model using BitNet quantization"""
         # Create compressed model wrapper
         self.compressed_model = CompressedModel(
-            base_model=self.model,
-            quantizer=self.quantizer,
-            config=self.config
+            base_model=self.model, quantizer=self.quantizer, config=self.config
         )
 
         # Perform compression
@@ -278,10 +262,10 @@ class Phase4Controller:
         stats = self.compressed_model.get_compression_stats()
 
         metrics = {
-            'compressed_size_mb': stats['quantized_size_mb'],
-            'compression_ratio': stats['compression_ratio'],
-            'sparsity_ratio': stats['sparsity_ratio'],
-            'layers_quantized': stats['layers_quantized'],
+            "compressed_size_mb": stats["quantized_size_mb"],
+            "compression_ratio": stats["compression_ratio"],
+            "sparsity_ratio": stats["sparsity_ratio"],
+            "layers_quantized": stats["layers_quantized"],
         }
 
         print(f"  Compressed size: {stats['quantized_size_mb']:.1f} MB")
@@ -289,11 +273,7 @@ class Phase4Controller:
 
         return metrics
 
-    def _check_fine_tuning_needed(
-        self,
-        pre_metrics: Dict,
-        post_metrics: Dict
-    ) -> bool:
+    def _check_fine_tuning_needed(self, pre_metrics: Dict, post_metrics: Dict) -> bool:
         """Check if fine-tuning is needed"""
         # For now, always fine-tune if enabled
         # In production, would compare perplexity
@@ -303,21 +283,14 @@ class Phase4Controller:
         """Fine-tune compressed model"""
         # Create fine-tuner
         self.fine_tuner = FineTuner(
-            model=self.compressed_model,
-            config=self.config,
-            device=self.device
+            model=self.compressed_model, config=self.config, device=self.device
         )
 
         # Create training data
-        train_dataloader = create_calibration_dataloader(
-            self.tokenizer,
-            self.config
-        )
+        train_dataloader = create_calibration_dataloader(self.tokenizer, self.config)
 
         # Fine-tune
-        results = self.fine_tuner.fine_tune(
-            train_dataloader=train_dataloader
-        )
+        results = self.fine_tuner.fine_tune(train_dataloader=train_dataloader)
 
         print(f"  Epochs: {results['epochs_completed']}")
         print(f"  Final loss: {results['final_loss']:.4f}")
@@ -364,14 +337,15 @@ class Phase4Controller:
 
             # Save scale factors and config as JSON (secure)
             quantized_metadata = {
-                'scale_factors': {k: float(v) if hasattr(v, 'item') else v
-                                  for k, v in scale_factors.items()},
-                'config': self.config.to_dict(),
+                "scale_factors": {
+                    k: float(v) if hasattr(v, "item") else v for k, v in scale_factors.items()
+                },
+                "config": self.config.to_dict(),
             }
-            with open(quantized_json_path, 'w', encoding='utf-8') as f:
+            with open(quantized_json_path, "w", encoding="utf-8") as f:
                 json.dump(quantized_metadata, f, indent=2, default=str)
 
-            paths['quantized'] = str(quantized_tensors_path)
+            paths["quantized"] = str(quantized_tensors_path)
             print(f"  [OK] Quantized model: {quantized_tensors_path}")
 
         # Save dequantized FP16 model (PRIMARY for Phase 5) - SafeTensors
@@ -383,24 +357,24 @@ class Phase4Controller:
             # Save with SafeTensors (secure)
             safe_save_tensors(dequantized_state, str(dequantized_path))
 
-            paths['dequantized_fp16'] = str(dequantized_path)
-            paths['primary_output'] = str(dequantized_path)  # PRIMARY
+            paths["dequantized_fp16"] = str(dequantized_path)
+            paths["primary_output"] = str(dequantized_path)  # PRIMARY
             print(f"  [OK] Dequantized FP16 (PRIMARY): {dequantized_path}")
 
         # Save tokenizer
         tokenizer_path = output_dir / "tokenizer"
         self.tokenizer.save_pretrained(str(tokenizer_path))
-        paths['tokenizer'] = str(tokenizer_path)
+        paths["tokenizer"] = str(tokenizer_path)
 
         # Save metadata
         save_compression_metadata(
             output_dir,
             {
-                'compression_method': 'BitNet-1.58',
-                'quantization_bits': 1.58,
-                'metrics': self.metrics,
-                'config': self.config.to_dict(),
-            }
+                "compression_method": "BitNet-1.58",
+                "quantization_bits": 1.58,
+                "metrics": self.metrics,
+                "config": self.config.to_dict(),
+            },
         )
 
         return paths
@@ -411,15 +385,17 @@ class Phase4Controller:
         print("PHASE 4 COMPLETE")
         print("=" * 60)
 
-        if results['success']:
+        if results["success"]:
             print(f"[OK] Compression: {self.metrics['compression_ratio']:.2f}x")
             print(f"[OK] Sparsity: {self.metrics['sparsity_ratio']:.1%}")
-            print(f"[OK] Gradient flow: {'PASSED' if results['gradient_flow_test']['passed'] else 'FAILED'}")
+            print(
+                f"[OK] Gradient flow: {'PASSED' if results['gradient_flow_test']['passed'] else 'FAILED'}"
+            )
             print(f"Time:  Total time: {results['timing']['total_seconds']:.1f}s")
 
             print("\nOutputs:")
-            for key, path in results['output_paths'].items():
-                marker = "[PRIMARY] PRIMARY" if key == 'primary_output' else "  "
+            for key, path in results["output_paths"].items():
+                marker = "[PRIMARY] PRIMARY" if key == "primary_output" else "  "
                 print(f"{marker} {key}: {path}")
         else:
             print(f"[FAIL] Error: {results.get('error', 'Unknown')}")

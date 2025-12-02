@@ -9,21 +9,23 @@ Complete training pipeline with:
 - VRAM monitoring
 """
 
+# Cross-phase imports
+import sys
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, Optional
+
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from pathlib import Path
-from typing import Dict, Optional, Any
-from dataclasses import dataclass, field
-import time
 
-# Cross-phase imports
-import sys
 sys.path.insert(0, str(Path(__file__).parents[2]))
 
-from cross_phase.mugrokfast.optimizer import MuonGrokfast, create_optimizer_from_phase
 from cross_phase.mugrokfast.config import MuGrokConfig
-from cross_phase.utils.checkpoint_utils import save_checkpoint, load_checkpoint as secure_load
+from cross_phase.mugrokfast.optimizer import MuonGrokfast, create_optimizer_from_phase
+from cross_phase.utils.checkpoint_utils import load_checkpoint as secure_load
+from cross_phase.utils.checkpoint_utils import save_checkpoint
 
 from ..model.full_model import TRMTitansMAGModel
 
@@ -81,9 +83,7 @@ class EMAModel:
         for name, param in self.model.named_parameters():
             if param.requires_grad and name in self.shadow:
                 # EMA update: shadow = decay * shadow + (1 - decay) * param
-                self.shadow[name].mul_(self.decay).add_(
-                    param.data, alpha=1 - self.decay
-                )
+                self.shadow[name].mul_(self.decay).add_(param.data, alpha=1 - self.decay)
 
     def apply_shadow(self) -> None:
         """
@@ -112,14 +112,15 @@ class EMAModel:
         self.shadow = state_dict.copy()
 
 
-from ..model.model_config import Phase1Config
 from ..data.curriculum_loader import CurriculumLoader
+from ..model.model_config import Phase1Config
 from .wandb_logger import Phase1WandBLogger
 
 
 @dataclass
 class TrainingConfig:
     """Training configuration"""
+
     # Model
     model_config: Phase1Config
 
@@ -177,7 +178,7 @@ class Phase1Trainer:
         config: TrainingConfig,
         train_datasets: Dict[str, Any],
         val_datasets: Optional[Dict[str, Any]] = None,
-        tokenizer: Optional[Any] = None
+        tokenizer: Optional[Any] = None,
     ):
         """
         Args:
@@ -206,7 +207,7 @@ class Phase1Trainer:
         self.logger = Phase1WandBLogger(
             config=config.model_config.to_dict(),
             model_name=config.model_config.specialization,
-            mode=config.wandb_mode
+            mode=config.wandb_mode,
         )
 
         # Track model gradients with W&B (online mode only)
@@ -216,7 +217,7 @@ class Phase1Trainer:
         # Training state
         self.global_step = 0
         self.current_epoch = 0
-        self.best_val_loss = float('inf')
+        self.best_val_loss = float("inf")
         self.epochs_without_improvement = 0  # For early stopping
 
         # EMA model (M4 TIER 1 - for better generalization)
@@ -239,9 +240,11 @@ class Phase1Trainer:
         """Create cosine annealing LR scheduler with warmup"""
         # MuGrokfast has different param groups, need to manually set 'lr' for scheduler compatibility
         for group in self.optimizer.param_groups:
-            if 'lr' not in group:
+            if "lr" not in group:
                 # Use muon_lr if available, else fallback_lr
-                group['lr'] = group.get('muon_lr', group.get('fallback_lr', self.config.learning_rate))
+                group["lr"] = group.get(
+                    "muon_lr", group.get("fallback_lr", self.config.learning_rate)
+                )
 
         from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 
@@ -254,26 +257,26 @@ class Phase1Trainer:
         warmup_scheduler = LinearLR(
             self.optimizer,
             start_factor=0.1,  # Start at 10% of base LR
-            end_factor=1.0,    # Ramp to 100% by end of warmup
-            total_iters=self.config.warmup_epochs
+            end_factor=1.0,  # Ramp to 100% by end of warmup
+            total_iters=self.config.warmup_epochs,
         )
 
         # Cosine annealing (after warmup)
         T_max = max(1, self.config.num_epochs - self.config.warmup_epochs)  # Ensure at least 1
         cosine_scheduler = CosineAnnealingLR(
-            self.optimizer,
-            T_max=T_max,
-            eta_min=1e-6  # Minimum LR
+            self.optimizer, T_max=T_max, eta_min=1e-6  # Minimum LR
         )
 
         # Sequential: warmup then cosine
         scheduler = SequentialLR(
             self.optimizer,
             schedulers=[warmup_scheduler, cosine_scheduler],
-            milestones=[self.config.warmup_epochs]
+            milestones=[self.config.warmup_epochs],
         )
 
-        print(f"Created LR scheduler: {self.config.warmup_epochs} warmup + {T_max} cosine annealing")
+        print(
+            f"Created LR scheduler: {self.config.warmup_epochs} warmup + {T_max} cosine annealing"
+        )
         return scheduler
 
     def train(self):
@@ -327,7 +330,7 @@ class Phase1Trainer:
                     val_perplexity=torch.exp(torch.tensor(val_loss)).item(),
                     val_accuracies=val_accs,
                     curriculum_stage=stage.value if self.curriculum else 1,
-                    epoch_time_minutes=epoch_time
+                    epoch_time_minutes=epoch_time,
                 )
 
                 # Save best model & check early stopping
@@ -342,8 +345,12 @@ class Phase1Trainer:
 
                     # Early stopping check
                     if self.epochs_without_improvement >= self.config.early_stop_patience:
-                        print(f"\n⚠️  Early stopping triggered (patience={self.config.early_stop_patience})")
-                        print(f"   Best val loss: {self.best_val_loss:.4f} at epoch {epoch - self.epochs_without_improvement}")
+                        print(
+                            f"\n⚠️  Early stopping triggered (patience={self.config.early_stop_patience})"
+                        )
+                        print(
+                            f"   Best val loss: {self.best_val_loss:.4f} at epoch {epoch - self.epochs_without_improvement}"
+                        )
                         break
             else:
                 # Log without validation
@@ -353,7 +360,7 @@ class Phase1Trainer:
                     val_perplexity=torch.exp(torch.tensor(epoch_loss)).item(),
                     val_accuracies={},
                     curriculum_stage=stage.value if self.curriculum else 1,
-                    epoch_time_minutes=epoch_time
+                    epoch_time_minutes=epoch_time,
                 )
 
             # LR scheduler step (after epoch)
@@ -393,7 +400,7 @@ class Phase1Trainer:
             tokenizer=self.tokenizer,
             batch_size=self.config.batch_size,
             max_length=512,
-            shuffle=True
+            shuffle=True,
         )
 
         accum_steps = 0
@@ -419,8 +426,7 @@ class Phase1Trainer:
             if accum_steps == self.config.gradient_accumulation_steps:
                 # Gradient clipping
                 grad_norm = torch.nn.utils.clip_grad_norm_(
-                    self.model.parameters(),
-                    self.config.gradient_clip
+                    self.model.parameters(), self.config.gradient_clip
                 )
 
                 # Optimizer step
@@ -439,7 +445,9 @@ class Phase1Trainer:
 
                 # Log to W&B
                 if self.global_step % self.config.log_every_n_steps == 0:
-                    self._log_step(loss.item() * self.config.gradient_accumulation_steps, grad_norm, output)
+                    self._log_step(
+                        loss.item() * self.config.gradient_accumulation_steps, grad_norm, output
+                    )
 
             # Update metrics (track all batches)
             total_loss += loss.item() * self.config.gradient_accumulation_steps
@@ -448,15 +456,16 @@ class Phase1Trainer:
             # Progress
             if (batch_idx + 1) % 50 == 0:
                 avg_loss = total_loss / num_batches
-                print(f"  Step {self.global_step}, Batch {batch_idx + 1}: "
-                      f"loss={avg_loss:.4f}")
+                print(f"  Step {self.global_step}, Batch {batch_idx + 1}: " f"loss={avg_loss:.4f}")
 
         return total_loss / max(num_batches, 1)
 
     def _log_step(self, loss: float, grad_norm: float, output: Dict):
         """Log metrics at training step"""
         # Get LR (MuGrokfast uses 'muon_lr' and 'fallback_lr')
-        lr = self.optimizer.param_groups[0].get('muon_lr', self.optimizer.param_groups[0].get('fallback_lr', 0.0))
+        lr = self.optimizer.param_groups[0].get(
+            "muon_lr", self.optimizer.param_groups[0].get("fallback_lr", 0.0)
+        )
 
         # Get GPU memory
         if torch.cuda.is_available():
@@ -478,7 +487,7 @@ class Phase1Trainer:
             grad_norm=grad_norm,
             halting_steps=halting_steps,
             ltm_usage=ltm_usage,
-            gpu_memory_gb=gpu_mem
+            gpu_memory_gb=gpu_mem,
         )
 
     def validate(self) -> tuple[float, Dict[str, float]]:
@@ -512,7 +521,7 @@ class Phase1Trainer:
             tokenizer=self.tokenizer,
             batch_size=self.config.batch_size,
             max_length=512,
-            shuffle=False  # Don't shuffle validation
+            shuffle=False,  # Don't shuffle validation
         )
 
         with torch.no_grad():
@@ -537,7 +546,9 @@ class Phase1Trainer:
         # Placeholder accuracies (would need task-specific evaluation)
         val_accs = {}
 
-        print(f"  Validation: {num_batches} batches, {total_samples} samples, avg_loss={avg_val_loss:.4f}")
+        print(
+            f"  Validation: {num_batches} batches, {total_samples} samples, avg_loss={avg_val_loss:.4f}"
+        )
 
         # Restore training weights after validation (M4 TIER 1)
         if self.ema is not None:
@@ -548,7 +559,7 @@ class Phase1Trainer:
     def save_checkpoint(self, filename: str):
         """Save model checkpoint using secure SafeTensors format (ISS-004)"""
         # Remove extension if present (save_checkpoint adds .safetensors)
-        base_name = filename.replace('.pt', '').replace('.pth', '')
+        base_name = filename.replace(".pt", "").replace(".pth", "")
         filepath = self.config.checkpoint_dir / base_name
 
         # Training state goes in metadata (JSON)
@@ -576,7 +587,7 @@ class Phase1Trainer:
             True if checkpoint was loaded successfully, False otherwise
         """
         # Handle both .safetensors and legacy .pt paths
-        safetensors_path = checkpoint_path.with_suffix('.safetensors')
+        safetensors_path = checkpoint_path.with_suffix(".safetensors")
         if not safetensors_path.exists() and not checkpoint_path.exists():
             return False
 
@@ -599,7 +610,7 @@ class Phase1Trainer:
             metadata = checkpoint_data.get("metadata", {})
             self.current_epoch = metadata.get("epoch", 0)
             self.global_step = metadata.get("global_step", 0)
-            self.best_val_loss = metadata.get("best_val_loss", float('inf'))
+            self.best_val_loss = metadata.get("best_val_loss", float("inf"))
 
             print(f"  Resumed from epoch {self.current_epoch}, step {self.global_step}")
             return True
@@ -611,15 +622,14 @@ class Phase1Trainer:
     def log_final_metrics(self, training_time_hours: float):
         """Log final metrics to W&B"""
         param_counts = self.model.count_parameters()
-        model_size = sum(
-            p.numel() * p.element_size()
-            for p in self.model.parameters()
-        ) / 1024**2  # MB
+        model_size = (
+            sum(p.numel() * p.element_size() for p in self.model.parameters()) / 1024**2
+        )  # MB
 
         diversity_metrics = {
             "avg_halting_steps": 7.5,  # Placeholder
             "ltm_usage": 0.45,
-            "inference_time_ms": 85
+            "inference_time_ms": 85,
         }
 
         self.logger.log_final(
@@ -628,5 +638,5 @@ class Phase1Trainer:
             final_loss=2.5,  # Placeholder
             final_perplexity=12.2,
             model_size_mb=model_size,
-            diversity_metrics=diversity_metrics
+            diversity_metrics=diversity_metrics,
         )

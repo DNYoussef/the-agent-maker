@@ -8,12 +8,13 @@ Tests the complete evolutionary merge pipeline including:
 - Evolution step execution
 """
 
+import sys
+from pathlib import Path
+from unittest.mock import Mock, patch
+
 import pytest
 import torch
 import torch.nn as nn
-from pathlib import Path
-from unittest.mock import Mock, patch
-import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
@@ -39,7 +40,7 @@ class TestPhase2EvoMergeE2E:
             model_copy = type(mock_model)(
                 vocab_size=mock_model.config.vocab_size,
                 hidden_size=mock_model.config.hidden_size,
-                num_layers=mock_model.config.num_layers
+                num_layers=mock_model.config.num_layers,
             )
             # Add noise to create diversity
             with torch.no_grad():
@@ -53,10 +54,7 @@ class TestPhase2EvoMergeE2E:
             params_j = list(population[i + 1].parameters())
 
             # At least one parameter should be different
-            differences = sum(
-                not torch.allclose(p1, p2)
-                for p1, p2 in zip(params_i, params_j)
-            )
+            differences = sum(not torch.allclose(p1, p2) for p1, p2 in zip(params_i, params_j))
             assert differences > 0
 
     def test_fitness_evaluation(self, mock_model, mock_dataloader):
@@ -67,7 +65,7 @@ class TestPhase2EvoMergeE2E:
 
         with torch.no_grad():
             for batch in mock_dataloader:
-                outputs = mock_model(batch['input_ids'], labels=batch['labels'])
+                outputs = mock_model(batch["input_ids"], labels=batch["labels"])
                 total_loss += outputs.loss.item()
                 num_batches += 1
 
@@ -85,7 +83,7 @@ class TestPhase2EvoMergeE2E:
         model_b = type(mock_model)(
             vocab_size=mock_model.config.vocab_size,
             hidden_size=mock_model.config.hidden_size,
-            num_layers=mock_model.config.num_layers
+            num_layers=mock_model.config.num_layers,
         )
 
         # Linear merge: theta_merged = alpha * theta_a + (1 - alpha) * theta_b
@@ -94,20 +92,19 @@ class TestPhase2EvoMergeE2E:
 
         for key in model_a.state_dict():
             merged_state[key] = (
-                alpha * model_a.state_dict()[key] +
-                (1 - alpha) * model_b.state_dict()[key]
+                alpha * model_a.state_dict()[key] + (1 - alpha) * model_b.state_dict()[key]
             )
 
         # Create merged model
         merged_model = type(mock_model)(
             vocab_size=mock_model.config.vocab_size,
             hidden_size=mock_model.config.hidden_size,
-            num_layers=mock_model.config.num_layers
+            num_layers=mock_model.config.num_layers,
         )
         merged_model.load_state_dict(merged_state)
 
         # Test merged model works
-        assert hasattr(merged_model, 'config')
+        assert hasattr(merged_model, "config")
         assert merged_model.config.vocab_size == 1000
 
     def test_slerp_merge(self, mock_model):
@@ -117,7 +114,7 @@ class TestPhase2EvoMergeE2E:
         model_b = type(mock_model)(
             vocab_size=mock_model.config.vocab_size,
             hidden_size=mock_model.config.hidden_size,
-            num_layers=mock_model.config.num_layers
+            num_layers=mock_model.config.num_layers,
         )
 
         # Simplified SLERP for testing (using linear for simplicity)
@@ -131,13 +128,13 @@ class TestPhase2EvoMergeE2E:
         merged_model = type(mock_model)(
             vocab_size=mock_model.config.vocab_size,
             hidden_size=mock_model.config.hidden_size,
-            num_layers=mock_model.config.num_layers
+            num_layers=mock_model.config.num_layers,
         )
         merged_model.load_state_dict(merged_state)
 
         # Verify merged model
         assert merged_model is not None
-        assert hasattr(merged_model, 'embeddings')
+        assert hasattr(merged_model, "embeddings")
 
     def test_ties_merge(self, mock_model):
         """Test TIES (TrIm, Elect, MergeSign) merge."""
@@ -145,7 +142,7 @@ class TestPhase2EvoMergeE2E:
         model_b = type(mock_model)(
             vocab_size=mock_model.config.vocab_size,
             hidden_size=mock_model.config.hidden_size,
-            num_layers=mock_model.config.num_layers
+            num_layers=mock_model.config.num_layers,
         )
 
         # TIES merge steps (simplified):
@@ -160,17 +157,13 @@ class TestPhase2EvoMergeE2E:
             delta_b = model_b.state_dict()[key]
 
             # Simplified TIES: average deltas above threshold
-            mask = (torch.abs(delta_a - delta_b) > threshold)
-            merged_state[key] = torch.where(
-                mask,
-                (delta_a + delta_b) / 2,
-                delta_a
-            )
+            mask = torch.abs(delta_a - delta_b) > threshold
+            merged_state[key] = torch.where(mask, (delta_a + delta_b) / 2, delta_a)
 
         merged_model = type(mock_model)(
             vocab_size=mock_model.config.vocab_size,
             hidden_size=mock_model.config.hidden_size,
-            num_layers=mock_model.config.num_layers
+            num_layers=mock_model.config.num_layers,
         )
         merged_model.load_state_dict(merged_state)
 
@@ -182,7 +175,7 @@ class TestPhase2EvoMergeE2E:
         model_b = type(mock_model)(
             vocab_size=mock_model.config.vocab_size,
             hidden_size=mock_model.config.hidden_size,
-            num_layers=mock_model.config.num_layers
+            num_layers=mock_model.config.num_layers,
         )
 
         # DARE: Randomly drop and rescale deltas
@@ -202,7 +195,7 @@ class TestPhase2EvoMergeE2E:
         merged_model = type(mock_model)(
             vocab_size=mock_model.config.vocab_size,
             hidden_size=mock_model.config.hidden_size,
-            num_layers=mock_model.config.num_layers
+            num_layers=mock_model.config.num_layers,
         )
         merged_model.load_state_dict(merged_state)
 
@@ -221,7 +214,7 @@ class TestPhase2EvoMergeE2E:
             total_loss = 0.0
             with torch.no_grad():
                 for batch in mock_dataloader:
-                    outputs = model(batch['input_ids'], labels=batch['labels'])
+                    outputs = model(batch["input_ids"], labels=batch["labels"])
                     total_loss += outputs.loss.item()
             fitness_scores.append(-total_loss / len(mock_dataloader))
 
@@ -231,9 +224,7 @@ class TestPhase2EvoMergeE2E:
         # Select top performers
         top_k = 2
         sorted_indices = sorted(
-            range(len(fitness_scores)),
-            key=lambda i: fitness_scores[i],
-            reverse=True
+            range(len(fitness_scores)), key=lambda i: fitness_scores[i], reverse=True
         )
         elite_indices = sorted_indices[:top_k]
 
@@ -289,20 +280,16 @@ class TestPhase2EvoMergeE2E:
 
             with torch.no_grad():
                 for batch in mock_dataloader:
-                    outputs = current_model(batch['input_ids'], labels=batch['labels'])
+                    outputs = current_model(batch["input_ids"], labels=batch["labels"])
                     total_loss += outputs.loss.item()
 
             avg_loss = total_loss / len(mock_dataloader)
             fitness = -avg_loss
 
-            generations.append({
-                'generation': gen,
-                'fitness': fitness,
-                'loss': avg_loss
-            })
+            generations.append({"generation": gen, "fitness": fitness, "loss": avg_loss})
 
         assert len(generations) == 3
-        assert all('fitness' in g for g in generations)
+        assert all("fitness" in g for g in generations)
 
     def test_merge_preserves_architecture(self, mock_model):
         """Test merged model preserves architecture."""
@@ -310,7 +297,7 @@ class TestPhase2EvoMergeE2E:
         model_b = type(mock_model)(
             vocab_size=mock_model.config.vocab_size,
             hidden_size=mock_model.config.hidden_size,
-            num_layers=mock_model.config.num_layers
+            num_layers=mock_model.config.num_layers,
         )
 
         # Linear merge
@@ -318,14 +305,13 @@ class TestPhase2EvoMergeE2E:
         merged_state = {}
         for key in model_a.state_dict():
             merged_state[key] = (
-                alpha * model_a.state_dict()[key] +
-                (1 - alpha) * model_b.state_dict()[key]
+                alpha * model_a.state_dict()[key] + (1 - alpha) * model_b.state_dict()[key]
             )
 
         merged_model = type(mock_model)(
             vocab_size=mock_model.config.vocab_size,
             hidden_size=mock_model.config.hidden_size,
-            num_layers=mock_model.config.num_layers
+            num_layers=mock_model.config.num_layers,
         )
         merged_model.load_state_dict(merged_state)
 
@@ -346,7 +332,7 @@ class TestPhase2EvoMergeE2E:
             total_loss = 0.0
             with torch.no_grad():
                 for batch in mock_dataloader:
-                    outputs = model(batch['input_ids'], labels=batch['labels'])
+                    outputs = model(batch["input_ids"], labels=batch["labels"])
                     total_loss += outputs.loss.item()
             fitness_scores.append(-total_loss / len(mock_dataloader))
 

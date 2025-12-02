@@ -3,16 +3,17 @@ Playwright UI Tests for Agent Forge V2
 Tests all pages and takes screenshots
 """
 import subprocess
-import time
 import sys
+import time
 from pathlib import Path
-from playwright.sync_api import sync_playwright, expect
+
+from playwright.sync_api import expect, sync_playwright
 
 
 def wait_for_streamlit(url: str, timeout: int = 30) -> bool:
     """Wait for Streamlit server to be ready."""
-    import urllib.request
     import urllib.error
+    import urllib.request
 
     start = time.time()
     while time.time() - start < timeout:
@@ -35,10 +36,17 @@ def test_ui_screenshots():
     # Start Streamlit in background
     print("Starting Streamlit server...")
     streamlit_proc = subprocess.Popen(
-        [sys.executable, "-m", "streamlit", "run",
-         str(project_root / "src" / "ui" / "app.py"),
-         "--server.headless", "true",
-         "--server.port", "8501"],
+        [
+            sys.executable,
+            "-m",
+            "streamlit",
+            "run",
+            str(project_root / "src" / "ui" / "app.py"),
+            "--server.headless",
+            "true",
+            "--server.port",
+            "8501",
+        ],
         cwd=str(project_root),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -105,8 +113,8 @@ def test_ui_screenshots():
 
 if __name__ == "__main__":
     results = test_ui_screenshots()
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("UI TEST RESULTS")
-    print("="*50)
+    print("=" * 50)
     for page_name, status, info in results:
         print(f"[{status}] {page_name}: {info}")

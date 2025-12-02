@@ -2,9 +2,10 @@
 Phase Details Page
 Detailed view of individual phase metrics and controls
 """
-import streamlit as st
 import sys
 from pathlib import Path
+
+import streamlit as st
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -12,8 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 def render():
     """Render phase details page"""
-    st.markdown('<h1 class="main-header">Phase Details</h1>',
-                unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">Phase Details</h1>', unsafe_allow_html=True)
 
     # Phase selection
     phase = st.selectbox(
@@ -26,8 +26,8 @@ def render():
             "Phase 5: Curriculum Learning",
             "Phase 6: Tool & Persona Baking",
             "Phase 7: Self-Guided Experts",
-            "Phase 8: Final Compression (280×)"
-        ]
+            "Phase 8: Final Compression (280×)",
+        ],
     )
 
     phase_num = int(phase.split(":")[0].split(" ")[1])
@@ -84,16 +84,18 @@ def render_phase1_details():
     # Metrics visualization
     st.subheader("Training Metrics")
 
-    import pandas as pd
     import numpy as np
+    import pandas as pd
 
     # Dummy data for visualization
     epochs = list(range(1, 11))
-    loss_data = pd.DataFrame({
-        "Epoch": epochs,
-        "Model 1": [3.5, 3.2, 2.9, 2.7, 2.5, 2.4, 2.35, 2.32, 2.30, 2.28],
-        "Model 2": [3.6, 3.3, 3.0, 2.8, 2.6, 2.4, 2.3, 2.2, 2.15, 2.12],
-    })
+    loss_data = pd.DataFrame(
+        {
+            "Epoch": epochs,
+            "Model 1": [3.5, 3.2, 2.9, 2.7, 2.5, 2.4, 2.35, 2.32, 2.30, 2.28],
+            "Model 2": [3.6, 3.3, 3.0, 2.8, 2.6, 2.4, 2.3, 2.2, 2.15, 2.12],
+        }
+    )
 
     st.line_chart(loss_data.set_index("Epoch"))
 
@@ -143,11 +145,13 @@ def render_phase2_details():
 
     import pandas as pd
 
-    merge_data = pd.DataFrame({
-        "Technique": ["Linear", "SLERP", "TIES", "DARE", "FrankenMerge", "DFS"],
-        "Usage": [45, 38, 52, 41, 29, 35],
-        "Avg Fitness": [0.72, 0.75, 0.81, 0.78, 0.68, 0.74]
-    })
+    merge_data = pd.DataFrame(
+        {
+            "Technique": ["Linear", "SLERP", "TIES", "DARE", "FrankenMerge", "DFS"],
+            "Usage": [45, 38, 52, 41, 29, 35],
+            "Avg Fitness": [0.72, 0.75, 0.81, 0.78, 0.68, 0.74],
+        }
+    )
 
     st.bar_chart(merge_data.set_index("Technique")["Usage"])
 
@@ -162,13 +166,15 @@ def render_phase3_details():
     st.markdown("Two-step training: Prompt Baking → Quiet-STaR RL")
 
     # Phase summary
-    st.info("""
+    st.info(
+        """
     **Phase 3 Summary**:
     - **Input**: Phase 2 champion model (23.5% fitness gain)
     - **Step 1**: Prompt Baking (5 min) - Bake CoT reasoning patterns
     - **Step 2**: Quiet-STaR RL (5 hours) - REINFORCE training with KL regularization
     - **Output**: Reasoning-enhanced model for Phase 4 BitNet compression
-    """)
+    """
+    )
 
     st.markdown("---")
 
@@ -186,7 +192,7 @@ def render_phase3_details():
             "Status",
             ["Not Started", "Running", "Complete", "Failed"],
             index=2,  # Default to Complete
-            key="baking_status"
+            key="baking_status",
         )
 
         if baking_status == "Complete":
@@ -205,7 +211,7 @@ def render_phase3_details():
                     "Expert Perspective": 0.91,
                     "Orthogonal Wisdom": 0.82,
                     "Self-Doubt": 0.87,
-                    "Bayesian Rationalist": 0.90
+                    "Bayesian Rationalist": 0.90,
                 }
                 for strategy, acc in strategies.items():
                     st.text(f"• {strategy}: {acc:.1%}")
@@ -224,7 +230,7 @@ def render_phase3_details():
             "Status",
             ["Waiting for Step 1", "Running", "Complete", "Failed"],
             index=1,  # Default to Running
-            key="rl_status"
+            key="rl_status",
         )
 
         if rl_status == "Running":
@@ -310,11 +316,21 @@ def render_phase3_details():
 
     import pandas as pd
 
-    token_usage = pd.DataFrame({
-        "Token": ["<think>", "</think>", "<step>", "<reason>",
-                  "<mece>", "<falsify>", "<expert>", "<doubt>"],
-        "Usage %": [89.2, 89.2, 67.5, 72.3, 45.8, 38.4, 51.2, 42.7]
-    })
+    token_usage = pd.DataFrame(
+        {
+            "Token": [
+                "<think>",
+                "</think>",
+                "<step>",
+                "<reason>",
+                "<mece>",
+                "<falsify>",
+                "<expert>",
+                "<doubt>",
+            ],
+            "Usage %": [89.2, 89.2, 67.5, 72.3, 45.8, 38.4, 51.2, 42.7],
+        }
+    )
 
     st.bar_chart(token_usage.set_index("Token"))
 
@@ -356,7 +372,7 @@ def render_phase3_details():
         st.caption("Target: >0.50 (coherence correlates with utility)")
 
     # Overall anti-theater verdict
-    all_passed = (divergence_score > 0.30 and ablation_gain > 0.02 and correlation > 0.50)
+    all_passed = divergence_score > 0.30 and ablation_gain > 0.02 and correlation > 0.50
 
     if all_passed:
         st.success("🎉 All Anti-Theater Tests PASSED - Genuine Reasoning Validated!")
@@ -371,10 +387,12 @@ def render_phase3_details():
     import numpy as np
 
     episodes = list(range(0, 5000, 100))
-    reward_data = pd.DataFrame({
-        "Episode": episodes,
-        "Avg Reward (last 100)": 0.5 + 0.3 * (1 - np.exp(-np.array(episodes) / 1500))
-    })
+    reward_data = pd.DataFrame(
+        {
+            "Episode": episodes,
+            "Avg Reward (last 100)": 0.5 + 0.3 * (1 - np.exp(-np.array(episodes) / 1500)),
+        }
+    )
 
     st.line_chart(reward_data.set_index("Episode"))
 
@@ -427,10 +445,12 @@ def render_phase4_details():
 
     import pandas as pd
 
-    ste_data = pd.DataFrame({
-        "Step": list(range(0, 1000, 100)),
-        "Quantization Loss": [0.45, 0.38, 0.32, 0.28, 0.25, 0.23, 0.21, 0.20, 0.19, 0.18]
-    })
+    ste_data = pd.DataFrame(
+        {
+            "Step": list(range(0, 1000, 100)),
+            "Quantization Loss": [0.45, 0.38, 0.32, 0.28, 0.25, 0.23, 0.21, 0.20, 0.19, 0.18],
+        }
+    )
 
     st.line_chart(ste_data.set_index("Step"))
 

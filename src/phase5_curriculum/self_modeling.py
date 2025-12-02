@@ -10,9 +10,9 @@ Key insight: Models that predict their own outputs develop better
 internal representations and confidence calibration.
 """
 
-from dataclasses import dataclass
-from typing import Dict, List, Optional, Any
 import random
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 import torch
 import torch.nn as nn
@@ -22,6 +22,7 @@ import torch.nn.functional as F
 @dataclass
 class TemperatureRange:
     """A temperature range for self-modeling."""
+
     start: float
     end: float
     midpoint: float
@@ -45,7 +46,7 @@ class SelfModelingTrainer:
         mask_rate: float = 0.2,
         target_accuracy: float = 0.95,
         max_epochs: int = 5,
-        samples_per_range: int = 100
+        samples_per_range: int = 100,
     ):
         """
         Initialize self-modeling trainer.
@@ -58,19 +59,14 @@ class SelfModelingTrainer:
             samples_per_range: Samples to generate per temperature range
         """
         self.temperature_ranges = [
-            TemperatureRange(**r) if isinstance(r, dict) else r
-            for r in temperature_ranges
+            TemperatureRange(**r) if isinstance(r, dict) else r for r in temperature_ranges
         ]
         self.mask_rate = mask_rate
         self.target_accuracy = target_accuracy
         self.max_epochs = max_epochs
         self.samples_per_range = samples_per_range
 
-    def train(
-        self,
-        model: nn.Module,
-        tokenizer: Any
-    ) -> nn.Module:
+    def train(self, model: nn.Module, tokenizer: Any) -> nn.Module:
         """
         Train model on self-prediction task.
 
@@ -101,13 +97,18 @@ class SelfModelingTrainer:
                 for sample in generated_samples:
                     # Mask tokens
                     masked_ids, target_ids, mask_positions = self._mask_tokens(
-                        sample['token_ids'], tokenizer
+                        sample["token_ids"], tokenizer
                     )
 
                     # Step 3: Self-prediction with context
                     loss, correct, total = self._self_prediction_step(
-                        model, optimizer, masked_ids, target_ids,
-                        mask_positions, temp_range.midpoint, device
+                        model,
+                        optimizer,
+                        masked_ids,
+                        target_ids,
+                        mask_positions,
+                        temp_range.midpoint,
+                        device,
                     )
 
                     total_correct += correct
@@ -118,7 +119,9 @@ class SelfModelingTrainer:
             accuracy = total_correct / max(1, total_predictions)
             avg_loss = epoch_loss / max(1, len(self.temperature_ranges) * self.samples_per_range)
 
-            print(f"    Epoch {epoch + 1}: self-prediction accuracy={accuracy:.1%}, loss={avg_loss:.4f}")
+            print(
+                f"    Epoch {epoch + 1}: self-prediction accuracy={accuracy:.1%}, loss={avg_loss:.4f}"
+            )
 
             # Check convergence
             if accuracy >= self.target_accuracy:
@@ -128,11 +131,7 @@ class SelfModelingTrainer:
         return model
 
     def _generate_at_temperature(
-        self,
-        model: nn.Module,
-        tokenizer: Any,
-        temperature: float,
-        device: torch.device
+        self, model: nn.Module, tokenizer: Any, temperature: float, device: torch.device
     ) -> List[Dict]:
         """Generate samples at a specific temperature."""
         samples = []
@@ -153,54 +152,51 @@ class SelfModelingTrainer:
 
                 try:
                     # Tokenize
-                    if hasattr(tokenizer, '__call__'):
+                    if hasattr(tokenizer, "__call__"):
                         inputs = tokenizer(
                             prompt,
                             return_tensors="pt",
                             max_length=64,
                             truncation=True,
-                            padding=True
+                            padding=True,
                         )
                     else:
-                        inputs = {'input_ids': torch.tensor([[1, 2, 3, 4, 5]])}
+                        inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
 
-                    inputs = {k: v.to(device) for k, v in inputs.items()
-                              if isinstance(v, torch.Tensor)}
+                    inputs = {
+                        k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)
+                    }
 
                     # Generate with specific temperature
-                    if hasattr(model, 'generate'):
+                    if hasattr(model, "generate"):
                         outputs = model.generate(
                             **inputs,
                             max_new_tokens=64,
                             temperature=max(0.1, temperature),  # Avoid division by zero
                             do_sample=True,
-                            top_p=0.9
+                            top_p=0.9,
                         )
                         token_ids = outputs[0].cpu().tolist()
                     else:
-                        token_ids = inputs['input_ids'][0].cpu().tolist()
+                        token_ids = inputs["input_ids"][0].cpu().tolist()
 
-                    samples.append({
-                        'prompt': prompt,
-                        'token_ids': token_ids,
-                        'temperature': temperature
-                    })
+                    samples.append(
+                        {"prompt": prompt, "token_ids": token_ids, "temperature": temperature}
+                    )
 
                 except Exception:
                     # Fallback sample
-                    samples.append({
-                        'prompt': prompt,
-                        'token_ids': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-                        'temperature': temperature
-                    })
+                    samples.append(
+                        {
+                            "prompt": prompt,
+                            "token_ids": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                            "temperature": temperature,
+                        }
+                    )
 
         return samples
 
-    def _mask_tokens(
-        self,
-        token_ids: List[int],
-        tokenizer: Any
-    ) -> tuple:
+    def _mask_tokens(self, token_ids: List[int], tokenizer: Any) -> tuple:
         """Mask a portion of tokens for prediction."""
         token_ids = list(token_ids)
         n_tokens = len(token_ids)
@@ -214,7 +210,7 @@ class SelfModelingTrainer:
 
         # Create masked version
         masked_ids = token_ids.copy()
-        mask_token_id = getattr(tokenizer, 'mask_token_id', 0) or 0
+        mask_token_id = getattr(tokenizer, "mask_token_id", 0) or 0
 
         for pos in mask_positions:
             masked_ids[pos] = mask_token_id
@@ -229,7 +225,7 @@ class SelfModelingTrainer:
         target_ids: List[int],
         mask_positions: List[int],
         temperature: float,
-        device: torch.device
+        device: torch.device,
     ) -> tuple:
         """Execute one self-prediction training step."""
         model.train()
@@ -241,7 +237,7 @@ class SelfModelingTrainer:
             # Forward pass
             outputs = model(input_ids=input_tensor)
 
-            if hasattr(outputs, 'logits'):
+            if hasattr(outputs, "logits"):
                 logits = outputs.logits
             else:
                 logits = outputs
@@ -298,11 +294,12 @@ class SelfModelingMetrics:
     def get_summary(self) -> Dict:
         """Get summary of self-modeling metrics."""
         return {
-            'range_accuracies': self.range_accuracies,
-            'range_losses': self.range_losses,
-            'avg_accuracy': sum(self.range_accuracies.values()) / max(1, len(self.range_accuracies)),
-            'avg_loss': sum(self.range_losses.values()) / max(1, len(self.range_losses))
+            "range_accuracies": self.range_accuracies,
+            "range_losses": self.range_losses,
+            "avg_accuracy": sum(self.range_accuracies.values())
+            / max(1, len(self.range_accuracies)),
+            "avg_loss": sum(self.range_losses.values()) / max(1, len(self.range_losses)),
         }
 
 
-__all__ = ['SelfModelingTrainer', 'TemperatureRange', 'SelfModelingMetrics']
+__all__ = ["SelfModelingTrainer", "TemperatureRange", "SelfModelingMetrics"]

@@ -3,22 +3,25 @@ Performance Tests for Phase 4
 Tests compression ratio, speedup, accuracy retention
 """
 
+import time
+
 import pytest
 import torch
 import torch.nn as nn
-import time
-from src.phase4_bitnet.quantizer import BitNetQuantizer
+
 from src.phase4_bitnet.compressed_model import CompressedModel
 from src.phase4_bitnet.config import Phase4Config
+from src.phase4_bitnet.quantizer import BitNetQuantizer
 from src.phase4_bitnet.utils import (
-    calculate_model_size_mb,
     calculate_compression_ratio,
+    calculate_model_size_mb,
     estimate_inference_speedup,
 )
 
 
 class BenchmarkModel(nn.Module):
     """Realistic model for performance benchmarking"""
+
     def __init__(self, num_params_millions=25):
         super().__init__()
 
@@ -29,14 +32,16 @@ class BenchmarkModel(nn.Module):
 
         self.embeddings = nn.Embedding(50000, hidden_size)
 
-        self.layers = nn.ModuleList([
-            nn.Sequential(
-                nn.Linear(hidden_size, intermediate_size),
-                nn.GELU(),
-                nn.Linear(intermediate_size, hidden_size),
-            )
-            for _ in range(4)
-        ])
+        self.layers = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.Linear(hidden_size, intermediate_size),
+                    nn.GELU(),
+                    nn.Linear(intermediate_size, hidden_size),
+                )
+                for _ in range(4)
+            ]
+        )
 
         self.lm_head = nn.Linear(hidden_size, 50000)
 
@@ -75,7 +80,7 @@ class TestCompressionRatio:
         stats = compressed.get_compression_stats()
 
         # Check compression ratio
-        compression_ratio = stats['compression_ratio']
+        compression_ratio = stats["compression_ratio"]
 
         # Should be close to target (6.0-10.0x range acceptable)
         assert 6.0 <= compression_ratio <= 10.0
@@ -109,8 +114,8 @@ class TestCompressionRatio:
         compressed_large.compress()
 
         # Get ratios
-        ratio_small = compressed_small.get_compression_stats()['compression_ratio']
-        ratio_large = compressed_large.get_compression_stats()['compression_ratio']
+        ratio_small = compressed_small.get_compression_stats()["compression_ratio"]
+        ratio_large = compressed_large.get_compression_stats()["compression_ratio"]
 
         # Both should achieve compression
         assert ratio_small > 1.0
@@ -126,8 +131,7 @@ class TestInferenceSpeedup:
         """Test speedup estimation from compression ratio"""
         # 8.2x compression → ~2.6x speedup (empirical)
         speedup = estimate_inference_speedup(
-            original_size_mb=100.0,
-            compressed_size_mb=12.2  # 8.2x
+            original_size_mb=100.0, compressed_size_mb=12.2  # 8.2x
         )
 
         # Should be in 2-4x range
@@ -278,7 +282,7 @@ class TestSparsityRatio:
         compressed.compress()
 
         stats = compressed.get_compression_stats()
-        sparsity = stats['sparsity_ratio']
+        sparsity = stats["sparsity_ratio"]
 
         # Check range
         assert 0.0 <= sparsity <= 1.0
@@ -294,14 +298,14 @@ class TestSparsityRatio:
         quantizer_low = BitNetQuantizer(config_low)
         compressed_low = CompressedModel(model, quantizer_low, config_low)
         compressed_low.compress()
-        sparsity_low = compressed_low.get_compression_stats()['sparsity_ratio']
+        sparsity_low = compressed_low.get_compression_stats()["sparsity_ratio"]
 
         # High threshold
         config_high = Phase4Config(sparsity_threshold=0.2)
         quantizer_high = BitNetQuantizer(config_high)
         compressed_high = CompressedModel(model, quantizer_high, config_high)
         compressed_high.compress()
-        sparsity_high = compressed_high.get_compression_stats()['sparsity_ratio']
+        sparsity_high = compressed_high.get_compression_stats()["sparsity_ratio"]
 
         # Higher threshold should give more sparsity
         assert sparsity_high > sparsity_low
@@ -327,12 +331,10 @@ class TestMemoryFootprint:
         compressed.compress()
 
         stats = compressed.get_compression_stats()
-        compressed_size = stats['quantized_size_mb']
+        compressed_size = stats["quantized_size_mb"]
 
         # Check reduction
-        reduction_percent = (
-            (original_size - compressed_size) / original_size * 100
-        )
+        reduction_percent = (original_size - compressed_size) / original_size * 100
 
         print(f"Size reduction: {reduction_percent:.1f}%")
         print(f"Original: {original_size:.1f} MB")
@@ -353,9 +355,7 @@ class TestMemoryFootprint:
 
         stats = compressed.get_compression_stats()
 
-        quantized_ratio = (
-            stats['quantized_params'] / stats['total_params']
-        )
+        quantized_ratio = stats["quantized_params"] / stats["total_params"]
 
         print(f"Quantized params: {quantized_ratio:.1%}")
 
@@ -381,9 +381,9 @@ class TestPerformanceBenchmarks:
         stats = compressed.get_compression_stats()
 
         # Print full benchmark
-        print("\n" + "="*50)
+        print("\n" + "=" * 50)
         print("25M Parameter Model Benchmark")
-        print("="*50)
+        print("=" * 50)
         print(f"Original size: {stats['original_size_mb']:.1f} MB")
         print(f"Compressed size: {stats['quantized_size_mb']:.1f} MB")
         print(f"Compression ratio: {stats['compression_ratio']:.2f}x")
@@ -394,13 +394,10 @@ class TestPerformanceBenchmarks:
         print(f"Layers preserved: {stats['layers_preserved']}")
 
         # Estimate speedup
-        speedup = estimate_inference_speedup(
-            stats['original_size_mb'],
-            stats['quantized_size_mb']
-        )
+        speedup = estimate_inference_speedup(stats["original_size_mb"], stats["quantized_size_mb"])
         print(f"Estimated speedup: {speedup:.2f}x")
-        print("="*50)
+        print("=" * 50)
 
         # Validate targets
-        assert stats['compression_ratio'] >= 6.0  # Min for small models
-        assert 0.25 <= stats['sparsity_ratio'] <= 0.45  # Target range
+        assert stats["compression_ratio"] >= 6.0  # Min for small models
+        assert 0.25 <= stats["sparsity_ratio"] <= 0.45  # Target range

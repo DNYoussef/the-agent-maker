@@ -17,22 +17,23 @@ Security:
 - Resource limits enforced
 - Containers destroyed after execution
 """
-import os
 import asyncio
-import tempfile
-import shutil
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, List
-from enum import Enum
 import logging
+import os
+import shutil
 import subprocess
+import tempfile
 import time
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class Language(Enum):
     """Supported programming languages."""
+
     PYTHON = "python"
     JAVASCRIPT = "javascript"
     BASH = "bash"
@@ -41,6 +42,7 @@ class Language(Enum):
 @dataclass
 class ExecutionResult:
     """Result of code execution in sandbox."""
+
     success: bool
     stdout: str
     stderr: str
@@ -53,6 +55,7 @@ class ExecutionResult:
 @dataclass
 class SandboxConfig:
     """Configuration for Docker sandbox."""
+
     timeout_seconds: float = 5.0
     memory_limit_mb: int = 256
     cpu_limit: float = 0.5  # Half a CPU core
@@ -64,21 +67,21 @@ class SandboxConfig:
 DOCKER_IMAGES: Dict[Language, str] = {
     Language.PYTHON: "python:3.10-slim",
     Language.JAVASCRIPT: "node:18-slim",
-    Language.BASH: "alpine:latest"
+    Language.BASH: "alpine:latest",
 }
 
 # Default commands to run code
 RUN_COMMANDS: Dict[Language, List[str]] = {
     Language.PYTHON: ["python", "/sandbox/code.py"],
     Language.JAVASCRIPT: ["node", "/sandbox/code.js"],
-    Language.BASH: ["sh", "/sandbox/code.sh"]
+    Language.BASH: ["sh", "/sandbox/code.sh"],
 }
 
 # File extensions
 FILE_EXTENSIONS: Dict[Language, str] = {
     Language.PYTHON: ".py",
     Language.JAVASCRIPT: ".js",
-    Language.BASH: ".sh"
+    Language.BASH: ".sh",
 }
 
 
@@ -115,10 +118,7 @@ class DockerSandbox:
         """Check if Docker is available."""
         try:
             result = subprocess.run(
-                ["docker", "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["docker", "--version"], capture_output=True, text=True, timeout=5
             )
             return result.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -130,7 +130,7 @@ class DockerSandbox:
         code: str,
         language: Language = Language.PYTHON,
         timeout: Optional[float] = None,
-        env_vars: Optional[Dict[str, str]] = None
+        env_vars: Optional[Dict[str, str]] = None,
     ) -> ExecutionResult:
         """
         Execute code in isolated Docker container.
@@ -152,11 +152,7 @@ class DockerSandbox:
             return await self._execute_fallback(code, language, timeout)
 
     async def _execute_docker(
-        self,
-        code: str,
-        language: Language,
-        timeout: float,
-        env_vars: Optional[Dict[str, str]]
+        self, code: str, language: Language, timeout: float, env_vars: Optional[Dict[str, str]]
     ) -> ExecutionResult:
         """Execute code in Docker container."""
         start_time = time.perf_counter()
@@ -173,13 +169,15 @@ class DockerSandbox:
 
             # Build Docker command
             docker_cmd = [
-                "docker", "run",
+                "docker",
+                "run",
                 "--rm",  # Remove container after execution
                 "--read-only",  # Read-only filesystem
                 f"--memory={self.config.memory_limit_mb}m",
                 f"--cpus={self.config.cpu_limit}",
                 f"--timeout={int(timeout)}",
-                "-v", f"{temp_dir}:/sandbox:ro"  # Mount code read-only
+                "-v",
+                f"{temp_dir}:/sandbox:ro",  # Mount code read-only
             ]
 
             # Network isolation
@@ -197,15 +195,12 @@ class DockerSandbox:
 
             # Execute
             process = await asyncio.create_subprocess_exec(
-                *docker_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                *docker_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
 
             try:
                 stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=timeout + 5  # Extra buffer for Docker overhead
+                    process.communicate(), timeout=timeout + 5  # Extra buffer for Docker overhead
                 )
                 timed_out = False
             except asyncio.TimeoutError:
@@ -223,7 +218,7 @@ class DockerSandbox:
                 stderr=stderr.decode("utf-8", errors="replace"),
                 exit_code=process.returncode or -1,
                 execution_time_ms=execution_time,
-                timed_out=timed_out
+                timed_out=timed_out,
             )
 
         except Exception as e:
@@ -234,7 +229,7 @@ class DockerSandbox:
                 stderr="",
                 exit_code=-1,
                 execution_time_ms=execution_time,
-                error=str(e)
+                error=str(e),
             )
 
         finally:
@@ -243,10 +238,7 @@ class DockerSandbox:
                 shutil.rmtree(temp_dir, ignore_errors=True)
 
     async def _execute_fallback(
-        self,
-        code: str,
-        language: Language,
-        timeout: float
+        self, code: str, language: Language, timeout: float
     ) -> ExecutionResult:
         """
         Fallback execution without Docker (less secure, for testing only).
@@ -260,7 +252,7 @@ class DockerSandbox:
                 stderr=f"Fallback execution only supports Python. Got: {language}",
                 exit_code=-1,
                 execution_time_ms=0.0,
-                error="Docker not available and language not supported in fallback"
+                error="Docker not available and language not supported in fallback",
             )
 
         start_time = time.perf_counter()
@@ -269,26 +261,21 @@ class DockerSandbox:
         try:
             # Create temporary file
             temp_file = tempfile.NamedTemporaryFile(
-                mode="w",
-                suffix=".py",
-                delete=False,
-                encoding="utf-8"
+                mode="w", suffix=".py", delete=False, encoding="utf-8"
             )
             temp_file.write(code)
             temp_file.close()
 
             # Execute with subprocess
             process = await asyncio.create_subprocess_exec(
-                "python", temp_file.name,
+                "python",
+                temp_file.name,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
 
             try:
-                stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=timeout
-                )
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
                 timed_out = False
             except asyncio.TimeoutError:
                 process.kill()
@@ -305,7 +292,7 @@ class DockerSandbox:
                 stderr=stderr.decode("utf-8", errors="replace"),
                 exit_code=process.returncode or -1,
                 execution_time_ms=execution_time,
-                timed_out=timed_out
+                timed_out=timed_out,
             )
 
         except Exception as e:
@@ -316,7 +303,7 @@ class DockerSandbox:
                 stderr="",
                 exit_code=-1,
                 execution_time_ms=execution_time,
-                error=str(e)
+                error=str(e),
             )
 
         finally:
@@ -325,10 +312,7 @@ class DockerSandbox:
                 os.unlink(temp_file.name)
 
     async def validate_code(
-        self,
-        code: str,
-        expected_output: Optional[str] = None,
-        language: Language = Language.PYTHON
+        self, code: str, expected_output: Optional[str] = None, language: Language = Language.PYTHON
     ) -> Dict[str, Any]:
         """
         Validate code by executing and checking output.
@@ -350,7 +334,7 @@ class DockerSandbox:
             "stdout": result.stdout,
             "stderr": result.stderr,
             "timed_out": result.timed_out,
-            "error": result.error
+            "error": result.error,
         }
 
         # Check output if expected
@@ -372,9 +356,7 @@ class DockerSandbox:
 
 # Synchronous wrapper for simple use cases
 def run_code_sync(
-    code: str,
-    language: Language = Language.PYTHON,
-    timeout: float = 5.0
+    code: str, language: Language = Language.PYTHON, timeout: float = 5.0
 ) -> ExecutionResult:
     """
     Synchronous wrapper for code execution.
@@ -391,10 +373,4 @@ def run_code_sync(
     return asyncio.run(sandbox.execute(code, language))
 
 
-__all__ = [
-    "DockerSandbox",
-    "SandboxConfig",
-    "ExecutionResult",
-    "Language",
-    "run_code_sync"
-]
+__all__ = ["DockerSandbox", "SandboxConfig", "ExecutionResult", "Language", "run_code_sync"]

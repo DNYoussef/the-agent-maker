@@ -5,18 +5,19 @@ This module provides functions for calculating model accuracy on test datasets,
 which is one component of the composite fitness score (30% weight).
 """
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from typing import Optional
 
 
 def calculate_accuracy(
     model: nn.Module,
     test_dataset: DataLoader,
-    task_type: str = 'next_token',
-    device: str = 'cuda',
-    max_batches: Optional[int] = None
+    task_type: str = "next_token",
+    device: str = "cuda",
+    max_batches: Optional[int] = None,
 ) -> float:
     """
     Calculate accuracy on test dataset.
@@ -57,16 +58,14 @@ def calculate_accuracy(
 
             # Unpack batch
             if isinstance(batch, dict):
-                input_ids = batch['input_ids'].to(device)
-                labels = batch['labels'].to(device)
+                input_ids = batch["input_ids"].to(device)
+                labels = batch["labels"].to(device)
             elif isinstance(batch, (list, tuple)):
                 input_ids, labels = batch
                 input_ids = input_ids.to(device)
                 labels = labels.to(device)
             else:
-                raise ValueError(
-                    f"Unsupported batch format: {type(batch)}"
-                )
+                raise ValueError(f"Unsupported batch format: {type(batch)}")
 
             # Forward pass
             logits = model(input_ids)

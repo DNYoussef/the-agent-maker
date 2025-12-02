@@ -3,11 +3,13 @@ Calibration Dataset System
 Dataset loaders for activation-aware quantization
 """
 
-import torch
-from torch.utils.data import Dataset, DataLoader
-from typing import Optional, List, Dict
 from pathlib import Path
+from typing import Dict, List, Optional
+
+import torch
+from torch.utils.data import DataLoader, Dataset
 from transformers import PreTrainedTokenizer
+
 from src.phase4_bitnet.config import Phase4Config
 
 
@@ -23,7 +25,7 @@ class CalibrationDataset(Dataset):
         self,
         tokenizer: PreTrainedTokenizer,
         config: Phase4Config,
-        dataset_name: Optional[str] = None
+        dataset_name: Optional[str] = None,
     ):
         """
         Initialize calibration dataset
@@ -59,7 +61,7 @@ class CalibrationDataset(Dataset):
 
         # Limit to configured number of samples
         if len(self.samples) > self.config.calibration_samples:
-            self.samples = self.samples[:self.config.calibration_samples]
+            self.samples = self.samples[: self.config.calibration_samples]
 
     def _load_openwebtext(self):
         """Load OpenWebText samples"""
@@ -67,11 +69,7 @@ class CalibrationDataset(Dataset):
             from datasets import load_dataset
 
             # Load streaming to avoid full download
-            dataset = load_dataset(
-                "openwebtext",
-                split="train",
-                streaming=True
-            )
+            dataset = load_dataset("openwebtext", split="train", streaming=True)
 
             # Take first N samples
             for i, example in enumerate(dataset):
@@ -94,12 +92,7 @@ class CalibrationDataset(Dataset):
             from datasets import load_dataset
 
             # Load C4 (smaller en subset)
-            dataset = load_dataset(
-                "c4",
-                "en",
-                split="train",
-                streaming=True
-            )
+            dataset = load_dataset("c4", "en", split="train", streaming=True)
 
             # Take first N samples
             for i, example in enumerate(dataset):
@@ -122,11 +115,7 @@ class CalibrationDataset(Dataset):
             from datasets import load_dataset
 
             # Load WikiText-103
-            dataset = load_dataset(
-                "wikitext",
-                "wikitext-103-raw-v1",
-                split="train"
-            )
+            dataset = load_dataset("wikitext", "wikitext-103-raw-v1", split="train")
 
             # Take first N samples
             for i, example in enumerate(dataset):
@@ -151,16 +140,12 @@ class CalibrationDataset(Dataset):
         synthetic_templates = [
             "The quick brown fox jumps over the lazy dog. "
             "This is a calibration sample for quantization.",
-
             "In a world of artificial intelligence, models need "
             "to be optimized for efficient inference.",
-
             "Quantization reduces model size by representing "
             "weights with fewer bits while maintaining accuracy.",
-
             "Natural language processing has made significant "
             "progress in recent years with transformer models.",
-
             "Machine learning systems require careful tuning "
             "and calibration for optimal performance.",
         ]
@@ -180,7 +165,7 @@ class CalibrationDataset(Dataset):
         Args:
             samples: List of text samples
         """
-        self.samples = samples[:self.config.calibration_samples]
+        self.samples = samples[: self.config.calibration_samples]
 
     def __len__(self) -> int:
         """Get number of samples"""
@@ -204,7 +189,7 @@ class CalibrationDataset(Dataset):
             truncation=True,
             padding="max_length",
             max_length=self.config.calibration_sequence_length,
-            return_tensors="pt"
+            return_tensors="pt",
         )
 
         return {
@@ -214,9 +199,7 @@ class CalibrationDataset(Dataset):
 
 
 def create_calibration_dataloader(
-    tokenizer: PreTrainedTokenizer,
-    config: Phase4Config,
-    dataset_name: Optional[str] = None
+    tokenizer: PreTrainedTokenizer, config: Phase4Config, dataset_name: Optional[str] = None
 ) -> DataLoader:
     """
     Create calibration dataloader
@@ -229,27 +212,21 @@ def create_calibration_dataloader(
     Returns:
         DataLoader instance
     """
-    dataset = CalibrationDataset(
-        tokenizer=tokenizer,
-        config=config,
-        dataset_name=dataset_name
-    )
+    dataset = CalibrationDataset(tokenizer=tokenizer, config=config, dataset_name=dataset_name)
 
     dataloader = DataLoader(
         dataset,
         batch_size=config.calibration_batch_size,
         shuffle=False,  # Calibration doesn't need shuffling
         num_workers=0,  # Single worker for simplicity
-        pin_memory=True if config.device == "cuda" else False
+        pin_memory=True if config.device == "cuda" else False,
     )
 
     return dataloader
 
 
 def collect_activation_statistics(
-    model: torch.nn.Module,
-    dataloader: DataLoader,
-    device: str = "cuda"
+    model: torch.nn.Module, dataloader: DataLoader, device: str = "cuda"
 ) -> Dict[str, Dict[str, torch.Tensor]]:
     """
     Collect activation statistics from model
@@ -270,29 +247,22 @@ def collect_activation_statistics(
 
     def create_hook(name: str):
         """Create activation collection hook"""
+
         def hook_fn(module, input, output):
             if name not in activation_stats:
                 activation_stats[name] = {
-                    'mean': [],
-                    'std': [],
-                    'max': [],
-                    'min': [],
+                    "mean": [],
+                    "std": [],
+                    "max": [],
+                    "min": [],
                 }
 
             # Collect statistics
             if isinstance(output, torch.Tensor):
-                activation_stats[name]['mean'].append(
-                    output.detach().mean().cpu()
-                )
-                activation_stats[name]['std'].append(
-                    output.detach().std().cpu()
-                )
-                activation_stats[name]['max'].append(
-                    output.detach().max().cpu()
-                )
-                activation_stats[name]['min'].append(
-                    output.detach().min().cpu()
-                )
+                activation_stats[name]["mean"].append(output.detach().mean().cpu())
+                activation_stats[name]["std"].append(output.detach().std().cpu())
+                activation_stats[name]["max"].append(output.detach().max().cpu())
+                activation_stats[name]["min"].append(output.detach().min().cpu())
 
         return hook_fn
 
@@ -322,10 +292,10 @@ def collect_activation_statistics(
     aggregated_stats = {}
     for name, stats in activation_stats.items():
         aggregated_stats[name] = {
-            'mean': torch.stack(stats['mean']).mean().item(),
-            'std': torch.stack(stats['std']).mean().item(),
-            'max': torch.stack(stats['max']).max().item(),
-            'min': torch.stack(stats['min']).min().item(),
+            "mean": torch.stack(stats["mean"]).mean().item(),
+            "std": torch.stack(stats["std"]).mean().item(),
+            "max": torch.stack(stats["max"]).max().item(),
+            "min": torch.stack(stats["min"]).min().item(),
         }
 
     return aggregated_stats

@@ -3,11 +3,13 @@ Compressed Model Wrapper
 STE-enabled wrapper for quantized models
 """
 
+from typing import Dict, Optional
+
 import torch
 import torch.nn as nn
-from typing import Dict, Optional
-from src.phase4_bitnet.quantizer import BitNetQuantizer
+
 from src.phase4_bitnet.config import Phase4Config
+from src.phase4_bitnet.quantizer import BitNetQuantizer
 
 
 class CompressedModel(nn.Module):
@@ -24,12 +26,7 @@ class CompressedModel(nn.Module):
     Backward Pass: Gradients flow to full-precision weights (STE)
     """
 
-    def __init__(
-        self,
-        base_model: nn.Module,
-        quantizer: BitNetQuantizer,
-        config: Phase4Config
-    ):
+    def __init__(self, base_model: nn.Module, quantizer: BitNetQuantizer, config: Phase4Config):
         """
         Initialize compressed model
 
@@ -59,9 +56,7 @@ class CompressedModel(nn.Module):
         Compress the model using BitNet quantization
         """
         # Quantize model
-        quantized_dict, scales = self.quantizer.quantize_model(
-            self.base_model
-        )
+        quantized_dict, scales = self.quantizer.quantize_model(self.base_model)
 
         self.quantized_state = quantized_dict
         self.scale_factors = scales
@@ -101,8 +96,7 @@ class CompressedModel(nn.Module):
                     # Dequantize if int8
                     if quantized_tensor.dtype == torch.int8:
                         dequantized = self.quantizer.dequantize_tensor(
-                            quantized_tensor,
-                            self.scale_factors[name]
+                            quantized_tensor, self.scale_factors[name]
                         )
                         param.data = dequantized.to(param.device)
                     else:
@@ -133,10 +127,7 @@ class CompressedModel(nn.Module):
             return {k: v.half() for k, v in state_dict.items()}
 
         # Dequantize
-        return self.quantizer.dequantize_model(
-            self.quantized_state,
-            self.scale_factors
-        )
+        return self.quantizer.dequantize_model(self.quantized_state, self.scale_factors)
 
     def get_quantized_state_dict(self) -> Dict[str, torch.Tensor]:
         """
@@ -171,35 +162,28 @@ class CompressedModel(nn.Module):
         """
         if not self.is_compressed:
             return {
-                'is_compressed': False,
-                'compression_ratio': 1.0,
+                "is_compressed": False,
+                "compression_ratio": 1.0,
             }
 
         # Calculate sizes
-        original_size_mb = self._calculate_state_dict_size(
-            self.base_model.state_dict()
-        )
+        original_size_mb = self._calculate_state_dict_size(self.base_model.state_dict())
 
-        quantized_size_mb = self._calculate_state_dict_size(
-            self.quantized_state
-        )
+        quantized_size_mb = self._calculate_state_dict_size(self.quantized_state)
 
         compression_ratio = original_size_mb / quantized_size_mb
 
         stats = self.quantizer.get_stats()
 
         return {
-            'is_compressed': True,
-            'original_size_mb': original_size_mb,
-            'quantized_size_mb': quantized_size_mb,
-            'compression_ratio': compression_ratio,
+            "is_compressed": True,
+            "original_size_mb": original_size_mb,
+            "quantized_size_mb": quantized_size_mb,
+            "compression_ratio": compression_ratio,
             **stats,
         }
 
-    def _calculate_state_dict_size(
-        self,
-        state_dict: Dict[str, torch.Tensor]
-    ) -> float:
+    def _calculate_state_dict_size(self, state_dict: Dict[str, torch.Tensor]) -> float:
         """
         Calculate state dict size in MB
 
@@ -214,4 +198,4 @@ class CompressedModel(nn.Module):
         for tensor in state_dict.values():
             total_bytes += tensor.nelement() * tensor.element_size()
 
-        return total_bytes / (1024 ** 2)
+        return total_bytes / (1024**2)

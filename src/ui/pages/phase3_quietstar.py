@@ -5,23 +5,25 @@ Real-time visualization of thought generation, coherence scoring, and anti-theat
 Features futuristic command center theme with dark background and cyan accents.
 """
 
-import streamlit as st
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
-import pandas as pd
-import numpy as np
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 import json
 import time
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
+from plotly.subplots import make_subplots
 
 
 # ==================== CUSTOM CSS THEME ====================
 def apply_futuristic_theme():
     """Apply futuristic command center theme with glassmorphism"""
-    st.markdown("""
+    st.markdown(
+        """
     <style>
         /* Main background - dark command center */
         .stApp {
@@ -168,7 +170,9 @@ def apply_futuristic_theme():
             box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
         }
     </style>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 
 # ==================== MAIN DASHBOARD ====================
@@ -180,14 +184,17 @@ def render_phase3_dashboard():
     initialize_session_state()
 
     # Title with dramatic styling
-    st.markdown("""
+    st.markdown(
+        """
     <h1 style='text-align: center; font-size: 48px; margin-bottom: 0;'>
         ⚡ PHASE 3: QUIET-STAR REASONING
     </h1>
     <p style='text-align: center; color: #8899ff; font-size: 18px; margin-top: 0;'>
         Token-Wise Parallel Thought Generation • Coherence Validation • Anti-Theater Detection
     </p>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     # Sidebar controls
     with st.sidebar:
@@ -198,14 +205,16 @@ def render_phase3_dashboard():
     render_hero_metrics()
 
     # Main content tabs
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "🧠 Thought Generation",
-        "📊 Coherence Scoring",
-        "🔍 Reasoning Trace",
-        "🛡️ Anti-Theater",
-        "🔥 Prompt Baking",
-        "📈 Training Metrics"
-    ])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+        [
+            "🧠 Thought Generation",
+            "📊 Coherence Scoring",
+            "🔍 Reasoning Trace",
+            "🛡️ Anti-Theater",
+            "🔥 Prompt Baking",
+            "📈 Training Metrics",
+        ]
+    )
 
     with tab1:
         render_thought_generation_tab()
@@ -233,26 +242,26 @@ def render_phase3_dashboard():
 def initialize_session_state():
     """Initialize session state variables"""
     defaults = {
-        'phase3_running': False,
-        'thought_tokens': 40,
-        'generation_temp': 0.8,
-        'sampling_strategy': 'nucleus',
-        'coherence_semantic': 0.0,
-        'coherence_syntactic': 0.0,
-        'coherence_predictive': 0.0,
-        'theater_score': 0.0,
-        'baking_progress': 0.0,
-        'baking_temp': 0.95,
-        'baking_strength': 0.0,
-        'rl_loss': [],
-        'coherence_history': [],
-        'thought_diversity': [],
-        'openrouter_cost': 0.0,
-        'openrouter_calls': 0,
-        'current_thoughts': [],
-        'reasoning_quality': 0.0,
-        'memorization_score': 0.0,
-        'novel_problem_ratio': 0.0,
+        "phase3_running": False,
+        "thought_tokens": 40,
+        "generation_temp": 0.8,
+        "sampling_strategy": "nucleus",
+        "coherence_semantic": 0.0,
+        "coherence_syntactic": 0.0,
+        "coherence_predictive": 0.0,
+        "theater_score": 0.0,
+        "baking_progress": 0.0,
+        "baking_temp": 0.95,
+        "baking_strength": 0.0,
+        "rl_loss": [],
+        "coherence_history": [],
+        "thought_diversity": [],
+        "openrouter_cost": 0.0,
+        "openrouter_calls": 0,
+        "current_thoughts": [],
+        "reasoning_quality": 0.0,
+        "memorization_score": 0.0,
+        "novel_problem_ratio": 0.0,
     }
 
     for key, value in defaults.items():
@@ -271,7 +280,7 @@ def render_config_panel():
         max_value=100,
         value=40,
         step=5,
-        help="Number of tokens for internal reasoning"
+        help="Number of tokens for internal reasoning",
     )
 
     st.session_state.generation_temp = st.slider(
@@ -280,13 +289,11 @@ def render_config_panel():
         max_value=2.0,
         value=0.8,
         step=0.1,
-        help="Higher = more creative thoughts"
+        help="Higher = more creative thoughts",
     )
 
     st.session_state.sampling_strategy = st.selectbox(
-        "Sampling Strategy",
-        ["nucleus", "top-k", "beam", "greedy"],
-        help="Token selection method"
+        "Sampling Strategy", ["nucleus", "top-k", "beam", "greedy"], help="Token selection method"
     )
 
     st.divider()
@@ -295,7 +302,7 @@ def render_config_panel():
     baking_mode = st.selectbox(
         "Baking Mode",
         ["Standard", "Half-Baking (50%)", "Pursuit (Iterative)"],
-        help="Prompt strength injection strategy"
+        help="Prompt strength injection strategy",
     )
 
     st.session_state.baking_temp = st.slider(
@@ -304,18 +311,14 @@ def render_config_panel():
         max_value=1.5,
         value=0.95,
         step=0.05,
-        help="KL divergence strength"
+        help="KL divergence strength",
     )
 
     st.divider()
     st.subheader("RL Training")
 
     rl_epochs = st.number_input(
-        "RL Epochs",
-        min_value=1,
-        max_value=10,
-        value=3,
-        help="REINFORCE training iterations"
+        "RL Epochs", min_value=1, max_value=10, value=3, help="REINFORCE training iterations"
     )
 
     kl_weight = st.slider(
@@ -324,7 +327,7 @@ def render_config_panel():
         max_value=0.5,
         value=0.1,
         step=0.01,
-        help="Prevent distribution drift"
+        help="Prevent distribution drift",
     )
 
     st.divider()
@@ -333,15 +336,11 @@ def render_config_panel():
     frontier_model = st.selectbox(
         "Frontier Model",
         ["GPT-4o-mini", "Claude-3.5-Haiku", "Gemini-2.0-Flash", "Qwen-2.5"],
-        help="Data generation model"
+        help="Data generation model",
     )
 
     budget_limit = st.number_input(
-        "Budget Limit ($)",
-        min_value=10,
-        max_value=500,
-        value=150,
-        help="Maximum API spend"
+        "Budget Limit ($)", min_value=10, max_value=500, value=150, help="Maximum API spend"
     )
 
     st.divider()
@@ -384,24 +383,19 @@ def render_hero_metrics():
 
     with col1:
         status = "ACTIVE" if st.session_state.phase3_running else "STANDBY"
-        st.metric(
-            "SYSTEM STATUS",
-            status,
-            delta="Phase 2 → 3",
-            delta_color="normal"
-        )
+        st.metric("SYSTEM STATUS", status, delta="Phase 2 → 3", delta_color="normal")
 
     with col2:
         overall_coherence = (
-            st.session_state.coherence_semantic +
-            st.session_state.coherence_syntactic +
-            st.session_state.coherence_predictive
+            st.session_state.coherence_semantic
+            + st.session_state.coherence_syntactic
+            + st.session_state.coherence_predictive
         ) / 3.0
         st.metric(
             "COHERENCE SCORE",
             f"{overall_coherence:.1f}/100",
             delta=f"+{overall_coherence - 50:.1f}" if overall_coherence > 50 else None,
-            delta_color="normal"
+            delta_color="normal",
         )
 
     with col3:
@@ -409,7 +403,7 @@ def render_hero_metrics():
             "THOUGHT QUALITY",
             f"{st.session_state.reasoning_quality:.1%}",
             delta=f"+{st.session_state.reasoning_quality:.1%}",
-            delta_color="normal"
+            delta_color="normal",
         )
 
     with col4:
@@ -418,7 +412,7 @@ def render_hero_metrics():
             "ANTI-THEATER",
             theater_status,
             delta=f"Score: {st.session_state.theater_score:.3f}",
-            delta_color="inverse" if st.session_state.theater_score < 0.3 else "normal"
+            delta_color="inverse" if st.session_state.theater_score < 0.3 else "normal",
         )
 
     with col5:
@@ -426,7 +420,7 @@ def render_hero_metrics():
             "BAKING PROGRESS",
             f"{st.session_state.baking_progress:.0%}",
             delta=f"Strength: {st.session_state.baking_strength:.0%}",
-            delta_color="normal"
+            delta_color="normal",
         )
 
     st.markdown("---")
@@ -441,28 +435,40 @@ def render_thought_generation_tab():
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         **Thought Tokens:** `{st.session_state.thought_tokens}`
         **Temperature:** `{st.session_state.generation_temp:.2f}`
         **Strategy:** `{st.session_state.sampling_strategy}`
-        """)
+        """
+        )
 
     with col2:
         current_thoughts = len(st.session_state.current_thoughts)
-        avg_length = np.mean([len(t.split()) for t in st.session_state.current_thoughts]) if current_thoughts > 0 else 0
-        st.markdown(f"""
+        avg_length = (
+            np.mean([len(t.split()) for t in st.session_state.current_thoughts])
+            if current_thoughts > 0
+            else 0
+        )
+        st.markdown(
+            f"""
         **Active Thoughts:** `{current_thoughts}`
         **Avg Length:** `{avg_length:.1f} tokens`
         **Generation Rate:** `{current_thoughts * 2.3:.1f} thoughts/min`
-        """)
+        """
+        )
 
     with col3:
-        diversity = st.session_state.thought_diversity[-1] if st.session_state.thought_diversity else 0.0
-        st.markdown(f"""
+        diversity = (
+            st.session_state.thought_diversity[-1] if st.session_state.thought_diversity else 0.0
+        )
+        st.markdown(
+            f"""
         **Diversity Score:** `{diversity:.3f}`
         **Uniqueness:** `{diversity * 100:.1f}%`
         **Repetition:** `{(1 - diversity) * 100:.1f}%`
-        """)
+        """
+        )
 
     # Thought generation visualization
     st.markdown("#### Live Thought Stream")
@@ -515,31 +521,26 @@ def create_token_probability_heatmap():
     # Generate probability matrix
     prob_matrix = np.random.dirichlet(np.ones(len(tokens)), size=len(positions))
 
-    fig = go.Figure(data=go.Heatmap(
-        z=prob_matrix.T,
-        x=positions,
-        y=tokens,
-        colorscale=[
-            [0, '#0a0e27'],
-            [0.5, '#1a1f3a'],
-            [0.7, '#0088ff'],
-            [1, '#00ffff']
-        ],
-        colorbar=dict(
-            title="Probability",
-            titlefont=dict(color='#00ffff'),
-            tickfont=dict(color='#00ffff')
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=prob_matrix.T,
+            x=positions,
+            y=tokens,
+            colorscale=[[0, "#0a0e27"], [0.5, "#1a1f3a"], [0.7, "#0088ff"], [1, "#00ffff"]],
+            colorbar=dict(
+                title="Probability", titlefont=dict(color="#00ffff"), tickfont=dict(color="#00ffff")
+            ),
         )
-    ))
+    )
 
     fig.update_layout(
         title="Token Selection Probabilities Across Positions",
         xaxis_title="Position in Thought Sequence",
         yaxis_title="Token",
-        plot_bgcolor='rgba(10, 14, 39, 0.8)',
-        paper_bgcolor='rgba(26, 31, 58, 0.6)',
-        font=dict(color='#00ffff', family='Courier New'),
-        height=400
+        plot_bgcolor="rgba(10, 14, 39, 0.8)",
+        paper_bgcolor="rgba(26, 31, 58, 0.6)",
+        font=dict(color="#00ffff", family="Courier New"),
+        height=400,
     )
 
     return fig
@@ -559,25 +560,19 @@ def render_coherence_scoring_tab():
 
     with col1:
         fig_semantic = create_coherence_gauge(
-            st.session_state.coherence_semantic,
-            "Semantic Coherence",
-            "Meaning consistency"
+            st.session_state.coherence_semantic, "Semantic Coherence", "Meaning consistency"
         )
         st.plotly_chart(fig_semantic, use_container_width=True)
 
     with col2:
         fig_syntactic = create_coherence_gauge(
-            st.session_state.coherence_syntactic,
-            "Syntactic Coherence",
-            "Grammar structure"
+            st.session_state.coherence_syntactic, "Syntactic Coherence", "Grammar structure"
         )
         st.plotly_chart(fig_syntactic, use_container_width=True)
 
     with col3:
         fig_predictive = create_coherence_gauge(
-            st.session_state.coherence_predictive,
-            "Predictive Coherence",
-            "Next-token accuracy"
+            st.session_state.coherence_predictive, "Predictive Coherence", "Next-token accuracy"
         )
         st.plotly_chart(fig_predictive, use_container_width=True)
 
@@ -585,9 +580,9 @@ def render_coherence_scoring_tab():
     st.markdown("#### Overall Coherence Rating")
 
     overall = (
-        st.session_state.coherence_semantic +
-        st.session_state.coherence_syntactic +
-        st.session_state.coherence_predictive
+        st.session_state.coherence_semantic
+        + st.session_state.coherence_syntactic
+        + st.session_state.coherence_predictive
     ) / 3.0
 
     fig_overall = create_overall_coherence_gauge(overall)
@@ -606,50 +601,68 @@ def render_coherence_scoring_tab():
 def update_coherence_scores():
     """Update coherence scores (simulation)"""
     if np.random.random() > 0.8:  # 20% chance per render
-        st.session_state.coherence_semantic = min(100, st.session_state.coherence_semantic + np.random.uniform(0, 5))
-        st.session_state.coherence_syntactic = min(100, st.session_state.coherence_syntactic + np.random.uniform(0, 5))
-        st.session_state.coherence_predictive = min(100, st.session_state.coherence_predictive + np.random.uniform(0, 5))
+        st.session_state.coherence_semantic = min(
+            100, st.session_state.coherence_semantic + np.random.uniform(0, 5)
+        )
+        st.session_state.coherence_syntactic = min(
+            100, st.session_state.coherence_syntactic + np.random.uniform(0, 5)
+        )
+        st.session_state.coherence_predictive = min(
+            100, st.session_state.coherence_predictive + np.random.uniform(0, 5)
+        )
 
-        st.session_state.coherence_history.append({
-            'timestamp': datetime.now(),
-            'semantic': st.session_state.coherence_semantic,
-            'syntactic': st.session_state.coherence_syntactic,
-            'predictive': st.session_state.coherence_predictive,
-            'overall': (st.session_state.coherence_semantic + st.session_state.coherence_syntactic + st.session_state.coherence_predictive) / 3.0
-        })
+        st.session_state.coherence_history.append(
+            {
+                "timestamp": datetime.now(),
+                "semantic": st.session_state.coherence_semantic,
+                "syntactic": st.session_state.coherence_syntactic,
+                "predictive": st.session_state.coherence_predictive,
+                "overall": (
+                    st.session_state.coherence_semantic
+                    + st.session_state.coherence_syntactic
+                    + st.session_state.coherence_predictive
+                )
+                / 3.0,
+            }
+        )
 
 
 def create_coherence_gauge(value: float, title: str, subtitle: str) -> go.Figure:
     """Create individual coherence gauge"""
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number+delta",
-        value=value,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        title={'text': f"{title}<br><sub>{subtitle}</sub>", 'font': {'color': '#00ffff', 'size': 16}},
-        delta={'reference': 70, 'increasing': {'color': "#00ffff"}},
-        gauge={
-            'axis': {'range': [None, 100], 'tickcolor': '#00ffff'},
-            'bar': {'color': "#00ffff"},
-            'bgcolor': "rgba(26, 31, 58, 0.6)",
-            'borderwidth': 2,
-            'bordercolor': "#00ffff",
-            'steps': [
-                {'range': [0, 50], 'color': 'rgba(255, 0, 0, 0.3)'},
-                {'range': [50, 75], 'color': 'rgba(255, 255, 0, 0.3)'},
-                {'range': [75, 100], 'color': 'rgba(0, 255, 255, 0.3)'}
-            ],
-            'threshold': {
-                'line': {'color': "#ffff00", 'width': 4},
-                'thickness': 0.75,
-                'value': 85
-            }
-        }
-    ))
+    fig = go.Figure(
+        go.Indicator(
+            mode="gauge+number+delta",
+            value=value,
+            domain={"x": [0, 1], "y": [0, 1]},
+            title={
+                "text": f"{title}<br><sub>{subtitle}</sub>",
+                "font": {"color": "#00ffff", "size": 16},
+            },
+            delta={"reference": 70, "increasing": {"color": "#00ffff"}},
+            gauge={
+                "axis": {"range": [None, 100], "tickcolor": "#00ffff"},
+                "bar": {"color": "#00ffff"},
+                "bgcolor": "rgba(26, 31, 58, 0.6)",
+                "borderwidth": 2,
+                "bordercolor": "#00ffff",
+                "steps": [
+                    {"range": [0, 50], "color": "rgba(255, 0, 0, 0.3)"},
+                    {"range": [50, 75], "color": "rgba(255, 255, 0, 0.3)"},
+                    {"range": [75, 100], "color": "rgba(0, 255, 255, 0.3)"},
+                ],
+                "threshold": {
+                    "line": {"color": "#ffff00", "width": 4},
+                    "thickness": 0.75,
+                    "value": 85,
+                },
+            },
+        )
+    )
 
     fig.update_layout(
-        paper_bgcolor='rgba(26, 31, 58, 0.6)',
-        font={'color': '#00ffff', 'family': 'Courier New'},
-        height=300
+        paper_bgcolor="rgba(26, 31, 58, 0.6)",
+        font={"color": "#00ffff", "family": "Courier New"},
+        height=300,
     )
 
     return fig
@@ -657,37 +670,39 @@ def create_coherence_gauge(value: float, title: str, subtitle: str) -> go.Figure
 
 def create_overall_coherence_gauge(value: float) -> go.Figure:
     """Create overall coherence gauge"""
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number+delta",
-        value=value,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        title={'text': "COMPOSITE COHERENCE", 'font': {'color': '#00ffff', 'size': 24}},
-        delta={'reference': 70, 'increasing': {'color': "#00ffff"}},
-        number={'font': {'size': 48, 'color': '#00ffff'}},
-        gauge={
-            'axis': {'range': [None, 100], 'tickcolor': '#00ffff', 'tickwidth': 2},
-            'bar': {'color': "#00ffff", 'thickness': 0.8},
-            'bgcolor': "rgba(26, 31, 58, 0.6)",
-            'borderwidth': 3,
-            'bordercolor': "#00ffff",
-            'steps': [
-                {'range': [0, 50], 'color': 'rgba(255, 0, 0, 0.4)'},
-                {'range': [50, 75], 'color': 'rgba(255, 255, 0, 0.4)'},
-                {'range': [75, 90], 'color': 'rgba(0, 255, 0, 0.4)'},
-                {'range': [90, 100], 'color': 'rgba(0, 255, 255, 0.4)'}
-            ],
-            'threshold': {
-                'line': {'color': "#ff00ff", 'width': 6},
-                'thickness': 0.9,
-                'value': 90
-            }
-        }
-    ))
+    fig = go.Figure(
+        go.Indicator(
+            mode="gauge+number+delta",
+            value=value,
+            domain={"x": [0, 1], "y": [0, 1]},
+            title={"text": "COMPOSITE COHERENCE", "font": {"color": "#00ffff", "size": 24}},
+            delta={"reference": 70, "increasing": {"color": "#00ffff"}},
+            number={"font": {"size": 48, "color": "#00ffff"}},
+            gauge={
+                "axis": {"range": [None, 100], "tickcolor": "#00ffff", "tickwidth": 2},
+                "bar": {"color": "#00ffff", "thickness": 0.8},
+                "bgcolor": "rgba(26, 31, 58, 0.6)",
+                "borderwidth": 3,
+                "bordercolor": "#00ffff",
+                "steps": [
+                    {"range": [0, 50], "color": "rgba(255, 0, 0, 0.4)"},
+                    {"range": [50, 75], "color": "rgba(255, 255, 0, 0.4)"},
+                    {"range": [75, 90], "color": "rgba(0, 255, 0, 0.4)"},
+                    {"range": [90, 100], "color": "rgba(0, 255, 255, 0.4)"},
+                ],
+                "threshold": {
+                    "line": {"color": "#ff00ff", "width": 6},
+                    "thickness": 0.9,
+                    "value": 90,
+                },
+            },
+        )
+    )
 
     fig.update_layout(
-        paper_bgcolor='rgba(26, 31, 58, 0.6)',
-        font={'color': '#00ffff', 'family': 'Courier New'},
-        height=400
+        paper_bgcolor="rgba(26, 31, 58, 0.6)",
+        font={"color": "#00ffff", "family": "Courier New"},
+        height=400,
     )
 
     return fig
@@ -699,55 +714,59 @@ def create_coherence_history_chart() -> go.Figure:
 
     fig = go.Figure()
 
-    fig.add_trace(go.Scatter(
-        x=df['timestamp'],
-        y=df['semantic'],
-        mode='lines+markers',
-        name='Semantic',
-        line=dict(color='#ff00ff', width=2),
-        marker=dict(size=6)
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=df["timestamp"],
+            y=df["semantic"],
+            mode="lines+markers",
+            name="Semantic",
+            line=dict(color="#ff00ff", width=2),
+            marker=dict(size=6),
+        )
+    )
 
-    fig.add_trace(go.Scatter(
-        x=df['timestamp'],
-        y=df['syntactic'],
-        mode='lines+markers',
-        name='Syntactic',
-        line=dict(color='#00ff00', width=2),
-        marker=dict(size=6)
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=df["timestamp"],
+            y=df["syntactic"],
+            mode="lines+markers",
+            name="Syntactic",
+            line=dict(color="#00ff00", width=2),
+            marker=dict(size=6),
+        )
+    )
 
-    fig.add_trace(go.Scatter(
-        x=df['timestamp'],
-        y=df['predictive'],
-        mode='lines+markers',
-        name='Predictive',
-        line=dict(color='#ffff00', width=2),
-        marker=dict(size=6)
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=df["timestamp"],
+            y=df["predictive"],
+            mode="lines+markers",
+            name="Predictive",
+            line=dict(color="#ffff00", width=2),
+            marker=dict(size=6),
+        )
+    )
 
-    fig.add_trace(go.Scatter(
-        x=df['timestamp'],
-        y=df['overall'],
-        mode='lines+markers',
-        name='Overall',
-        line=dict(color='#00ffff', width=3),
-        marker=dict(size=8)
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=df["timestamp"],
+            y=df["overall"],
+            mode="lines+markers",
+            name="Overall",
+            line=dict(color="#00ffff", width=3),
+            marker=dict(size=8),
+        )
+    )
 
     fig.update_layout(
         title="Coherence Metrics Evolution",
         xaxis_title="Time",
         yaxis_title="Coherence Score",
-        plot_bgcolor='rgba(10, 14, 39, 0.8)',
-        paper_bgcolor='rgba(26, 31, 58, 0.6)',
-        font=dict(color='#00ffff', family='Courier New'),
-        legend=dict(
-            bgcolor='rgba(26, 31, 58, 0.8)',
-            bordercolor='#00ffff',
-            borderwidth=1
-        ),
-        height=400
+        plot_bgcolor="rgba(10, 14, 39, 0.8)",
+        paper_bgcolor="rgba(26, 31, 58, 0.6)",
+        font=dict(color="#00ffff", family="Courier New"),
+        legend=dict(bgcolor="rgba(26, 31, 58, 0.8)", bordercolor="#00ffff", borderwidth=1),
+        height=400,
     )
 
     return fig
@@ -761,94 +780,96 @@ def render_reasoning_trace_tab():
     # Sample reasoning traces
     traces = [
         {
-            'id': 1,
-            'prompt': 'Solve: If 2x + 5 = 13, what is x?',
-            'thoughts': [
-                'First, I need to isolate x on one side',
-                'Subtract 5 from both sides: 2x = 8',
-                'Divide both sides by 2: x = 4',
-                'Let me verify: 2(4) + 5 = 8 + 5 = 13 ✓'
+            "id": 1,
+            "prompt": "Solve: If 2x + 5 = 13, what is x?",
+            "thoughts": [
+                "First, I need to isolate x on one side",
+                "Subtract 5 from both sides: 2x = 8",
+                "Divide both sides by 2: x = 4",
+                "Let me verify: 2(4) + 5 = 8 + 5 = 13 ✓",
             ],
-            'output': 'x = 4',
-            'quality_ratings': [0.92, 0.95, 0.98, 0.96]
+            "output": "x = 4",
+            "quality_ratings": [0.92, 0.95, 0.98, 0.96],
         },
         {
-            'id': 2,
-            'prompt': 'What is the capital of France?',
-            'thoughts': [
-                'This is asking for the capital city of France',
-                'France is a country in Western Europe',
-                'The capital has been Paris for centuries',
-                'Paris is located in the north-central part of France'
+            "id": 2,
+            "prompt": "What is the capital of France?",
+            "thoughts": [
+                "This is asking for the capital city of France",
+                "France is a country in Western Europe",
+                "The capital has been Paris for centuries",
+                "Paris is located in the north-central part of France",
             ],
-            'output': 'The capital of France is Paris.',
-            'quality_ratings': [0.88, 0.85, 0.99, 0.87]
+            "output": "The capital of France is Paris.",
+            "quality_ratings": [0.88, 0.85, 0.99, 0.87],
         },
         {
-            'id': 3,
-            'prompt': 'Explain why the sky is blue',
-            'thoughts': [
-                'This involves understanding light scattering',
-                'Sunlight is composed of different wavelengths (colors)',
-                'Shorter wavelengths (blue) scatter more than longer ones (red)',
-                'This is called Rayleigh scattering',
-                'Blue light scatters in all directions, filling the sky'
+            "id": 3,
+            "prompt": "Explain why the sky is blue",
+            "thoughts": [
+                "This involves understanding light scattering",
+                "Sunlight is composed of different wavelengths (colors)",
+                "Shorter wavelengths (blue) scatter more than longer ones (red)",
+                "This is called Rayleigh scattering",
+                "Blue light scatters in all directions, filling the sky",
             ],
-            'output': 'The sky appears blue due to Rayleigh scattering, where shorter blue wavelengths scatter more than other colors.',
-            'quality_ratings': [0.93, 0.91, 0.97, 0.95, 0.94]
-        }
+            "output": "The sky appears blue due to Rayleigh scattering, where shorter blue wavelengths scatter more than other colors.",
+            "quality_ratings": [0.93, 0.91, 0.97, 0.95, 0.94],
+        },
     ]
 
     # Trace selector
     selected_trace_id = st.selectbox(
-        "Select Reasoning Trace",
-        [t['id'] for t in traces],
-        format_func=lambda x: f"Trace #{x}"
+        "Select Reasoning Trace", [t["id"] for t in traces], format_func=lambda x: f"Trace #{x}"
     )
 
-    trace = next(t for t in traces if t['id'] == selected_trace_id)
+    trace = next(t for t in traces if t["id"] == selected_trace_id)
 
     # Display trace
     col1, col2 = st.columns([2, 1])
 
     with col1:
         st.markdown("#### Input Prompt")
-        st.code(trace['prompt'], language=None)
+        st.code(trace["prompt"], language=None)
 
         st.markdown("#### Generated Thoughts")
-        for i, (thought, rating) in enumerate(zip(trace['thoughts'], trace['quality_ratings'])):
+        for i, (thought, rating) in enumerate(zip(trace["thoughts"], trace["quality_ratings"])):
             quality_color = get_quality_color(rating)
             with st.expander(f"💭 Thought {i+1} - Quality: {rating:.2%}", expanded=(i == 0)):
-                st.markdown(f"<p style='color: {quality_color};'>{thought}</p>", unsafe_allow_html=True)
+                st.markdown(
+                    f"<p style='color: {quality_color};'>{thought}</p>", unsafe_allow_html=True
+                )
                 st.progress(rating)
 
         st.markdown("#### Final Output")
-        st.success(trace['output'])
+        st.success(trace["output"])
 
     with col2:
         st.markdown("#### Thought Quality")
 
-        avg_quality = np.mean(trace['quality_ratings'])
+        avg_quality = np.mean(trace["quality_ratings"])
         st.metric("Average Quality", f"{avg_quality:.2%}")
 
         # Quality distribution
-        fig = go.Figure(go.Bar(
-            x=[f"T{i+1}" for i in range(len(trace['quality_ratings']))],
-            y=trace['quality_ratings'],
-            marker=dict(
-                color=trace['quality_ratings'],
-                colorscale=[[0, '#ff0000'], [0.5, '#ffff00'], [1, '#00ffff']],
-                showscale=False
+        fig = go.Figure(
+            go.Bar(
+                x=[f"T{i+1}" for i in range(len(trace["quality_ratings"]))],
+                y=trace["quality_ratings"],
+                marker=dict(
+                    color=trace["quality_ratings"],
+                    colorscale=[[0, "#ff0000"], [0.5, "#ffff00"], [1, "#00ffff"]],
+                    showscale=False,
+                ),
             )
-        ))
+        )
 
         fig.update_layout(
             title="Thought Quality Distribution",
             yaxis_title="Quality Score",
-            plot_bgcolor='rgba(10, 14, 39, 0.8)',
-            paper_bgcolor='rgba(26, 31, 58, 0.6)',
-            font=dict(color='#00ffff', family='Courier New'),
-            height=300
+            plot_bgcolor="rgba(10, 14, 39, 0.8)",
+            paper_bgcolor="rgba(26, 31, 58, 0.6)",
+            font=dict(color="#00ffff", family="Courier New"),
+            height=300,
         )
 
         st.plotly_chart(fig, use_container_width=True)
@@ -857,13 +878,13 @@ def render_reasoning_trace_tab():
 def get_quality_color(rating: float) -> str:
     """Get color based on quality rating"""
     if rating >= 0.9:
-        return '#00ffff'
+        return "#00ffff"
     elif rating >= 0.75:
-        return '#00ff00'
+        return "#00ff00"
     elif rating >= 0.5:
-        return '#ffff00'
+        return "#ffff00"
     else:
-        return '#ff0000'
+        return "#ff0000"
 
 
 # ==================== TAB 4: ANTI-THEATER DETECTION ====================
@@ -884,7 +905,7 @@ def render_anti_theater_tab():
             "Genuine Reasoning",
             f"{genuine:.1%}",
             delta="VALIDATED" if genuine > 0.7 else "SUSPICIOUS",
-            delta_color="normal" if genuine > 0.7 else "inverse"
+            delta_color="normal" if genuine > 0.7 else "inverse",
         )
 
         fig_genuine = create_mini_gauge(genuine * 100, "Genuine", 70)
@@ -895,7 +916,7 @@ def render_anti_theater_tab():
             "Memorization Score",
             f"{st.session_state.memorization_score:.1%}",
             delta="LOW" if st.session_state.memorization_score < 0.3 else "HIGH",
-            delta_color="inverse" if st.session_state.memorization_score < 0.3 else "normal"
+            delta_color="inverse" if st.session_state.memorization_score < 0.3 else "normal",
         )
 
         fig_mem = create_mini_gauge(st.session_state.memorization_score * 100, "Memorization", 30)
@@ -906,7 +927,7 @@ def render_anti_theater_tab():
             "Novel Problem Ratio",
             f"{st.session_state.novel_problem_ratio:.1%}",
             delta="GOOD" if st.session_state.novel_problem_ratio > 0.6 else "POOR",
-            delta_color="normal" if st.session_state.novel_problem_ratio > 0.6 else "inverse"
+            delta_color="normal" if st.session_state.novel_problem_ratio > 0.6 else "inverse",
         )
 
         fig_novel = create_mini_gauge(st.session_state.novel_problem_ratio * 100, "Novel", 60)
@@ -925,54 +946,78 @@ def render_anti_theater_tab():
     tests = [
         {"name": "Pattern Memorization Test", "passed": st.session_state.memorization_score < 0.3},
         {"name": "Novel Problem Solving", "passed": st.session_state.novel_problem_ratio > 0.6},
-        {"name": "Reasoning Coherence", "passed": (st.session_state.coherence_semantic + st.session_state.coherence_syntactic + st.session_state.coherence_predictive) / 3.0 > 70},
-        {"name": "Thought Diversity", "passed": len(st.session_state.thought_diversity) > 0 and st.session_state.thought_diversity[-1] > 0.7},
+        {
+            "name": "Reasoning Coherence",
+            "passed": (
+                st.session_state.coherence_semantic
+                + st.session_state.coherence_syntactic
+                + st.session_state.coherence_predictive
+            )
+            / 3.0
+            > 70,
+        },
+        {
+            "name": "Thought Diversity",
+            "passed": len(st.session_state.thought_diversity) > 0
+            and st.session_state.thought_diversity[-1] > 0.7,
+        },
         {"name": "Anti-Shortcut Validation", "passed": st.session_state.theater_score < 0.3},
     ]
 
     for test in tests:
-        status_icon = "✅" if test['passed'] else "❌"
-        status_text = "PASS" if test['passed'] else "FAIL"
-        status_color = "#00ff00" if test['passed'] else "#ff0000"
+        status_icon = "✅" if test["passed"] else "❌"
+        status_text = "PASS" if test["passed"] else "FAIL"
+        status_color = "#00ff00" if test["passed"] else "#ff0000"
 
-        st.markdown(f"{status_icon} **{test['name']}**: <span style='color: {status_color};'>{status_text}</span>", unsafe_allow_html=True)
+        st.markdown(
+            f"{status_icon} **{test['name']}**: <span style='color: {status_color};'>{status_text}</span>",
+            unsafe_allow_html=True,
+        )
 
 
 def update_theater_metrics():
     """Update theater detection metrics (simulation)"""
     if np.random.random() > 0.85:  # 15% chance per render
-        st.session_state.theater_score = max(0.0, min(1.0, st.session_state.theater_score + np.random.uniform(-0.05, 0.02)))
-        st.session_state.memorization_score = max(0.0, min(1.0, st.session_state.memorization_score + np.random.uniform(-0.03, 0.01)))
-        st.session_state.novel_problem_ratio = max(0.0, min(1.0, st.session_state.novel_problem_ratio + np.random.uniform(0, 0.05)))
+        st.session_state.theater_score = max(
+            0.0, min(1.0, st.session_state.theater_score + np.random.uniform(-0.05, 0.02))
+        )
+        st.session_state.memorization_score = max(
+            0.0, min(1.0, st.session_state.memorization_score + np.random.uniform(-0.03, 0.01))
+        )
+        st.session_state.novel_problem_ratio = max(
+            0.0, min(1.0, st.session_state.novel_problem_ratio + np.random.uniform(0, 0.05))
+        )
 
 
 def create_mini_gauge(value: float, title: str, threshold: float) -> go.Figure:
     """Create mini gauge for theater metrics"""
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=value,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        title={'text': title, 'font': {'color': '#00ffff', 'size': 12}},
-        number={'font': {'size': 20, 'color': '#00ffff'}},
-        gauge={
-            'axis': {'range': [None, 100], 'tickcolor': '#00ffff'},
-            'bar': {'color': "#00ffff"},
-            'bgcolor': "rgba(26, 31, 58, 0.6)",
-            'borderwidth': 1,
-            'bordercolor': "#00ffff",
-            'threshold': {
-                'line': {'color': "#ff00ff", 'width': 2},
-                'thickness': 0.75,
-                'value': threshold
-            }
-        }
-    ))
+    fig = go.Figure(
+        go.Indicator(
+            mode="gauge+number",
+            value=value,
+            domain={"x": [0, 1], "y": [0, 1]},
+            title={"text": title, "font": {"color": "#00ffff", "size": 12}},
+            number={"font": {"size": 20, "color": "#00ffff"}},
+            gauge={
+                "axis": {"range": [None, 100], "tickcolor": "#00ffff"},
+                "bar": {"color": "#00ffff"},
+                "bgcolor": "rgba(26, 31, 58, 0.6)",
+                "borderwidth": 1,
+                "bordercolor": "#00ffff",
+                "threshold": {
+                    "line": {"color": "#ff00ff", "width": 2},
+                    "thickness": 0.75,
+                    "value": threshold,
+                },
+            },
+        )
+    )
 
     fig.update_layout(
-        paper_bgcolor='rgba(26, 31, 58, 0.6)',
-        font={'color': '#00ffff', 'family': 'Courier New'},
+        paper_bgcolor="rgba(26, 31, 58, 0.6)",
+        font={"color": "#00ffff", "family": "Courier New"},
         height=200,
-        margin=dict(l=10, r=10, t=40, b=10)
+        margin=dict(l=10, r=10, t=40, b=10),
     )
 
     return fig
@@ -980,36 +1025,42 @@ def create_mini_gauge(value: float, title: str, threshold: float) -> go.Figure:
 
 def create_theater_gauge(value: float) -> go.Figure:
     """Create theater score gauge (inverted - lower is better)"""
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number+delta",
-        value=value * 100,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        title={'text': "THEATER SCORE (Target: <30)", 'font': {'color': '#00ffff', 'size': 20}},
-        delta={'reference': 30, 'decreasing': {'color': "#00ff00"}, 'increasing': {'color': "#ff0000"}},
-        number={'font': {'size': 40, 'color': '#00ffff'}},
-        gauge={
-            'axis': {'range': [0, 100], 'tickcolor': '#00ffff'},
-            'bar': {'color': "#ff0000" if value > 0.3 else "#00ffff"},
-            'bgcolor': "rgba(26, 31, 58, 0.6)",
-            'borderwidth': 2,
-            'bordercolor': "#00ffff",
-            'steps': [
-                {'range': [0, 30], 'color': 'rgba(0, 255, 0, 0.3)'},
-                {'range': [30, 50], 'color': 'rgba(255, 255, 0, 0.3)'},
-                {'range': [50, 100], 'color': 'rgba(255, 0, 0, 0.3)'}
-            ],
-            'threshold': {
-                'line': {'color': "#ffff00", 'width': 4},
-                'thickness': 0.75,
-                'value': 30
-            }
-        }
-    ))
+    fig = go.Figure(
+        go.Indicator(
+            mode="gauge+number+delta",
+            value=value * 100,
+            domain={"x": [0, 1], "y": [0, 1]},
+            title={"text": "THEATER SCORE (Target: <30)", "font": {"color": "#00ffff", "size": 20}},
+            delta={
+                "reference": 30,
+                "decreasing": {"color": "#00ff00"},
+                "increasing": {"color": "#ff0000"},
+            },
+            number={"font": {"size": 40, "color": "#00ffff"}},
+            gauge={
+                "axis": {"range": [0, 100], "tickcolor": "#00ffff"},
+                "bar": {"color": "#ff0000" if value > 0.3 else "#00ffff"},
+                "bgcolor": "rgba(26, 31, 58, 0.6)",
+                "borderwidth": 2,
+                "bordercolor": "#00ffff",
+                "steps": [
+                    {"range": [0, 30], "color": "rgba(0, 255, 0, 0.3)"},
+                    {"range": [30, 50], "color": "rgba(255, 255, 0, 0.3)"},
+                    {"range": [50, 100], "color": "rgba(255, 0, 0, 0.3)"},
+                ],
+                "threshold": {
+                    "line": {"color": "#ffff00", "width": 4},
+                    "thickness": 0.75,
+                    "value": 30,
+                },
+            },
+        )
+    )
 
     fig.update_layout(
-        paper_bgcolor='rgba(26, 31, 58, 0.6)',
-        font={'color': '#00ffff', 'family': 'Courier New'},
-        height=350
+        paper_bgcolor="rgba(26, 31, 58, 0.6)",
+        font={"color": "#00ffff", "family": "Courier New"},
+        height=350,
     )
 
     return fig
@@ -1031,21 +1082,21 @@ def render_prompt_baking_tab():
         st.metric(
             "Baking Progress",
             f"{st.session_state.baking_progress:.0%}",
-            delta="In Progress" if st.session_state.baking_progress < 1.0 else "Complete"
+            delta="In Progress" if st.session_state.baking_progress < 1.0 else "Complete",
         )
 
     with col2:
         st.metric(
             "Baking Temperature",
             f"{st.session_state.baking_temp:.2f}",
-            delta="KL Divergence Strength"
+            delta="KL Divergence Strength",
         )
 
     with col3:
         st.metric(
             "Prompt Strength",
             f"{st.session_state.baking_strength:.0%}",
-            delta="Weight Injection Level"
+            delta="Weight Injection Level",
         )
 
     # Baking progress bar
@@ -1054,15 +1105,33 @@ def render_prompt_baking_tab():
 
     # Baking stages
     stages = [
-        {"name": "LoRA Adapter Init", "progress": min(100, st.session_state.baking_progress * 400), "time": "10s"},
-        {"name": "KL Divergence Optimization", "progress": max(0, min(100, (st.session_state.baking_progress - 0.25) * 400)), "time": "3min"},
-        {"name": "Weight Merging", "progress": max(0, min(100, (st.session_state.baking_progress - 0.5) * 400)), "time": "1min"},
-        {"name": "Validation", "progress": max(0, min(100, (st.session_state.baking_progress - 0.75) * 400)), "time": "30s"},
+        {
+            "name": "LoRA Adapter Init",
+            "progress": min(100, st.session_state.baking_progress * 400),
+            "time": "10s",
+        },
+        {
+            "name": "KL Divergence Optimization",
+            "progress": max(0, min(100, (st.session_state.baking_progress - 0.25) * 400)),
+            "time": "3min",
+        },
+        {
+            "name": "Weight Merging",
+            "progress": max(0, min(100, (st.session_state.baking_progress - 0.5) * 400)),
+            "time": "1min",
+        },
+        {
+            "name": "Validation",
+            "progress": max(0, min(100, (st.session_state.baking_progress - 0.75) * 400)),
+            "time": "30s",
+        },
     ]
 
     for stage in stages:
-        with st.expander(f"{stage['name']} - {stage['progress']:.0f}%", expanded=stage['progress'] > 0):
-            st.progress(stage['progress'] / 100)
+        with st.expander(
+            f"{stage['name']} - {stage['progress']:.0f}%", expanded=stage["progress"] > 0
+        ):
+            st.progress(stage["progress"] / 100)
             st.caption(f"Estimated time: {stage['time']}")
 
     # CoT prompt being baked
@@ -1081,31 +1150,40 @@ Always use structured reasoning: [Analysis] → [Steps] → [Verification] → [
     # Baking effectiveness
     st.markdown("#### Baking Effectiveness Metrics")
 
-    effectiveness_data = pd.DataFrame({
-        'Metric': ['Prompt Retention', 'Behavior Consistency', 'No-Prompt Performance', 'Multi-Turn Stability'],
-        'Score': [0.94, 0.89, 0.87, 0.92]
-    })
+    effectiveness_data = pd.DataFrame(
+        {
+            "Metric": [
+                "Prompt Retention",
+                "Behavior Consistency",
+                "No-Prompt Performance",
+                "Multi-Turn Stability",
+            ],
+            "Score": [0.94, 0.89, 0.87, 0.92],
+        }
+    )
 
-    fig = go.Figure(go.Bar(
-        x=effectiveness_data['Metric'],
-        y=effectiveness_data['Score'],
-        marker=dict(
-            color=effectiveness_data['Score'],
-            colorscale=[[0, '#ff0000'], [0.7, '#ffff00'], [1, '#00ffff']],
-            showscale=False
-        ),
-        text=[f"{s:.0%}" for s in effectiveness_data['Score']],
-        textposition='auto'
-    ))
+    fig = go.Figure(
+        go.Bar(
+            x=effectiveness_data["Metric"],
+            y=effectiveness_data["Score"],
+            marker=dict(
+                color=effectiveness_data["Score"],
+                colorscale=[[0, "#ff0000"], [0.7, "#ffff00"], [1, "#00ffff"]],
+                showscale=False,
+            ),
+            text=[f"{s:.0%}" for s in effectiveness_data["Score"]],
+            textposition="auto",
+        )
+    )
 
     fig.update_layout(
         title="Prompt Baking Quality Metrics",
         yaxis_title="Effectiveness Score",
         yaxis=dict(range=[0, 1]),
-        plot_bgcolor='rgba(10, 14, 39, 0.8)',
-        paper_bgcolor='rgba(26, 31, 58, 0.6)',
-        font=dict(color='#00ffff', family='Courier New'),
-        height=400
+        plot_bgcolor="rgba(10, 14, 39, 0.8)",
+        paper_bgcolor="rgba(26, 31, 58, 0.6)",
+        font=dict(color="#00ffff", family="Courier New"),
+        height=400,
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -1114,8 +1192,12 @@ Always use structured reasoning: [Analysis] → [Steps] → [Verification] → [
 def update_baking_progress():
     """Update baking progress (simulation)"""
     if st.session_state.baking_progress < 1.0:
-        st.session_state.baking_progress = min(1.0, st.session_state.baking_progress + np.random.uniform(0.01, 0.05))
-        st.session_state.baking_strength = st.session_state.baking_progress * 0.9  # 90% max strength
+        st.session_state.baking_progress = min(
+            1.0, st.session_state.baking_progress + np.random.uniform(0.01, 0.05)
+        )
+        st.session_state.baking_strength = (
+            st.session_state.baking_progress * 0.9
+        )  # 90% max strength
 
 
 # ==================== TAB 6: TRAINING METRICS ====================
@@ -1136,30 +1218,35 @@ def render_training_metrics_tab():
             "Current RL Loss",
             f"{current_loss:.4f}",
             delta=f"{current_loss - 0.5:.4f}" if len(st.session_state.rl_loss) > 1 else None,
-            delta_color="inverse"
+            delta_color="inverse",
         )
 
     with col2:
-        improvement = (st.session_state.rl_loss[0] - st.session_state.rl_loss[-1]) / st.session_state.rl_loss[0] if len(st.session_state.rl_loss) > 1 else 0.0
+        improvement = (
+            (st.session_state.rl_loss[0] - st.session_state.rl_loss[-1])
+            / st.session_state.rl_loss[0]
+            if len(st.session_state.rl_loss) > 1
+            else 0.0
+        )
         st.metric(
             "Loss Improvement",
             f"{improvement:.1%}",
-            delta="Decreasing" if improvement > 0 else "Stable"
+            delta="Decreasing" if improvement > 0 else "Stable",
         )
 
     with col3:
         st.metric(
             "Training Steps",
             len(st.session_state.rl_loss),
-            delta=f"{len(st.session_state.rl_loss) * 2} thoughts"
+            delta=f"{len(st.session_state.rl_loss) * 2} thoughts",
         )
 
     with col4:
-        convergence = "CONVERGED" if len(st.session_state.rl_loss) > 10 and improvement > 0.3 else "TRAINING"
+        convergence = (
+            "CONVERGED" if len(st.session_state.rl_loss) > 10 and improvement > 0.3 else "TRAINING"
+        )
         st.metric(
-            "Status",
-            convergence,
-            delta="Stable" if convergence == "CONVERGED" else "Optimizing"
+            "Status", convergence, delta="Stable" if convergence == "CONVERGED" else "Optimizing"
         )
 
     # RL loss curve
@@ -1170,39 +1257,41 @@ def render_training_metrics_tab():
 
         steps = list(range(len(st.session_state.rl_loss)))
 
-        fig.add_trace(go.Scatter(
-            x=steps,
-            y=st.session_state.rl_loss,
-            mode='lines+markers',
-            name='RL Loss',
-            line=dict(color='#00ffff', width=2),
-            marker=dict(size=6)
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=steps,
+                y=st.session_state.rl_loss,
+                mode="lines+markers",
+                name="RL Loss",
+                line=dict(color="#00ffff", width=2),
+                marker=dict(size=6),
+            )
+        )
 
         # Add smoothed trend
         if len(st.session_state.rl_loss) > 5:
-            smoothed = pd.Series(st.session_state.rl_loss).rolling(window=5, min_periods=1).mean().tolist()
-            fig.add_trace(go.Scatter(
-                x=steps,
-                y=smoothed,
-                mode='lines',
-                name='Trend',
-                line=dict(color='#ff00ff', width=3, dash='dash')
-            ))
+            smoothed = (
+                pd.Series(st.session_state.rl_loss).rolling(window=5, min_periods=1).mean().tolist()
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=steps,
+                    y=smoothed,
+                    mode="lines",
+                    name="Trend",
+                    line=dict(color="#ff00ff", width=3, dash="dash"),
+                )
+            )
 
         fig.update_layout(
             title="REINFORCE Loss Convergence",
             xaxis_title="Training Step",
             yaxis_title="Loss",
-            plot_bgcolor='rgba(10, 14, 39, 0.8)',
-            paper_bgcolor='rgba(26, 31, 58, 0.6)',
-            font=dict(color='#00ffff', family='Courier New'),
-            legend=dict(
-                bgcolor='rgba(26, 31, 58, 0.8)',
-                bordercolor='#00ffff',
-                borderwidth=1
-            ),
-            height=400
+            plot_bgcolor="rgba(10, 14, 39, 0.8)",
+            paper_bgcolor="rgba(26, 31, 58, 0.6)",
+            font=dict(color="#00ffff", family="Courier New"),
+            legend=dict(bgcolor="rgba(26, 31, 58, 0.8)", bordercolor="#00ffff", borderwidth=1),
+            height=400,
         )
 
         st.plotly_chart(fig, use_container_width=True)
@@ -1215,26 +1304,28 @@ def render_training_metrics_tab():
     if st.session_state.thought_diversity:
         fig = go.Figure()
 
-        fig.add_trace(go.Scatter(
-            x=list(range(len(st.session_state.thought_diversity))),
-            y=st.session_state.thought_diversity,
-            mode='lines+markers',
-            name='Diversity',
-            line=dict(color='#00ff00', width=2),
-            marker=dict(size=6),
-            fill='tozeroy',
-            fillcolor='rgba(0, 255, 0, 0.2)'
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=list(range(len(st.session_state.thought_diversity))),
+                y=st.session_state.thought_diversity,
+                mode="lines+markers",
+                name="Diversity",
+                line=dict(color="#00ff00", width=2),
+                marker=dict(size=6),
+                fill="tozeroy",
+                fillcolor="rgba(0, 255, 0, 0.2)",
+            )
+        )
 
         fig.update_layout(
             title="Thought Diversity Score Over Time",
             xaxis_title="Thought Generation Event",
             yaxis_title="Diversity Score",
             yaxis=dict(range=[0, 1]),
-            plot_bgcolor='rgba(10, 14, 39, 0.8)',
-            paper_bgcolor='rgba(26, 31, 58, 0.6)',
-            font=dict(color='#00ffff', family='Courier New'),
-            height=350
+            plot_bgcolor="rgba(10, 14, 39, 0.8)",
+            paper_bgcolor="rgba(26, 31, 58, 0.6)",
+            font=dict(color="#00ffff", family="Courier New"),
+            height=350,
         )
 
         st.plotly_chart(fig, use_container_width=True)
@@ -1266,14 +1357,12 @@ def render_openrouter_footer():
         st.metric(
             "API Calls",
             st.session_state.openrouter_calls,
-            delta=f"+{st.session_state.openrouter_calls} today"
+            delta=f"+{st.session_state.openrouter_calls} today",
         )
 
     with col2:
         st.metric(
-            "Total Cost",
-            f"${st.session_state.openrouter_cost:.2f}",
-            delta=f"Budget: $150.00"
+            "Total Cost", f"${st.session_state.openrouter_cost:.2f}", delta=f"Budget: $150.00"
         )
 
     with col3:
@@ -1281,15 +1370,11 @@ def render_openrouter_footer():
         st.metric(
             "Budget Used",
             f"{budget_used:.1f}%",
-            delta="Within limits" if budget_used < 80 else "Approaching limit"
+            delta="Within limits" if budget_used < 80 else "Approaching limit",
         )
 
     with col4:
-        st.metric(
-            "Active Model",
-            "GPT-4o-mini",
-            delta="Frontier Model"
-        )
+        st.metric("Active Model", "GPT-4o-mini", delta="Frontier Model")
 
     # Update cost if running
     if st.session_state.phase3_running and np.random.random() > 0.9:

@@ -5,16 +5,17 @@ Tests model creation, dataset processing, and training loop
 without downloading actual datasets (uses synthetic data).
 """
 
-import torch
 import sys
 from pathlib import Path
+
+import torch
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
+from phase1_cognate.data.curriculum_loader import CurriculumLoader
 from phase1_cognate.model.full_model import TRMTitansMAGModel
 from phase1_cognate.model.model_config import Phase1Config
-from phase1_cognate.data.curriculum_loader import CurriculumLoader
 from phase1_cognate.training.trainer import Phase1Trainer, TrainingConfig
 
 
@@ -27,12 +28,14 @@ def create_synthetic_datasets(num_samples=100):
     for name in dataset_names:
         samples = []
         for i in range(num_samples):
-            samples.append({
-                "text": f"Q: Test question {i} for {name}?\nA: Test answer {i}",
-                "input": f"Test question {i}",
-                "output": f"Test answer {i}",
-                "metadata": {"dataset": name, "type": "test"}
-            })
+            samples.append(
+                {
+                    "text": f"Q: Test question {i} for {name}?\nA: Test answer {i}",
+                    "input": f"Test question {i}",
+                    "output": f"Test answer {i}",
+                    "metadata": {"dataset": name, "type": "test"},
+                }
+            )
         datasets[name] = samples
 
     return datasets
@@ -40,6 +43,7 @@ def create_synthetic_datasets(num_samples=100):
 
 class SimpleTokenizer:
     """Simple mock tokenizer"""
+
     def __init__(self):
         self.pad_token = "<pad>"
         self.eos_token = "<eos>"
@@ -53,16 +57,17 @@ class SimpleTokenizer:
 
         return {
             "input_ids": torch.tensor([tokens]),
-            "attention_mask": torch.tensor([[1] * min(len(text), max_length) +
-                                           [0] * max(0, max_length - len(text))])
+            "attention_mask": torch.tensor(
+                [[1] * min(len(text), max_length) + [0] * max(0, max_length - len(text))]
+            ),
         }
 
 
 def test_model_creation():
     """Test creating all 3 models"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 1: MODEL CREATION")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     for spec in ["reasoning", "memory", "speed"]:
         print(f"Creating {spec} model...")
@@ -83,9 +88,9 @@ def test_model_creation():
 
 def test_curriculum():
     """Test curriculum loader"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 2: CURRICULUM LOADER")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     curriculum = CurriculumLoader()
 
@@ -100,9 +105,9 @@ def test_curriculum():
 
 def test_training_loop():
     """Test training loop with synthetic data"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 3: TRAINING LOOP (1 epoch, synthetic data)")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     # Create model
     model_config = Phase1Config(specialization="reasoning")
@@ -122,7 +127,7 @@ def test_training_loop():
         checkpoint_dir=Path("tests/artifacts/checkpoints"),
         wandb_mode="disabled",  # Disable W&B for test
         device="cpu",
-        log_every_n_steps=10
+        log_every_n_steps=10,
     )
 
     # Create trainer
@@ -131,7 +136,7 @@ def test_training_loop():
         config=train_config,
         train_datasets=datasets,
         val_datasets=None,  # No validation
-        tokenizer=tokenizer
+        tokenizer=tokenizer,
     )
 
     # Train (just 1 epoch)
@@ -143,15 +148,16 @@ def test_training_loop():
     except Exception as e:
         print(f"\nFAILED Training loop test failed: {e}\n")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def main():
     """Run all tests"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("PHASE 1 TRAINING PIPELINE TEST")
-    print("="*70)
+    print("=" * 70)
 
     # Test 1: Model creation
     try:
@@ -159,6 +165,7 @@ def main():
     except Exception as e:
         print(f"FAILED Model creation failed: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
@@ -168,6 +175,7 @@ def main():
     except Exception as e:
         print(f"FAILED Curriculum test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
@@ -175,9 +183,9 @@ def main():
     success = test_training_loop()
 
     if success:
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("ALL TESTS PASSED - OK")
-        print("="*70 + "\n")
+        print("=" * 70 + "\n")
         return 0
     else:
         return 1

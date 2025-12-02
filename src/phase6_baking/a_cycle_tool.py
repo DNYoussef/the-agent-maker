@@ -9,9 +9,9 @@ Research: "Prompt Baking" (arXiv:2409.13697v1)
 M4 TIER 1: Integrated with SWEBenchEvaluator for real code generation evaluation.
 """
 
-from dataclasses import dataclass
-from typing import Dict, List, Optional, Any, Tuple, Callable
 import random
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -23,6 +23,7 @@ from .swe_bench_eval import SWEBenchEvaluator, SWEBenchTask
 @dataclass
 class ToolTask:
     """A tool-use task for evaluation."""
+
     description: str
     expected_tools: List[str]
     ground_truth: str
@@ -54,7 +55,7 @@ class SWEBenchToolEvaluator:
         tokenizer: Any = None,
         max_new_tokens: int = 256,
         temperature: float = 0.7,
-        verbose: bool = False
+        verbose: bool = False,
     ):
         """
         Initialize SWE-Bench tool evaluator.
@@ -104,13 +105,11 @@ class SWEBenchToolEvaluator:
 
         # Run evaluation
         metrics = self.swe_bench.run_evaluation(
-            generate_fn=generate_fn,
-            max_tasks=self.max_tasks,
-            verbose=self.verbose
+            generate_fn=generate_fn, max_tasks=self.max_tasks, verbose=self.verbose
         )
 
         self._last_metrics = metrics
-        return metrics.get('composite_score', 0.0)
+        return metrics.get("composite_score", 0.0)
 
     def _generate_code(self, model: nn.Module, problem_statement: str) -> str:
         """Generate code solution for a problem."""
@@ -122,46 +121,44 @@ class SWEBenchToolEvaluator:
         try:
             with torch.no_grad():
                 # Tokenize
-                if self.tokenizer and hasattr(self.tokenizer, '__call__'):
+                if self.tokenizer and hasattr(self.tokenizer, "__call__"):
                     inputs = self.tokenizer(
-                        prompt,
-                        return_tensors="pt",
-                        max_length=512,
-                        truncation=True,
-                        padding=True
+                        prompt, return_tensors="pt", max_length=512, truncation=True, padding=True
                     )
                 else:
                     # Fallback for mock tokenizers
-                    inputs = {'input_ids': torch.tensor([[1, 2, 3, 4, 5]])}
+                    inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
 
                 device = next(model.parameters()).device
-                inputs = {k: v.to(device) for k, v in inputs.items()
-                          if isinstance(v, torch.Tensor)}
+                inputs = {k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)}
 
                 # Generate
-                if hasattr(model, 'generate'):
+                if hasattr(model, "generate"):
                     outputs = model.generate(
                         **inputs,
                         max_new_tokens=self.max_new_tokens,
                         do_sample=self.temperature > 0,
                         temperature=max(0.1, self.temperature),
-                        pad_token_id=self.tokenizer.pad_token_id if self.tokenizer and hasattr(self.tokenizer, 'pad_token_id') else 0
+                        pad_token_id=self.tokenizer.pad_token_id
+                        if self.tokenizer and hasattr(self.tokenizer, "pad_token_id")
+                        else 0,
                     )
-                    if self.tokenizer and hasattr(self.tokenizer, 'decode'):
+                    if self.tokenizer and hasattr(self.tokenizer, "decode"):
                         generated = self.tokenizer.decode(
-                            outputs[0][inputs['input_ids'].size(1):],
-                            skip_special_tokens=True
+                            outputs[0][inputs["input_ids"].size(1) :], skip_special_tokens=True
                         )
                     else:
                         generated = ""
                 else:
                     # Forward-only model - extract code from logits
                     outputs = model(**inputs)
-                    if hasattr(outputs, 'logits'):
+                    if hasattr(outputs, "logits"):
                         # Greedy decode
                         predicted_ids = outputs.logits.argmax(dim=-1)
-                        if self.tokenizer and hasattr(self.tokenizer, 'decode'):
-                            generated = self.tokenizer.decode(predicted_ids[0], skip_special_tokens=True)
+                        if self.tokenizer and hasattr(self.tokenizer, "decode"):
+                            generated = self.tokenizer.decode(
+                                predicted_ids[0], skip_special_tokens=True
+                            )
                         else:
                             generated = ""
                     else:
@@ -228,7 +225,7 @@ class ACycleOptimizer:
         lora_r: int = 16,
         lora_alpha: int = 32,
         num_epochs: int = 3,
-        learning_rate: float = 5e-5  # Fixed: was 1e-4, now 5e-5 per M4 spec
+        learning_rate: float = 5e-5,  # Fixed: was 1e-4, now 5e-5 per M4 spec
     ):
         """
         Initialize A-cycle optimizer.
@@ -246,12 +243,7 @@ class ACycleOptimizer:
         self.num_epochs = num_epochs
         self.learning_rate = learning_rate
 
-        self.state = {
-            'iterations': 0,
-            'scores': [],
-            'best_score': 0.0,
-            'prompts_used': []
-        }
+        self.state = {"iterations": 0, "scores": [], "best_score": 0.0, "prompts_used": []}
 
         # Sample tool tasks
         self.tool_tasks = self._generate_tool_tasks()
@@ -263,39 +255,36 @@ class ACycleOptimizer:
                 description="Read the contents of config.json and extract the API key",
                 expected_tools=["read_file", "parse_json"],
                 ground_truth="api_key_value",
-                difficulty=3
+                difficulty=3,
             ),
             ToolTask(
                 description="Search for all Python files containing 'def main'",
                 expected_tools=["search_files", "grep"],
                 ground_truth="list_of_files",
-                difficulty=4
+                difficulty=4,
             ),
             ToolTask(
                 description="Create a new directory and initialize a git repository",
                 expected_tools=["mkdir", "git_init"],
                 ground_truth="success",
-                difficulty=5
+                difficulty=5,
             ),
             ToolTask(
                 description="Run the test suite and report failures",
                 expected_tools=["run_tests", "parse_output"],
                 ground_truth="test_results",
-                difficulty=6
+                difficulty=6,
             ),
             ToolTask(
                 description="Debug the failing function by adding logging",
                 expected_tools=["read_file", "edit_file", "run_tests"],
                 ground_truth="fixed_code",
-                difficulty=7
+                difficulty=7,
             ),
         ]
 
     def optimize(
-        self,
-        model: nn.Module,
-        tokenizer: Any,
-        evaluator: Any = None
+        self, model: nn.Module, tokenizer: Any, evaluator: Any = None
     ) -> Tuple[nn.Module, float]:
         """
         Run one A-cycle optimization iteration.
@@ -308,16 +297,16 @@ class ACycleOptimizer:
         Returns:
             Tuple of (optimized_model, score)
         """
-        self.state['iterations'] += 1
+        self.state["iterations"] += 1
 
         # Step 1: Evaluate current tool-use ability
         pre_score = self._evaluate_tool_use(model, tokenizer, evaluator)
         print(f"    Pre-bake tool score: {pre_score:.3f}")
 
         # Step 2: Select prompt to bake
-        prompt_idx = self.state['iterations'] % len(self.tool_prompts)
+        prompt_idx = self.state["iterations"] % len(self.tool_prompts)
         prompt = self.tool_prompts[prompt_idx]
-        self.state['prompts_used'].append(prompt)
+        self.state["prompts_used"].append(prompt)
 
         # Step 3: Bake the prompt
         baked_model = self._bake_tool_prompt(model, prompt, tokenizer)
@@ -327,18 +316,13 @@ class ACycleOptimizer:
         print(f"    Post-bake tool score: {post_score:.3f}")
 
         # Update state
-        self.state['scores'].append(post_score)
-        if post_score > self.state['best_score']:
-            self.state['best_score'] = post_score
+        self.state["scores"].append(post_score)
+        if post_score > self.state["best_score"]:
+            self.state["best_score"] = post_score
 
         return baked_model, post_score
 
-    def _evaluate_tool_use(
-        self,
-        model: nn.Module,
-        tokenizer: Any,
-        evaluator: Any = None
-    ) -> float:
+    def _evaluate_tool_use(self, model: nn.Module, tokenizer: Any, evaluator: Any = None) -> float:
         """Evaluate model's tool-use ability."""
         if evaluator is not None:
             return evaluator.evaluate(model)
@@ -354,34 +338,37 @@ class ACycleOptimizer:
 
                 try:
                     # Tokenize
-                    if hasattr(tokenizer, '__call__'):
+                    if hasattr(tokenizer, "__call__"):
                         inputs = tokenizer(
                             prompt,
                             return_tensors="pt",
                             max_length=256,
                             truncation=True,
-                            padding=True
+                            padding=True,
                         )
                     else:
-                        inputs = {'input_ids': torch.tensor([[1, 2, 3, 4, 5]])}
+                        inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
 
                     device = next(model.parameters()).device
-                    inputs = {k: v.to(device) for k, v in inputs.items()
-                              if isinstance(v, torch.Tensor)}
+                    inputs = {
+                        k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)
+                    }
 
                     # Generate
-                    if hasattr(model, 'generate'):
-                        outputs = model.generate(
-                            **inputs,
-                            max_new_tokens=64,
-                            do_sample=False
+                    if hasattr(model, "generate"):
+                        outputs = model.generate(**inputs, max_new_tokens=64, do_sample=False)
+                        output_text = (
+                            tokenizer.decode(outputs[0], skip_special_tokens=True)
+                            if hasattr(tokenizer, "decode")
+                            else ""
                         )
-                        output_text = tokenizer.decode(outputs[0], skip_special_tokens=True) if hasattr(tokenizer, 'decode') else ""
                     else:
                         output_text = ""
 
                     # Score based on tool mention
-                    tool_mentions = sum(1 for tool in task.expected_tools if tool in output_text.lower())
+                    tool_mentions = sum(
+                        1 for tool in task.expected_tools if tool in output_text.lower()
+                    )
                     task_score = tool_mentions / len(task.expected_tools)
                     total_score += task_score
 
@@ -390,14 +377,10 @@ class ACycleOptimizer:
 
         return total_score / max(1, len(self.tool_tasks))
 
-    def _bake_tool_prompt(
-        self,
-        model: nn.Module,
-        prompt: str,
-        tokenizer: Any
-    ) -> nn.Module:
+    def _bake_tool_prompt(self, model: nn.Module, prompt: str, tokenizer: Any) -> nn.Module:
         """Bake a tool-use prompt into the model."""
         import copy
+
         baked_model = copy.deepcopy(model)
 
         device = next(baked_model.parameters()).device
@@ -417,32 +400,33 @@ class ACycleOptimizer:
 
             for sample in calibration_samples:
                 try:
-                    if hasattr(tokenizer, '__call__'):
+                    if hasattr(tokenizer, "__call__"):
                         inputs = tokenizer(
                             sample,
                             return_tensors="pt",
                             max_length=256,
                             truncation=True,
-                            padding=True
+                            padding=True,
                         )
                     else:
-                        inputs = {'input_ids': torch.tensor([[1, 2, 3, 4, 5]])}
+                        inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
 
-                    inputs = {k: v.to(device) for k, v in inputs.items()
-                              if isinstance(v, torch.Tensor)}
+                    inputs = {
+                        k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)
+                    }
 
                     outputs = baked_model(**inputs)
 
-                    if hasattr(outputs, 'loss') and outputs.loss is not None:
+                    if hasattr(outputs, "loss") and outputs.loss is not None:
                         loss = outputs.loss
-                    elif hasattr(outputs, 'logits'):
+                    elif hasattr(outputs, "logits"):
                         logits = outputs.logits
                         shift_logits = logits[..., :-1, :].contiguous()
-                        shift_labels = inputs['input_ids'][..., 1:].contiguous()
+                        shift_labels = inputs["input_ids"][..., 1:].contiguous()
                         loss = F.cross_entropy(
                             shift_logits.view(-1, shift_logits.size(-1)),
                             shift_labels.view(-1),
-                            ignore_index=0
+                            ignore_index=0,
                         )
                     else:
                         continue
@@ -464,4 +448,4 @@ class ACycleOptimizer:
         return self.state.copy()
 
 
-__all__ = ['ACycleOptimizer', 'ToolTask', 'SWEBenchToolEvaluator']
+__all__ = ["ACycleOptimizer", "ToolTask", "SWEBenchToolEvaluator"]

@@ -3,14 +3,15 @@ Unit tests for Prompt Baking System
 Tests KL divergence baking, half-baking, and prompt management
 """
 
-import pytest
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from cross_phase.prompt_baking.prompts import PhasePrompts, PromptManager
 from cross_phase.prompt_baking.baker import PromptBakingConfig
+from cross_phase.prompt_baking.prompts import PhasePrompts, PromptManager
 
 
 class TestPhasePrompts:
@@ -54,7 +55,7 @@ class TestPhasePrompts:
             "systems_architect",
             "user_advocate",
             "optimizer",
-            "documentation_expert"
+            "documentation_expert",
         ]
 
         for persona in expected_personas:
@@ -145,11 +146,7 @@ class TestPromptBakingConfig:
 
     def test_custom_config(self):
         """Test custom configuration"""
-        config = PromptBakingConfig(
-            lora_r=32,
-            num_epochs=5,
-            learning_rate=5e-5
-        )
+        config = PromptBakingConfig(lora_r=32, num_epochs=5, learning_rate=5e-5)
 
         assert config.lora_r == 32
         assert config.num_epochs == 5

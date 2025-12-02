@@ -12,60 +12,50 @@ Research: "Prompt Baking" (arXiv:2409.13697v1)
 Key insight: Model-driven persona discovery, not pre-defined templates.
 """
 
-from .baking_engine import (
-    BakingEngine,
-    BakingConfig,
-    BakingResult,
-    BakingCycleType
-)
-from .a_cycle_tool import ACycleOptimizer, ToolTask, SWEBenchToolEvaluator
+from .a_cycle_tool import ACycleOptimizer, SWEBenchToolEvaluator, ToolTask
 from .b_cycle_persona import BCycleOptimizer, PersonaTask
-from .half_baking import HalfBaker, HalfBakeConfig, StrengthScheduler
-from .plateau_detector import PlateauDetector, PlateauConfig, AdaptivePlateauDetector
+from .baking_engine import BakingConfig, BakingCycleType, BakingEngine, BakingResult
+from .half_baking import HalfBakeConfig, HalfBaker, StrengthScheduler
 from .loss_functions import (
+    KLDivergenceLoss,
+    distillation_loss,
+    jensen_shannon_divergence,
     kl_divergence_loss,
     reverse_kl_divergence_loss,
-    jensen_shannon_divergence,
-    distillation_loss,
-    KLDivergenceLoss,
 )
-from .swe_bench_eval import (
-    SWEBenchEvaluator,
-    SWEBenchTask,
-    EvaluationResult,
-    EvaluationMode,
-)
+from .plateau_detector import AdaptivePlateauDetector, PlateauConfig, PlateauDetector
+from .swe_bench_eval import EvaluationMode, EvaluationResult, SWEBenchEvaluator, SWEBenchTask
 
 __all__ = [
     # Main engine
-    'BakingEngine',
-    'BakingConfig',
-    'BakingResult',
-    'BakingCycleType',
+    "BakingEngine",
+    "BakingConfig",
+    "BakingResult",
+    "BakingCycleType",
     # A-Cycle
-    'ACycleOptimizer',
-    'ToolTask',
-    'SWEBenchToolEvaluator',  # M4 TIER 1: SWE-Bench adapter for A-cycle
+    "ACycleOptimizer",
+    "ToolTask",
+    "SWEBenchToolEvaluator",  # M4 TIER 1: SWE-Bench adapter for A-cycle
     # B-Cycle
-    'BCycleOptimizer',
-    'PersonaTask',
+    "BCycleOptimizer",
+    "PersonaTask",
     # Half-baking
-    'HalfBaker',
-    'HalfBakeConfig',
-    'StrengthScheduler',
+    "HalfBaker",
+    "HalfBakeConfig",
+    "StrengthScheduler",
     # Plateau detection
-    'PlateauDetector',
-    'PlateauConfig',
-    'AdaptivePlateauDetector',
+    "PlateauDetector",
+    "PlateauConfig",
+    "AdaptivePlateauDetector",
     # Loss functions (M4 TIER 1)
-    'kl_divergence_loss',
-    'reverse_kl_divergence_loss',
-    'jensen_shannon_divergence',
-    'distillation_loss',
-    'KLDivergenceLoss',
+    "kl_divergence_loss",
+    "reverse_kl_divergence_loss",
+    "jensen_shannon_divergence",
+    "distillation_loss",
+    "KLDivergenceLoss",
     # SWE-Bench evaluation (M4 TIER 1)
-    'SWEBenchEvaluator',
-    'SWEBenchTask',
-    'EvaluationResult',
-    'EvaluationMode',
+    "SWEBenchEvaluator",
+    "SWEBenchTask",
+    "EvaluationResult",
+    "EvaluationMode",
 ]

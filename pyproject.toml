@@ -192,3 +192,7 @@ max-args = 7
 max-locals = 15
 max-branches = 12
 max-statements = 60  # Aligned with NASA POT10
+
+# Setuptools package discovery
+[tool.setuptools.packages.find]
+where = ["src"]

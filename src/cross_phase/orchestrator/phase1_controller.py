@@ -9,16 +9,18 @@ class Phase1Controller(PhaseController):
     def execute(self, input_models: list = None) -> PhaseResult:
         """Execute Phase 1: Create 3 TRM x Titans-MAG models"""
         import time
+
         start_time = time.time()
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("PHASE 1: COGNATE - INITIALIZING")
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
 
         # Imports local to avoid circular dependencies and ensure path context
         import sys
-        import torch
         from pathlib import Path
+
+        import torch
         from transformers import GPT2Tokenizer
 
         # Ensure src is in path
@@ -27,14 +29,13 @@ class Phase1Controller(PhaseController):
             sys.path.insert(0, src_path)
 
         # Phase 1 specific imports
+        # ISS-006: Use canonical MockTokenizer from cross_phase.utils
+        from cross_phase.utils import get_tokenizer
+        from phase1_cognate.data.dataset_downloader import DATASET_CONFIGS, download_all_datasets
+        from phase1_cognate.data.dataset_processor import process_dataset
         from phase1_cognate.model.full_model import TRMTitansMAGModel
         from phase1_cognate.model.model_config import Phase1Config
         from phase1_cognate.training.trainer import Phase1Trainer, TrainingConfig
-        from phase1_cognate.data.dataset_downloader import download_all_datasets, DATASET_CONFIGS
-        from phase1_cognate.data.dataset_processor import process_dataset
-
-        # ISS-006: Use canonical MockTokenizer from cross_phase.utils
-        from cross_phase.utils import get_tokenizer
 
         # 1. Setup Tokenizer (get_tokenizer handles fallback to MockTokenizer)
         tokenizer = get_tokenizer("gpt2")
@@ -49,9 +50,9 @@ class Phase1Controller(PhaseController):
         print("\n--- Step 2: Dataset Processing ---")
         processed_datasets = {}
         for name, dataset in raw_datasets.items():
-             config = DATASET_CONFIGS[name]
-             processed_datasets[name] = process_dataset(dataset, name, config.category)
-             print(f"Processed {name}: {len(processed_datasets[name])} samples")
+            config = DATASET_CONFIGS[name]
+            processed_datasets[name] = process_dataset(dataset, name, config.category)
+            print(f"Processed {name}: {len(processed_datasets[name])} samples")
 
         trained_models = []
         all_metrics = {}
@@ -74,11 +75,11 @@ class Phase1Controller(PhaseController):
             # Note: defaulting to 1 epoch/small batch for prototype speed unless specified
             train_config = TrainingConfig(
                 model_config=model_config,
-                num_epochs=self.config.get('epochs', 1),
-                batch_size=self.config.get('batch_size', 4),
+                num_epochs=self.config.get("epochs", 1),
+                batch_size=self.config.get("batch_size", 4),
                 checkpoint_dir=Path(f"checkpoints/phase1/{spec}"),
                 device="cuda" if torch.cuda.is_available() else "cpu",
-                wandb_mode="offline"
+                wandb_mode="offline",
             )
 
             # Trainer
@@ -86,7 +87,7 @@ class Phase1Controller(PhaseController):
                 model=model,
                 config=train_config,
                 train_datasets=processed_datasets,
-                tokenizer=tokenizer
+                tokenizer=tokenizer,
             )
 
             # Train
@@ -94,9 +95,11 @@ class Phase1Controller(PhaseController):
 
             trained_models.append(model)
             all_metrics[spec] = {
-                "final_loss": trainer.best_val_loss if trainer.best_val_loss != float('inf') else 0.0,
+                "final_loss": trainer.best_val_loss
+                if trainer.best_val_loss != float("inf")
+                else 0.0,
                 "epochs": train_config.num_epochs,
-                "parameters": model.count_parameters()["total"]
+                "parameters": model.count_parameters()["total"],
             }
 
         print(f"\nPhase 1 Complete. Generated {len(trained_models)} models.")
@@ -109,7 +112,7 @@ class Phase1Controller(PhaseController):
             duration=time.time() - start_time,
             artifacts={"models": [f"model_{s}" for s in specializations]},
             config=self.config,
-            error=None
+            error=None,
         )
 
     def validate_input(self, input_models: list = None) -> bool:
@@ -130,14 +133,14 @@ class Phase1Controller(PhaseController):
 
         if result.metrics:
             # Check for 3 models
-            model_count = result.metrics.get('model_count', 0)
+            model_count = result.metrics.get("model_count", 0)
             if model_count < 3:
                 return False
 
             # Check loss is reasonable (not NaN, not too high)
-            for spec in ['reasoning', 'memory', 'speed']:
-                loss = result.metrics.get(f'{spec}_loss', float('inf'))
-                if loss == float('inf') or loss != loss:  # NaN check
+            for spec in ["reasoning", "memory", "speed"]:
+                loss = result.metrics.get(f"{spec}_loss", float("inf"))
+                if loss == float("inf") or loss != loss:  # NaN check
                     return False
 
         return True

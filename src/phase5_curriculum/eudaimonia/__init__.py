@@ -12,26 +12,21 @@ Research Foundation:
 - Aristotelian virtue ethics (eudaimonia concept)
 - OODA loop decision-making (military strategy)
 """
-from .rules import (
-    EudaimoniaRuleSystem,
-    RuleType,
-    RuleAssessment,
-    EudaimoniaScore,
-    calculate_eudaimonia_score
-)
 from .archetypes import (
     ArchetypeCouncil,
-    ArchetypeType,
     ArchetypeGuidance,
+    ArchetypeType,
     ChristArchetype,
     HarmonyArchetype,
-    StoicArchetype
+    StoicArchetype,
 )
-from .ooda_loop import (
-    OODALoop,
-    OODAState,
-    OODADecision,
-    SmallestMeasurableAction
+from .ooda_loop import OODADecision, OODALoop, OODAState, SmallestMeasurableAction
+from .rules import (
+    EudaimoniaRuleSystem,
+    EudaimoniaScore,
+    RuleAssessment,
+    RuleType,
+    calculate_eudaimonia_score,
 )
 
 __all__ = [

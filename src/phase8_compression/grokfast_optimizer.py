@@ -27,9 +27,9 @@ Usage:
         grokfast.step()  # Applies Grokfast filtering then steps
 """
 
-from dataclasses import dataclass
-from typing import Dict, Optional, Literal, Any
 import math
+from dataclasses import dataclass
+from typing import Any, Dict, Literal, Optional
 
 import torch
 import torch.nn as nn
@@ -38,13 +38,14 @@ import torch.nn as nn
 @dataclass
 class GrokfastConfig:
     """Configuration for Grokfast optimizer wrapper."""
-    alpha: float = 0.98              # EMA decay rate (higher = slower adaptation)
-    lamb: float = 2.0                # Amplification factor for slow components
+
+    alpha: float = 0.98  # EMA decay rate (higher = slower adaptation)
+    lamb: float = 2.0  # Amplification factor for slow components
     filter_type: Literal["ema", "ma", "adaptive"] = "ema"
-    window_size: int = 100           # For MA filter
-    warmup_steps: int = 100          # Steps before Grokfast kicks in
-    min_alpha: float = 0.90          # Minimum alpha for adaptive filter
-    max_alpha: float = 0.999         # Maximum alpha for adaptive filter
+    window_size: int = 100  # For MA filter
+    warmup_steps: int = 100  # Steps before Grokfast kicks in
+    min_alpha: float = 0.90  # Minimum alpha for adaptive filter
+    max_alpha: float = 0.999  # Maximum alpha for adaptive filter
     adaptive_target_ratio: float = 0.5  # Target ratio for adaptive alpha
 
 
@@ -79,7 +80,7 @@ class GrokfastOptimizer:
         config: GrokfastConfig = None,
         alpha: float = None,
         lamb: float = None,
-        warmup_steps: int = None
+        warmup_steps: int = None,
     ):
         """
         Initialize Grokfast wrapper.
@@ -138,7 +139,7 @@ class GrokfastOptimizer:
 
         # Apply Grokfast filter to each parameter's gradient
         for group in self.optimizer.param_groups:
-            for p in group['params']:
+            for p in group["params"]:
                 if p.grad is None:
                     continue
 
@@ -159,11 +160,7 @@ class GrokfastOptimizer:
 
         return self.optimizer.step(closure)
 
-    def _apply_ema_filter(
-        self,
-        param_id: int,
-        grad: torch.Tensor
-    ) -> torch.Tensor:
+    def _apply_ema_filter(self, param_id: int, grad: torch.Tensor) -> torch.Tensor:
         """
         Apply EMA-based Grokfast filter.
 
@@ -184,11 +181,7 @@ class GrokfastOptimizer:
 
         return filtered
 
-    def _apply_ma_filter(
-        self,
-        param_id: int,
-        grad: torch.Tensor
-    ) -> torch.Tensor:
+    def _apply_ma_filter(self, param_id: int, grad: torch.Tensor) -> torch.Tensor:
         """
         Apply Moving Average based Grokfast filter.
 
@@ -215,11 +208,7 @@ class GrokfastOptimizer:
 
         return filtered
 
-    def _apply_adaptive_filter(
-        self,
-        param_id: int,
-        grad: torch.Tensor
-    ) -> torch.Tensor:
+    def _apply_adaptive_filter(self, param_id: int, grad: torch.Tensor) -> torch.Tensor:
         """
         Apply adaptive Grokfast filter.
 
@@ -272,31 +261,29 @@ class GrokfastOptimizer:
     def state_dict(self) -> Dict[str, Any]:
         """Get state dict for checkpointing."""
         return {
-            'optimizer_state': self.optimizer.state_dict(),
-            'ema_grads': {k: v.cpu() for k, v in self.ema_grads.items()},
-            'step_count': self.step_count,
-            'config': {
-                'alpha': self.config.alpha,
-                'lamb': self.config.lamb,
-                'filter_type': self.config.filter_type,
-                'warmup_steps': self.config.warmup_steps
-            }
+            "optimizer_state": self.optimizer.state_dict(),
+            "ema_grads": {k: v.cpu() for k, v in self.ema_grads.items()},
+            "step_count": self.step_count,
+            "config": {
+                "alpha": self.config.alpha,
+                "lamb": self.config.lamb,
+                "filter_type": self.config.filter_type,
+                "warmup_steps": self.config.warmup_steps,
+            },
         }
 
     def load_state_dict(self, state_dict: Dict[str, Any]):
         """Load state from checkpoint."""
-        self.optimizer.load_state_dict(state_dict['optimizer_state'])
-        self.step_count = state_dict['step_count']
+        self.optimizer.load_state_dict(state_dict["optimizer_state"])
+        self.step_count = state_dict["step_count"]
 
         # Restore EMA grads to correct device
-        device = next(iter(self.optimizer.param_groups[0]['params'])).device
-        self.ema_grads = {
-            k: v.to(device) for k, v in state_dict['ema_grads'].items()
-        }
+        device = next(iter(self.optimizer.param_groups[0]["params"])).device
+        self.ema_grads = {k: v.to(device) for k, v in state_dict["ema_grads"].items()}
 
         # Restore config
-        if 'config' in state_dict:
-            for key, value in state_dict['config'].items():
+        if "config" in state_dict:
+            for key, value in state_dict["config"].items():
                 if hasattr(self.config, key):
                     setattr(self.config, key, value)
 
@@ -307,13 +294,13 @@ class GrokfastOptimizer:
 
         ema_norms = [v.norm().item() for v in self.ema_grads.values()]
         return {
-            'step_count': self.step_count,
-            'mean_ema_norm': sum(ema_norms) / len(ema_norms),
-            'max_ema_norm': max(ema_norms),
-            'min_ema_norm': min(ema_norms),
-            'alpha': self.config.alpha,
-            'lamb': self.config.lamb,
-            'is_active': self.step_count > self.config.warmup_steps
+            "step_count": self.step_count,
+            "mean_ema_norm": sum(ema_norms) / len(ema_norms),
+            "max_ema_norm": max(ema_norms),
+            "min_ema_norm": min(ema_norms),
+            "alpha": self.config.alpha,
+            "lamb": self.config.lamb,
+            "is_active": self.step_count > self.config.warmup_steps,
         }
 
 
@@ -324,7 +311,7 @@ def create_grokfast_optimizer(
     weight_decay: float = 0.01,
     grokfast_alpha: float = 0.98,
     grokfast_lamb: float = 2.0,
-    grokfast_warmup: int = 100
+    grokfast_warmup: int = 100,
 ) -> GrokfastOptimizer:
     """
     Factory function to create a Grokfast-wrapped optimizer.
@@ -342,34 +329,17 @@ def create_grokfast_optimizer(
         GrokfastOptimizer wrapping the specified base optimizer
     """
     if base_optimizer.lower() == "adamw":
-        base = torch.optim.AdamW(
-            model.parameters(),
-            lr=lr,
-            weight_decay=weight_decay
-        )
+        base = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     elif base_optimizer.lower() == "adam":
         base = torch.optim.Adam(model.parameters(), lr=lr)
     elif base_optimizer.lower() == "sgd":
-        base = torch.optim.SGD(
-            model.parameters(),
-            lr=lr,
-            momentum=0.9,
-            weight_decay=weight_decay
-        )
+        base = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay)
     else:
         raise ValueError(f"Unknown optimizer: {base_optimizer}")
 
-    config = GrokfastConfig(
-        alpha=grokfast_alpha,
-        lamb=grokfast_lamb,
-        warmup_steps=grokfast_warmup
-    )
+    config = GrokfastConfig(alpha=grokfast_alpha, lamb=grokfast_lamb, warmup_steps=grokfast_warmup)
 
     return GrokfastOptimizer(base, config)
 
 
-__all__ = [
-    'GrokfastOptimizer',
-    'GrokfastConfig',
-    'create_grokfast_optimizer'
-]
+__all__ = ["GrokfastOptimizer", "GrokfastConfig", "create_grokfast_optimizer"]

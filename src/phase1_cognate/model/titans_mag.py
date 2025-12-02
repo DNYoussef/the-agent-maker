@@ -10,18 +10,13 @@ Titans-MAG Backbone Implementation
 Target: ~20M params for backbone (leaves 5M for TRM wrapper + heads)
 """
 
-import torch
-import torch.nn as nn
 from typing import Optional, Tuple
 
+import torch
+import torch.nn as nn
+
+from .components import LongTermMemory, MAGGate, RMSNorm, SlidingWindowAttention, SwiGLUMLP
 from .model_config import TitansMAGConfig
-from .components import (
-    RMSNorm,
-    SwiGLUMLP,
-    SlidingWindowAttention,
-    LongTermMemory,
-    MAGGate
-)
 
 
 class TitansMAGLayer(nn.Module):
@@ -43,24 +38,13 @@ class TitansMAGLayer(nn.Module):
 
         # Sliding Window Attention
         self.attention = SlidingWindowAttention(
-            config.d_model,
-            config.n_heads,
-            config.sw_window,
-            config.attention_dropout
+            config.d_model, config.n_heads, config.sw_window, config.attention_dropout
         )
 
         # SwiGLU MLP
-        self.mlp = SwiGLUMLP(
-            config.d_model,
-            config.d_ff,
-            config.dropout
-        )
+        self.mlp = SwiGLUMLP(config.d_model, config.d_ff, config.dropout)
 
-    def forward(
-        self,
-        x: torch.Tensor,
-        mask: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Forward pass through Titans-MAG layer.
 
@@ -105,24 +89,13 @@ class TitansMAGBackbone(nn.Module):
         self.pos_emb = nn.Embedding(config.max_seq_len, config.d_model)
 
         # 8 transformer layers
-        self.layers = nn.ModuleList([
-            TitansMAGLayer(config)
-            for _ in range(config.n_layers)
-        ])
+        self.layers = nn.ModuleList([TitansMAGLayer(config) for _ in range(config.n_layers)])
 
         # Long-term memory
-        self.ltm = LongTermMemory(
-            config.d_model,
-            config.d_mem,
-            config.memory_decay
-        )
+        self.ltm = LongTermMemory(config.d_model, config.d_mem, config.memory_decay)
 
         # MAG gate
-        self.mag_gate = MAGGate(
-            config.d_model,
-            config.mag_hidden,
-            config.mag_entropy_reg
-        )
+        self.mag_gate = MAGGate(config.d_model, config.mag_hidden, config.mag_entropy_reg)
 
         # Final norm
         self.norm = RMSNorm(config.d_model)
@@ -140,9 +113,7 @@ class TitansMAGBackbone(nn.Module):
                 torch.nn.init.normal_(module.weight, std=0.02)
 
     def forward(
-        self,
-        input_ids: torch.Tensor,
-        mask: Optional[torch.Tensor] = None
+        self, input_ids: torch.Tensor, mask: Optional[torch.Tensor] = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass through Titans-MAG backbone.
@@ -159,10 +130,12 @@ class TitansMAGBackbone(nn.Module):
 
         # Clamp sequence length to max_seq_len
         if seq_len > self.config.max_seq_len:
-            print(f"WARNING: seq_len ({seq_len}) > max_seq_len ({self.config.max_seq_len}), truncating")
-            input_ids = input_ids[:, :self.config.max_seq_len]
+            print(
+                f"WARNING: seq_len ({seq_len}) > max_seq_len ({self.config.max_seq_len}), truncating"
+            )
+            input_ids = input_ids[:, : self.config.max_seq_len]
             if mask is not None:
-                mask = mask[:, :self.config.max_seq_len]
+                mask = mask[:, : self.config.max_seq_len]
             batch, seq_len = input_ids.shape
 
         # Embeddings

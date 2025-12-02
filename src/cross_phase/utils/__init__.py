@@ -1,12 +1,12 @@
 """Cross-phase utility modules."""
 
-from .checkpoint_utils import save_checkpoint, load_checkpoint, SAFETENSORS_AVAILABLE
-
 # Import from parent utils.py (ISS-016 unified MockTokenizer)
 # Note: This requires accessing ../utils.py (sibling to utils/ directory)
 import importlib.util
 import sys
 from pathlib import Path
+
+from .checkpoint_utils import SAFETENSORS_AVAILABLE, load_checkpoint, save_checkpoint
 
 # Load utils.py from parent directory
 _utils_file = Path(__file__).parent.parent / "utils.py"

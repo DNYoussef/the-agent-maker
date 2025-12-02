@@ -10,10 +10,10 @@ Research: "Prompt Baking" (arXiv:2409.13697v1)
 M4 TIER 1: W&B logging for A/B cycle metrics.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
-from enum import Enum
 import time
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -21,6 +21,7 @@ import torch.nn as nn
 # W&B integration (optional - graceful fallback)
 try:
     import wandb
+
     WANDB_AVAILABLE = True
 except ImportError:
     WANDB_AVAILABLE = False
@@ -29,28 +30,34 @@ except ImportError:
 
 class BakingCycleType(Enum):
     """Type of baking cycle."""
-    A_CYCLE = "tool"      # Tool use optimization
-    B_CYCLE = "persona"   # Persona optimization
+
+    A_CYCLE = "tool"  # Tool use optimization
+    B_CYCLE = "persona"  # Persona optimization
 
 
 @dataclass
 class BakingConfig:
     """Configuration for Phase 6 baking."""
+
     # A-Cycle (Tool) settings
     a_cycle_iterations: int = 5
-    tool_prompts: List[str] = field(default_factory=lambda: [
-        "You are an expert at using tools systematically.",
-        "Always verify tool outputs before proceeding.",
-        "Break complex tasks into tool-executable steps."
-    ])
+    tool_prompts: List[str] = field(
+        default_factory=lambda: [
+            "You are an expert at using tools systematically.",
+            "Always verify tool outputs before proceeding.",
+            "Break complex tasks into tool-executable steps.",
+        ]
+    )
 
     # B-Cycle (Persona) settings
     b_cycle_iterations: int = 5
-    persona_prompts: List[str] = field(default_factory=lambda: [
-        "You are a careful and thorough assistant.",
-        "Think step by step before responding.",
-        "Verify your answers before providing them."
-    ])
+    persona_prompts: List[str] = field(
+        default_factory=lambda: [
+            "You are a careful and thorough assistant.",
+            "Think step by step before responding.",
+            "Verify your answers before providing them.",
+        ]
+    )
 
     # Half-baking settings
     half_bake_strength: float = 0.5
@@ -70,6 +77,7 @@ class BakingConfig:
 @dataclass
 class BakingResult:
     """Result from Phase 6 baking."""
+
     success: bool
     model: nn.Module
     total_iterations: int
@@ -100,7 +108,7 @@ class BakingEngine:
         config: BakingConfig = None,
         use_wandb: bool = True,
         wandb_project: str = "agent-forge-phase6",
-        wandb_run_name: Optional[str] = None
+        wandb_run_name: Optional[str] = None,
     ):
         """
         Initialize baking engine.
@@ -113,10 +121,10 @@ class BakingEngine:
         """
         self.config = config or BakingConfig()
         self.metrics = {
-            'a_cycle_scores': [],
-            'b_cycle_scores': [],
-            'iteration_times': [],
-            'plateau_detections': []
+            "a_cycle_scores": [],
+            "b_cycle_scores": [],
+            "iteration_times": [],
+            "plateau_detections": [],
         }
 
         # W&B integration
@@ -147,7 +155,7 @@ class BakingEngine:
                     "lora_r": self.config.lora_r,
                     "lora_alpha": self.config.lora_alpha,
                 },
-                reinit=True
+                reinit=True,
             )
             print(f"  W&B run initialized: {wandb.run.name}")
         except Exception as e:
@@ -164,28 +172,30 @@ class BakingEngine:
         except Exception as e:
             print(f"  W&B log failed: {e}")
 
-    def _finish_wandb(self, result: 'BakingResult'):
+    def _finish_wandb(self, result: "BakingResult"):
         """Finish W&B run with summary."""
         if not self.use_wandb or not self._wandb_run:
             return
 
         try:
             # Log final summary
-            wandb.summary.update({
-                "final_tool_score": result.final_tool_score,
-                "final_persona_score": result.final_persona_score,
-                "total_iterations": result.total_iterations,
-                "a_cycle_count": result.a_cycle_count,
-                "b_cycle_count": result.b_cycle_count,
-                "success": result.success,
-                "plateau_count": len(result.metrics.get('plateau_detections', [])),
-            })
+            wandb.summary.update(
+                {
+                    "final_tool_score": result.final_tool_score,
+                    "final_persona_score": result.final_persona_score,
+                    "total_iterations": result.total_iterations,
+                    "a_cycle_count": result.a_cycle_count,
+                    "b_cycle_count": result.b_cycle_count,
+                    "success": result.success,
+                    "plateau_count": len(result.metrics.get("plateau_detections", [])),
+                }
+            )
 
             # Log score histories as artifacts
-            if result.metrics.get('a_cycle_scores'):
-                wandb.log({"a_cycle_final_scores": result.metrics['a_cycle_scores']})
-            if result.metrics.get('b_cycle_scores'):
-                wandb.log({"b_cycle_final_scores": result.metrics['b_cycle_scores']})
+            if result.metrics.get("a_cycle_scores"):
+                wandb.log({"a_cycle_final_scores": result.metrics["a_cycle_scores"]})
+            if result.metrics.get("b_cycle_scores"):
+                wandb.log({"b_cycle_final_scores": result.metrics["b_cycle_scores"]})
 
             wandb.finish()
             print(f"  W&B run finished successfully")
@@ -197,7 +207,7 @@ class BakingEngine:
         model: nn.Module,
         tokenizer: Any,
         tool_evaluator: Any = None,
-        persona_evaluator: Any = None
+        persona_evaluator: Any = None,
     ) -> BakingResult:
         """
         Execute Phase 6 baking pipeline.
@@ -227,8 +237,8 @@ class BakingEngine:
         # Import components
         from .a_cycle_tool import ACycleOptimizer
         from .b_cycle_persona import BCycleOptimizer
-        from .plateau_detector import PlateauDetector
         from .half_baking import HalfBaker
+        from .plateau_detector import PlateauDetector
 
         # Initialize components
         a_optimizer = ACycleOptimizer(
@@ -236,7 +246,7 @@ class BakingEngine:
             lora_r=self.config.lora_r,
             lora_alpha=self.config.lora_alpha,
             num_epochs=self.config.baking_epochs,
-            learning_rate=self.config.learning_rate
+            learning_rate=self.config.learning_rate,
         )
 
         b_optimizer = BCycleOptimizer(
@@ -244,17 +254,14 @@ class BakingEngine:
             lora_r=self.config.lora_r,
             lora_alpha=self.config.lora_alpha,
             num_epochs=self.config.baking_epochs,
-            learning_rate=self.config.learning_rate
+            learning_rate=self.config.learning_rate,
         )
 
         plateau_detector = PlateauDetector(
-            window_size=self.config.plateau_window,
-            threshold=self.config.plateau_threshold
+            window_size=self.config.plateau_window, threshold=self.config.plateau_threshold
         )
 
-        half_baker = HalfBaker(
-            strength=self.config.half_bake_strength
-        )
+        half_baker = HalfBaker(strength=self.config.half_bake_strength)
 
         # Current cycle (start with A)
         current_cycle = BakingCycleType.A_CYCLE
@@ -272,32 +279,32 @@ class BakingEngine:
 
                     # Run A-cycle optimization
                     baked_model, score = a_optimizer.optimize(
-                        model=current_model,
-                        tokenizer=tokenizer,
-                        evaluator=tool_evaluator
+                        model=current_model, tokenizer=tokenizer, evaluator=tool_evaluator
                     )
 
                     # Half-bake the result
                     current_model = half_baker.half_bake(
-                        original_model=current_model,
-                        baked_model=baked_model
+                        original_model=current_model, baked_model=baked_model
                     )
 
-                    self.metrics['a_cycle_scores'].append(score)
+                    self.metrics["a_cycle_scores"].append(score)
                     print(f"  A-cycle score: {score:.3f}")
 
                     # W&B logging for A-cycle
-                    self._log_wandb({
-                        "a_cycle/score": score,
-                        "a_cycle/iteration": a_cycle_count,
-                        "a_cycle/best_score": max(self.metrics['a_cycle_scores']),
-                        "cycle_type": "A",
-                    }, step=total_iterations)
+                    self._log_wandb(
+                        {
+                            "a_cycle/score": score,
+                            "a_cycle/iteration": a_cycle_count,
+                            "a_cycle/best_score": max(self.metrics["a_cycle_scores"]),
+                            "cycle_type": "A",
+                        },
+                        step=total_iterations,
+                    )
 
                     # Check for plateau
-                    if plateau_detector.check(score, 'a_cycle'):
+                    if plateau_detector.check(score, "a_cycle"):
                         print(f"  Plateau detected in A-cycle, switching to B-cycle")
-                        self.metrics['plateau_detections'].append(('a_cycle', total_iterations))
+                        self.metrics["plateau_detections"].append(("a_cycle", total_iterations))
                         current_cycle = BakingCycleType.B_CYCLE
 
                 else:
@@ -306,44 +313,47 @@ class BakingEngine:
 
                     # Run B-cycle optimization
                     baked_model, score = b_optimizer.optimize(
-                        model=current_model,
-                        tokenizer=tokenizer,
-                        evaluator=persona_evaluator
+                        model=current_model, tokenizer=tokenizer, evaluator=persona_evaluator
                     )
 
                     # Half-bake the result
                     current_model = half_baker.half_bake(
-                        original_model=current_model,
-                        baked_model=baked_model
+                        original_model=current_model, baked_model=baked_model
                     )
 
-                    self.metrics['b_cycle_scores'].append(score)
+                    self.metrics["b_cycle_scores"].append(score)
                     print(f"  B-cycle score: {score:.3f}")
 
                     # W&B logging for B-cycle
-                    self._log_wandb({
-                        "b_cycle/score": score,
-                        "b_cycle/iteration": b_cycle_count,
-                        "b_cycle/best_score": max(self.metrics['b_cycle_scores']),
-                        "cycle_type": "B",
-                    }, step=total_iterations)
+                    self._log_wandb(
+                        {
+                            "b_cycle/score": score,
+                            "b_cycle/iteration": b_cycle_count,
+                            "b_cycle/best_score": max(self.metrics["b_cycle_scores"]),
+                            "cycle_type": "B",
+                        },
+                        step=total_iterations,
+                    )
 
                     # Check for plateau
-                    if plateau_detector.check(score, 'b_cycle'):
+                    if plateau_detector.check(score, "b_cycle"):
                         print(f"  Plateau detected in B-cycle, switching to A-cycle")
-                        self.metrics['plateau_detections'].append(('b_cycle', total_iterations))
+                        self.metrics["plateau_detections"].append(("b_cycle", total_iterations))
                         current_cycle = BakingCycleType.A_CYCLE
 
                 iter_time = time.time() - iter_start
-                self.metrics['iteration_times'].append(iter_time)
+                self.metrics["iteration_times"].append(iter_time)
 
                 # Log iteration metrics
-                self._log_wandb({
-                    "iteration/time_seconds": iter_time,
-                    "iteration/total": total_iterations,
-                    "iteration/a_count": a_cycle_count,
-                    "iteration/b_count": b_cycle_count,
-                }, step=total_iterations)
+                self._log_wandb(
+                    {
+                        "iteration/time_seconds": iter_time,
+                        "iteration/total": total_iterations,
+                        "iteration/a_count": a_cycle_count,
+                        "iteration/b_count": b_cycle_count,
+                    },
+                    step=total_iterations,
+                )
 
                 # Check if both cycles have plateaued
                 if plateau_detector.both_plateaued():
@@ -351,8 +361,12 @@ class BakingEngine:
                     break
 
             # Get final scores
-            final_tool_score = self.metrics['a_cycle_scores'][-1] if self.metrics['a_cycle_scores'] else 0.0
-            final_persona_score = self.metrics['b_cycle_scores'][-1] if self.metrics['b_cycle_scores'] else 0.0
+            final_tool_score = (
+                self.metrics["a_cycle_scores"][-1] if self.metrics["a_cycle_scores"] else 0.0
+            )
+            final_persona_score = (
+                self.metrics["b_cycle_scores"][-1] if self.metrics["b_cycle_scores"] else 0.0
+            )
 
             total_time = time.time() - start_time
 
@@ -374,10 +388,10 @@ class BakingEngine:
                 final_persona_score=final_persona_score,
                 metrics=self.metrics,
                 artifacts={
-                    'a_optimizer_state': a_optimizer.get_state(),
-                    'b_optimizer_state': b_optimizer.get_state(),
-                    'plateau_history': plateau_detector.get_history()
-                }
+                    "a_optimizer_state": a_optimizer.get_state(),
+                    "b_optimizer_state": b_optimizer.get_state(),
+                    "plateau_history": plateau_detector.get_history(),
+                },
             )
 
             # Finish W&B run with success
@@ -395,7 +409,7 @@ class BakingEngine:
                 final_persona_score=0.0,
                 metrics=self.metrics,
                 artifacts={},
-                error=str(e)
+                error=str(e),
             )
 
             # Finish W&B run with failure
@@ -403,4 +417,4 @@ class BakingEngine:
             return result
 
 
-__all__ = ['BakingEngine', 'BakingConfig', 'BakingResult', 'BakingCycleType']
+__all__ = ["BakingEngine", "BakingConfig", "BakingResult", "BakingCycleType"]

@@ -23,11 +23,12 @@ Research:
     - Yadav et al., "TIES-Merging: Resolving Interference" (NeurIPS 2023)
 """
 
-from typing import List
 import copy
+import logging
+from typing import List
+
 import torch
 import torch.nn as nn
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -50,9 +51,7 @@ class TIESMerge:
         """
         self.trim_percent = trim_percent
 
-    def merge(
-        self, model_target: nn.Module, models_ref: List[nn.Module]
-    ) -> nn.Module:
+    def merge(self, model_target: nn.Module, models_ref: List[nn.Module]) -> nn.Module:
         """
         Merge target model with reference models using TIES.
 
@@ -72,9 +71,7 @@ class TIESMerge:
         # Verify compatibility
         for model in models_ref:
             if not self._check_compatibility(model_target, model):
-                raise ValueError(
-                    "All models must have same architecture for TIES merge"
-                )
+                raise ValueError("All models must have same architecture for TIES merge")
 
         # Create result as copy of target
         result_model = copy.deepcopy(model_target)
@@ -82,9 +79,7 @@ class TIESMerge:
         with torch.no_grad():
             for param_name, target_param in model_target.named_parameters():
                 # Get reference parameters
-                ref_params = [
-                    dict(m.named_parameters())[param_name] for m in models_ref
-                ]
+                ref_params = [dict(m.named_parameters())[param_name] for m in models_ref]
 
                 # Compute deltas from target
                 deltas = [ref_param - target_param for ref_param in ref_params]
@@ -96,9 +91,7 @@ class TIESMerge:
                 elected_sign = self._elect_sign(trimmed_deltas)
 
                 # Step 3: MERGE - Average params with matching sign
-                merged_delta = self._merge_with_elected_sign(
-                    trimmed_deltas, elected_sign
-                )
+                merged_delta = self._merge_with_elected_sign(trimmed_deltas, elected_sign)
 
                 # Apply merged delta to result
                 result_param = dict(result_model.named_parameters())[param_name]
@@ -106,9 +99,7 @@ class TIESMerge:
 
         return result_model
 
-    def _trim_deltas(
-        self, deltas: List[torch.Tensor], keep_percent: float
-    ) -> List[torch.Tensor]:
+    def _trim_deltas(self, deltas: List[torch.Tensor], keep_percent: float) -> List[torch.Tensor]:
         """
         Trim deltas to keep only top k% by magnitude.
 
@@ -133,9 +124,7 @@ class TIESMerge:
             mask = magnitude >= threshold
 
             # Apply mask
-            trimmed_delta = torch.where(
-                mask, delta, torch.zeros_like(delta)
-            )
+            trimmed_delta = torch.where(mask, delta, torch.zeros_like(delta))
             trimmed.append(trimmed_delta)
 
         return trimmed
@@ -184,9 +173,7 @@ class TIESMerge:
             # (elected_sign == 0 means no consensus, keep nothing)
             match_mask = (delta_sign == elected_sign) & (elected_sign != 0)
 
-            matching_delta = torch.where(
-                match_mask, delta, torch.zeros_like(delta)
-            )
+            matching_delta = torch.where(match_mask, delta, torch.zeros_like(delta))
             matching_deltas.append(matching_delta)
 
         # Average matching deltas
@@ -201,9 +188,7 @@ class TIESMerge:
 
         return merged
 
-    def _check_compatibility(
-        self, model1: nn.Module, model2: nn.Module
-    ) -> bool:
+    def _check_compatibility(self, model1: nn.Module, model2: nn.Module) -> bool:
         """
         Check if two models have compatible architectures.
 

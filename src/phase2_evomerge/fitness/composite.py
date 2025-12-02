@@ -5,22 +5,21 @@ This module combines four component metrics (perplexity, accuracy, speed, memory
 into a single composite fitness score using weighted averaging.
 """
 
-from typing import Dict, Any, Optional
-
+from typing import Any, Dict, Optional
 
 # Default fitness weights (from V1 Phase 2)
 DEFAULT_WEIGHTS = {
-    'perplexity': 0.4,  # 40% - Language modeling quality
-    'accuracy': 0.3,    # 30% - Task performance
-    'speed': 0.2,       # 20% - Inference efficiency
-    'memory': 0.1       # 10% - Resource usage
+    "perplexity": 0.4,  # 40% - Language modeling quality
+    "accuracy": 0.3,  # 30% - Task performance
+    "speed": 0.2,  # 20% - Inference efficiency
+    "memory": 0.1,  # 10% - Resource usage
 }
 
 # Default expected values for normalization
 DEFAULT_EXPECTED = {
-    'perplexity': 15.0,  # Typical for 25M param model
-    'speed': 1200.0,     # tokens/sec on GTX 1660
-    'memory': 500.0      # MB (25M params × 4 bytes × 2)
+    "perplexity": 15.0,  # Typical for 25M param model
+    "speed": 1200.0,  # tokens/sec on GTX 1660
+    "memory": 500.0,  # MB (25M params × 4 bytes × 2)
 }
 
 
@@ -30,7 +29,7 @@ def compute_composite_fitness(
     speed: float,
     memory: float,
     weights: Optional[Dict[str, float]] = None,
-    expected_values: Optional[Dict[str, float]] = None
+    expected_values: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
     """
     Compute composite fitness score from component metrics.
@@ -82,9 +81,7 @@ def compute_composite_fitness(
     # Validate weights sum to 1.0
     weight_sum = sum(weights.values())
     if abs(weight_sum - 1.0) > 1e-6:
-        raise ValueError(
-            f"Weights must sum to 1.0, got {weight_sum:.6f}"
-        )
+        raise ValueError(f"Weights must sum to 1.0, got {weight_sum:.6f}")
 
     # Validate no negative values
     if perplexity < 0 or accuracy < 0 or speed < 0 or memory < 0:
@@ -103,27 +100,27 @@ def compute_composite_fitness(
     # Compute component scores
     perplexity_score = 1.0 / perplexity
     accuracy_score = accuracy
-    speed_score = speed / expected_values['speed']
-    memory_score = expected_values['memory'] / memory
+    speed_score = speed / expected_values["speed"]
+    memory_score = expected_values["memory"] / memory
 
     # Compute composite fitness
     composite_fitness = (
-        weights['perplexity'] * perplexity_score +
-        weights['accuracy'] * accuracy_score +
-        weights['speed'] * speed_score +
-        weights['memory'] * memory_score
+        weights["perplexity"] * perplexity_score
+        + weights["accuracy"] * accuracy_score
+        + weights["speed"] * speed_score
+        + weights["memory"] * memory_score
     )
 
     # Return results
     return {
-        'composite': composite_fitness,
-        'components': {
-            'perplexity': perplexity,
-            'perplexity_score': perplexity_score,
-            'accuracy': accuracy,
-            'speed': speed,
-            'speed_score': speed_score,
-            'memory': memory,
-            'memory_score': memory_score
-        }
+        "composite": composite_fitness,
+        "components": {
+            "perplexity": perplexity,
+            "perplexity_score": perplexity_score,
+            "accuracy": accuracy,
+            "speed": speed,
+            "speed_score": speed_score,
+            "memory": memory,
+            "memory_score": memory_score,
+        },
     }

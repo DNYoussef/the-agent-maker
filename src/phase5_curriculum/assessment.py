@@ -8,9 +8,9 @@ Key insight: Maximum learning occurs at the edge of chaos where
 systems exhibit maximum information processing capacity.
 """
 
-from dataclasses import dataclass
-from typing import Dict, List, Optional, Any, Tuple
 import random
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -19,6 +19,7 @@ import torch.nn as nn
 @dataclass
 class AssessmentResult:
     """Result of a single assessment question."""
+
     level: int
     question: str
     correct: bool
@@ -39,12 +40,7 @@ class EdgeOfChaosAssessment:
     3. Find level where accuracy ~= threshold (75%)
     """
 
-    def __init__(
-        self,
-        threshold: float = 0.75,
-        num_questions: int = 2000,
-        tolerance: float = 0.05
-    ):
+    def __init__(self, threshold: float = 0.75, num_questions: int = 2000, tolerance: float = 0.05):
         """
         Initialize assessment.
 
@@ -58,10 +54,7 @@ class EdgeOfChaosAssessment:
         self.tolerance = tolerance
 
     def find_baseline(
-        self,
-        model: nn.Module,
-        tokenizer: Any,
-        frontier_client: Optional[Any] = None
+        self, model: nn.Module, tokenizer: Any, frontier_client: Optional[Any] = None
     ) -> Tuple[int, Dict[str, Any]]:
         """
         Find the baseline level where model achieves ~75% accuracy.
@@ -87,7 +80,7 @@ class EdgeOfChaosAssessment:
         model.eval()
         with torch.no_grad():
             for level in range(1, 101, 5):  # Sample every 5 levels for speed
-                level_questions = [q for q in questions if q['level'] == level]
+                level_questions = [q for q in questions if q["level"] == level]
 
                 if not level_questions:
                     # Generate placeholder questions for this level
@@ -104,9 +97,9 @@ class EdgeOfChaosAssessment:
                 accuracy = correct / total if total > 0 else 0
                 level_accuracies[level] = accuracy
                 level_results[level] = {
-                    'accuracy': accuracy,
-                    'n_questions': total,
-                    'correct': correct
+                    "accuracy": accuracy,
+                    "n_questions": total,
+                    "correct": correct,
                 }
 
                 print(f"    Level {level}: {accuracy:.1%} ({correct}/{total})")
@@ -118,25 +111,20 @@ class EdgeOfChaosAssessment:
         print(f"  Accuracy at baseline: {level_accuracies.get(baseline_level, 0):.1%}")
 
         return baseline_level, {
-            'level_accuracies': level_accuracies,
-            'level_results': level_results,
-            'baseline_level': baseline_level,
-            'threshold': self.threshold
+            "level_accuracies": level_accuracies,
+            "level_results": level_results,
+            "baseline_level": baseline_level,
+            "threshold": self.threshold,
         }
 
-    def _generate_assessment_questions(
-        self,
-        frontier_client: Optional[Any]
-    ) -> List[Dict]:
+    def _generate_assessment_questions(self, frontier_client: Optional[Any]) -> List[Dict]:
         """Generate assessment questions across difficulty scale."""
         questions = []
 
         if frontier_client:
             # Use frontier models to generate questions
             for level in range(1, 101, 5):
-                level_qs = self._request_questions_from_frontier(
-                    frontier_client, level, count=20
-                )
+                level_qs = self._request_questions_from_frontier(frontier_client, level, count=20)
                 questions.extend(level_qs)
         else:
             # Generate placeholder questions
@@ -146,12 +134,7 @@ class EdgeOfChaosAssessment:
 
         return questions
 
-    def _request_questions_from_frontier(
-        self,
-        client: Any,
-        level: int,
-        count: int
-    ) -> List[Dict]:
+    def _request_questions_from_frontier(self, client: Any, level: int, count: int) -> List[Dict]:
         """Request questions from frontier model API."""
         # Placeholder - would call OpenRouter API
         return self._generate_level_questions(level, count)
@@ -199,59 +182,52 @@ class EdgeOfChaosAssessment:
             template = random.choice(templates)
             question = template.format(n=random.randint(1, 100), entity="Car")
 
-            questions.append({
-                'id': f"assess_{level}_{i}",
-                'level': level,
-                'question': question,
-                'expected_type': 'code',
-                'test_cases': self._generate_test_cases(level)
-            })
+            questions.append(
+                {
+                    "id": f"assess_{level}_{i}",
+                    "level": level,
+                    "question": question,
+                    "expected_type": "code",
+                    "test_cases": self._generate_test_cases(level),
+                }
+            )
 
         return questions
 
     def _generate_test_cases(self, level: int) -> List[Dict]:
         """Generate test cases based on difficulty level."""
         # Placeholder test cases
-        return [
-            {'input': 'test_input', 'expected': 'test_output'}
-        ]
+        return [{"input": "test_input", "expected": "test_output"}]
 
     def _evaluate_question(
-        self,
-        model: nn.Module,
-        tokenizer: Any,
-        question: Dict
+        self, model: nn.Module, tokenizer: Any, question: Dict
     ) -> AssessmentResult:
         """Evaluate model's answer to a question."""
-        prompt = question['question']
+        prompt = question["question"]
 
         # Encode prompt
-        if hasattr(tokenizer, '__call__'):
+        if hasattr(tokenizer, "__call__"):
             inputs = tokenizer(
-                prompt,
-                return_tensors="pt",
-                max_length=512,
-                truncation=True,
-                padding=True
+                prompt, return_tensors="pt", max_length=512, truncation=True, padding=True
             )
         else:
             # Mock tokenizer fallback
-            inputs = {'input_ids': torch.tensor([[1, 2, 3, 4, 5]])}
+            inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
 
         # Generate response
         device = next(model.parameters()).device
         inputs = {k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)}
 
         try:
-            if hasattr(model, 'generate'):
+            if hasattr(model, "generate"):
                 outputs = model.generate(
-                    **inputs,
-                    max_new_tokens=256,
-                    temperature=0.7,
-                    do_sample=True
+                    **inputs, max_new_tokens=256, temperature=0.7, do_sample=True
                 )
-                response = tokenizer.decode(outputs[0], skip_special_tokens=True) \
-                    if hasattr(tokenizer, 'decode') else str(outputs[0].tolist())
+                response = (
+                    tokenizer.decode(outputs[0], skip_special_tokens=True)
+                    if hasattr(tokenizer, "decode")
+                    else str(outputs[0].tolist())
+                )
             else:
                 # Fallback for models without generate
                 with torch.no_grad():
@@ -265,11 +241,11 @@ class EdgeOfChaosAssessment:
         correct = self._check_correctness(question, response)
 
         return AssessmentResult(
-            level=question['level'],
-            question=question['question'],
+            level=question["level"],
+            question=question["question"],
             correct=correct,
             confidence=0.5,  # Placeholder
-            response=response
+            response=response,
         )
 
     def _check_correctness(self, question: Dict, response: str) -> bool:
@@ -282,7 +258,7 @@ class EdgeOfChaosAssessment:
         # 4. Check outputs
 
         # Placeholder: random based on difficulty
-        level = question['level']
+        level = question["level"]
         base_success_rate = max(0.1, 1.0 - (level / 100))
         return random.random() < base_success_rate
 
@@ -293,7 +269,7 @@ class EdgeOfChaosAssessment:
 
         # Find level with accuracy closest to threshold
         best_level = 40
-        best_diff = float('inf')
+        best_diff = float("inf")
 
         for level, accuracy in level_accuracies.items():
             diff = abs(accuracy - self.threshold)
@@ -304,4 +280,4 @@ class EdgeOfChaosAssessment:
         return best_level
 
 
-__all__ = ['EdgeOfChaosAssessment', 'AssessmentResult']
+__all__ = ["EdgeOfChaosAssessment", "AssessmentResult"]

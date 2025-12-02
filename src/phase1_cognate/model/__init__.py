@@ -8,11 +8,11 @@ TRM × Titans-MAG Architecture:
 - Target: ~25M parameters, fits in 6GB VRAM
 """
 
-from .model_config import TitansMAGConfig, TRMConfig, Phase1Config
-from .titans_mag import TitansMAGBackbone, MAGGate, LongTermMemory
-from .trm_wrapper import TRMWrapper
 from .act_head import ACTHead
 from .full_model import TRMTitansMAGModel
+from .model_config import Phase1Config, TitansMAGConfig, TRMConfig
+from .titans_mag import LongTermMemory, MAGGate, TitansMAGBackbone
+from .trm_wrapper import TRMWrapper
 
 __all__ = [
     "TitansMAGConfig",

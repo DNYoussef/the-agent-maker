@@ -13,23 +13,24 @@ Process:
 M5 TIER 1: Integrated with OpenRouter FREE models (Qwen, Gemma, Mistral, Llama).
 """
 
-from dataclasses import dataclass
-from typing import Dict, List, Optional, Any
-import random
 import asyncio
 import json
 import logging
+import random
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 from .curriculum_engine import SpecializationType
 
 # Import OpenRouter client
 try:
     from .openrouter_client import (
-        OpenRouterClient,
+        CompletionResponse,
         ModelProvider,
+        OpenRouterClient,
         get_free_models,
-        CompletionResponse
     )
+
     OPENROUTER_AVAILABLE = True
 except ImportError:
     OPENROUTER_AVAILABLE = False
@@ -40,6 +41,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Question:
     """A curriculum question."""
+
     id: str
     level: int
     original_difficulty: int
@@ -66,7 +68,7 @@ class AdaptiveCurriculumGenerator:
         num_levels: int = 10,
         questions_per_level: int = 2000,
         frontier_models: List[str] = None,
-        specialization: SpecializationType = SpecializationType.CODING
+        specialization: SpecializationType = SpecializationType.CODING,
     ):
         """
         Initialize curriculum generator.
@@ -86,22 +88,25 @@ class AdaptiveCurriculumGenerator:
             "qwen/qwen-2-7b-instruct:free",
             "google/gemma-7b-it:free",
             "mistralai/mistral-7b-instruct:free",
-            "meta-llama/llama-3-8b-instruct:free"
+            "meta-llama/llama-3-8b-instruct:free",
         ]
         self.specialization = specialization
 
         # Model provider mapping for OpenRouter
         self._model_map = {
-            "qwen/qwen-2-7b-instruct:free": ModelProvider.QWEN_FREE if OPENROUTER_AVAILABLE else None,
+            "qwen/qwen-2-7b-instruct:free": ModelProvider.QWEN_FREE
+            if OPENROUTER_AVAILABLE
+            else None,
             "google/gemma-7b-it:free": ModelProvider.GEMMA_FREE if OPENROUTER_AVAILABLE else None,
-            "mistralai/mistral-7b-instruct:free": ModelProvider.MISTRAL_FREE if OPENROUTER_AVAILABLE else None,
-            "meta-llama/llama-3-8b-instruct:free": ModelProvider.LLAMA_FREE if OPENROUTER_AVAILABLE else None,
+            "mistralai/mistral-7b-instruct:free": ModelProvider.MISTRAL_FREE
+            if OPENROUTER_AVAILABLE
+            else None,
+            "meta-llama/llama-3-8b-instruct:free": ModelProvider.LLAMA_FREE
+            if OPENROUTER_AVAILABLE
+            else None,
         }
 
-    def generate(
-        self,
-        frontier_client: Optional[Any] = None
-    ) -> Dict[int, List[Question]]:
+    def generate(self, frontier_client: Optional[Any] = None) -> Dict[int, List[Question]]:
         """
         Generate full curriculum for all levels.
 
@@ -125,11 +130,7 @@ class AdaptiveCurriculumGenerator:
 
             for model_name in self.frontier_models:
                 model_questions = self._generate_from_frontier(
-                    frontier_client,
-                    model_name,
-                    original_difficulty,
-                    level,
-                    questions_per_model
+                    frontier_client, model_name, original_difficulty, level, questions_per_model
                 )
                 level_questions.extend(model_questions)
 
@@ -150,8 +151,9 @@ class AdaptiveCurriculumGenerator:
         if self.num_levels <= 1:
             return self.baseline_level
 
-        original = self.baseline_level + \
-            (new_level - 1) * (100 - self.baseline_level) / (self.num_levels - 1)
+        original = self.baseline_level + (new_level - 1) * (100 - self.baseline_level) / (
+            self.num_levels - 1
+        )
 
         return int(round(original))
 
@@ -161,7 +163,7 @@ class AdaptiveCurriculumGenerator:
         model_name: str,
         original_difficulty: int,
         level: int,
-        count: int
+        count: int,
     ) -> List[Question]:
         """Generate questions from a frontier model."""
         if client:
@@ -170,12 +172,7 @@ class AdaptiveCurriculumGenerator:
             return self._generate_placeholder(model_name, original_difficulty, level, count)
 
     def _request_from_api(
-        self,
-        client: Any,
-        model_name: str,
-        difficulty: int,
-        level: int,
-        count: int
+        self, client: Any, model_name: str, difficulty: int, level: int, count: int
     ) -> List[Question]:
         """
         Request questions from frontier model API (OpenRouter).
@@ -208,14 +205,12 @@ class AdaptiveCurriculumGenerator:
 
         try:
             # Run async completion synchronously
-            response = asyncio.run(self._async_generate(
-                client, model_provider, prompt, system_prompt
-            ))
+            response = asyncio.run(
+                self._async_generate(client, model_provider, prompt, system_prompt)
+            )
 
             if response.success:
-                questions = self._parse_questions(
-                    response.content, level, model_name, difficulty
-                )
+                questions = self._parse_questions(response.content, level, model_name, difficulty)
                 if questions:
                     logger.info(f"  Generated {len(questions)} questions from {model_name}")
                     return questions
@@ -227,23 +222,18 @@ class AdaptiveCurriculumGenerator:
         return self._generate_placeholder(model_name, difficulty, level, count)
 
     async def _async_generate(
-        self,
-        client: 'OpenRouterClient',
-        model: 'ModelProvider',
-        prompt: str,
-        system_prompt: str
-    ) -> 'CompletionResponse':
+        self, client: "OpenRouterClient", model: "ModelProvider", prompt: str, system_prompt: str
+    ) -> "CompletionResponse":
         """Async wrapper for OpenRouter completion."""
         async with OpenRouterClient(
-            api_key=client.api_key if hasattr(client, 'api_key') else None,
-            default_model=model
+            api_key=client.api_key if hasattr(client, "api_key") else None, default_model=model
         ) as async_client:
             return await async_client.complete(
                 prompt=prompt,
                 model=model,
                 system_prompt=system_prompt,
                 max_tokens=2048,
-                temperature=0.8
+                temperature=0.8,
             )
 
     def _build_generation_prompt(self, difficulty: int, count: int) -> str:
@@ -294,36 +284,32 @@ Always respond with valid JSON."""
             return "expert"
 
     def _parse_questions(
-        self,
-        response_text: str,
-        level: int,
-        model_name: str,
-        difficulty: int
+        self, response_text: str, level: int, model_name: str, difficulty: int
     ) -> List[Question]:
         """Parse API response into Question objects."""
         questions = []
 
         try:
             # Try to extract JSON from response
-            json_start = response_text.find('[')
-            json_end = response_text.rfind(']') + 1
+            json_start = response_text.find("[")
+            json_end = response_text.rfind("]") + 1
 
             if json_start >= 0 and json_end > json_start:
                 json_str = response_text[json_start:json_end]
                 parsed = json.loads(json_str)
 
                 for i, item in enumerate(parsed):
-                    if isinstance(item, dict) and 'question' in item:
+                    if isinstance(item, dict) and "question" in item:
                         question = Question(
                             id=f"q_{level}_{model_name}_{i}",
                             level=level,
                             original_difficulty=difficulty,
-                            question=item.get('question', ''),
+                            question=item.get("question", ""),
                             source=model_name,
-                            test_cases=item.get('test_cases', []),
-                            hints=item.get('hints', []),
+                            test_cases=item.get("test_cases", []),
+                            hints=item.get("hints", []),
                             success_count=0,
-                            attempt_count=0
+                            attempt_count=0,
                         )
                         questions.append(question)
         except json.JSONDecodeError as e:
@@ -334,11 +320,7 @@ Always respond with valid JSON."""
         return questions
 
     def _generate_placeholder(
-        self,
-        model_name: str,
-        difficulty: int,
-        level: int,
-        count: int
+        self, model_name: str, difficulty: int, level: int, count: int
     ) -> List[Question]:
         """Generate placeholder questions."""
         questions = []
@@ -358,7 +340,7 @@ Always respond with valid JSON."""
                 test_cases=self._generate_test_cases(difficulty),
                 hints=[],
                 success_count=0,
-                attempt_count=0
+                attempt_count=0,
             )
             questions.append(question)
 
@@ -443,18 +425,18 @@ Always respond with valid JSON."""
     def _fill_template(self, template: str, difficulty: int) -> str:
         """Fill template placeholders with appropriate values."""
         replacements = {
-            '{n}': str(random.randint(5, 100)),
-            '{term}': random.choice(['gradient descent', 'backpropagation', 'attention']),
-            '{technology}': random.choice(['transformers', 'CNNs', 'RNNs']),
-            '{topic}': random.choice(['machine learning', 'data structures', 'algorithms']),
-            '{method1}': 'supervised learning',
-            '{method2}': 'unsupervised learning',
-            '{abstract}': '[Sample abstract text]',
-            '{description}': '[Methodology description]',
-            '{text}': '[Text to summarize]',
-            '{sentence}': '[Sentence to rewrite]',
-            '{position}': 'open source software',
-            '{paragraph}': '[Paragraph to edit]',
+            "{n}": str(random.randint(5, 100)),
+            "{term}": random.choice(["gradient descent", "backpropagation", "attention"]),
+            "{technology}": random.choice(["transformers", "CNNs", "RNNs"]),
+            "{topic}": random.choice(["machine learning", "data structures", "algorithms"]),
+            "{method1}": "supervised learning",
+            "{method2}": "unsupervised learning",
+            "{abstract}": "[Sample abstract text]",
+            "{description}": "[Methodology description]",
+            "{text}": "[Text to summarize]",
+            "{sentence}": "[Sentence to rewrite]",
+            "{position}": "open source software",
+            "{paragraph}": "[Paragraph to edit]",
         }
 
         result = template
@@ -470,12 +452,12 @@ Always respond with valid JSON."""
 
         return [
             {
-                'input': f'test_input_{i}',
-                'expected': f'test_output_{i}',
-                'description': f'Test case {i}'
+                "input": f"test_input_{i}",
+                "expected": f"test_output_{i}",
+                "description": f"Test case {i}",
             }
             for i in range(num_cases)
         ]
 
 
-__all__ = ['AdaptiveCurriculumGenerator', 'Question']
+__all__ = ["AdaptiveCurriculumGenerator", "Question"]

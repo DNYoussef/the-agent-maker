@@ -4,13 +4,14 @@ Phase 3 Quiet-STaR Model
 Complete Quiet-STaR model wrapper integrating all components.
 """
 
+from typing import Dict, Optional
+
 import torch
 import torch.nn as nn
-from typing import Optional, Dict
 
-from .thought_generator import ThoughtGenerator
 from .coherence_scorer import CoherenceScorer
 from .mixing_head import MixingHead
+from .thought_generator import ThoughtGenerator
 from .thought_injector import ThoughtInjector
 
 
@@ -42,13 +43,9 @@ class QuietSTaRModel(nn.Module):
         self.thought_generator = ThoughtGenerator(
             base_model, num_thoughts=num_thoughts, max_length=max_thought_length
         )
-        self.coherence_scorer = CoherenceScorer(
-            hidden_size, weights=coherence_weights
-        )
+        self.coherence_scorer = CoherenceScorer(hidden_size, weights=coherence_weights)
         self.mixing_head = MixingHead(hidden_size)
-        self.thought_injector = ThoughtInjector(
-            threshold=injection_threshold
-        )
+        self.thought_injector = ThoughtInjector(threshold=injection_threshold)
 
     def forward(
         self,
@@ -75,11 +72,7 @@ class QuietSTaRModel(nn.Module):
         base_hidden = outputs.last_hidden_state
 
         if not use_thoughts:
-            loss = (
-                self._compute_loss(base_logits, labels)
-                if labels is not None
-                else None
-            )
+            loss = self._compute_loss(base_logits, labels) if labels is not None else None
             return {"logits": base_logits, "loss": loss}
 
         # Generate thoughts at difficult positions
@@ -98,9 +91,7 @@ class QuietSTaRModel(nn.Module):
 
             if inject:
                 # Generate thoughts
-                thought_output = self.thought_generator(
-                    input_ids, pos, base_hidden[:, pos, :]
-                )
+                thought_output = self.thought_generator(input_ids, pos, base_hidden[:, pos, :])
 
                 # Score coherence
                 coherence = self.coherence_scorer(
@@ -120,19 +111,13 @@ class QuietSTaRModel(nn.Module):
                 enhanced_hidden[:, pos, :] = mixed
 
                 thought_positions.append(pos)
-                coherence_scores_list.append(
-                    coherence.composite.mean().item()
-                )
+                coherence_scores_list.append(coherence.composite.mean().item())
 
         # Final logits from enhanced hidden states
         final_logits = self.base_model.lm_head(enhanced_hidden)
 
         # Compute loss
-        loss = (
-            self._compute_loss(final_logits, labels)
-            if labels is not None
-            else None
-        )
+        loss = self._compute_loss(final_logits, labels) if labels is not None else None
 
         return {
             "logits": final_logits,
@@ -146,9 +131,7 @@ class QuietSTaRModel(nn.Module):
             "num_thoughts_used": len(thought_positions),
         }
 
-    def _compute_loss(
-        self, logits: torch.Tensor, labels: torch.Tensor
-    ) -> torch.Tensor:
+    def _compute_loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         """Compute cross-entropy loss."""
         shift_logits = logits[..., :-1, :].contiguous()
         shift_labels = labels[..., 1:].contiguous()

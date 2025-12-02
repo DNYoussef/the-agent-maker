@@ -19,11 +19,12 @@ Research:
     - Applied to neural network merging in recent LLM work
 """
 
-from typing import List
 import copy
+import logging
+from typing import List
+
 import torch
 import torch.nn as nn
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -82,9 +83,7 @@ class SLERPMerge:
 
         return result
 
-    def _slerp_pair(
-        self, model1: nn.Module, model2: nn.Module, t: float
-    ) -> nn.Module:
+    def _slerp_pair(self, model1: nn.Module, model2: nn.Module, t: float) -> nn.Module:
         """
         SLERP between two models.
 
@@ -101,9 +100,7 @@ class SLERPMerge:
         with torch.no_grad():
             for param_name, param1 in model1.named_parameters():
                 param2 = dict(model2.named_parameters())[param_name]
-                merged_param = dict(merged_model.named_parameters())[
-                    param_name
-                ]
+                merged_param = dict(merged_model.named_parameters())[param_name]
 
                 # Flatten parameters for dot product
                 p1_flat = param1.flatten()
@@ -130,9 +127,7 @@ class SLERPMerge:
                 if theta < self.epsilon:
                     # Vectors are parallel, use linear interpolation
                     merged_param.copy_(param1 * (1 - t) + param2 * t)
-                    logger.debug(
-                        f"Parameter {param_name}: θ ≈ 0, using linear fallback"
-                    )
+                    logger.debug(f"Parameter {param_name}: θ ≈ 0, using linear fallback")
                     continue
 
                 # SLERP formula

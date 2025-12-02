@@ -26,6 +26,7 @@ class Phase5Controller(PhaseController):
             PhaseResult with specialized model
         """
         import time
+
         start_time = time.time()
 
         print("\n" + "=" * 60)
@@ -41,15 +42,19 @@ class Phase5Controller(PhaseController):
             tokenizer = self._get_tokenizer()
 
             # Create curriculum config
-            from phase5_curriculum import CurriculumEngine, CurriculumConfig, SpecializationType
+            from phase5_curriculum import CurriculumConfig, CurriculumEngine, SpecializationType
 
-            specialization = self.config.get('specialization', 'coding') if self.config else 'coding'
+            specialization = (
+                self.config.get("specialization", "coding") if self.config else "coding"
+            )
             spec_type = SpecializationType(specialization)
 
             config = CurriculumConfig(
-                num_levels=self.config.get('num_levels', 10) if self.config else 10,
-                questions_per_level=self.config.get('questions_per_level', 2000) if self.config else 2000,
-                specialization=spec_type
+                num_levels=self.config.get("num_levels", 10) if self.config else 10,
+                questions_per_level=self.config.get("questions_per_level", 2000)
+                if self.config
+                else 2000,
+                specialization=spec_type,
             )
 
             # Create and run engine
@@ -58,7 +63,7 @@ class Phase5Controller(PhaseController):
                 model=quantized_model,
                 tokenizer=tokenizer,
                 frontier_client=None,  # Would connect to OpenRouter
-                coding_env=None  # Would connect to sandbox
+                coding_env=None,  # Would connect to sandbox
             )
 
             duration = time.time() - start_time
@@ -68,15 +73,15 @@ class Phase5Controller(PhaseController):
                 phase_name="phase5",
                 model=result.model,
                 metrics={
-                    'levels_completed': result.levels_completed,
-                    'specialization': result.specialization.value,
-                    'duration_seconds': duration,
-                    **result.metrics
+                    "levels_completed": result.levels_completed,
+                    "specialization": result.specialization.value,
+                    "duration_seconds": duration,
+                    **result.metrics,
                 },
                 duration=duration,
                 artifacts=result.artifacts,
                 config=self.config,
-                error=result.error
+                error=result.error,
             )
 
         except Exception as e:
@@ -89,7 +94,7 @@ class Phase5Controller(PhaseController):
                 duration=duration,
                 artifacts={},
                 config=self.config,
-                error=str(e)
+                error=str(e),
             )
 
     def _get_tokenizer(self):
@@ -99,12 +104,14 @@ class Phase5Controller(PhaseController):
     def validate_input(self, input_models: list = None) -> bool:
         """Validate 1 input model from Phase 4."""
         if not input_models or len(input_models) != 1:
-            raise ValueError(f"Phase 5 requires 1 input model, got {len(input_models) if input_models else 0}")
+            raise ValueError(
+                f"Phase 5 requires 1 input model, got {len(input_models) if input_models else 0}"
+            )
         return True
 
     def validate_output(self, result: PhaseResult) -> bool:
         """Validate Phase 5 output (specialization achieved)."""
         if result.metrics:
-            levels = result.metrics.get('levels_completed', 0)
+            levels = result.metrics.get("levels_completed", 0)
             return levels >= 1  # At least one level completed
         return True

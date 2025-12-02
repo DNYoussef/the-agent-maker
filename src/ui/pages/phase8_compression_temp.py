@@ -3,20 +3,23 @@ Phase 8: Final Compression Dashboard
 Three-stage compression pipeline with quality validation
 """
 
-import streamlit as st
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
 import time
+from datetime import datetime, timedelta
+
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
+from plotly.subplots import make_subplots
+
 
 def render():
     """Render Phase 8: Final Compression Dashboard"""
-    
+
     # Custom CSS for futuristic theme
-    st.markdown("""
+    st.markdown(
+        """
         <style>
         .main {
             background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
@@ -108,19 +111,17 @@ def render():
             50% { opacity: 0.6; }
         }
         </style>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     # Initialize session state
-    if 'compression_stage' not in st.session_state:
+    if "compression_stage" not in st.session_state:
         st.session_state.compression_stage = 1
-    if 'compression_start_time' not in st.session_state:
+    if "compression_start_time" not in st.session_state:
         st.session_state.compression_start_time = datetime.now()
-    if 'quality_scores' not in st.session_state:
-        st.session_state.quality_scores = {
-            'stage1': None,
-            'stage2': None,
-            'stage3': None
-        }
+    if "quality_scores" not in st.session_state:
+        st.session_state.quality_scores = {"stage1": None, "stage2": None, "stage3": None}
 
 
 # Auto-run when accessed directly via Streamlit multipage

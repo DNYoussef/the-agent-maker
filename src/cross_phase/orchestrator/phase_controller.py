@@ -6,18 +6,19 @@ ISS-016: Uses unified get_tokenizer() for all phases
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
 from dataclasses import dataclass
+from typing import Dict, Optional
 
-# ISS-016: Import unified tokenizer utility
-from cross_phase.utils import get_tokenizer, MockTokenizer
 # ISS-015/ISS-022: Import constants and validation thresholds
 from cross_phase.constants import (
-    ValidationThresholds,
+    CURRICULUM_LEVELS,
     EVOMERGE_GENERATIONS,
     MIN_EXPERTS,
-    CURRICULUM_LEVELS
+    ValidationThresholds,
 )
+
+# ISS-016: Import unified tokenizer utility
+from cross_phase.utils import MockTokenizer, get_tokenizer
 
 
 @dataclass
@@ -27,6 +28,7 @@ class PhaseResult:
 
     This is the standardized PhaseResult interface from the GraphViz flows
     """
+
     success: bool
     phase_name: str
     model: object  # torch.nn.Module
@@ -106,16 +108,18 @@ class Phase1Controller(PhaseController):
     def execute(self, input_models: list = None) -> PhaseResult:
         """Execute Phase 1: Create 3 TRM x Titans-MAG models"""
         import time
+
         start_time = time.time()
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("PHASE 1: COGNATE - INITIALIZING")
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
 
         # Imports local to avoid circular dependencies and ensure path context
         import sys
-        import torch
         from pathlib import Path
+
+        import torch
         from transformers import GPT2Tokenizer
 
         # Ensure src is in path
@@ -124,14 +128,13 @@ class Phase1Controller(PhaseController):
             sys.path.insert(0, src_path)
 
         # Phase 1 specific imports
+        # ISS-006: Use canonical MockTokenizer from cross_phase.utils
+        from cross_phase.utils import get_tokenizer
+        from phase1_cognate.data.dataset_downloader import DATASET_CONFIGS, download_all_datasets
+        from phase1_cognate.data.dataset_processor import process_dataset
         from phase1_cognate.model.full_model import TRMTitansMAGModel
         from phase1_cognate.model.model_config import Phase1Config
         from phase1_cognate.training.trainer import Phase1Trainer, TrainingConfig
-        from phase1_cognate.data.dataset_downloader import download_all_datasets, DATASET_CONFIGS
-        from phase1_cognate.data.dataset_processor import process_dataset
-
-        # ISS-006: Use canonical MockTokenizer from cross_phase.utils
-        from cross_phase.utils import get_tokenizer
 
         # 1. Setup Tokenizer (get_tokenizer handles fallback to MockTokenizer)
         tokenizer = get_tokenizer("gpt2")
@@ -139,63 +142,65 @@ class Phase1Controller(PhaseController):
         # 2. Data Setup
         # Default foundation datasets
         datasets_to_use = ["gsm8k", "svamp", "mbpp", "arc_easy", "piqa", "wikitext"]
-        
+
         print("\n--- Step 1: Dataset Preparation ---")
         raw_datasets = download_all_datasets(datasets_to_use)
-        
+
         print("\n--- Step 2: Dataset Processing ---")
         processed_datasets = {}
         for name, dataset in raw_datasets.items():
-             config = DATASET_CONFIGS[name]
-             processed_datasets[name] = process_dataset(dataset, name, config.category)
-             print(f"Processed {name}: {len(processed_datasets[name])} samples")
+            config = DATASET_CONFIGS[name]
+            processed_datasets[name] = process_dataset(dataset, name, config.category)
+            print(f"Processed {name}: {len(processed_datasets[name])} samples")
 
         trained_models = []
         all_metrics = {}
-        
+
         # 3. Train 3 Models
         specializations = ["reasoning", "memory", "speed"]
-        
+
         print("\n--- Step 3: Training Foundation Models ---")
         for spec in specializations:
             print(f"\nTraining Model: {spec.upper()}")
-            
+
             # Config
             model_config = Phase1Config(specialization=spec)
-            
+
             # Model
             model = TRMTitansMAGModel(model_config)
-            
+
             # Trainer Config
             # Use config from self.config if available, else defaults for prototype
             # Note: defaulting to 1 epoch/small batch for prototype speed unless specified
             train_config = TrainingConfig(
                 model_config=model_config,
-                num_epochs=self.config.get('epochs', 1), 
-                batch_size=self.config.get('batch_size', 4),
+                num_epochs=self.config.get("epochs", 1),
+                batch_size=self.config.get("batch_size", 4),
                 checkpoint_dir=Path(f"checkpoints/phase1/{spec}"),
                 device="cuda" if torch.cuda.is_available() else "cpu",
-                wandb_mode="offline"
+                wandb_mode="offline",
             )
-            
+
             # Trainer
             trainer = Phase1Trainer(
                 model=model,
                 config=train_config,
                 train_datasets=processed_datasets,
-                tokenizer=tokenizer
+                tokenizer=tokenizer,
             )
-            
+
             # Train
             trainer.train()
-            
+
             trained_models.append(model)
             all_metrics[spec] = {
-                "final_loss": trainer.best_val_loss if trainer.best_val_loss != float('inf') else 0.0,
+                "final_loss": trainer.best_val_loss
+                if trainer.best_val_loss != float("inf")
+                else 0.0,
                 "epochs": train_config.num_epochs,
-                "parameters": model.count_parameters()["total"]
+                "parameters": model.count_parameters()["total"],
             }
-            
+
         print(f"\nPhase 1 Complete. Generated {len(trained_models)} models.")
 
         return PhaseResult(
@@ -206,7 +211,7 @@ class Phase1Controller(PhaseController):
             duration=time.time() - start_time,
             artifacts={"models": [f"model_{s}" for s in specializations]},
             config=self.config,
-            error=None
+            error=None,
         )
 
     def validate_input(self, input_models: list = None) -> bool:
@@ -227,14 +232,14 @@ class Phase1Controller(PhaseController):
 
         if result.metrics:
             # Check for 3 models
-            model_count = result.metrics.get('model_count', 0)
+            model_count = result.metrics.get("model_count", 0)
             if model_count < 3:
                 return False
 
             # Check loss is reasonable (not NaN, not too high)
-            for spec in ['reasoning', 'memory', 'speed']:
-                loss = result.metrics.get(f'{spec}_loss', float('inf'))
-                if loss == float('inf') or loss != loss:  # NaN check
+            for spec in ["reasoning", "memory", "speed"]:
+                loss = result.metrics.get(f"{spec}_loss", float("inf"))
+                if loss == float("inf") or loss != loss:  # NaN check
                     return False
 
         return True
@@ -250,7 +255,8 @@ class Phase2Controller(PhaseController):
         3 input models from Phase 1 into 1 champion model.
         """
         import time
-        from phase2_evomerge.phase2_pipeline import Phase2Pipeline, EvolutionConfig
+
+        from phase2_evomerge.phase2_pipeline import EvolutionConfig, Phase2Pipeline
 
         print("\n" + "=" * 60)
         print("PHASE 2: EVOMERGE - INITIALIZING")
@@ -263,7 +269,9 @@ class Phase2Controller(PhaseController):
             self.validate_input(input_models)
 
             # Create evolution config from phase config
-            evo_config = EvolutionConfig.from_dict(self.config) if self.config else EvolutionConfig()
+            evo_config = (
+                EvolutionConfig.from_dict(self.config) if self.config else EvolutionConfig()
+            )
 
             # Create and run pipeline
             pipeline = Phase2Pipeline(config=evo_config)
@@ -278,11 +286,11 @@ class Phase2Controller(PhaseController):
                 metrics=pipeline.get_metrics(),
                 duration=duration,
                 artifacts={
-                    'fitness_history': pipeline.fitness_history,
-                    'best_fitness': pipeline.best_fitness
+                    "fitness_history": pipeline.fitness_history,
+                    "best_fitness": pipeline.best_fitness,
                 },
                 config=self.config,
-                error=None
+                error=None,
             )
 
         except Exception as e:
@@ -295,13 +303,15 @@ class Phase2Controller(PhaseController):
                 duration=duration,
                 artifacts={},
                 config=self.config,
-                error=str(e)
+                error=str(e),
             )
 
     def validate_input(self, input_models: list = None) -> bool:
         """Validate 3 input models from Phase 1"""
         if not input_models or len(input_models) != 3:
-            raise ValueError(f"Phase 2 requires 3 input models, got {len(input_models) if input_models else 0}")
+            raise ValueError(
+                f"Phase 2 requires 3 input models, got {len(input_models) if input_models else 0}"
+            )
         return True
 
     def validate_output(self, result: PhaseResult) -> bool:
@@ -318,12 +328,12 @@ class Phase2Controller(PhaseController):
 
         if result.metrics:
             # Check fitness gain
-            fitness_gain = result.metrics.get('fitness_gain', 0.0)
+            fitness_gain = result.metrics.get("fitness_gain", 0.0)
             if fitness_gain < ValidationThresholds.PHASE2_MIN_FITNESS_GAIN:
                 return False
 
             # Check generations completed
-            generations = result.metrics.get('generations', 0)
+            generations = result.metrics.get("generations", 0)
             if generations < 1:
                 return False
 
@@ -347,6 +357,7 @@ class Phase3Controller(PhaseController):
             PhaseResult with reasoning-enhanced model
         """
         import time
+
         start_time = time.time()
 
         print("\n" + "=" * 60)
@@ -380,18 +391,18 @@ class Phase3Controller(PhaseController):
                 phase_name="phase3",
                 model=enhanced_model,
                 metrics={
-                    'baking_completed': True,
-                    'rl_completed': True,
-                    'anti_theater_passed': anti_theater_results.get('all_passed', False),
-                    'duration_seconds': duration
+                    "baking_completed": True,
+                    "rl_completed": True,
+                    "anti_theater_passed": anti_theater_results.get("all_passed", False),
+                    "duration_seconds": duration,
                 },
                 duration=duration,
                 artifacts={
-                    'anti_theater_results': anti_theater_results,
-                    'baked_model': baked_model
+                    "anti_theater_results": anti_theater_results,
+                    "baked_model": baked_model,
                 },
                 config=self.config,
-                error=None
+                error=None,
             )
 
         except Exception as e:
@@ -404,7 +415,7 @@ class Phase3Controller(PhaseController):
                 duration=duration,
                 artifacts={},
                 config=self.config,
-                error=str(e)
+                error=str(e),
             )
 
     def _get_tokenizer(self):
@@ -416,11 +427,11 @@ class Phase3Controller(PhaseController):
         from cross_phase.prompt_baking.baker import PromptBaker, PromptBakingConfig
 
         config = PromptBakingConfig(
-            lora_r=self.config.get('lora_r', 16),
-            lora_alpha=self.config.get('lora_alpha', 32),
-            num_epochs=self.config.get('baking_epochs', 3),
-            batch_size=self.config.get('batch_size', 8),
-            learning_rate=self.config.get('learning_rate', 1e-4)
+            lora_r=self.config.get("lora_r", 16),
+            lora_alpha=self.config.get("lora_alpha", 32),
+            num_epochs=self.config.get("baking_epochs", 3),
+            batch_size=self.config.get("batch_size", 8),
+            learning_rate=self.config.get("learning_rate", 1e-4),
         )
 
         baker = PromptBaker(config)
@@ -439,7 +450,7 @@ class Phase3Controller(PhaseController):
             "Explain why the sky is blue.",
             "What are the factors of 12?",
             "How does photosynthesis work?",
-            "What is the capital of France?"
+            "What is the capital of France?",
         ]
 
         print(f"  Baking reasoning prompt into model...")
@@ -448,7 +459,7 @@ class Phase3Controller(PhaseController):
             prompt=reasoning_prompt,
             tokenizer=tokenizer,
             calibration_data=calibration_data,
-            half_bake=False
+            half_bake=False,
         )
 
         print(f"  Prompt baking complete")
@@ -479,10 +490,10 @@ class Phase3Controller(PhaseController):
         print(f"  Running anti-theater validation...")
 
         results = {
-            'divergence_test': True,
-            'ablation_test': True,
-            'consistency_test': True,
-            'all_passed': True
+            "divergence_test": True,
+            "ablation_test": True,
+            "consistency_test": True,
+            "all_passed": True,
         }
 
         try:
@@ -493,9 +504,11 @@ class Phase3Controller(PhaseController):
             model.eval()
             with torch.no_grad():
                 for text in test_inputs:
-                    enc = tokenizer(text, return_tensors="pt", max_length=64, truncation=True, padding=True)
+                    enc = tokenizer(
+                        text, return_tensors="pt", max_length=64, truncation=True, padding=True
+                    )
                     # Simple forward pass check
-                    if hasattr(model, 'generate'):
+                    if hasattr(model, "generate"):
                         out = model.generate(**enc, max_new_tokens=10, do_sample=False)
                         outputs.append(out[0].tolist())
                     else:
@@ -503,39 +516,39 @@ class Phase3Controller(PhaseController):
 
             # Check outputs are different
             unique_outputs = len(set(str(o) for o in outputs))
-            results['divergence_test'] = unique_outputs > 1
+            results["divergence_test"] = unique_outputs > 1
 
             # Test 2: Consistency - same input should give similar output
-            results['consistency_test'] = True  # Simplified
+            results["consistency_test"] = True  # Simplified
 
             # Test 3: Ablation - model should degrade gracefully
-            results['ablation_test'] = True  # Simplified
+            results["ablation_test"] = True  # Simplified
 
-            results['all_passed'] = all([
-                results['divergence_test'],
-                results['ablation_test'],
-                results['consistency_test']
-            ])
+            results["all_passed"] = all(
+                [results["divergence_test"], results["ablation_test"], results["consistency_test"]]
+            )
 
-            status = "PASSED" if results['all_passed'] else "FAILED"
+            status = "PASSED" if results["all_passed"] else "FAILED"
             print(f"  Anti-theater validation: {status}")
 
         except Exception as e:
             print(f"  Anti-theater validation error: {e}")
-            results['all_passed'] = False
+            results["all_passed"] = False
 
         return results
 
     def validate_input(self, input_models: list = None) -> bool:
         """Validate 1 input model from Phase 2"""
         if not input_models or len(input_models) != 1:
-            raise ValueError(f"Phase 3 requires 1 input model, got {len(input_models) if input_models else 0}")
+            raise ValueError(
+                f"Phase 3 requires 1 input model, got {len(input_models) if input_models else 0}"
+            )
         return True
 
     def validate_output(self, result: PhaseResult) -> bool:
         """Validate Phase 3 output (anti-theater tests pass)"""
-        if result.artifacts and 'anti_theater_results' in result.artifacts:
-            return result.artifacts['anti_theater_results'].get('all_passed', False)
+        if result.artifacts and "anti_theater_results" in result.artifacts:
+            return result.artifacts["anti_theater_results"].get("all_passed", False)
         return True
 
 
@@ -557,8 +570,9 @@ class Phase4Controller(PhaseController):
         Returns:
             PhaseResult with quantized model
         """
-        import time
         import copy
+        import time
+
         start_time = time.time()
 
         print("\n" + "=" * 60)
@@ -592,14 +606,14 @@ class Phase4Controller(PhaseController):
             # Step 4: Validate compression
             print("\n--- Step 4: Validation ---")
             compressed_size = self._get_model_size(fine_tuned_model)
-            compression_ratio = original_size['size_mb'] / max(compressed_size['size_mb'], 0.01)
+            compression_ratio = original_size["size_mb"] / max(compressed_size["size_mb"], 0.01)
 
             print(f"Compressed model size: {compressed_size['size_mb']:.2f} MB")
             print(f"Compression ratio: {compression_ratio:.1f}x")
             print(f"Sparsity ratio: {quant_stats.get('sparsity_ratio', 0):.2%}")
 
             # Validate thresholds
-            validation_passed = compression_ratio >= self.config.get('min_compression', 4.0)
+            validation_passed = compression_ratio >= self.config.get("min_compression", 4.0)
 
             duration = time.time() - start_time
 
@@ -608,22 +622,19 @@ class Phase4Controller(PhaseController):
                 phase_name="phase4",
                 model=fine_tuned_model,
                 metrics={
-                    'original_size_mb': original_size['size_mb'],
-                    'compressed_size_mb': compressed_size['size_mb'],
-                    'compression_ratio': compression_ratio,
-                    'sparsity_ratio': quant_stats.get('sparsity_ratio', 0),
-                    'layers_quantized': quant_stats.get('layers_quantized', 0),
-                    'layers_preserved': quant_stats.get('layers_preserved', 0),
-                    'validation_passed': validation_passed,
-                    'duration_seconds': duration
+                    "original_size_mb": original_size["size_mb"],
+                    "compressed_size_mb": compressed_size["size_mb"],
+                    "compression_ratio": compression_ratio,
+                    "sparsity_ratio": quant_stats.get("sparsity_ratio", 0),
+                    "layers_quantized": quant_stats.get("layers_quantized", 0),
+                    "layers_preserved": quant_stats.get("layers_preserved", 0),
+                    "validation_passed": validation_passed,
+                    "duration_seconds": duration,
                 },
                 duration=duration,
-                artifacts={
-                    'scale_factors': scale_factors,
-                    'quantization_stats': quant_stats
-                },
+                artifacts={"scale_factors": scale_factors, "quantization_stats": quant_stats},
                 config=self.config,
-                error=None
+                error=None,
             )
 
         except Exception as e:
@@ -636,12 +647,13 @@ class Phase4Controller(PhaseController):
                 duration=duration,
                 artifacts={},
                 config=self.config,
-                error=str(e)
+                error=str(e),
             )
 
     def _get_model_size(self, model) -> dict:
         """Calculate model size in MB and parameter count."""
         import torch
+
         total_params = sum(p.numel() for p in model.parameters())
 
         # Calculate size based on dtype
@@ -658,11 +670,7 @@ class Phase4Controller(PhaseController):
 
         size_mb = size_bytes / (1024 * 1024)
 
-        return {
-            'params': total_params,
-            'size_mb': size_mb,
-            'size_bytes': size_bytes
-        }
+        return {"params": total_params, "size_mb": size_mb, "size_bytes": size_bytes}
 
     def _quantize_model(self, model):
         """Apply BitNet ternary quantization to model."""
@@ -672,22 +680,22 @@ class Phase4Controller(PhaseController):
         quantized_state = {}
         scale_factors = {}
         stats = {
-            'layers_quantized': 0,
-            'layers_preserved': 0,
-            'total_params': 0,
-            'quantized_params': 0,
-            'zero_params': 0,
-            'sparsity_ratio': 0.0
+            "layers_quantized": 0,
+            "layers_preserved": 0,
+            "total_params": 0,
+            "quantized_params": 0,
+            "zero_params": 0,
+            "sparsity_ratio": 0.0,
         }
 
         # Sparsity threshold from config
-        threshold = self.config.get('sparsity_threshold', 0.1)
+        threshold = self.config.get("sparsity_threshold", 0.1)
 
         # Layers to preserve (embeddings, layer norms)
-        preserve_patterns = ['embed', 'norm', 'ln_', 'layernorm', 'bias']
+        preserve_patterns = ["embed", "norm", "ln_", "layernorm", "bias"]
 
         for name, param in model.state_dict().items():
-            stats['total_params'] += param.numel()
+            stats["total_params"] += param.numel()
 
             # Check if layer should be preserved
             should_preserve = any(p in name.lower() for p in preserve_patterns)
@@ -696,7 +704,7 @@ class Phase4Controller(PhaseController):
                 # Keep in FP16
                 quantized_state[name] = param.data.half()
                 scale_factors[name] = torch.tensor(1.0)
-                stats['layers_preserved'] += 1
+                stats["layers_preserved"] += 1
             else:
                 # Quantize to ternary {-1, 0, +1}
                 # Step 1: Calculate scale (mean absolute value)
@@ -717,13 +725,13 @@ class Phase4Controller(PhaseController):
 
                 quantized_state[name] = quantized_int8
                 scale_factors[name] = scale
-                stats['layers_quantized'] += 1
-                stats['quantized_params'] += param.numel()
-                stats['zero_params'] += (quantized_int8 == 0).sum().item()
+                stats["layers_quantized"] += 1
+                stats["quantized_params"] += param.numel()
+                stats["zero_params"] += (quantized_int8 == 0).sum().item()
 
         # Calculate sparsity
-        if stats['quantized_params'] > 0:
-            stats['sparsity_ratio'] = stats['zero_params'] / stats['quantized_params']
+        if stats["quantized_params"] > 0:
+            stats["sparsity_ratio"] = stats["zero_params"] / stats["quantized_params"]
 
         print(f"  Quantized {stats['layers_quantized']} layers")
         print(f"  Preserved {stats['layers_preserved']} layers")
@@ -734,6 +742,7 @@ class Phase4Controller(PhaseController):
     def _create_compressed_model(self, original_model, quantized_state, scale_factors):
         """Create compressed model from quantized state dict."""
         import copy
+
         import torch
 
         # Create a copy of the model
@@ -769,14 +778,16 @@ class Phase4Controller(PhaseController):
     def validate_input(self, input_models: list = None) -> bool:
         """Validate 1 input model from Phase 3"""
         if not input_models or len(input_models) != 1:
-            raise ValueError(f"Phase 4 requires 1 input model, got {len(input_models) if input_models else 0}")
+            raise ValueError(
+                f"Phase 4 requires 1 input model, got {len(input_models) if input_models else 0}"
+            )
         return True
 
     def validate_output(self, result: PhaseResult) -> bool:
         """Validate Phase 4 output (compression >6x, accuracy drop <10%)"""
         if result.metrics:
-            compression = result.metrics.get('compression_ratio', 0)
-            min_compression = self.config.get('min_compression', 4.0) if self.config else 4.0
+            compression = result.metrics.get("compression_ratio", 0)
+            min_compression = self.config.get("min_compression", 4.0) if self.config else 4.0
             return compression >= min_compression
         return True
 
@@ -804,6 +815,7 @@ class Phase5Controller(PhaseController):
             PhaseResult with specialized model
         """
         import time
+
         start_time = time.time()
 
         print("\n" + "=" * 60)
@@ -819,15 +831,19 @@ class Phase5Controller(PhaseController):
             tokenizer = self._get_tokenizer()
 
             # Create curriculum config
-            from phase5_curriculum import CurriculumEngine, CurriculumConfig, SpecializationType
+            from phase5_curriculum import CurriculumConfig, CurriculumEngine, SpecializationType
 
-            specialization = self.config.get('specialization', 'coding') if self.config else 'coding'
+            specialization = (
+                self.config.get("specialization", "coding") if self.config else "coding"
+            )
             spec_type = SpecializationType(specialization)
 
             config = CurriculumConfig(
-                num_levels=self.config.get('num_levels', 10) if self.config else 10,
-                questions_per_level=self.config.get('questions_per_level', 2000) if self.config else 2000,
-                specialization=spec_type
+                num_levels=self.config.get("num_levels", 10) if self.config else 10,
+                questions_per_level=self.config.get("questions_per_level", 2000)
+                if self.config
+                else 2000,
+                specialization=spec_type,
             )
 
             # Create and run engine
@@ -836,7 +852,7 @@ class Phase5Controller(PhaseController):
                 model=quantized_model,
                 tokenizer=tokenizer,
                 frontier_client=None,  # Would connect to OpenRouter
-                coding_env=None  # Would connect to sandbox
+                coding_env=None,  # Would connect to sandbox
             )
 
             duration = time.time() - start_time
@@ -846,15 +862,15 @@ class Phase5Controller(PhaseController):
                 phase_name="phase5",
                 model=result.model,
                 metrics={
-                    'levels_completed': result.levels_completed,
-                    'specialization': result.specialization.value,
-                    'duration_seconds': duration,
-                    **result.metrics
+                    "levels_completed": result.levels_completed,
+                    "specialization": result.specialization.value,
+                    "duration_seconds": duration,
+                    **result.metrics,
                 },
                 duration=duration,
                 artifacts=result.artifacts,
                 config=self.config,
-                error=result.error
+                error=result.error,
             )
 
         except Exception as e:
@@ -867,7 +883,7 @@ class Phase5Controller(PhaseController):
                 duration=duration,
                 artifacts={},
                 config=self.config,
-                error=str(e)
+                error=str(e),
             )
 
     def _get_tokenizer(self):
@@ -877,13 +893,15 @@ class Phase5Controller(PhaseController):
     def validate_input(self, input_models: list = None) -> bool:
         """Validate 1 input model from Phase 4."""
         if not input_models or len(input_models) != 1:
-            raise ValueError(f"Phase 5 requires 1 input model, got {len(input_models) if input_models else 0}")
+            raise ValueError(
+                f"Phase 5 requires 1 input model, got {len(input_models) if input_models else 0}"
+            )
         return True
 
     def validate_output(self, result: PhaseResult) -> bool:
         """Validate Phase 5 output (specialization achieved)."""
         if result.metrics:
-            levels = result.metrics.get('levels_completed', 0)
+            levels = result.metrics.get("levels_completed", 0)
             return levels >= 1  # At least one level completed
         return True
 
@@ -901,6 +919,7 @@ class Phase6Controller(PhaseController):
             PhaseResult with baked model
         """
         import time
+
         start_time = time.time()
 
         print("\n" + "=" * 60)
@@ -916,21 +935,20 @@ class Phase6Controller(PhaseController):
             tokenizer = self._get_tokenizer()
 
             # Create baking config
-            from phase6_baking import BakingEngine, BakingConfig
+            from phase6_baking import BakingConfig, BakingEngine
 
             config = BakingConfig(
-                a_cycle_iterations=self.config.get('a_cycle_iterations', 5) if self.config else 5,
-                b_cycle_iterations=self.config.get('b_cycle_iterations', 5) if self.config else 5,
-                half_bake_strength=self.config.get('half_bake_strength', 0.5) if self.config else 0.5,
-                max_total_iterations=self.config.get('max_iterations', 20) if self.config else 20
+                a_cycle_iterations=self.config.get("a_cycle_iterations", 5) if self.config else 5,
+                b_cycle_iterations=self.config.get("b_cycle_iterations", 5) if self.config else 5,
+                half_bake_strength=self.config.get("half_bake_strength", 0.5)
+                if self.config
+                else 0.5,
+                max_total_iterations=self.config.get("max_iterations", 20) if self.config else 20,
             )
 
             # Run baking engine
             engine = BakingEngine(config=config)
-            result = engine.run(
-                model=specialized_model,
-                tokenizer=tokenizer
-            )
+            result = engine.run(model=specialized_model, tokenizer=tokenizer)
 
             duration = time.time() - start_time
 
@@ -939,17 +957,17 @@ class Phase6Controller(PhaseController):
                 phase_name="phase6",
                 model=result.model,
                 metrics={
-                    'total_iterations': result.total_iterations,
-                    'a_cycle_count': result.a_cycle_count,
-                    'b_cycle_count': result.b_cycle_count,
-                    'final_tool_score': result.final_tool_score,
-                    'final_persona_score': result.final_persona_score,
-                    'duration_seconds': duration
+                    "total_iterations": result.total_iterations,
+                    "a_cycle_count": result.a_cycle_count,
+                    "b_cycle_count": result.b_cycle_count,
+                    "final_tool_score": result.final_tool_score,
+                    "final_persona_score": result.final_persona_score,
+                    "duration_seconds": duration,
                 },
                 duration=duration,
                 artifacts=result.artifacts,
                 config=self.config,
-                error=result.error
+                error=result.error,
             )
 
         except Exception as e:
@@ -962,7 +980,7 @@ class Phase6Controller(PhaseController):
                 duration=duration,
                 artifacts={},
                 config=self.config,
-                error=str(e)
+                error=str(e),
             )
 
     def _get_tokenizer(self):
@@ -972,13 +990,15 @@ class Phase6Controller(PhaseController):
     def validate_input(self, input_models: list = None) -> bool:
         """Validate 1 input model from Phase 5."""
         if not input_models or len(input_models) != 1:
-            raise ValueError(f"Phase 6 requires 1 input model, got {len(input_models) if input_models else 0}")
+            raise ValueError(
+                f"Phase 6 requires 1 input model, got {len(input_models) if input_models else 0}"
+            )
         return True
 
     def validate_output(self, result: PhaseResult) -> bool:
         """Validate Phase 6 output (baking iterations completed)."""
         if result.metrics:
-            iterations = result.metrics.get('total_iterations', 0)
+            iterations = result.metrics.get("total_iterations", 0)
             return iterations >= 1
         return True
 
@@ -996,6 +1016,7 @@ class Phase7Controller(PhaseController):
             PhaseResult with expert-enhanced model
         """
         import time
+
         start_time = time.time()
 
         print("\n" + "=" * 60)
@@ -1011,22 +1032,19 @@ class Phase7Controller(PhaseController):
             tokenizer = self._get_tokenizer()
 
             # Create experts config
-            from phase7_experts import ExpertsEngine, ExpertsConfig
+            from phase7_experts import ExpertsConfig, ExpertsEngine
 
             config = ExpertsConfig(
-                min_experts=self.config.get('min_experts', 3) if self.config else 3,
-                max_experts=self.config.get('max_experts', 10) if self.config else 10,
-                svf_epochs=self.config.get('svf_epochs', 5) if self.config else 5,
-                adas_population=self.config.get('adas_population', 50) if self.config else 50,
-                adas_generations=self.config.get('adas_generations', 100) if self.config else 100
+                min_experts=self.config.get("min_experts", 3) if self.config else 3,
+                max_experts=self.config.get("max_experts", 10) if self.config else 10,
+                svf_epochs=self.config.get("svf_epochs", 5) if self.config else 5,
+                adas_population=self.config.get("adas_population", 50) if self.config else 50,
+                adas_generations=self.config.get("adas_generations", 100) if self.config else 100,
             )
 
             # Run experts engine
             engine = ExpertsEngine(config=config)
-            result = engine.run(
-                model=baked_model,
-                tokenizer=tokenizer
-            )
+            result = engine.run(model=baked_model, tokenizer=tokenizer)
 
             duration = time.time() - start_time
 
@@ -1035,15 +1053,15 @@ class Phase7Controller(PhaseController):
                 phase_name="phase7",
                 model=result.model,
                 metrics={
-                    'num_experts': result.num_experts,
-                    'routing_config': result.routing_config,
-                    'duration_seconds': duration,
-                    **result.metrics
+                    "num_experts": result.num_experts,
+                    "routing_config": result.routing_config,
+                    "duration_seconds": duration,
+                    **result.metrics,
                 },
                 duration=duration,
                 artifacts=result.artifacts,
                 config=self.config,
-                error=result.error
+                error=result.error,
             )
 
         except Exception as e:
@@ -1056,7 +1074,7 @@ class Phase7Controller(PhaseController):
                 duration=duration,
                 artifacts={},
                 config=self.config,
-                error=str(e)
+                error=str(e),
             )
 
     def _get_tokenizer(self):
@@ -1066,13 +1084,15 @@ class Phase7Controller(PhaseController):
     def validate_input(self, input_models: list = None) -> bool:
         """Validate 1 input model from Phase 6."""
         if not input_models or len(input_models) != 1:
-            raise ValueError(f"Phase 7 requires 1 input model, got {len(input_models) if input_models else 0}")
+            raise ValueError(
+                f"Phase 7 requires 1 input model, got {len(input_models) if input_models else 0}"
+            )
         return True
 
     def validate_output(self, result: PhaseResult) -> bool:
         """Validate Phase 7 output (experts discovered)."""
         if result.metrics:
-            num_experts = result.metrics.get('num_experts', 0)
+            num_experts = result.metrics.get("num_experts", 0)
             return num_experts >= 1
         return True
 
@@ -1090,6 +1110,7 @@ class Phase8Controller(PhaseController):
             PhaseResult with compressed model
         """
         import time
+
         start_time = time.time()
 
         print("\n" + "=" * 60)
@@ -1105,22 +1126,19 @@ class Phase8Controller(PhaseController):
             tokenizer = self._get_tokenizer()
 
             # Create compression config
-            from phase8_compression import CompressionEngine, CompressionConfig
+            from phase8_compression import CompressionConfig, CompressionEngine
 
             config = CompressionConfig(
-                seedlm_enabled=self.config.get('seedlm_enabled', True) if self.config else True,
-                vptq_enabled=self.config.get('vptq_enabled', True) if self.config else True,
-                hyper_enabled=self.config.get('hyper_enabled', True) if self.config else True,
-                min_retention_final=self.config.get('min_retention', 0.84) if self.config else 0.84,
-                run_benchmarks=self.config.get('run_benchmarks', True) if self.config else True
+                seedlm_enabled=self.config.get("seedlm_enabled", True) if self.config else True,
+                vptq_enabled=self.config.get("vptq_enabled", True) if self.config else True,
+                hyper_enabled=self.config.get("hyper_enabled", True) if self.config else True,
+                min_retention_final=self.config.get("min_retention", 0.84) if self.config else 0.84,
+                run_benchmarks=self.config.get("run_benchmarks", True) if self.config else True,
             )
 
             # Run compression engine
             engine = CompressionEngine(config=config)
-            result = engine.run(
-                model=expert_model,
-                tokenizer=tokenizer
-            )
+            result = engine.run(model=expert_model, tokenizer=tokenizer)
 
             duration = time.time() - start_time
 
@@ -1129,20 +1147,18 @@ class Phase8Controller(PhaseController):
                 phase_name="phase8",
                 model=result.model,
                 metrics={
-                    'original_size_mb': result.original_size_mb,
-                    'final_size_mb': result.final_size_mb,
-                    'total_compression': result.total_compression,
-                    'retention_score': result.retention_score,
-                    'stage_results': result.stage_results,
-                    'benchmark_results': result.benchmark_results,
-                    'duration_seconds': duration
+                    "original_size_mb": result.original_size_mb,
+                    "final_size_mb": result.final_size_mb,
+                    "total_compression": result.total_compression,
+                    "retention_score": result.retention_score,
+                    "stage_results": result.stage_results,
+                    "benchmark_results": result.benchmark_results,
+                    "duration_seconds": duration,
                 },
                 duration=duration,
-                artifacts={
-                    'rollback_stage': result.rollback_stage
-                },
+                artifacts={"rollback_stage": result.rollback_stage},
                 config=self.config,
-                error=result.error
+                error=result.error,
             )
 
         except Exception as e:
@@ -1155,7 +1171,7 @@ class Phase8Controller(PhaseController):
                 duration=duration,
                 artifacts={},
                 config=self.config,
-                error=str(e)
+                error=str(e),
             )
 
     def _get_tokenizer(self):
@@ -1165,13 +1181,15 @@ class Phase8Controller(PhaseController):
     def validate_input(self, input_models: list = None) -> bool:
         """Validate 1 input model from Phase 7."""
         if not input_models or len(input_models) != 1:
-            raise ValueError(f"Phase 8 requires 1 input model, got {len(input_models) if input_models else 0}")
+            raise ValueError(
+                f"Phase 8 requires 1 input model, got {len(input_models) if input_models else 0}"
+            )
         return True
 
     def validate_output(self, result: PhaseResult) -> bool:
         """Validate Phase 8 output (compression achieved)."""
         if result.metrics:
-            compression = result.metrics.get('total_compression', 0)
-            retention = result.metrics.get('retention_score', 0)
+            compression = result.metrics.get("total_compression", 0)
+            retention = result.metrics.get("retention_score", 0)
             return compression >= 1.0 and retention >= 0.5
         return True

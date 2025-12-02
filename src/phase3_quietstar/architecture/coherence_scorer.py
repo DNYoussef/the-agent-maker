@@ -7,10 +7,11 @@ Score thought quality across 3 dimensions:
 - Predictive: 30% weight (helps next-token prediction)
 """
 
+from typing import Dict, Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional, Dict
 
 from .dataclasses import CoherenceScores
 
@@ -80,9 +81,7 @@ class CoherenceScorer(nn.Module):
         syntactic = self._syntactic_coherence(thought_avg)
 
         # Predictive coherence (helps prediction)
-        predictive = self._predictive_coherence(
-            thought_avg, next_token_logits
-        )
+        predictive = self._predictive_coherence(thought_avg, next_token_logits)
 
         # Composite score
         composite = (
@@ -98,9 +97,7 @@ class CoherenceScorer(nn.Module):
             composite=composite,
         )
 
-    def _semantic_coherence(
-        self, base: torch.Tensor, thoughts: torch.Tensor
-    ) -> torch.Tensor:
+    def _semantic_coherence(self, base: torch.Tensor, thoughts: torch.Tensor) -> torch.Tensor:
         """Semantic similarity via cosine distance."""
         base_proj = self.semantic_projection(base)
         base_norm = F.normalize(base_proj, p=2, dim=-1)
@@ -108,16 +105,12 @@ class CoherenceScorer(nn.Module):
         thought_norm = F.normalize(thoughts, p=2, dim=-1)
 
         # Cosine similarity
-        similarity = torch.bmm(
-            thought_norm, base_norm.unsqueeze(-1)
-        ).squeeze(-1)
+        similarity = torch.bmm(thought_norm, base_norm.unsqueeze(-1)).squeeze(-1)
 
         # Scale to [0, 1]
         return (similarity + 1.0) / 2.0
 
-    def _syntactic_coherence(
-        self, thoughts: torch.Tensor
-    ) -> torch.Tensor:
+    def _syntactic_coherence(self, thoughts: torch.Tensor) -> torch.Tensor:
         """Grammar validity via learned MLP."""
         return self.syntactic_mlp(thoughts).squeeze(-1)
 
@@ -126,9 +119,7 @@ class CoherenceScorer(nn.Module):
     ) -> torch.Tensor:
         """How much thought helps next-token prediction."""
         if logits is None:
-            return torch.ones(
-                thoughts.size(0), thoughts.size(1), device=thoughts.device
-            )
+            return torch.ones(thoughts.size(0), thoughts.size(1), device=thoughts.device)
 
         # Predict utility
         utility = self.predictive_head(thoughts).squeeze(-1)

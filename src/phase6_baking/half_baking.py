@@ -9,9 +9,9 @@ Key insight: Half-baking (50% strength) enables iterative refinement
 without overwriting previous learning.
 """
 
-from dataclasses import dataclass
-from typing import Dict, Optional, Any
 import copy
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
 
 import torch
 import torch.nn as nn
@@ -20,6 +20,7 @@ import torch.nn as nn
 @dataclass
 class HalfBakeConfig:
     """Configuration for half-baking."""
+
     strength: float = 0.5  # 0.0 = original, 1.0 = fully baked
     layer_wise: bool = False  # Apply different strengths per layer
     preserve_embeddings: bool = True  # Keep embedding layers unchanged
@@ -44,7 +45,7 @@ class HalfBaker:
         strength: float = 0.5,
         layer_wise: bool = False,
         preserve_embeddings: bool = True,
-        preserve_layer_norms: bool = True
+        preserve_layer_norms: bool = True,
     ):
         """
         Initialize half-baker.
@@ -60,17 +61,13 @@ class HalfBaker:
         self.preserve_embeddings = preserve_embeddings
         self.preserve_layer_norms = preserve_layer_norms
 
-        self.metrics = {
-            'total_half_bakes': 0,
-            'layers_interpolated': 0,
-            'layers_preserved': 0
-        }
+        self.metrics = {"total_half_bakes": 0, "layers_interpolated": 0, "layers_preserved": 0}
 
     def half_bake(
         self,
         original_model: nn.Module,
         baked_model: nn.Module,
-        strength_override: Optional[float] = None
+        strength_override: Optional[float] = None,
     ) -> nn.Module:
         """
         Create half-baked model by interpolating weights.
@@ -102,11 +99,13 @@ class HalfBaker:
             # Check if layer should be preserved
             should_preserve = False
 
-            if self.preserve_embeddings and 'embed' in name.lower():
+            if self.preserve_embeddings and "embed" in name.lower():
                 should_preserve = True
-            if self.preserve_layer_norms and any(x in name.lower() for x in ['norm', 'ln_', 'layernorm']):
+            if self.preserve_layer_norms and any(
+                x in name.lower() for x in ["norm", "ln_", "layernorm"]
+            ):
                 should_preserve = True
-            if 'bias' in name.lower():
+            if "bias" in name.lower():
                 should_preserve = True
 
             if should_preserve:
@@ -121,18 +120,17 @@ class HalfBaker:
                     layer_strength = strength
 
                 half_baked_state[name] = (
-                    (1 - layer_strength) * original_param +
-                    layer_strength * baked_param
-                )
+                    1 - layer_strength
+                ) * original_param + layer_strength * baked_param
                 layers_interpolated += 1
 
         # Load interpolated state
         half_baked.load_state_dict(half_baked_state)
 
         # Update metrics
-        self.metrics['total_half_bakes'] += 1
-        self.metrics['layers_interpolated'] = layers_interpolated
-        self.metrics['layers_preserved'] = layers_preserved
+        self.metrics["total_half_bakes"] += 1
+        self.metrics["layers_interpolated"] = layers_interpolated
+        self.metrics["layers_preserved"] = layers_preserved
 
         return half_baked
 
@@ -144,7 +142,8 @@ class HalfBaker:
         """
         # Extract layer number if present
         import re
-        match = re.search(r'layer[_.]?(\d+)', layer_name.lower())
+
+        match = re.search(r"layer[_.]?(\d+)", layer_name.lower())
 
         if match:
             layer_num = int(match.group(1))
@@ -156,10 +155,7 @@ class HalfBaker:
             return base_strength
 
     def progressive_half_bake(
-        self,
-        original_model: nn.Module,
-        baked_model: nn.Module,
-        steps: int = 5
+        self, original_model: nn.Module, baked_model: nn.Module, steps: int = 5
     ) -> nn.Module:
         """
         Progressive half-baking in multiple steps.
@@ -181,7 +177,7 @@ class HalfBaker:
             current_model = self.half_bake(
                 original_model=current_model,
                 baked_model=baked_model,
-                strength_override=step_strength
+                strength_override=step_strength,
             )
 
         return current_model
@@ -207,7 +203,7 @@ class StrengthScheduler:
         initial_strength: float = 0.3,
         final_strength: float = 0.7,
         total_iterations: int = 20,
-        schedule_type: str = "linear"
+        schedule_type: str = "linear",
     ):
         """
         Initialize strength scheduler.
@@ -235,9 +231,12 @@ class StrengthScheduler:
 
         elif self.schedule_type == "cosine":
             import math
+
             progress = self.current_iteration / max(1, self.total_iterations - 1)
             cosine_factor = (1 - math.cos(math.pi * progress)) / 2
-            return self.initial_strength + cosine_factor * (self.final_strength - self.initial_strength)
+            return self.initial_strength + cosine_factor * (
+                self.final_strength - self.initial_strength
+            )
 
         else:
             return self.initial_strength
@@ -251,4 +250,4 @@ class StrengthScheduler:
         self.current_iteration = 0
 
 
-__all__ = ['HalfBaker', 'HalfBakeConfig', 'StrengthScheduler']
+__all__ = ["HalfBaker", "HalfBakeConfig", "StrengthScheduler"]

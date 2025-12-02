@@ -5,10 +5,11 @@ Identify difficult token positions for thought injection.
 Uses 3 difficulty metrics: entropy, attention dispersion, and loss.
 """
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional
 
 
 class ThoughtInjector(nn.Module):
@@ -51,9 +52,7 @@ class ThoughtInjector(nn.Module):
         error = loss.item() if loss is not None else 0.0
 
         # Composite difficulty (normalized to [0, 1])
-        difficulty = (
-            0.4 * entropy + 0.3 * dispersion + 0.3 * min(error, 10.0) / 10.0
-        )
+        difficulty = 0.4 * entropy + 0.3 * dispersion + 0.3 * min(error, 10.0) / 10.0
 
         # Inject if above threshold
         if difficulty > self.threshold:
@@ -68,25 +67,17 @@ class ThoughtInjector(nn.Module):
         entropy = -(probs * torch.log(probs + 1e-10)).sum(dim=-1)
 
         # Normalize to [0, 1]
-        max_entropy = torch.log(
-            torch.tensor(logits.size(-1), dtype=torch.float32)
-        )
+        max_entropy = torch.log(torch.tensor(logits.size(-1), dtype=torch.float32))
         return (entropy / max_entropy).mean().item()
 
-    def _compute_dispersion(
-        self, attention_weights: Optional[torch.Tensor]
-    ) -> float:
+    def _compute_dispersion(self, attention_weights: Optional[torch.Tensor]) -> float:
         """Compute attention dispersion (high = spread out)."""
         if attention_weights is None:
             return 0.5  # Neutral value
 
         # Compute entropy of attention distribution
-        entropy = -(
-            attention_weights * torch.log(attention_weights + 1e-10)
-        ).sum(dim=-1)
+        entropy = -(attention_weights * torch.log(attention_weights + 1e-10)).sum(dim=-1)
 
         # Normalize
-        max_entropy = torch.log(
-            torch.tensor(attention_weights.size(-1), dtype=torch.float32)
-        )
+        max_entropy = torch.log(torch.tensor(attention_weights.size(-1), dtype=torch.float32))
         return (entropy / max_entropy).mean().item()

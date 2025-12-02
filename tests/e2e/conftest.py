@@ -5,13 +5,14 @@ Provides mock models, tokenizers, and data loaders for testing
 the complete pipeline without requiring GPU or large models.
 """
 
+import sys
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, Mock
+
 import pytest
 import torch
 import torch.nn as nn
-from unittest.mock import Mock, MagicMock
-from pathlib import Path
-import tempfile
-import sys
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -28,9 +29,9 @@ class MockLanguageModel(nn.Module):
         self.config.num_layers = num_layers
 
         self.embeddings = nn.Embedding(vocab_size, hidden_size)
-        self.layers = nn.ModuleList([
-            nn.Linear(hidden_size, hidden_size) for _ in range(num_layers)
-        ])
+        self.layers = nn.ModuleList(
+            [nn.Linear(hidden_size, hidden_size) for _ in range(num_layers)]
+        )
         self.lm_head = nn.Linear(hidden_size, vocab_size)
 
     def forward(self, input_ids, attention_mask=None, labels=None, **kwargs):
@@ -41,10 +42,7 @@ class MockLanguageModel(nn.Module):
 
         loss = None
         if labels is not None:
-            loss = nn.CrossEntropyLoss()(
-                logits.view(-1, self.config.vocab_size),
-                labels.view(-1)
-            )
+            loss = nn.CrossEntropyLoss()(logits.view(-1, self.config.vocab_size), labels.view(-1))
 
         return Mock(logits=logits, loss=loss, hidden_states=x)
 
@@ -54,6 +52,7 @@ class MockLanguageModel(nn.Module):
 
 class MockTokenizer:
     """Mock tokenizer for E2E testing."""
+
     vocab_size = 1000
     pad_token_id = 0
     eos_token_id = 1
@@ -65,15 +64,17 @@ class MockTokenizer:
         else:
             tokens = [[hash(word) % self.vocab_size for word in t.split()] for t in text]
 
-        max_len = kwargs.get('max_length', 32)
+        max_len = kwargs.get("max_length", 32)
         if isinstance(tokens[0], list):
             tokens = [t[:max_len] + [self.pad_token_id] * (max_len - len(t)) for t in tokens]
         else:
             tokens = tokens[:max_len] + [self.pad_token_id] * (max_len - len(tokens))
 
         return {
-            'input_ids': torch.tensor([tokens] if isinstance(tokens[0], int) else tokens),
-            'attention_mask': torch.ones_like(torch.tensor([tokens] if isinstance(tokens[0], int) else tokens))
+            "input_ids": torch.tensor([tokens] if isinstance(tokens[0], int) else tokens),
+            "attention_mask": torch.ones_like(
+                torch.tensor([tokens] if isinstance(tokens[0], int) else tokens)
+            ),
         }
 
     def decode(self, tokens, **kwargs):
@@ -95,11 +96,12 @@ def mock_tokenizer():
 @pytest.fixture
 def mock_dataloader():
     """Create a mock dataloader with sample batches."""
+
     def create_batch(batch_size=2, seq_len=32, vocab_size=1000):
         return {
-            'input_ids': torch.randint(0, vocab_size, (batch_size, seq_len)),
-            'attention_mask': torch.ones(batch_size, seq_len),
-            'labels': torch.randint(0, vocab_size, (batch_size, seq_len)),
+            "input_ids": torch.randint(0, vocab_size, (batch_size, seq_len)),
+            "attention_mask": torch.ones(batch_size, seq_len),
+            "labels": torch.randint(0, vocab_size, (batch_size, seq_len)),
         }
 
     class MockDataLoader:

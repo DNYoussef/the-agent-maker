@@ -3,10 +3,11 @@ pytest configuration and fixtures
 Shared fixtures for all tests
 """
 
-import pytest
 import sys
 import tempfile
 from pathlib import Path
+
+import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -23,21 +24,9 @@ def temp_dir():
 def sample_config():
     """Sample configuration for testing"""
     return {
-        "wandb": {
-            "enabled": True,
-            "mode": "offline",
-            "project": "test-project"
-        },
-        "hardware": {
-            "device_vram_gb": 6,
-            "max_batch_size": 32
-        },
-        "phases": {
-            "phase1": {
-                "num_models": 3,
-                "epochs": 10
-            }
-        }
+        "wandb": {"enabled": True, "mode": "offline", "project": "test-project"},
+        "hardware": {"device_vram_gb": 6, "max_batch_size": 32},
+        "phases": {"phase1": {"num_models": 3, "epochs": 10}},
     }
 
 
@@ -69,4 +58,5 @@ def mock_model():
 def mock_tokenizer():
     """Create mock tokenizer for testing"""
     from cross_phase.utils import MockTokenizer
+
     return MockTokenizer()

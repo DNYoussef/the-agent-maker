@@ -3,9 +3,11 @@ BitNet Quantizer
 Core ternary quantization engine for 1.58-bit compression
 """
 
+from typing import Dict, Optional, Tuple
+
 import torch
 import torch.nn as nn
-from typing import Dict, Tuple, Optional
+
 from src.phase4_bitnet.config import Phase4Config
 
 
@@ -32,17 +34,15 @@ class BitNetQuantizer:
         """
         self.config = config
         self.stats = {
-            'layers_quantized': 0,
-            'layers_preserved': 0,
-            'total_params': 0,
-            'quantized_params': 0,
-            'sparsity_ratio': 0.0,
+            "layers_quantized": 0,
+            "layers_preserved": 0,
+            "total_params": 0,
+            "quantized_params": 0,
+            "sparsity_ratio": 0.0,
         }
 
     def quantize_tensor(
-        self,
-        tensor: torch.Tensor,
-        threshold: Optional[float] = None
+        self, tensor: torch.Tensor, threshold: Optional[float] = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Quantize tensor to ternary {-1, 0, +1}
@@ -61,10 +61,7 @@ class BitNetQuantizer:
         # Formula: α = mean(|W|)
         if len(tensor.shape) >= 2:
             # Per-output-channel scaling
-            scale = tensor.abs().mean(
-                dim=list(range(1, len(tensor.shape))),
-                keepdim=True
-            )
+            scale = tensor.abs().mean(dim=list(range(1, len(tensor.shape))), keepdim=True)
         else:
             # Scalar scaling for 1D tensors
             scale = tensor.abs().mean()
@@ -89,11 +86,7 @@ class BitNetQuantizer:
 
         return quantized_int8, scale
 
-    def dequantize_tensor(
-        self,
-        quantized: torch.Tensor,
-        scale: torch.Tensor
-    ) -> torch.Tensor:
+    def dequantize_tensor(self, quantized: torch.Tensor, scale: torch.Tensor) -> torch.Tensor:
         """
         Dequantize tensor back to FP32
 
@@ -132,12 +125,12 @@ class BitNetQuantizer:
 
         # Quantize transformer layers
         quantize_patterns = [
-            'attention',
-            'self_attn',
-            'mlp',
-            'feed_forward',
-            'linear',
-            'conv',
+            "attention",
+            "self_attn",
+            "mlp",
+            "feed_forward",
+            "linear",
+            "conv",
         ]
 
         for pattern in quantize_patterns:
@@ -148,8 +141,7 @@ class BitNetQuantizer:
         return False
 
     def quantize_model(
-        self,
-        model: nn.Module
+        self, model: nn.Module
     ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
         """
         Quantize entire model
@@ -165,18 +157,18 @@ class BitNetQuantizer:
 
         # Reset stats
         self.stats = {
-            'layers_quantized': 0,
-            'layers_preserved': 0,
-            'total_params': 0,
-            'quantized_params': 0,
-            'zero_params': 0,
+            "layers_quantized": 0,
+            "layers_preserved": 0,
+            "total_params": 0,
+            "quantized_params": 0,
+            "zero_params": 0,
         }
 
         original_state_dict = model.state_dict()
 
         for name, param in original_state_dict.items():
             # Count total parameters
-            self.stats['total_params'] += param.numel()
+            self.stats["total_params"] += param.numel()
 
             # Check if layer should be quantized
             if self.should_quantize_layer(name):
@@ -187,9 +179,9 @@ class BitNetQuantizer:
                 scale_factors[name] = scale
 
                 # Update stats
-                self.stats['layers_quantized'] += 1
-                self.stats['quantized_params'] += param.numel()
-                self.stats['zero_params'] += (quantized == 0).sum().item()
+                self.stats["layers_quantized"] += 1
+                self.stats["quantized_params"] += param.numel()
+                self.stats["zero_params"] += (quantized == 0).sum().item()
 
             else:
                 # Preserve in FP16
@@ -201,20 +193,18 @@ class BitNetQuantizer:
                 scale_factors[name] = torch.tensor(1.0)
 
                 # Update stats
-                self.stats['layers_preserved'] += 1
+                self.stats["layers_preserved"] += 1
 
         # Calculate sparsity ratio
-        if self.stats['quantized_params'] > 0:
-            self.stats['sparsity_ratio'] = (
-                self.stats['zero_params'] / self.stats['quantized_params']
+        if self.stats["quantized_params"] > 0:
+            self.stats["sparsity_ratio"] = (
+                self.stats["zero_params"] / self.stats["quantized_params"]
             )
 
         return quantized_state_dict, scale_factors
 
     def dequantize_model(
-        self,
-        quantized_state_dict: Dict[str, torch.Tensor],
-        scale_factors: Dict[str, torch.Tensor]
+        self, quantized_state_dict: Dict[str, torch.Tensor], scale_factors: Dict[str, torch.Tensor]
     ) -> Dict[str, torch.Tensor]:
         """
         Dequantize model to FP16
@@ -233,10 +223,7 @@ class BitNetQuantizer:
                 # Check if parameter was quantized
                 if quantized_param.dtype == torch.int8:
                     # Dequantize
-                    dequantized = self.dequantize_tensor(
-                        quantized_param,
-                        scale_factors[name]
-                    )
+                    dequantized = self.dequantize_tensor(quantized_param, scale_factors[name])
                     # Convert to FP16
                     dequantized_state_dict[name] = dequantized.half()
                 else:

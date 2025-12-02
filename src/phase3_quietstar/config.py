@@ -52,15 +52,17 @@ class ReasoningStrategies:
     @property
     def total_examples(self) -> int:
         """Total training examples."""
-        return sum([
-            self.chain_of_thought,
-            self.mece_decomposition,
-            self.falsification_testing,
-            self.expert_perspective,
-            self.orthogonal_wisdom,
-            self.self_doubt,
-            self.bayesian_rationalist,
-        ])
+        return sum(
+            [
+                self.chain_of_thought,
+                self.mece_decomposition,
+                self.falsification_testing,
+                self.expert_perspective,
+                self.orthogonal_wisdom,
+                self.self_doubt,
+                self.bayesian_rationalist,
+            ]
+        )
 
 
 @dataclass
@@ -132,11 +134,13 @@ class QuietSTaRRLConfig:
     top_p: float = 0.9
 
     # Coherence scoring weights
-    coherence_weights: Dict[str, float] = field(default_factory=lambda: {
-        "semantic": 0.4,
-        "syntactic": 0.3,
-        "predictive": 0.3,
-    })
+    coherence_weights: Dict[str, float] = field(
+        default_factory=lambda: {
+            "semantic": 0.4,
+            "syntactic": 0.3,
+            "predictive": 0.3,
+        }
+    )
 
     # Thought injection
     injection_threshold: float = 0.6
@@ -160,36 +164,30 @@ class QuietSTaRConfig:
     """Complete Phase 3 Quiet-STaR configuration."""
 
     # Thinking tokens
-    thinking_tokens: ThinkingTokens = field(
-        default_factory=ThinkingTokens
-    )
+    thinking_tokens: ThinkingTokens = field(default_factory=ThinkingTokens)
 
     # Reasoning strategies
-    strategies: ReasoningStrategies = field(
-        default_factory=ReasoningStrategies
-    )
+    strategies: ReasoningStrategies = field(default_factory=ReasoningStrategies)
 
     # Step 1: Prompt Baking
-    baking: PromptBakingConfig = field(
-        default_factory=PromptBakingConfig
-    )
+    baking: PromptBakingConfig = field(default_factory=PromptBakingConfig)
 
     # Step 2: Quiet-STaR RL
     rl: QuietSTaRRLConfig = field(default_factory=QuietSTaRRLConfig)
 
     # Anti-theater validation
-    anti_theater: AntiTheaterConfig = field(
-        default_factory=AntiTheaterConfig
-    )
+    anti_theater: AntiTheaterConfig = field(default_factory=AntiTheaterConfig)
 
     # Data generation (OpenRouter)
-    openrouter_models: List[str] = field(default_factory=lambda: [
-        "openai/gpt-4o",
-        "anthropic/claude-3.5-sonnet",
-        "google/gemini-pro-1.5",
-        "x-ai/grok-beta",
-        "qwen/qwen-2.5-72b-instruct",
-    ])
+    openrouter_models: List[str] = field(
+        default_factory=lambda: [
+            "openai/gpt-4o",
+            "anthropic/claude-3.5-sonnet",
+            "google/gemini-pro-1.5",
+            "x-ai/grok-beta",
+            "qwen/qwen-2.5-72b-instruct",
+        ]
+    )
     examples_per_model: int = 4000
     cost_limit: float = 200.0  # USD
 

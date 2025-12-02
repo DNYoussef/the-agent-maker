@@ -1,9 +1,10 @@
 """E2E tests for Phase 5: Curriculum Learning"""
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-import torch
 import sys
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+import torch
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
@@ -24,19 +25,19 @@ class TestPhase5CurriculumE2E:
 
     def test_curriculum_engine_initialization(self, mock_model, mock_tokenizer, temp_output_dir):
         """Test curriculum engine can be initialized."""
-        from phase5_curriculum.curriculum_engine import CurriculumEngine, CurriculumConfig
+        from phase5_curriculum.curriculum_engine import CurriculumConfig, CurriculumEngine
 
         config = CurriculumConfig()
         engine = CurriculumEngine(config=config)
 
         assert engine.config is not None
         assert engine.config.num_levels == 10
-        assert hasattr(engine, 'level_progress')
-        assert hasattr(engine, 'metrics')
+        assert hasattr(engine, "level_progress")
+        assert hasattr(engine, "metrics")
 
     def test_level_progression_logic(self, mock_model, temp_output_dir):
         """Test level progression based on accuracy threshold."""
-        from phase5_curriculum.curriculum_engine import CurriculumEngine, CurriculumConfig
+        from phase5_curriculum.curriculum_engine import CurriculumConfig, CurriculumEngine
 
         config = CurriculumConfig()
         engine = CurriculumEngine(config=config)
@@ -71,10 +72,10 @@ class TestPhase5CurriculumE2E:
         level_10_width = base_width + (10 - 1) * 0.1
         assert level_10_width == pytest.approx(1.1)
 
-    @patch('phase5_curriculum.curriculum_generator.AdaptiveCurriculumGenerator')
+    @patch("phase5_curriculum.curriculum_generator.AdaptiveCurriculumGenerator")
     def test_question_generation_mock(self, MockGenerator, mock_model, temp_output_dir):
         """Test question generation can be called."""
-        from phase5_curriculum.curriculum_engine import CurriculumEngine, CurriculumConfig
+        from phase5_curriculum.curriculum_engine import CurriculumConfig, CurriculumEngine
 
         # Setup mock generator
         mock_gen = MagicMock()
@@ -90,7 +91,7 @@ class TestPhase5CurriculumE2E:
         engine = CurriculumEngine(config=config)
 
         # Test that _generate_curriculum method exists
-        assert hasattr(engine, '_generate_curriculum')
+        assert hasattr(engine, "_generate_curriculum")
 
         # Verify config has curriculum settings
         assert config.questions_per_level == 2000
@@ -103,6 +104,7 @@ class TestPhase5CurriculumE2E:
         # Test that the assessment module can be imported
         try:
             from phase5_curriculum.assessment import EdgeOfChaosAssessment
+
             config = CurriculumConfig()
 
             # Verify threshold is set correctly
@@ -120,11 +122,11 @@ class TestPhase5CurriculumE2E:
         config = CurriculumConfig()
 
         # Verify dream consolidation settings exist in config
-        assert hasattr(config, 'dream_temperature')
+        assert hasattr(config, "dream_temperature")
         assert config.dream_temperature == 1.5
-        assert hasattr(config, 'dream_training_temperature')
+        assert hasattr(config, "dream_training_temperature")
         assert config.dream_training_temperature == 0.8
-        assert hasattr(config, 'dream_samples')
+        assert hasattr(config, "dream_samples")
         assert config.dream_samples == 1000
 
     def test_dream_replay_step(self, mock_model, temp_output_dir):
@@ -146,11 +148,11 @@ class TestPhase5CurriculumE2E:
         config = CurriculumConfig()
 
         # Verify self-modeling settings exist in config
-        assert hasattr(config, 'base_temperature_width')
+        assert hasattr(config, "base_temperature_width")
         assert config.base_temperature_width == 0.2
-        assert hasattr(config, 'temperature_width_growth')
+        assert hasattr(config, "temperature_width_growth")
         assert config.temperature_width_growth == 0.1
-        assert hasattr(config, 'base_num_ranges')
+        assert hasattr(config, "base_num_ranges")
         assert config.base_num_ranges == 10
 
     def test_temperature_range_prediction(self, mock_model, temp_output_dir):
@@ -167,22 +169,19 @@ class TestPhase5CurriculumE2E:
 
     def test_full_curriculum_level_cycle(self, mock_model, temp_output_dir):
         """Test complete cycle for one curriculum level."""
-        from phase5_curriculum.curriculum_engine import CurriculumEngine, CurriculumConfig
+        from phase5_curriculum.curriculum_engine import CurriculumConfig, CurriculumEngine
 
-        config = CurriculumConfig(
-            num_levels=2,  # Small test
-            questions_per_level=10
-        )
+        config = CurriculumConfig(num_levels=2, questions_per_level=10)  # Small test
 
         engine = CurriculumEngine(config=config)
 
         # Verify engine has the necessary methods for running levels
-        assert hasattr(engine, '_run_assessment')
-        assert hasattr(engine, '_generate_curriculum')
-        assert hasattr(engine, '_run_training_loop')
-        assert hasattr(engine, '_run_prompt_baking')
-        assert hasattr(engine, '_run_self_modeling')
-        assert hasattr(engine, '_run_dream_consolidation')
+        assert hasattr(engine, "_run_assessment")
+        assert hasattr(engine, "_generate_curriculum")
+        assert hasattr(engine, "_run_training_loop")
+        assert hasattr(engine, "_run_prompt_baking")
+        assert hasattr(engine, "_run_self_modeling")
+        assert hasattr(engine, "_run_dream_consolidation")
 
         # Verify config is set correctly
         assert engine.config.num_levels == 2
@@ -196,25 +195,27 @@ class TestPhase5CurriculumE2E:
 
         try:
             from phase5_curriculum.engine import eudaimonia
+
             # If module exists, verify it has required components
-            assert hasattr(eudaimonia, 'EudaimoniaSystem') or True
+            assert hasattr(eudaimonia, "EudaimoniaSystem") or True
         except ImportError:
             # Module may not be implemented yet
             pytest.skip("Eudaimonia system not yet implemented")
 
     def test_tool_use_training_placeholder(self, mock_model, temp_output_dir):
         """Test tool use training integration (placeholder)."""
-        from phase5_curriculum.curriculum_engine import CurriculumEngine, CurriculumConfig
+        from phase5_curriculum.curriculum_engine import CurriculumConfig, CurriculumEngine
 
         config = CurriculumConfig()
         engine = CurriculumEngine(config=config)
 
         # Tool use training happens during curriculum
         # This validates the engine can be configured for it
-        assert hasattr(engine, 'config')
+        assert hasattr(engine, "config")
         assert engine.config is not None
 
         # Verify run method accepts coding_env parameter
         import inspect
+
         sig = inspect.signature(engine.run)
-        assert 'coding_env' in sig.parameters
+        assert "coding_env" in sig.parameters

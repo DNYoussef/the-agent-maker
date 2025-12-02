@@ -5,10 +5,11 @@ Generate parallel thought continuations at each token position.
 Uses nucleus sampling (top-p) with temperature for diversity.
 """
 
+from typing import List, Optional, Tuple
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Tuple, Optional
 
 from .dataclasses import ThoughtOutput
 
@@ -55,9 +56,7 @@ class ThoughtGenerator(nn.Module):
 
         # Generate each thought independently
         for _ in range(self.num_thoughts):
-            thought, log_prob, ids = self._generate_single(
-                input_ids, position, hidden_states
-            )
+            thought, log_prob, ids = self._generate_single(input_ids, position, hidden_states)
             all_thoughts.append(thought)
             all_log_probs.append(log_prob)
             all_thought_ids.append(ids)
@@ -88,9 +87,7 @@ class ThoughtGenerator(nn.Module):
         log_probs_list = []
 
         # Adaptive length (10-20 tokens)
-        thought_length = torch.randint(
-            self.min_length, self.max_length + 1, (1,)
-        ).item()
+        thought_length = torch.randint(self.min_length, self.max_length + 1, (1,)).item()
 
         # Generate tokens
         for step in range(thought_length):
@@ -104,9 +101,7 @@ class ThoughtGenerator(nn.Module):
             # Store results
             # ISS-005: Handle batch_size > 1 (use first batch item for IDs)
             generated_ids.append(next_token[0, 0].item())
-            log_probs_list.append(
-                torch.log(probs.gather(1, next_token))
-            )
+            log_probs_list.append(torch.log(probs.gather(1, next_token)))
 
             # Append token
             current_ids = torch.cat([current_ids, next_token], dim=1)
@@ -118,16 +113,12 @@ class ThoughtGenerator(nn.Module):
 
         return thought_hidden, log_prob_sum, generated_ids
 
-    def _nucleus_sampling(
-        self, logits: torch.Tensor
-    ) -> torch.Tensor:
+    def _nucleus_sampling(self, logits: torch.Tensor) -> torch.Tensor:
         """Apply nucleus (top-p) sampling."""
         probs = F.softmax(logits, dim=-1)
 
         # Sort probabilities
-        sorted_probs, sorted_indices = torch.sort(
-            probs, descending=True, dim=-1
-        )
+        sorted_probs, sorted_indices = torch.sort(probs, descending=True, dim=-1)
         cumsum_probs = torch.cumsum(sorted_probs, dim=-1)
 
         # Find cutoff

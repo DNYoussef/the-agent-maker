@@ -3,9 +3,10 @@ Unit tests for MuGrokfast Optimizer
 Tests Muon, Grokfast, and phase-specific presets
 """
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
@@ -57,10 +58,7 @@ class TestMuGrokConfig:
             MuGrokConfig.from_phase(99)
 
 
-@pytest.mark.skipif(
-    'torch' not in sys.modules,
-    reason="PyTorch not available"
-)
+@pytest.mark.skipif("torch" not in sys.modules, reason="PyTorch not available")
 class TestMuonGrokfast:
     """Test MuonGrokfast optimizer"""
 

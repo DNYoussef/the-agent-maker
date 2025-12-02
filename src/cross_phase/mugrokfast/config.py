@@ -9,6 +9,7 @@ from dataclasses import dataclass
 @dataclass
 class MuGrokConfig:
     """MuGrokfast optimizer configuration"""
+
     muon_lr: float
     fallback_lr: float
     grokfast_alpha: float
@@ -21,7 +22,7 @@ class MuGrokConfig:
     ns_steps: int
 
     @classmethod
-    def from_phase(cls, phase_num: int) -> 'MuGrokConfig':
+    def from_phase(cls, phase_num: int) -> "MuGrokConfig":
         """
         Get phase-specific preset configuration
 
@@ -43,7 +44,7 @@ class MuGrokConfig:
                 muon_ste_mode=False,
                 momentum=0.95,
                 nesterov=True,
-                ns_steps=5
+                ns_steps=5,
             ),
             3: cls(  # Phase 3: Quiet-STaR (RL)
                 muon_lr=5e-4,  # HIGHER for RL exploration
@@ -55,7 +56,7 @@ class MuGrokConfig:
                 muon_ste_mode=False,
                 momentum=0.95,
                 nesterov=True,
-                ns_steps=5
+                ns_steps=5,
             ),
             5: cls(  # Phase 5: Curriculum Learning (BitNet STE)
                 muon_lr=1e-3,
@@ -67,7 +68,7 @@ class MuGrokConfig:
                 muon_ste_mode=True,  # CRITICAL: STE mode for BitNet
                 momentum=0.95,
                 nesterov=True,
-                ns_steps=5
+                ns_steps=5,
             ),
             6: cls(  # Phase 6: Tool & Persona Baking
                 muon_lr=1e-4,  # Lower for fine-tuning
@@ -79,7 +80,7 @@ class MuGrokConfig:
                 muon_ste_mode=False,
                 momentum=0.95,
                 nesterov=True,
-                ns_steps=5
+                ns_steps=5,
             ),
             7: cls(  # Phase 7: Self-Guided Experts (SVF Training)
                 muon_lr=5e-4,
@@ -91,8 +92,8 @@ class MuGrokConfig:
                 muon_ste_mode=False,
                 momentum=0.95,
                 nesterov=True,
-                ns_steps=5
-            )
+                ns_steps=5,
+            ),
         }
 
         if phase_num not in presets:
@@ -115,8 +116,8 @@ class MuGrokConfig:
         muon_ste_mode: bool = False,
         momentum: float = 0.95,
         nesterov: bool = True,
-        ns_steps: int = 5
-    ) -> 'MuGrokConfig':
+        ns_steps: int = 5,
+    ) -> "MuGrokConfig":
         """Create custom configuration"""
         return cls(
             muon_lr=muon_lr,
@@ -128,5 +129,5 @@ class MuGrokConfig:
             muon_ste_mode=muon_ste_mode,
             momentum=momentum,
             nesterov=nesterov,
-            ns_steps=ns_steps
+            ns_steps=ns_steps,
         )

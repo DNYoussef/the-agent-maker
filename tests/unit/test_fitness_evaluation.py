@@ -11,32 +11,34 @@ Tests cover:
 - FitnessEvaluator API
 """
 
+import math
+
 import pytest
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
-import math
 
 from src.phase2_evomerge.fitness import (
-    calculate_perplexity,
-    calculate_accuracy,
-    benchmark_speed,
-    measure_memory_usage,
-    compute_composite_fitness,
+    DEFAULT_EXPECTED,
+    DEFAULT_WEIGHTS,
     FitnessCache,
     FitnessEvaluator,
-    DEFAULT_WEIGHTS,
-    DEFAULT_EXPECTED
+    benchmark_speed,
+    calculate_accuracy,
+    calculate_perplexity,
+    compute_composite_fitness,
+    measure_memory_usage,
 )
-
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def simple_model():
     """Create a simple model for testing."""
+
     class SimpleModel(nn.Module):
         def __init__(self, vocab_size=1000, hidden_size=128):
             super().__init__()
@@ -81,6 +83,7 @@ def cuda_available():
 # Perplexity Tests
 # ============================================================================
 
+
 @pytest.mark.phase2
 @pytest.mark.fitness
 class TestPerplexityCalculation:
@@ -88,12 +91,7 @@ class TestPerplexityCalculation:
 
     def test_perplexity_returns_positive_float(self, simple_model, dummy_dataset):
         """Perplexity should return a positive float."""
-        ppl = calculate_perplexity(
-            simple_model,
-            dummy_dataset,
-            device='cpu',
-            mixed_precision=False
-        )
+        ppl = calculate_perplexity(simple_model, dummy_dataset, device="cpu", mixed_precision=False)
 
         assert isinstance(ppl, float)
         assert ppl > 0
@@ -103,19 +101,11 @@ class TestPerplexityCalculation:
     def test_perplexity_max_batches_limit(self, simple_model, dummy_dataset):
         """Test max_batches parameter limits evaluation."""
         ppl_full = calculate_perplexity(
-            simple_model,
-            dummy_dataset,
-            device='cpu',
-            mixed_precision=False,
-            max_batches=None
+            simple_model, dummy_dataset, device="cpu", mixed_precision=False, max_batches=None
         )
 
         ppl_limited = calculate_perplexity(
-            simple_model,
-            dummy_dataset,
-            device='cpu',
-            mixed_precision=False,
-            max_batches=2
+            simple_model, dummy_dataset, device="cpu", mixed_precision=False, max_batches=2
         )
 
         # Both should be valid, may differ slightly
@@ -129,12 +119,13 @@ class TestPerplexityCalculation:
         empty_loader = DataLoader(TensorDataset(torch.tensor([]), torch.tensor([])))
 
         with pytest.raises(ValueError, match="No batches processed"):
-            calculate_perplexity(simple_model, empty_loader, device='cpu')
+            calculate_perplexity(simple_model, empty_loader, device="cpu")
 
 
 # ============================================================================
 # Accuracy Tests
 # ============================================================================
+
 
 @pytest.mark.phase2
 @pytest.mark.fitness
@@ -143,30 +134,16 @@ class TestAccuracyCalculation:
 
     def test_accuracy_returns_value_in_range(self, simple_model, dummy_dataset):
         """Accuracy should be between 0.0 and 1.0."""
-        acc = calculate_accuracy(
-            simple_model,
-            dummy_dataset,
-            device='cpu'
-        )
+        acc = calculate_accuracy(simple_model, dummy_dataset, device="cpu")
 
         assert isinstance(acc, float)
         assert 0.0 <= acc <= 1.0
 
     def test_accuracy_max_batches_limit(self, simple_model, dummy_dataset):
         """Test max_batches parameter."""
-        acc_full = calculate_accuracy(
-            simple_model,
-            dummy_dataset,
-            device='cpu',
-            max_batches=None
-        )
+        acc_full = calculate_accuracy(simple_model, dummy_dataset, device="cpu", max_batches=None)
 
-        acc_limited = calculate_accuracy(
-            simple_model,
-            dummy_dataset,
-            device='cpu',
-            max_batches=2
-        )
+        acc_limited = calculate_accuracy(simple_model, dummy_dataset, device="cpu", max_batches=2)
 
         # Both should be valid
         assert 0.0 <= acc_full <= 1.0
@@ -176,13 +153,14 @@ class TestAccuracyCalculation:
         """Empty dataset should return 0.0."""
         empty_loader = DataLoader(TensorDataset(torch.tensor([[]]), torch.tensor([[]])))
 
-        acc = calculate_accuracy(simple_model, empty_loader, device='cpu')
+        acc = calculate_accuracy(simple_model, empty_loader, device="cpu")
         assert acc == 0.0
 
 
 # ============================================================================
 # Speed Benchmark Tests
 # ============================================================================
+
 
 @pytest.mark.phase2
 @pytest.mark.fitness
@@ -194,11 +172,7 @@ class TestSpeedBenchmark:
         batch = torch.randint(0, 1000, (32, 64))
 
         tokens_per_sec = benchmark_speed(
-            simple_model,
-            batch,
-            device='cpu',
-            num_warmup=2,
-            num_iterations=10
+            simple_model, batch, device="cpu", num_warmup=2, num_iterations=10
         )
 
         assert isinstance(tokens_per_sec, float)
@@ -210,20 +184,12 @@ class TestSpeedBenchmark:
 
         # With warmup
         speed_warm = benchmark_speed(
-            simple_model,
-            batch,
-            device='cpu',
-            num_warmup=10,
-            num_iterations=20
+            simple_model, batch, device="cpu", num_warmup=10, num_iterations=20
         )
 
         # Without warmup
         speed_cold = benchmark_speed(
-            simple_model,
-            batch,
-            device='cpu',
-            num_warmup=0,
-            num_iterations=20
+            simple_model, batch, device="cpu", num_warmup=0, num_iterations=20
         )
 
         # Both should be positive
@@ -234,6 +200,7 @@ class TestSpeedBenchmark:
 # ============================================================================
 # Memory Measurement Tests
 # ============================================================================
+
 
 @pytest.mark.phase2
 @pytest.mark.fitness
@@ -246,7 +213,7 @@ class TestMemoryMeasurement:
         model_cuda = simple_model.cuda()
         batch = torch.randint(0, 1000, (32, 64)).cuda()
 
-        memory_mb = measure_memory_usage(model_cuda, batch, device='cuda')
+        memory_mb = measure_memory_usage(model_cuda, batch, device="cuda")
 
         assert isinstance(memory_mb, float)
         assert memory_mb > 0
@@ -256,12 +223,13 @@ class TestMemoryMeasurement:
         batch = torch.randint(0, 1000, (32, 64))
 
         with pytest.raises(RuntimeError, match="requires CUDA"):
-            measure_memory_usage(simple_model, batch, device='cpu')
+            measure_memory_usage(simple_model, batch, device="cpu")
 
 
 # ============================================================================
 # Composite Fitness Tests
 # ============================================================================
+
 
 @pytest.mark.phase2
 @pytest.mark.fitness
@@ -276,78 +244,57 @@ class TestCompositeFitness:
     def test_composite_fitness_calculation(self):
         """Test basic composite fitness calculation."""
         result = compute_composite_fitness(
-            perplexity=15.0,
-            accuracy=0.5,
-            speed=1200.0,
-            memory=500.0
+            perplexity=15.0, accuracy=0.5, speed=1200.0, memory=500.0
         )
 
-        assert 'composite' in result
-        assert 'components' in result
-        assert isinstance(result['composite'], float)
-        assert result['composite'] > 0
+        assert "composite" in result
+        assert "components" in result
+        assert isinstance(result["composite"], float)
+        assert result["composite"] > 0
 
     def test_custom_weights(self):
         """Test custom fitness weights."""
-        custom_weights = {
-            'perplexity': 0.3,
-            'accuracy': 0.2,
-            'speed': 0.4,
-            'memory': 0.1
-        }
+        custom_weights = {"perplexity": 0.3, "accuracy": 0.2, "speed": 0.4, "memory": 0.1}
 
         result = compute_composite_fitness(
-            perplexity=15.0,
-            accuracy=0.5,
-            speed=1200.0,
-            memory=500.0,
-            weights=custom_weights
+            perplexity=15.0, accuracy=0.5, speed=1200.0, memory=500.0, weights=custom_weights
         )
 
-        assert result['composite'] > 0
+        assert result["composite"] > 0
 
     def test_weights_must_sum_to_one(self):
         """Weights not summing to 1.0 should raise ValueError."""
         bad_weights = {
-            'perplexity': 0.5,
-            'accuracy': 0.3,
-            'speed': 0.2,
-            'memory': 0.05  # Sum = 1.05
+            "perplexity": 0.5,
+            "accuracy": 0.3,
+            "speed": 0.2,
+            "memory": 0.05,  # Sum = 1.05
         }
 
         with pytest.raises(ValueError, match="must sum to 1.0"):
             compute_composite_fitness(
-                perplexity=15.0,
-                accuracy=0.5,
-                speed=1200.0,
-                memory=500.0,
-                weights=bad_weights
+                perplexity=15.0, accuracy=0.5, speed=1200.0, memory=500.0, weights=bad_weights
             )
 
     def test_negative_values_raise_error(self):
         """Negative metric values should raise ValueError."""
         with pytest.raises(ValueError, match="non-negative"):
             compute_composite_fitness(
-                perplexity=-5.0,  # Invalid
-                accuracy=0.5,
-                speed=1200.0,
-                memory=500.0
+                perplexity=-5.0, accuracy=0.5, speed=1200.0, memory=500.0  # Invalid
             )
 
     def test_zero_perplexity_raises_error(self):
         """Zero perplexity should raise ValueError."""
         with pytest.raises(ValueError, match="Perplexity cannot be zero"):
             compute_composite_fitness(
-                perplexity=0.0,  # Invalid
-                accuracy=0.5,
-                speed=1200.0,
-                memory=500.0
+                perplexity=0.0, accuracy=0.5, speed=1200.0, memory=500.0  # Invalid
             )
 
 
 # ============================================================================
 # Fitness Cache Tests
 # ============================================================================
+
 
 @pytest.mark.phase2
 @pytest.mark.fitness
@@ -363,13 +310,13 @@ class TestFitnessCache:
     def test_cache_hit(self, simple_model):
         """After storing, lookup should be a cache hit."""
         cache = FitnessCache()
-        fitness = {'composite': 0.185, 'components': {}}
+        fitness = {"composite": 0.185, "components": {}}
 
         cache.put(simple_model, fitness)
         result = cache.get(simple_model)
 
         assert result is not None
-        assert result['composite'] == 0.185
+        assert result["composite"] == 0.185
 
     def test_cache_eviction(self):
         """Cache should evict LRU entries when full."""
@@ -377,9 +324,7 @@ class TestFitnessCache:
 
         # Create 4 different models
         models = [create_simple_model() for _ in range(4)]
-        fitness_values = [
-            {'composite': 0.1 * i, 'components': {}} for i in range(4)
-        ]
+        fitness_values = [{"composite": 0.1 * i, "components": {}} for i in range(4)]
 
         # Fill cache (models 0, 1, 2)
         for model, fitness in zip(models[:3], fitness_values[:3]):
@@ -399,7 +344,7 @@ class TestFitnessCache:
     def test_cache_clear(self, simple_model):
         """Clear should remove all entries."""
         cache = FitnessCache()
-        cache.put(simple_model, {'composite': 0.185, 'components': {}})
+        cache.put(simple_model, {"composite": 0.185, "components": {}})
 
         assert cache.size() == 1
         cache.clear()
@@ -421,6 +366,7 @@ class TestFitnessCache:
 # FitnessEvaluator API Tests
 # ============================================================================
 
+
 @pytest.mark.phase2
 @pytest.mark.fitness
 class TestFitnessEvaluator:
@@ -429,30 +375,28 @@ class TestFitnessEvaluator:
     def test_evaluator_initialization(self, dummy_dataset):
         """Test basic evaluator initialization."""
         evaluator = FitnessEvaluator(
-            validation_dataset=dummy_dataset,
-            device='cpu',
-            cache_enabled=False
+            validation_dataset=dummy_dataset, device="cpu", cache_enabled=False
         )
 
         assert evaluator.validation_dataset is dummy_dataset
-        assert evaluator.device == 'cpu'
+        assert evaluator.device == "cpu"
         assert evaluator.cache is None  # Cache disabled
 
     def test_evaluate_single_model(self, simple_model, dummy_dataset):
         """Test evaluating a single model."""
         evaluator = FitnessEvaluator(
             validation_dataset=dummy_dataset,
-            device='cpu',
+            device="cpu",
             cache_enabled=False,
-            mixed_precision=False
+            mixed_precision=False,
         )
 
         fitness = evaluator.evaluate(simple_model)
 
-        assert 'composite' in fitness
-        assert 'components' in fitness
-        assert isinstance(fitness['composite'], float)
-        assert fitness['composite'] > 0
+        assert "composite" in fitness
+        assert "components" in fitness
+        assert isinstance(fitness["composite"], float)
+        assert fitness["composite"] > 0
 
     def test_evaluate_batch(self, dummy_dataset):
         """Test evaluating a batch of models."""
@@ -461,9 +405,9 @@ class TestFitnessEvaluator:
 
         evaluator = FitnessEvaluator(
             validation_dataset=dummy_dataset,
-            device='cpu',
+            device="cpu",
             cache_enabled=False,
-            mixed_precision=False
+            mixed_precision=False,
         )
 
         scores = evaluator.evaluate_batch(models)
@@ -476,9 +420,9 @@ class TestFitnessEvaluator:
         """Test fitness caching in evaluator."""
         evaluator = FitnessEvaluator(
             validation_dataset=dummy_dataset,
-            device='cpu',
+            device="cpu",
             cache_enabled=True,
-            mixed_precision=False
+            mixed_precision=False,
         )
 
         # First evaluation (cache miss)
@@ -488,7 +432,7 @@ class TestFitnessEvaluator:
         fitness2 = evaluator.evaluate(simple_model)
 
         # Should return same result
-        assert fitness1['composite'] == fitness2['composite']
+        assert fitness1["composite"] == fitness2["composite"]
 
         # Cache should have 1 entry
         assert evaluator.cache.size() == 1
@@ -496,9 +440,7 @@ class TestFitnessEvaluator:
     def test_clear_cache(self, simple_model, dummy_dataset):
         """Test cache clearing."""
         evaluator = FitnessEvaluator(
-            validation_dataset=dummy_dataset,
-            device='cpu',
-            cache_enabled=True
+            validation_dataset=dummy_dataset, device="cpu", cache_enabled=True
         )
 
         evaluator.evaluate(simple_model)
@@ -510,6 +452,7 @@ class TestFitnessEvaluator:
 
 def create_simple_model():
     """Helper to create SimpleModel instances."""
+
     class SimpleModel(nn.Module):
         def __init__(self, vocab_size=1000, hidden_size=128):
             super().__init__()

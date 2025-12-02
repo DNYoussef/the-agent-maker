@@ -10,21 +10,24 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+
 def test_imports():
     """Test all module imports."""
     print("Testing ADAS module imports...")
 
     try:
         # Test main imports
-        from adas import ADASOptimizer, ADASConfig, ADASResult, Individual
+        from adas import ADASConfig, ADASOptimizer, ADASResult, Individual
+
         print("  Main imports: OK")
 
         # Test sub-module imports
         from adas.config import ADASConfig as Config
+        from adas.evaluation import evaluate_individual
         from adas.nsga2 import assign_ranks, calculate_crowding_distance
         from adas.operators import crossover, mutate
-        from adas.evaluation import evaluate_individual
         from adas.optimizer import ADASOptimizer as Optimizer
+
         print("  Sub-module imports: OK")
 
         # Test class instantiation
@@ -33,11 +36,7 @@ def test_imports():
         print("  Class instantiation: OK")
 
         # Test data structures
-        individual = Individual(
-            routing_weights=[0.5, 0.5],
-            expert_configs={},
-            fitness_scores={}
-        )
+        individual = Individual(routing_weights=[0.5, 0.5], expert_configs={}, fitness_scores={})
         print("  Data structures: OK")
 
         print("\nAll imports successful!")
@@ -63,15 +62,15 @@ def test_module_structure():
     import adas
 
     expected_exports = [
-        'ADASOptimizer',
-        'ADASConfig',
-        'ADASResult',
-        'Individual',
-        'assign_ranks',
-        'calculate_crowding_distance',
-        'crossover',
-        'mutate',
-        'evaluate_individual'
+        "ADASOptimizer",
+        "ADASConfig",
+        "ADASResult",
+        "Individual",
+        "assign_ranks",
+        "calculate_crowding_distance",
+        "crossover",
+        "mutate",
+        "evaluate_individual",
     ]
 
     for export in expected_exports:

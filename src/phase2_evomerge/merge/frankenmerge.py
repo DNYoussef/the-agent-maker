@@ -27,12 +27,13 @@ Research:
     - Widely used in Hugging Face merges
 """
 
-from typing import List, Literal
 import copy
-import torch
-import torch.nn as nn
 import logging
 import random
+from typing import List, Literal
+
+import torch
+import torch.nn as nn
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +47,7 @@ class FrankenMerge:
     the same architecture.
     """
 
-    def __init__(
-        self,
-        pattern: Literal["abc", "abba", "random", "fitness"] = "abc"
-    ):
+    def __init__(self, pattern: Literal["abc", "abba", "random", "fitness"] = "abc"):
         """
         Initialize FrankenMerge.
 
@@ -62,9 +60,7 @@ class FrankenMerge:
         """
         self.pattern = pattern
 
-    def merge(
-        self, model_target: nn.Module, models_ref: List[nn.Module]
-    ) -> nn.Module:
+    def merge(self, model_target: nn.Module, models_ref: List[nn.Module]) -> nn.Module:
         """
         Merge models using layer-wise selection.
 
@@ -85,15 +81,11 @@ class FrankenMerge:
         # Verify all models have same architecture
         for i, model in enumerate(models_ref):
             if i > 0 and not self._check_compatibility(models_ref[0], model):
-                raise ValueError(
-                    "All models must have same architecture for FrankenMerge"
-                )
+                raise ValueError("All models must have same architecture for FrankenMerge")
 
         # Also check compatibility with target
         if not self._check_compatibility(model_target, models_ref[0]):
-            raise ValueError(
-                "All models must have same architecture for FrankenMerge"
-            )
+            raise ValueError("All models must have same architecture for FrankenMerge")
 
         # Create result as copy of first model
         result_model = copy.deepcopy(models_ref[0])
@@ -103,9 +95,7 @@ class FrankenMerge:
         num_layers = len(layer_params)
 
         # Select layers based on pattern
-        layer_selections = self._compute_layer_selections(
-            num_layers, len(models_ref)
-        )
+        layer_selections = self._compute_layer_selections(num_layers, len(models_ref))
 
         # Apply layer selections
         with torch.no_grad():
@@ -115,12 +105,8 @@ class FrankenMerge:
 
                 # Copy all parameters from selected layer
                 for param_name in layer_param_names:
-                    selected_param = dict(selected_model.named_parameters())[
-                        param_name
-                    ]
-                    result_param = dict(result_model.named_parameters())[
-                        param_name
-                    ]
+                    selected_param = dict(selected_model.named_parameters())[param_name]
+                    result_param = dict(result_model.named_parameters())[param_name]
                     result_param.copy_(selected_param)
 
         logger.info(
@@ -130,9 +116,7 @@ class FrankenMerge:
 
         return result_model
 
-    def _group_params_by_layer(
-        self, model: nn.Module
-    ) -> List[List[str]]:
+    def _group_params_by_layer(self, model: nn.Module) -> List[List[str]]:
         """
         Group parameter names by layer.
 
@@ -163,9 +147,7 @@ class FrankenMerge:
         # Return as ordered list
         return [layer_groups[key] for key in sorted(layer_groups.keys())]
 
-    def _compute_layer_selections(
-        self, num_layers: int, num_models: int
-    ) -> List[int]:
+    def _compute_layer_selections(self, num_layers: int, num_models: int) -> List[int]:
         """
         Compute which model to select for each layer based on pattern.
 
@@ -199,17 +181,13 @@ class FrankenMerge:
 
         elif self.pattern == "fitness":
             # Simplified fitness: just alternate (real fitness would require evaluation)
-            logger.warning(
-                "Fitness-based selection not implemented, falling back to ABC"
-            )
+            logger.warning("Fitness-based selection not implemented, falling back to ABC")
             return [i % num_models for i in range(num_layers)]
 
         else:
             raise ValueError(f"Unknown pattern: {self.pattern}")
 
-    def _check_compatibility(
-        self, model1: nn.Module, model2: nn.Module
-    ) -> bool:
+    def _check_compatibility(self, model1: nn.Module, model2: nn.Module) -> bool:
         """
         Check if two models have compatible architectures.
 

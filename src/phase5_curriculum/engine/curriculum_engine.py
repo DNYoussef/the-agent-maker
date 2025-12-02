@@ -18,8 +18,8 @@ Research Foundation:
 - "Dreaming Is All You Need" - Memory consolidation via high-temp replay
 """
 
-from typing import Dict, List, Optional, Any
 import time
+from typing import Any, Dict, List, Optional
 
 import torch.nn as nn
 
@@ -54,7 +54,7 @@ class CurriculumEngine:
         model: nn.Module,
         tokenizer: Any,
         frontier_client: Optional[Any] = None,
-        coding_env: Optional[Any] = None
+        coding_env: Optional[Any] = None,
     ) -> Phase5Result:
         """
         Execute the full 7-stage curriculum learning pipeline.
@@ -88,9 +88,7 @@ class CurriculumEngine:
 
             # Stage 2: Curriculum Generation
             print("\n--- Stage 2: Curriculum Generation ---")
-            curriculum = self._generate_curriculum(
-                baseline_level, frontier_client
-            )
+            curriculum = self._generate_curriculum(baseline_level, frontier_client)
             print(f"  Generated {sum(len(q) for q in curriculum.values())} questions")
 
             # Stage 3-7: Level Loop
@@ -103,27 +101,22 @@ class CurriculumEngine:
                 # Stage 3: Training Loop
                 print(f"\n--- Stage 3: Training Loop (Level {level}) ---")
                 current_model, level_metrics = self._run_training_loop(
-                    current_model, curriculum[level], tokenizer,
-                    coding_env, frontier_client, level
+                    current_model, curriculum[level], tokenizer, coding_env, frontier_client, level
                 )
 
                 # Check for hard wall
-                if level_metrics['accuracy'] < 0.5:
+                if level_metrics["accuracy"] < 0.5:
                     print(f"  Hard wall detected at level {level}. Stopping.")
                     break
 
                 # Stage 4: Prompt Baking
                 if self.config.bake_after_each_level:
                     print(f"\n--- Stage 4: Prompt Baking (Level {level}) ---")
-                    current_model = self._run_prompt_baking(
-                        current_model, tokenizer, level
-                    )
+                    current_model = self._run_prompt_baking(current_model, tokenizer, level)
 
                 # Stage 5: Self-Modeling
                 print(f"\n--- Stage 5: Self-Modeling (Level {level}) ---")
-                current_model = self._run_self_modeling(
-                    current_model, tokenizer, level
-                )
+                current_model = self._run_self_modeling(current_model, tokenizer, level)
 
                 # Stage 6: Dream Consolidation
                 print(f"\n--- Stage 6: Dream Consolidation (Level {level}) ---")
@@ -132,19 +125,23 @@ class CurriculumEngine:
                 )
 
                 # Track progress
-                self.level_progress.append(LevelProgress(
-                    level=level,
-                    initial_questions=len(curriculum[level]),
-                    current_questions=level_metrics['remaining_questions'],
-                    mastered_questions=level_metrics['mastered'],
-                    variants_generated=level_metrics['variants'],
-                    hints_given=level_metrics['hints'],
-                    accuracy=level_metrics['accuracy'],
-                    completed=True
-                ))
+                self.level_progress.append(
+                    LevelProgress(
+                        level=level,
+                        initial_questions=len(curriculum[level]),
+                        current_questions=level_metrics["remaining_questions"],
+                        mastered_questions=level_metrics["mastered"],
+                        variants_generated=level_metrics["variants"],
+                        hints_given=level_metrics["hints"],
+                        accuracy=level_metrics["accuracy"],
+                        completed=True,
+                    )
+                )
 
-                print(f"\n  Level {level} complete. Questions remaining: "
-                      f"{level_metrics['remaining_questions']}")
+                print(
+                    f"\n  Level {level} complete. Questions remaining: "
+                    f"{level_metrics['remaining_questions']}"
+                )
 
             # Compile final metrics
             duration = time.time() - self.start_time
@@ -164,10 +161,10 @@ class CurriculumEngine:
                 levels_completed=len(self.level_progress),
                 metrics=final_metrics,
                 artifacts={
-                    'level_progress': self.level_progress,
-                    'curriculum_stats': self._get_curriculum_stats(curriculum),
-                    'assessment_results': assessment_results
-                }
+                    "level_progress": self.level_progress,
+                    "curriculum_stats": self._get_curriculum_stats(curriculum),
+                    "assessment_results": assessment_results,
+                },
             )
 
         except Exception as e:
@@ -177,16 +174,13 @@ class CurriculumEngine:
                 model=model,
                 specialization=self.config.specialization,
                 levels_completed=len(self.level_progress),
-                metrics={'duration_seconds': duration},
+                metrics={"duration_seconds": duration},
                 artifacts={},
-                error=str(e)
+                error=str(e),
             )
 
     def _run_assessment(
-        self,
-        model: nn.Module,
-        tokenizer: Any,
-        frontier_client: Optional[Any]
+        self, model: nn.Module, tokenizer: Any, frontier_client: Optional[Any]
     ) -> tuple:
         """
         Stage 1: Find the edge-of-chaos level (75% accuracy threshold).
@@ -197,19 +191,15 @@ class CurriculumEngine:
 
         assessment = EdgeOfChaosAssessment(
             threshold=self.config.edge_of_chaos_threshold,
-            num_questions=self.config.assessment_questions
+            num_questions=self.config.assessment_questions,
         )
 
-        baseline_level, results = assessment.find_baseline(
-            model, tokenizer, frontier_client
-        )
+        baseline_level, results = assessment.find_baseline(model, tokenizer, frontier_client)
 
         return baseline_level, results
 
     def _generate_curriculum(
-        self,
-        baseline_level: int,
-        frontier_client: Optional[Any]
+        self, baseline_level: int, frontier_client: Optional[Any]
     ) -> Dict[int, List[Dict]]:
         """
         Stage 2: Generate adaptive curriculum for levels 1-10.
@@ -223,7 +213,7 @@ class CurriculumEngine:
             num_levels=self.config.num_levels,
             questions_per_level=self.config.questions_per_level,
             frontier_models=self.config.frontier_models,
-            specialization=self.config.specialization
+            specialization=self.config.specialization,
         )
 
         curriculum = generator.generate(frontier_client)
@@ -236,7 +226,7 @@ class CurriculumEngine:
         tokenizer: Any,
         coding_env: Optional[Any],
         frontier_client: Optional[Any],
-        level: int
+        level: int,
     ) -> tuple:
         """
         Stage 3: Training loop with variants and hints.
@@ -249,7 +239,7 @@ class CurriculumEngine:
         trainer = CurriculumTrainingLoop(
             consecutive_for_mastery=self.config.consecutive_successes_for_mastery,
             max_hints=self.config.max_hints_per_question,
-            enable_variants=self.config.variant_generation_enabled
+            enable_variants=self.config.variant_generation_enabled,
         )
 
         trained_model, metrics = trainer.train_level(
@@ -258,12 +248,7 @@ class CurriculumEngine:
 
         return trained_model, metrics
 
-    def _run_prompt_baking(
-        self,
-        model: nn.Module,
-        tokenizer: Any,
-        level: int
-    ) -> nn.Module:
+    def _run_prompt_baking(self, model: nn.Module, tokenizer: Any, level: int) -> nn.Module:
         """
         Stage 4: Bake moral compass and identity into weights.
 
@@ -306,21 +291,15 @@ Your purpose: Help with logical analysis and problem decomposition.
 Your approach: Break down problems, identify assumptions, validate conclusions.""",
             SpecializationType.GENERAL: """You are AgentForge, a versatile AI assistant.
 Your purpose: Help users with diverse tasks effectively.
-Your approach: Adapt to context, be helpful, be honest."""
+Your approach: Adapt to context, be helpful, be honest.""",
         }
 
         identity_prompt = identity_prompts.get(
-            self.config.specialization,
-            identity_prompts[SpecializationType.GENERAL]
+            self.config.specialization, identity_prompts[SpecializationType.GENERAL]
         )
 
         # Sequential baking
-        config = PromptBakingConfig(
-            lora_r=16,
-            lora_alpha=32,
-            num_epochs=3,
-            learning_rate=1e-4
-        )
+        config = PromptBakingConfig(lora_r=16, lora_alpha=32, num_epochs=3, learning_rate=1e-4)
         baker = PromptBaker(config)
 
         print(f"  Baking eudaimonia... (~{self.config.baking_time_minutes} min)")
@@ -335,12 +314,7 @@ Your approach: Adapt to context, be helpful, be honest."""
         print(f"  Prompt baking complete for level {level}")
         return model
 
-    def _run_self_modeling(
-        self,
-        model: nn.Module,
-        tokenizer: Any,
-        level: int
-    ) -> nn.Module:
+    def _run_self_modeling(self, model: nn.Module, tokenizer: Any, level: int) -> nn.Module:
         """
         Stage 5: Self-modeling across temperature ranges.
 
@@ -353,9 +327,7 @@ Your approach: Adapt to context, be helpful, be honest."""
         temp_ranges = self._calculate_temperature_ranges(level)
 
         trainer = SelfModelingTrainer(
-            temperature_ranges=temp_ranges,
-            mask_rate=0.2,
-            target_accuracy=0.95
+            temperature_ranges=temp_ranges, mask_rate=0.2, target_accuracy=0.95
         )
 
         trained_model = trainer.train(model, tokenizer)
@@ -364,10 +336,7 @@ Your approach: Adapt to context, be helpful, be honest."""
         return trained_model
 
     def _run_dream_consolidation(
-        self,
-        model: nn.Module,
-        level_data: List[Dict],
-        tokenizer: Any
+        self, model: nn.Module, level_data: List[Dict], tokenizer: Any
     ) -> nn.Module:
         """
         Stage 6: Dream consolidation for memory preservation.
@@ -380,7 +349,7 @@ Your approach: Adapt to context, be helpful, be honest."""
         consolidator = DreamConsolidator(
             dream_temperature=self.config.dream_temperature,
             training_temperature=self.config.dream_training_temperature,
-            num_samples=self.config.dream_samples
+            num_samples=self.config.dream_samples,
         )
 
         consolidated_model = consolidator.consolidate(model, level_data, tokenizer)
@@ -397,7 +366,9 @@ Your approach: Adapt to context, be helpful, be honest."""
             num_ranges = 10 + level - 1
             base_start = (level - 1) * 0.1
         """
-        width = self.config.base_temperature_width + (level - 1) * self.config.temperature_width_growth
+        width = (
+            self.config.base_temperature_width + (level - 1) * self.config.temperature_width_growth
+        )
         num_ranges = self.config.base_num_ranges + level - 1
         base_start = (level - 1) * 0.1
 
@@ -406,19 +377,14 @@ Your approach: Adapt to context, be helpful, be honest."""
             start = base_start + i * 0.1
             end = start + width
             midpoint = (start + end) / 2
-            ranges.append({
-                'start': start,
-                'end': end,
-                'midpoint': midpoint,
-                'index': i
-            })
+            ranges.append({"start": start, "end": end, "midpoint": midpoint, "index": i})
 
         return ranges
 
     def _compile_metrics(self, duration: float) -> Dict[str, Any]:
         """Compile final metrics from all stages."""
         if not self.level_progress:
-            return {'duration_seconds': duration}
+            return {"duration_seconds": duration}
 
         total_mastered = sum(lp.mastered_questions for lp in self.level_progress)
         total_variants = sum(lp.variants_generated for lp in self.level_progress)
@@ -426,34 +392,32 @@ Your approach: Adapt to context, be helpful, be honest."""
         final_accuracy = self.level_progress[-1].accuracy if self.level_progress else 0
 
         return {
-            'levels_completed': len(self.level_progress),
-            'total_training_time_hours': duration / 3600,
-            'final_accuracy': final_accuracy,
-            'curriculum_stats': {
-                'total_questions_mastered': total_mastered,
-                'variants_generated': total_variants,
-                'hints_given': total_hints,
-                'mastery_rate': total_mastered / max(1, sum(
-                    lp.initial_questions for lp in self.level_progress
-                ))
+            "levels_completed": len(self.level_progress),
+            "total_training_time_hours": duration / 3600,
+            "final_accuracy": final_accuracy,
+            "curriculum_stats": {
+                "total_questions_mastered": total_mastered,
+                "variants_generated": total_variants,
+                "hints_given": total_hints,
+                "mastery_rate": total_mastered
+                / max(1, sum(lp.initial_questions for lp in self.level_progress)),
             },
-            'per_level_stats': [
+            "per_level_stats": [
                 {
-                    'level': lp.level,
-                    'accuracy': lp.accuracy,
-                    'mastered': lp.mastered_questions,
-                    'remaining': lp.current_questions
+                    "level": lp.level,
+                    "accuracy": lp.accuracy,
+                    "mastered": lp.mastered_questions,
+                    "remaining": lp.current_questions,
                 }
                 for lp in self.level_progress
-            ]
+            ],
         }
 
     def _get_curriculum_stats(self, curriculum: Dict) -> Dict:
         """Get statistics about generated curriculum."""
         return {
-            'total_questions': sum(len(q) for q in curriculum.values()),
-            'questions_per_level': {
-                level: len(questions)
-                for level, questions in curriculum.items()
-            }
+            "total_questions": sum(len(q) for q in curriculum.values()),
+            "questions_per_level": {
+                level: len(questions) for level, questions in curriculum.items()
+            },
         }

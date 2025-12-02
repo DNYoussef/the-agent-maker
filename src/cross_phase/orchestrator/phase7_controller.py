@@ -16,6 +16,7 @@ class Phase7Controller(PhaseController):
             PhaseResult with expert-enhanced model
         """
         import time
+
         start_time = time.time()
 
         print("\n" + "=" * 60)
@@ -31,22 +32,19 @@ class Phase7Controller(PhaseController):
             tokenizer = self._get_tokenizer()
 
             # Create experts config
-            from phase7_experts import ExpertsEngine, ExpertsConfig
+            from phase7_experts import ExpertsConfig, ExpertsEngine
 
             config = ExpertsConfig(
-                min_experts=self.config.get('min_experts', 3) if self.config else 3,
-                max_experts=self.config.get('max_experts', 10) if self.config else 10,
-                svf_epochs=self.config.get('svf_epochs', 5) if self.config else 5,
-                adas_population=self.config.get('adas_population', 50) if self.config else 50,
-                adas_generations=self.config.get('adas_generations', 100) if self.config else 100
+                min_experts=self.config.get("min_experts", 3) if self.config else 3,
+                max_experts=self.config.get("max_experts", 10) if self.config else 10,
+                svf_epochs=self.config.get("svf_epochs", 5) if self.config else 5,
+                adas_population=self.config.get("adas_population", 50) if self.config else 50,
+                adas_generations=self.config.get("adas_generations", 100) if self.config else 100,
             )
 
             # Run experts engine
             engine = ExpertsEngine(config=config)
-            result = engine.run(
-                model=baked_model,
-                tokenizer=tokenizer
-            )
+            result = engine.run(model=baked_model, tokenizer=tokenizer)
 
             duration = time.time() - start_time
 
@@ -55,15 +53,15 @@ class Phase7Controller(PhaseController):
                 phase_name="phase7",
                 model=result.model,
                 metrics={
-                    'num_experts': result.num_experts,
-                    'routing_config': result.routing_config,
-                    'duration_seconds': duration,
-                    **result.metrics
+                    "num_experts": result.num_experts,
+                    "routing_config": result.routing_config,
+                    "duration_seconds": duration,
+                    **result.metrics,
                 },
                 duration=duration,
                 artifacts=result.artifacts,
                 config=self.config,
-                error=result.error
+                error=result.error,
             )
 
         except Exception as e:
@@ -76,7 +74,7 @@ class Phase7Controller(PhaseController):
                 duration=duration,
                 artifacts={},
                 config=self.config,
-                error=str(e)
+                error=str(e),
             )
 
     def _get_tokenizer(self):
@@ -86,12 +84,14 @@ class Phase7Controller(PhaseController):
     def validate_input(self, input_models: list = None) -> bool:
         """Validate 1 input model from Phase 6."""
         if not input_models or len(input_models) != 1:
-            raise ValueError(f"Phase 7 requires 1 input model, got {len(input_models) if input_models else 0}")
+            raise ValueError(
+                f"Phase 7 requires 1 input model, got {len(input_models) if input_models else 0}"
+            )
         return True
 
     def validate_output(self, result: PhaseResult) -> bool:
         """Validate Phase 7 output (experts discovered)."""
         if result.metrics:
-            num_experts = result.metrics.get('num_experts', 0)
+            num_experts = result.metrics.get("num_experts", 0)
             return num_experts >= 1
         return True

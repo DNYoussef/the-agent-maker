@@ -11,22 +11,18 @@ Tests:
 Target: >=90% coverage for core functionality
 """
 
+import sys
+from dataclasses import asdict
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
 import torch
 import torch.nn as nn
-from unittest.mock import Mock, MagicMock, patch
-from dataclasses import asdict
 
-import sys
-from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from phase6_baking.baking_engine import (
-    BakingEngine,
-    BakingConfig,
-    BakingResult,
-    BakingCycleType
-)
+from phase6_baking.baking_engine import BakingConfig, BakingCycleType, BakingEngine, BakingResult
 
 
 class TestBakingCycleType:
@@ -74,9 +70,7 @@ class TestBakingConfig:
     def test_custom_config(self):
         """Test custom configuration."""
         config = BakingConfig(
-            a_cycle_iterations=10,
-            half_bake_strength=0.3,
-            max_total_iterations=50
+            a_cycle_iterations=10, half_bake_strength=0.3, max_total_iterations=50
         )
 
         assert config.a_cycle_iterations == 10
@@ -89,8 +83,8 @@ class TestBakingConfig:
         config_dict = asdict(config)
 
         assert isinstance(config_dict, dict)
-        assert 'half_bake_strength' in config_dict
-        assert 'plateau_threshold' in config_dict
+        assert "half_bake_strength" in config_dict
+        assert "plateau_threshold" in config_dict
 
     def test_tool_prompts_are_list(self):
         """Test tool prompts is a list."""
@@ -120,8 +114,8 @@ class TestBakingResult:
             b_cycle_count=7,
             final_tool_score=0.85,
             final_persona_score=0.90,
-            metrics={'a_cycle_scores': [0.7, 0.8, 0.85]},
-            artifacts={}
+            metrics={"a_cycle_scores": [0.7, 0.8, 0.85]},
+            artifacts={},
         )
 
         assert result.success is True
@@ -146,7 +140,7 @@ class TestBakingResult:
             final_persona_score=0.0,
             metrics={},
             artifacts={},
-            error="Optimization diverged"
+            error="Optimization diverged",
         )
 
         assert result.success is False
@@ -162,10 +156,10 @@ class TestBakingEngine:
 
         assert engine.config is not None
         assert isinstance(engine.config, BakingConfig)
-        assert 'a_cycle_scores' in engine.metrics
-        assert 'b_cycle_scores' in engine.metrics
-        assert 'iteration_times' in engine.metrics
-        assert 'plateau_detections' in engine.metrics
+        assert "a_cycle_scores" in engine.metrics
+        assert "b_cycle_scores" in engine.metrics
+        assert "iteration_times" in engine.metrics
+        assert "plateau_detections" in engine.metrics
 
     def test_initialization_custom_config(self):
         """Test engine initialization with custom config."""
@@ -178,10 +172,10 @@ class TestBakingEngine:
         """Test metrics are initialized as empty lists."""
         engine = BakingEngine()
 
-        assert engine.metrics['a_cycle_scores'] == []
-        assert engine.metrics['b_cycle_scores'] == []
-        assert engine.metrics['iteration_times'] == []
-        assert engine.metrics['plateau_detections'] == []
+        assert engine.metrics["a_cycle_scores"] == []
+        assert engine.metrics["b_cycle_scores"] == []
+        assert engine.metrics["iteration_times"] == []
+        assert engine.metrics["plateau_detections"] == []
 
 
 @pytest.fixture
@@ -197,8 +191,8 @@ def mock_tokenizer():
     """Create mock tokenizer for testing."""
     tokenizer = Mock()
     tokenizer.return_value = {
-        'input_ids': torch.tensor([[1, 2, 3, 4, 5]]),
-        'attention_mask': torch.tensor([[1, 1, 1, 1, 1]])
+        "input_ids": torch.tensor([[1, 2, 3, 4, 5]]),
+        "attention_mask": torch.tensor([[1, 1, 1, 1, 1]]),
     }
     return tokenizer
 
@@ -206,10 +200,10 @@ def mock_tokenizer():
 class TestBakingEngineRun:
     """Test BakingEngine.run() method."""
 
-    @patch('phase6_baking.baking_engine.ACycleOptimizer')
-    @patch('phase6_baking.baking_engine.BCycleOptimizer')
-    @patch('phase6_baking.baking_engine.PlateauDetector')
-    @patch('phase6_baking.baking_engine.HalfBaker')
+    @patch("phase6_baking.baking_engine.ACycleOptimizer")
+    @patch("phase6_baking.baking_engine.BCycleOptimizer")
+    @patch("phase6_baking.baking_engine.PlateauDetector")
+    @patch("phase6_baking.baking_engine.HalfBaker")
     def test_run_returns_baking_result(
         self, mock_half, mock_plateau, mock_b, mock_a, mock_model, mock_tokenizer
     ):
@@ -245,7 +239,7 @@ class TestBakingEngineRun:
         """Test run() handles exceptions gracefully."""
         engine = BakingEngine()
 
-        with patch('phase6_baking.baking_engine.ACycleOptimizer') as mock_a:
+        with patch("phase6_baking.baking_engine.ACycleOptimizer") as mock_a:
             mock_a.side_effect = Exception("Import failed")
             result = engine.run(mock_model, mock_tokenizer)
 
@@ -273,10 +267,7 @@ class TestEdgeCases:
 
     def test_empty_prompts(self):
         """Test configuration with empty prompts."""
-        config = BakingConfig(
-            tool_prompts=[],
-            persona_prompts=[]
-        )
+        config = BakingConfig(tool_prompts=[], persona_prompts=[])
 
         assert config.tool_prompts == []
         assert config.persona_prompts == []
@@ -300,10 +291,7 @@ class TestBakingCycleLogic:
 
     def test_plateau_detection_config(self):
         """Test plateau detection configuration."""
-        config = BakingConfig(
-            plateau_window=5,
-            plateau_threshold=0.02
-        )
+        config = BakingConfig(plateau_window=5, plateau_threshold=0.02)
 
         assert config.plateau_window == 5
         assert config.plateau_threshold == 0.02

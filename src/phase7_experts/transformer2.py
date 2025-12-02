@@ -17,9 +17,9 @@ Where:
     N = number of experts
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple, Union
 import math
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -29,23 +29,25 @@ import torch.nn.functional as F
 @dataclass
 class Transformer2Config:
     """Configuration for Transformer2 architecture."""
-    num_experts: int = 8              # Number of expert adapters
-    expert_rank: int = 64             # Low-rank dimension for experts
-    routing_hidden_dim: int = 256     # Hidden dimension for router
+
+    num_experts: int = 8  # Number of expert adapters
+    expert_rank: int = 64  # Low-rank dimension for experts
+    routing_hidden_dim: int = 256  # Hidden dimension for router
     routing_temperature: float = 1.0  # Temperature for routing softmax
-    sparsity_coeff: float = 0.01      # L1 sparsity regularization for z-vectors
+    sparsity_coeff: float = 0.01  # L1 sparsity regularization for z-vectors
     load_balancing_coeff: float = 0.01  # Load balancing loss coefficient
-    expert_dropout: float = 0.1       # Dropout for expert adapters
-    use_residual: bool = True         # Add residual connection
+    expert_dropout: float = 0.1  # Dropout for expert adapters
+    use_residual: bool = True  # Add residual connection
 
 
 @dataclass
 class Transformer2Result:
     """Result from Transformer2 forward pass."""
+
     logits: torch.Tensor
-    routing_weights: torch.Tensor     # z-vectors for each input
+    routing_weights: torch.Tensor  # z-vectors for each input
     expert_contributions: Dict[int, float]  # Per-expert usage stats
-    auxiliary_loss: float             # Sparsity + load balancing loss
+    auxiliary_loss: float  # Sparsity + load balancing loss
     metrics: Dict[str, float]
 
 
@@ -60,12 +62,7 @@ class ExpertAdapter(nn.Module):
     we only need d*r + r*d = 2*d*r parameters (where r << d).
     """
 
-    def __init__(
-        self,
-        hidden_size: int,
-        expert_rank: int,
-        dropout: float = 0.1
-    ):
+    def __init__(self, hidden_size: int, expert_rank: int, dropout: float = 0.1):
         """
         Initialize expert adapter.
 
@@ -120,7 +117,7 @@ class Router(nn.Module):
         hidden_size: int,
         num_experts: int,
         routing_hidden_dim: int = 256,
-        temperature: float = 1.0
+        temperature: float = 1.0,
     ):
         """
         Initialize router.
@@ -140,13 +137,11 @@ class Router(nn.Module):
             nn.LayerNorm(routing_hidden_dim),
             nn.GELU(),
             nn.Dropout(0.1),
-            nn.Linear(routing_hidden_dim, num_experts)
+            nn.Linear(routing_hidden_dim, num_experts),
         )
 
     def forward(
-        self,
-        hidden_states: torch.Tensor,
-        return_logits: bool = False
+        self, hidden_states: torch.Tensor, return_logits: bool = False
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """
         Compute routing weights from hidden states.
@@ -196,11 +191,7 @@ class Transformer2(nn.Module):
     - Interpretable routing decisions
     """
 
-    def __init__(
-        self,
-        base_model: nn.Module,
-        config: Transformer2Config = None
-    ):
+    def __init__(self, base_model: nn.Module, config: Transformer2Config = None):
         """
         Initialize Transformer2.
 
@@ -224,32 +215,31 @@ class Transformer2(nn.Module):
             hidden_size=self.hidden_size,
             num_experts=self.config.num_experts,
             routing_hidden_dim=self.config.routing_hidden_dim,
-            temperature=self.config.routing_temperature
+            temperature=self.config.routing_temperature,
         )
 
         # Initialize expert adapters
-        self.experts = nn.ModuleList([
-            ExpertAdapter(
-                hidden_size=self.hidden_size,
-                expert_rank=self.config.expert_rank,
-                dropout=self.config.expert_dropout
-            )
-            for _ in range(self.config.num_experts)
-        ])
+        self.experts = nn.ModuleList(
+            [
+                ExpertAdapter(
+                    hidden_size=self.hidden_size,
+                    expert_rank=self.config.expert_rank,
+                    dropout=self.config.expert_dropout,
+                )
+                for _ in range(self.config.num_experts)
+            ]
+        )
 
         # Track expert usage for load balancing
-        self.register_buffer(
-            'expert_usage',
-            torch.zeros(self.config.num_experts)
-        )
+        self.register_buffer("expert_usage", torch.zeros(self.config.num_experts))
         self.usage_count = 0
 
     def _detect_hidden_size(self, model: nn.Module) -> int:
         """Detect hidden size from model config or architecture."""
         # Try common config attributes
-        if hasattr(model, 'config'):
+        if hasattr(model, "config"):
             config = model.config
-            for attr in ['hidden_size', 'd_model', 'n_embd', 'dim']:
+            for attr in ["hidden_size", "d_model", "n_embd", "dim"]:
                 if hasattr(config, attr):
                     return getattr(config, attr)
 
@@ -257,16 +247,13 @@ class Transformer2(nn.Module):
         for name, module in model.named_modules():
             if isinstance(module, nn.Embedding):
                 return module.embedding_dim
-            if isinstance(module, nn.Linear) and 'embed' in name.lower():
+            if isinstance(module, nn.Linear) and "embed" in name.lower():
                 return module.out_features
 
         # Default fallback
         return 768
 
-    def compute_routing(
-        self,
-        hidden_states: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def compute_routing(self, hidden_states: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Pass 1: Compute routing weights from hidden states.
 
@@ -280,9 +267,7 @@ class Transformer2(nn.Module):
         return self.router(hidden_states, return_logits=True)
 
     def apply_experts(
-        self,
-        hidden_states: torch.Tensor,
-        routing_weights: torch.Tensor
+        self, hidden_states: torch.Tensor, routing_weights: torch.Tensor
     ) -> Tuple[torch.Tensor, Dict[int, float]]:
         """
         Pass 2: Apply weighted expert combination.
@@ -317,9 +302,7 @@ class Transformer2(nn.Module):
         return expert_output, expert_contributions
 
     def compute_auxiliary_loss(
-        self,
-        routing_weights: torch.Tensor,
-        routing_logits: torch.Tensor
+        self, routing_weights: torch.Tensor, routing_logits: torch.Tensor
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
         """
         Compute auxiliary losses for training.
@@ -354,14 +337,14 @@ class Transformer2(nn.Module):
 
         # Total auxiliary loss
         aux_loss = (
-            self.config.sparsity_coeff * sparsity_loss +
-            self.config.load_balancing_coeff * load_balance_loss
+            self.config.sparsity_coeff * sparsity_loss
+            + self.config.load_balancing_coeff * load_balance_loss
         )
 
         return aux_loss, {
-            'sparsity_loss': sparsity_loss.item(),
-            'load_balance_loss': load_balance_loss.item(),
-            'aux_loss': aux_loss.item()
+            "sparsity_loss": sparsity_loss.item(),
+            "load_balance_loss": load_balance_loss.item(),
+            "aux_loss": aux_loss.item(),
         }
 
     def forward(
@@ -370,7 +353,7 @@ class Transformer2(nn.Module):
         attention_mask: Optional[torch.Tensor] = None,
         labels: Optional[torch.Tensor] = None,
         return_routing: bool = True,
-        **kwargs
+        **kwargs,
     ) -> Transformer2Result:
         """
         Full two-pass forward.
@@ -391,16 +374,13 @@ class Transformer2(nn.Module):
         # Pass 1: Get base model hidden states
         with torch.no_grad():
             base_outputs = self.base_model(
-                input_ids,
-                attention_mask=attention_mask,
-                output_hidden_states=True,
-                **kwargs
+                input_ids, attention_mask=attention_mask, output_hidden_states=True, **kwargs
             )
 
         # Extract final hidden states
-        if hasattr(base_outputs, 'hidden_states'):
+        if hasattr(base_outputs, "hidden_states"):
             hidden_states = base_outputs.hidden_states[-1]
-        elif hasattr(base_outputs, 'last_hidden_state'):
+        elif hasattr(base_outputs, "last_hidden_state"):
             hidden_states = base_outputs.last_hidden_state
         else:
             # Fallback: assume output is tuple with hidden states
@@ -410,9 +390,7 @@ class Transformer2(nn.Module):
         routing_weights, routing_logits = self.compute_routing(hidden_states)
 
         # Apply experts (Pass 2)
-        expert_output, expert_contributions = self.apply_experts(
-            hidden_states, routing_weights
-        )
+        expert_output, expert_contributions = self.apply_experts(hidden_states, routing_weights)
 
         # Combine: residual connection
         if self.config.use_residual:
@@ -421,25 +399,23 @@ class Transformer2(nn.Module):
             adapted_hidden = expert_output
 
         # Generate logits
-        if hasattr(self.base_model, 'lm_head'):
+        if hasattr(self.base_model, "lm_head"):
             logits = self.base_model.lm_head(adapted_hidden)
-        elif hasattr(self.base_model, 'head'):
+        elif hasattr(self.base_model, "head"):
             logits = self.base_model.head(adapted_hidden)
         else:
             # Return adapted hidden states if no head found
             logits = adapted_hidden
 
         # Compute auxiliary loss
-        aux_loss, loss_breakdown = self.compute_auxiliary_loss(
-            routing_weights, routing_logits
-        )
+        aux_loss, loss_breakdown = self.compute_auxiliary_loss(routing_weights, routing_logits)
 
         # Compute metrics
         metrics = {
-            'routing_entropy': self._routing_entropy(routing_weights),
-            'routing_max': routing_weights.max(dim=-1).values.mean().item(),
-            'routing_sparsity': (routing_weights < 0.1).float().mean().item(),
-            **loss_breakdown
+            "routing_entropy": self._routing_entropy(routing_weights),
+            "routing_max": routing_weights.max(dim=-1).values.mean().item(),
+            "routing_sparsity": (routing_weights < 0.1).float().mean().item(),
+            **loss_breakdown,
         }
 
         return Transformer2Result(
@@ -447,7 +423,7 @@ class Transformer2(nn.Module):
             routing_weights=routing_weights if return_routing else None,
             expert_contributions=expert_contributions,
             auxiliary_loss=aux_loss.item(),
-            metrics=metrics
+            metrics=metrics,
         )
 
     def _routing_entropy(self, routing_weights: torch.Tensor) -> float:
@@ -464,11 +440,11 @@ class Transformer2(nn.Module):
 
         usage = self.expert_usage.cpu().numpy()
         return {
-            'expert_usage': {i: float(u) for i, u in enumerate(usage)},
-            'most_used_expert': int(usage.argmax()),
-            'least_used_expert': int(usage.argmin()),
-            'usage_std': float(usage.std()),
-            'total_updates': self.usage_count
+            "expert_usage": {i: float(u) for i, u in enumerate(usage)},
+            "most_used_expert": int(usage.argmax()),
+            "least_used_expert": int(usage.argmin()),
+            "usage_std": float(usage.std()),
+            "total_updates": self.usage_count,
         }
 
     def get_trainable_params(self) -> int:
@@ -480,8 +456,8 @@ class Transformer2(nn.Module):
         weights = {}
         for i, expert in enumerate(self.experts):
             weights[i] = {
-                'down_proj': expert.down_proj.weight.data.clone(),
-                'up_proj': expert.up_proj.weight.data.clone()
+                "down_proj": expert.down_proj.weight.data.clone(),
+                "up_proj": expert.up_proj.weight.data.clone(),
             }
         return weights
 
@@ -489,8 +465,8 @@ class Transformer2(nn.Module):
         """Set expert adapter weights from saved state."""
         for i, expert in enumerate(self.experts):
             if i in weights:
-                expert.down_proj.weight.data = weights[i]['down_proj']
-                expert.up_proj.weight.data = weights[i]['up_proj']
+                expert.down_proj.weight.data = weights[i]["down_proj"]
+                expert.up_proj.weight.data = weights[i]["up_proj"]
 
 
 class ZVectorSparseRouter(Router):
@@ -507,7 +483,7 @@ class ZVectorSparseRouter(Router):
         num_experts: int,
         top_k: int = 2,
         routing_hidden_dim: int = 256,
-        temperature: float = 1.0
+        temperature: float = 1.0,
     ):
         """
         Initialize sparse router.
@@ -519,15 +495,11 @@ class ZVectorSparseRouter(Router):
             routing_hidden_dim: Router hidden dimension
             temperature: Softmax temperature
         """
-        super().__init__(
-            hidden_size, num_experts, routing_hidden_dim, temperature
-        )
+        super().__init__(hidden_size, num_experts, routing_hidden_dim, temperature)
         self.top_k = top_k
 
     def forward(
-        self,
-        hidden_states: torch.Tensor,
-        return_logits: bool = False
+        self, hidden_states: torch.Tensor, return_logits: bool = False
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """
         Compute sparse routing weights with top-k selection.
@@ -556,11 +528,7 @@ class ZVectorSparseRouter(Router):
         topk_weights = F.softmax(topk_values / self.temperature, dim=-1)
 
         # Scatter back to full routing tensor
-        routing_weights.scatter_(
-            dim=-1,
-            index=topk_indices,
-            src=topk_weights
-        )
+        routing_weights.scatter_(dim=-1, index=topk_indices, src=topk_weights)
 
         if return_logits:
             return routing_weights, logits
@@ -568,10 +536,10 @@ class ZVectorSparseRouter(Router):
 
 
 __all__ = [
-    'Transformer2',
-    'Transformer2Config',
-    'Transformer2Result',
-    'ExpertAdapter',
-    'Router',
-    'ZVectorSparseRouter'
+    "Transformer2",
+    "Transformer2Config",
+    "Transformer2Result",
+    "ExpertAdapter",
+    "Router",
+    "ZVectorSparseRouter",
 ]

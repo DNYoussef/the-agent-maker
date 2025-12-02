@@ -16,27 +16,27 @@ Training Flow:
 Duration: ~8-12 hours (10K episodes × 3-4s/episode)
 """
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from typing import Dict, List, Optional, Tuple
-from pathlib import Path
-from tqdm import tqdm
-import numpy as np
 import json
-
-from .config import QuietSTaRConfig
-from .architecture import QuietSTaRModel
-from .wandb_logger import WandBLogger
-from ..cross_phase.mugrokfast import MuonGrokfast, MuGrokConfig
 
 # ISS-004: Secure checkpoint utilities
 import sys
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from tqdm import tqdm
+
+from ..cross_phase.mugrokfast import MuGrokConfig, MuonGrokfast
+from .architecture import QuietSTaRModel
+from .config import QuietSTaRConfig
+from .wandb_logger import WandBLogger
+
 sys.path.insert(0, str(Path(__file__).parents[2]))
-from cross_phase.utils.checkpoint_utils import (
-    save_checkpoint as secure_save,
-    load_checkpoint as secure_load,
-)
+from cross_phase.utils.checkpoint_utils import load_checkpoint as secure_load
+from cross_phase.utils.checkpoint_utils import save_checkpoint as secure_save
 
 
 class REINFORCETrainer:
@@ -96,7 +96,7 @@ class REINFORCETrainer:
         self.reward_history = []
 
         # ISS-007: Early stopping state
-        self.best_reward = float('-inf')
+        self.best_reward = float("-inf")
         self.best_model_state = None
         self.patience_counter = 0
         self.current_entropy_coef = config.rl.entropy_coefficient
@@ -114,7 +114,7 @@ class REINFORCETrainer:
             nn.ReLU(),
             nn.Linear(baseline_hidden, baseline_hidden),
             nn.ReLU(),
-            nn.Linear(baseline_hidden, 1)
+            nn.Linear(baseline_hidden, 1),
         ).to(self.device)
 
         return baseline
@@ -131,10 +131,8 @@ class REINFORCETrainer:
 
         # ISS-007: Include both model and baseline network parameters
         import itertools
-        all_params = itertools.chain(
-            self.model.parameters(),
-            self.baseline_network.parameters()
-        )
+
+        all_params = itertools.chain(self.model.parameters(), self.baseline_network.parameters())
 
         self.optimizer = MuonGrokfast(all_params, config=optimizer_config)
 
@@ -146,8 +144,10 @@ class REINFORCETrainer:
             )
         elif self.config.rl.lr_schedule == "linear":
             self.scheduler = torch.optim.lr_scheduler.LinearLR(
-                self.optimizer, start_factor=1.0, end_factor=0.1,
-                total_iters=self.config.rl.num_episodes
+                self.optimizer,
+                start_factor=1.0,
+                end_factor=0.1,
+                total_iters=self.config.rl.num_episodes,
             )
         else:
             self.scheduler = None
@@ -217,7 +217,7 @@ class REINFORCETrainer:
         rewards: torch.Tensor,
         values: torch.Tensor,
         next_values: torch.Tensor,
-        dones: torch.Tensor
+        dones: torch.Tensor,
     ) -> torch.Tensor:
         """
         ISS-007: Compute Generalized Advantage Estimation.
@@ -263,9 +263,7 @@ class REINFORCETrainer:
         entropy = -(probs * log_probs).sum(dim=-1).mean()
         return entropy
 
-    def train_episode(
-        self, input_ids: torch.Tensor, labels: torch.Tensor
-    ) -> Dict[str, float]:
+    def train_episode(self, input_ids: torch.Tensor, labels: torch.Tensor) -> Dict[str, float]:
         """
         ISS-007: Train one REINFORCE episode with full RL features.
 
@@ -280,20 +278,14 @@ class REINFORCETrainer:
         self.baseline_network.train()
 
         # Forward pass WITH thoughts
-        outputs_with = self.model(
-            input_ids=input_ids, labels=labels, use_thoughts=True
-        )
+        outputs_with = self.model(input_ids=input_ids, labels=labels, use_thoughts=True)
 
         # Forward pass WITHOUT thoughts
-        outputs_without = self.model(
-            input_ids=input_ids, labels=labels, use_thoughts=False
-        )
+        outputs_without = self.model(input_ids=input_ids, labels=labels, use_thoughts=False)
 
         # Baked baseline (frozen)
         with torch.no_grad():
-            baked_outputs = self.baked_model(
-                input_ids=input_ids, labels=labels
-            )
+            baked_outputs = self.baked_model(input_ids=input_ids, labels=labels)
 
         # ISS-007: Extract hidden states for value estimation
         # Use mean pooling over sequence for value prediction
@@ -331,9 +323,7 @@ class REINFORCETrainer:
         entropy = self.compute_entropy(outputs_with["logits"])
 
         # Compute KL divergence (prevent drift from baked baseline)
-        kl_div = self.compute_kl_divergence(
-            outputs_with["logits"], baked_outputs.logits
-        )
+        kl_div = self.compute_kl_divergence(outputs_with["logits"], baked_outputs.logits)
 
         # ISS-007: REINFORCE loss with advantages
         log_prob = -outputs_with["loss"]  # Negative CE loss as log prob
@@ -356,16 +346,14 @@ class REINFORCETrainer:
         total_loss.backward()
 
         # Gradient clipping
-        torch.nn.utils.clip_grad_norm_(
-            self.model.parameters(), self.config.rl.gradient_clip
-        )
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.rl.gradient_clip)
 
         self.optimizer.step()
 
         # ISS-007: Decay entropy coefficient
         self.current_entropy_coef = max(
             self.config.rl.min_entropy_coefficient,
-            self.current_entropy_coef * self.config.rl.entropy_decay
+            self.current_entropy_coef * self.config.rl.entropy_decay,
         )
 
         # ISS-007: Metrics
@@ -386,9 +374,7 @@ class REINFORCETrainer:
 
         return metrics
 
-    def validate_episode(
-        self, input_ids: torch.Tensor, labels: torch.Tensor
-    ) -> Dict[str, float]:
+    def validate_episode(self, input_ids: torch.Tensor, labels: torch.Tensor) -> Dict[str, float]:
         """
         Validate one episode (compute metrics without training).
 
@@ -398,9 +384,7 @@ class REINFORCETrainer:
 
         with torch.no_grad():
             # Forward with thoughts
-            outputs = self.model(
-                input_ids=input_ids, labels=labels, use_thoughts=True
-            )
+            outputs = self.model(input_ids=input_ids, labels=labels, use_thoughts=True)
 
             # Compute accuracy
             predictions = outputs["logits"].argmax(dim=-1)
@@ -479,7 +463,11 @@ class REINFORCETrainer:
             validation_freq = self.config.rl.validation_frequency
             if episode % validation_freq == 0 and episode > 0:
                 val_metrics = self._validate(val_dataloader)
-                avg_reward = np.mean(self.reward_history[-100:]) if len(self.reward_history) >= 100 else np.mean(self.reward_history)
+                avg_reward = (
+                    np.mean(self.reward_history[-100:])
+                    if len(self.reward_history) >= 100
+                    else np.mean(self.reward_history)
+                )
 
                 print(f"\n--- Episode {episode} Validation ---")
                 print(f"Accuracy: {val_metrics['accuracy']:.4f}")
@@ -499,7 +487,9 @@ class REINFORCETrainer:
                     self.patience_counter = 0
                 else:
                     self.patience_counter += 1
-                    print(f"⚠️  No improvement for {self.patience_counter}/{self.config.rl.patience} validations")
+                    print(
+                        f"⚠️  No improvement for {self.patience_counter}/{self.config.rl.patience} validations"
+                    )
 
                     if self.patience_counter >= self.config.rl.patience:
                         print(f"\n🛑 Early stopping triggered after {episode} episodes")
@@ -509,9 +499,7 @@ class REINFORCETrainer:
             # Anti-theater validation every 1000 episodes
             if episode % 1000 == 0 and episode > 0:
                 print(f"\n--- Running Anti-Theater Validation (Episode {episode}) ---")
-                theater_results = self._anti_theater_validation(
-                    val_dataloader
-                )
+                theater_results = self._anti_theater_validation(val_dataloader)
 
                 if not theater_results["all_passed"]:
                     print("WARNING: THEATER DETECTED! Consider rollback.")
@@ -535,7 +523,9 @@ class REINFORCETrainer:
 
         print(f"Final Accuracy: {final_metrics['accuracy']:.4f}")
         print(f"Final Coherence: {final_metrics['avg_coherence']:.4f}")
-        print(f"Final Avg Reward: {np.mean(self.reward_history[-100:]) if self.reward_history else 0.0:.4f}")
+        print(
+            f"Final Avg Reward: {np.mean(self.reward_history[-100:]) if self.reward_history else 0.0:.4f}"
+        )
         print(f"Total Episodes: {self.episode}")
 
         return final_metrics
@@ -595,9 +585,7 @@ class REINFORCETrainer:
             "avg_thoughts": total_thoughts / num_batches,
         }
 
-    def _anti_theater_validation(
-        self, val_dataloader
-    ) -> Dict[str, float]:
+    def _anti_theater_validation(self, val_dataloader) -> Dict[str, float]:
         """
         Run anti-theater validation (3 tests).
 
@@ -631,7 +619,7 @@ class REINFORCETrainer:
     def save_model(self, output_path: Path):
         """Save reasoning-enhanced model using secure SafeTensors format (ISS-004)."""
         # Remove extension if present
-        base_path = output_path.with_suffix('') if output_path.suffix else output_path
+        base_path = output_path.with_suffix("") if output_path.suffix else output_path
 
         # Training state goes in metadata
         rl_metadata = {

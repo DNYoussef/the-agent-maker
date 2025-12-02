@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, Tuple
 @dataclass
 class PlateauConfig:
     """Configuration for plateau detection."""
+
     window_size: int = 3  # Number of iterations to consider
     threshold: float = 0.01  # Minimum improvement to not be plateau
     min_iterations: int = 2  # Minimum iterations before detecting plateau
@@ -37,7 +38,7 @@ class PlateauDetector:
         window_size: int = 3,
         threshold: float = 0.01,
         min_iterations: int = 2,
-        patience: int = 2
+        patience: int = 2,
     ):
         """
         Initialize plateau detector.
@@ -54,16 +55,10 @@ class PlateauDetector:
         self.patience = patience
 
         # Track scores for each cycle
-        self.history = {
-            'a_cycle': [],
-            'b_cycle': []
-        }
+        self.history = {"a_cycle": [], "b_cycle": []}
 
         # Track plateau counts
-        self.plateau_counts = {
-            'a_cycle': 0,
-            'b_cycle': 0
-        }
+        self.plateau_counts = {"a_cycle": 0, "b_cycle": 0}
 
         # Track plateau events
         self.plateau_events = []
@@ -97,8 +92,10 @@ class PlateauDetector:
             improvement = scores[-1] - scores[0]
         else:
             # Compare rolling windows
-            recent_avg = sum(scores[-self.window_size:]) / self.window_size
-            previous_avg = sum(scores[-(self.window_size*2):-self.window_size]) / self.window_size
+            recent_avg = sum(scores[-self.window_size :]) / self.window_size
+            previous_avg = (
+                sum(scores[-(self.window_size * 2) : -self.window_size]) / self.window_size
+            )
             improvement = recent_avg - previous_avg
 
         # Check if plateaued
@@ -106,12 +103,14 @@ class PlateauDetector:
 
         if is_plateau:
             self.plateau_counts[cycle] += 1
-            self.plateau_events.append({
-                'cycle': cycle,
-                'iteration': len(scores),
-                'score': score,
-                'improvement': improvement
-            })
+            self.plateau_events.append(
+                {
+                    "cycle": cycle,
+                    "iteration": len(scores),
+                    "score": score,
+                    "improvement": improvement,
+                }
+            )
             return True
 
         return False
@@ -123,8 +122,8 @@ class PlateauDetector:
         Returns:
             True if both cycles have hit patience limit
         """
-        a_exhausted = self.plateau_counts.get('a_cycle', 0) >= self.patience
-        b_exhausted = self.plateau_counts.get('b_cycle', 0) >= self.patience
+        a_exhausted = self.plateau_counts.get("a_cycle", 0) >= self.patience
+        b_exhausted = self.plateau_counts.get("b_cycle", 0) >= self.patience
 
         return a_exhausted and b_exhausted
 
@@ -136,19 +135,19 @@ class PlateauDetector:
             'a_cycle', 'b_cycle', or 'stop'
         """
         if self.both_plateaued():
-            return 'stop'
+            return "stop"
 
-        a_plateau = self.plateau_counts.get('a_cycle', 0)
-        b_plateau = self.plateau_counts.get('b_cycle', 0)
+        a_plateau = self.plateau_counts.get("a_cycle", 0)
+        b_plateau = self.plateau_counts.get("b_cycle", 0)
 
         # Prefer the cycle with fewer plateaus
         if a_plateau < b_plateau:
-            return 'a_cycle'
+            return "a_cycle"
         elif b_plateau < a_plateau:
-            return 'b_cycle'
+            return "b_cycle"
         else:
             # Equal plateaus, prefer A-cycle (tool use typically more important)
-            return 'a_cycle'
+            return "a_cycle"
 
     def reset_cycle(self, cycle: str):
         """
@@ -163,9 +162,9 @@ class PlateauDetector:
     def get_history(self) -> Dict:
         """Get full detection history."""
         return {
-            'scores': self.history.copy(),
-            'plateau_counts': self.plateau_counts.copy(),
-            'plateau_events': self.plateau_events.copy()
+            "scores": self.history.copy(),
+            "plateau_counts": self.plateau_counts.copy(),
+            "plateau_events": self.plateau_events.copy(),
         }
 
     def get_statistics(self) -> Dict:
@@ -175,13 +174,13 @@ class PlateauDetector:
         for cycle, scores in self.history.items():
             if scores:
                 stats[cycle] = {
-                    'iterations': len(scores),
-                    'initial_score': scores[0],
-                    'final_score': scores[-1],
-                    'best_score': max(scores),
-                    'worst_score': min(scores),
-                    'total_improvement': scores[-1] - scores[0],
-                    'plateau_count': self.plateau_counts.get(cycle, 0)
+                    "iterations": len(scores),
+                    "initial_score": scores[0],
+                    "final_score": scores[-1],
+                    "best_score": max(scores),
+                    "worst_score": min(scores),
+                    "total_improvement": scores[-1] - scores[0],
+                    "plateau_count": self.plateau_counts.get(cycle, 0),
                 }
 
         return stats
@@ -202,7 +201,7 @@ class AdaptivePlateauDetector(PlateauDetector):
         initial_threshold: float = 0.02,
         min_threshold: float = 0.005,
         decay_rate: float = 0.9,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize adaptive detector.
@@ -227,7 +226,7 @@ class AdaptivePlateauDetector(PlateauDetector):
         # Calculate variance
         mean_score = sum(scores) / len(scores)
         variance = sum((s - mean_score) ** 2 for s in scores) / len(scores)
-        std_dev = variance ** 0.5
+        std_dev = variance**0.5
 
         # Threshold based on standard deviation
         variance_threshold = std_dev * 0.5
@@ -237,10 +236,7 @@ class AdaptivePlateauDetector(PlateauDetector):
         decayed_threshold = self.initial_threshold * iteration_factor
 
         # Use minimum of variance-based and decayed threshold
-        adaptive_threshold = max(
-            self.min_threshold,
-            min(variance_threshold, decayed_threshold)
-        )
+        adaptive_threshold = max(self.min_threshold, min(variance_threshold, decayed_threshold))
 
         return adaptive_threshold
 
@@ -252,4 +248,4 @@ class AdaptivePlateauDetector(PlateauDetector):
         return super().check(score, cycle)
 
 
-__all__ = ['PlateauDetector', 'PlateauConfig', 'AdaptivePlateauDetector']
+__all__ = ["PlateauDetector", "PlateauConfig", "AdaptivePlateauDetector"]

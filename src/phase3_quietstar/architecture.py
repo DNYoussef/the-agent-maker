@@ -9,11 +9,12 @@ Core components for thought generation and reasoning:
 5. QuietSTaRModel - Complete Quiet-STaR model wrapper
 """
 
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Tuple, Optional, Dict
-from dataclasses import dataclass
 
 
 @dataclass
@@ -78,9 +79,7 @@ class ThoughtGenerator(nn.Module):
 
         # Generate each thought independently
         for _ in range(self.num_thoughts):
-            thought, log_prob, ids = self._generate_single(
-                input_ids, position, hidden_states
-            )
+            thought, log_prob, ids = self._generate_single(input_ids, position, hidden_states)
             all_thoughts.append(thought)
             all_log_probs.append(log_prob)
             all_thought_ids.append(ids)
@@ -111,9 +110,7 @@ class ThoughtGenerator(nn.Module):
         log_probs_list = []
 
         # Adaptive length (10-20 tokens)
-        thought_length = torch.randint(
-            self.min_length, self.max_length + 1, (1,)
-        ).item()
+        thought_length = torch.randint(self.min_length, self.max_length + 1, (1,)).item()
 
         # Generate tokens
         for step in range(thought_length):
@@ -127,9 +124,7 @@ class ThoughtGenerator(nn.Module):
             # Store results
             # ISS-005: Handle batch_size > 1 (use first batch item for IDs)
             generated_ids.append(next_token[0, 0].item())
-            log_probs_list.append(
-                torch.log(probs.gather(1, next_token))
-            )
+            log_probs_list.append(torch.log(probs.gather(1, next_token)))
 
             # Append token
             current_ids = torch.cat([current_ids, next_token], dim=1)
@@ -141,16 +136,12 @@ class ThoughtGenerator(nn.Module):
 
         return thought_hidden, log_prob_sum, generated_ids
 
-    def _nucleus_sampling(
-        self, logits: torch.Tensor
-    ) -> torch.Tensor:
+    def _nucleus_sampling(self, logits: torch.Tensor) -> torch.Tensor:
         """Apply nucleus (top-p) sampling."""
         probs = F.softmax(logits, dim=-1)
 
         # Sort probabilities
-        sorted_probs, sorted_indices = torch.sort(
-            probs, descending=True, dim=-1
-        )
+        sorted_probs, sorted_indices = torch.sort(probs, descending=True, dim=-1)
         cumsum_probs = torch.cumsum(sorted_probs, dim=-1)
 
         # Find cutoff
@@ -235,9 +226,7 @@ class CoherenceScorer(nn.Module):
         syntactic = self._syntactic_coherence(thought_avg)
 
         # Predictive coherence (helps prediction)
-        predictive = self._predictive_coherence(
-            thought_avg, next_token_logits
-        )
+        predictive = self._predictive_coherence(thought_avg, next_token_logits)
 
         # Composite score
         composite = (
@@ -253,9 +242,7 @@ class CoherenceScorer(nn.Module):
             composite=composite,
         )
 
-    def _semantic_coherence(
-        self, base: torch.Tensor, thoughts: torch.Tensor
-    ) -> torch.Tensor:
+    def _semantic_coherence(self, base: torch.Tensor, thoughts: torch.Tensor) -> torch.Tensor:
         """Semantic similarity via cosine distance."""
         base_proj = self.semantic_projection(base)
         base_norm = F.normalize(base_proj, p=2, dim=-1)
@@ -263,16 +250,12 @@ class CoherenceScorer(nn.Module):
         thought_norm = F.normalize(thoughts, p=2, dim=-1)
 
         # Cosine similarity
-        similarity = torch.bmm(
-            thought_norm, base_norm.unsqueeze(-1)
-        ).squeeze(-1)
+        similarity = torch.bmm(thought_norm, base_norm.unsqueeze(-1)).squeeze(-1)
 
         # Scale to [0, 1]
         return (similarity + 1.0) / 2.0
 
-    def _syntactic_coherence(
-        self, thoughts: torch.Tensor
-    ) -> torch.Tensor:
+    def _syntactic_coherence(self, thoughts: torch.Tensor) -> torch.Tensor:
         """Grammar validity via learned MLP."""
         return self.syntactic_mlp(thoughts).squeeze(-1)
 
@@ -281,9 +264,7 @@ class CoherenceScorer(nn.Module):
     ) -> torch.Tensor:
         """How much thought helps next-token prediction."""
         if logits is None:
-            return torch.ones(
-                thoughts.size(0), thoughts.size(1), device=thoughts.device
-            )
+            return torch.ones(thoughts.size(0), thoughts.size(1), device=thoughts.device)
 
         # Predict utility
         utility = self.predictive_head(thoughts).squeeze(-1)
@@ -309,9 +290,7 @@ class MixingHead(nn.Module):
         self.num_heads = num_heads
         self.head_dim = hidden_size // num_heads
 
-        assert (
-            hidden_size % num_heads == 0
-        ), "hidden_size must be divisible by num_heads"
+        assert hidden_size % num_heads == 0, "hidden_size must be divisible by num_heads"
 
         # Multi-head attention
         self.query = nn.Linear(hidden_size, hidden_size)
@@ -361,14 +340,10 @@ class MixingHead(nn.Module):
         values = self._split_heads(values)
 
         # Scaled dot-product attention
-        attention_logits = torch.matmul(
-            query, keys.transpose(-2, -1)
-        ) / (self.head_dim**0.5)
+        attention_logits = torch.matmul(query, keys.transpose(-2, -1)) / (self.head_dim**0.5)
 
         # Apply coherence scores as bias
-        attention_logits = attention_logits + coherence_scores.unsqueeze(
-            1
-        ).unsqueeze(1)
+        attention_logits = attention_logits + coherence_scores.unsqueeze(1).unsqueeze(1)
 
         # Attention weights
         attention_weights = F.softmax(attention_logits, dim=-1)
@@ -386,9 +361,7 @@ class MixingHead(nn.Module):
         gate_value = self.gate(gate_input)
 
         # Blend base + thoughts
-        mixed = gate_value * thought_representation + (
-            1 - gate_value
-        ) * base_hidden
+        mixed = gate_value * thought_representation + (1 - gate_value) * base_hidden
 
         # Residual + layer norm
         output = self.layer_norm(base_hidden + mixed)
@@ -399,19 +372,13 @@ class MixingHead(nn.Module):
         """Split into multiple heads."""
         batch_size = x.size(0)
         seq_len = x.size(1)
-        return x.view(
-            batch_size, seq_len, self.num_heads, self.head_dim
-        ).transpose(1, 2)
+        return x.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
 
     def _merge_heads(self, x: torch.Tensor) -> torch.Tensor:
         """Merge multiple heads."""
         batch_size = x.size(0)
         seq_len = x.size(2)
-        return (
-            x.transpose(1, 2)
-            .contiguous()
-            .view(batch_size, seq_len, self.hidden_size)
-        )
+        return x.transpose(1, 2).contiguous().view(batch_size, seq_len, self.hidden_size)
 
 
 class ThoughtInjector(nn.Module):
@@ -454,9 +421,7 @@ class ThoughtInjector(nn.Module):
         error = loss.item() if loss is not None else 0.0
 
         # Composite difficulty (normalized to [0, 1])
-        difficulty = (
-            0.4 * entropy + 0.3 * dispersion + 0.3 * min(error, 10.0) / 10.0
-        )
+        difficulty = 0.4 * entropy + 0.3 * dispersion + 0.3 * min(error, 10.0) / 10.0
 
         # Inject if above threshold
         if difficulty > self.threshold:
@@ -474,17 +439,13 @@ class ThoughtInjector(nn.Module):
         max_entropy = torch.log(torch.tensor(logits.size(-1), dtype=torch.float32))
         return (entropy / max_entropy).mean().item()
 
-    def _compute_dispersion(
-        self, attention_weights: Optional[torch.Tensor]
-    ) -> float:
+    def _compute_dispersion(self, attention_weights: Optional[torch.Tensor]) -> float:
         """Compute attention dispersion (high = spread out)."""
         if attention_weights is None:
             return 0.5  # Neutral value
 
         # Compute entropy of attention distribution
-        entropy = -(
-            attention_weights * torch.log(attention_weights + 1e-10)
-        ).sum(dim=-1)
+        entropy = -(attention_weights * torch.log(attention_weights + 1e-10)).sum(dim=-1)
 
         # Normalize
         max_entropy = torch.log(torch.tensor(attention_weights.size(-1), dtype=torch.float32))
@@ -519,13 +480,9 @@ class QuietSTaRModel(nn.Module):
         self.thought_generator = ThoughtGenerator(
             base_model, num_thoughts=num_thoughts, max_length=max_thought_length
         )
-        self.coherence_scorer = CoherenceScorer(
-            hidden_size, weights=coherence_weights
-        )
+        self.coherence_scorer = CoherenceScorer(hidden_size, weights=coherence_weights)
         self.mixing_head = MixingHead(hidden_size)
-        self.thought_injector = ThoughtInjector(
-            threshold=injection_threshold
-        )
+        self.thought_injector = ThoughtInjector(threshold=injection_threshold)
 
     def forward(
         self,
@@ -571,9 +528,7 @@ class QuietSTaRModel(nn.Module):
 
             if inject:
                 # Generate thoughts
-                thought_output = self.thought_generator(
-                    input_ids, pos, base_hidden[:, pos, :]
-                )
+                thought_output = self.thought_generator(input_ids, pos, base_hidden[:, pos, :])
 
                 # Score coherence
                 coherence = self.coherence_scorer(
@@ -593,9 +548,7 @@ class QuietSTaRModel(nn.Module):
                 enhanced_hidden[:, pos, :] = mixed
 
                 thought_positions.append(pos)
-                coherence_scores_list.append(
-                    coherence.composite.mean().item()
-                )
+                coherence_scores_list.append(coherence.composite.mean().item())
 
         # Final logits from enhanced hidden states
         final_logits = self.base_model.lm_head(enhanced_hidden)
@@ -615,9 +568,7 @@ class QuietSTaRModel(nn.Module):
             "num_thoughts_used": len(thought_positions),
         }
 
-    def _compute_loss(
-        self, logits: torch.Tensor, labels: torch.Tensor
-    ) -> torch.Tensor:
+    def _compute_loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         """Compute cross-entropy loss."""
         shift_logits = logits[..., :-1, :].contiguous()
         shift_labels = labels[..., 1:].contiguous()

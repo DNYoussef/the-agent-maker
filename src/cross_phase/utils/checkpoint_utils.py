@@ -15,16 +15,18 @@ Security Guarantee:
 - All checkpoint loading is safe against malicious files
 """
 
-from pathlib import Path
-from typing import Dict, Any, Optional, Union
-from dataclasses import asdict, is_dataclass
 import json
 import warnings
+from dataclasses import asdict, is_dataclass
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
+
 import torch
 import torch.nn as nn
 
 try:
-    from safetensors.torch import save_file, load_file
+    from safetensors.torch import load_file, save_file
+
     SAFETENSORS_AVAILABLE = True
 except ImportError:
     SAFETENSORS_AVAILABLE = False
@@ -44,7 +46,7 @@ def _serialize_config(config: Any) -> Dict[str, Any]:
         for key, value in asdict(config).items():
             if isinstance(value, Path):
                 result[key] = str(value)
-            elif hasattr(value, '__dict__') and not isinstance(value, (dict, list)):
+            elif hasattr(value, "__dict__") and not isinstance(value, (dict, list)):
                 result[key] = _serialize_config(value)
             else:
                 result[key] = value
@@ -94,8 +96,7 @@ def _extract_optimizer_tensors(
 
 
 def _reconstruct_optimizer_state(
-    tensors: Dict[str, torch.Tensor],
-    metadata: Dict[str, Any]
+    tensors: Dict[str, torch.Tensor], metadata: Dict[str, Any]
 ) -> Dict[str, Any]:
     """Reconstruct optimizer state from tensors and metadata."""
     state = {}
@@ -112,10 +113,7 @@ def _reconstruct_optimizer_state(
             else:
                 state[param_id][key] = value
 
-    return {
-        "state": state,
-        "param_groups": metadata.get("param_groups", [])
-    }
+    return {"state": state, "param_groups": metadata.get("param_groups", [])}
 
 
 def save_checkpoint(
@@ -167,7 +165,7 @@ def save_checkpoint(
             tensors[f"extra_{key}"] = tensor
 
     # Save model weights with SafeTensors
-    safetensors_path = output_path.with_suffix('.safetensors')
+    safetensors_path = output_path.with_suffix(".safetensors")
     save_file(tensors, str(safetensors_path))
 
     # Save config + metadata as JSON
@@ -179,8 +177,8 @@ def save_checkpoint(
         "extra_tensor_keys": list(extra_tensors.keys()) if extra_tensors else [],
     }
 
-    json_path = output_path.with_suffix('.json')
-    with open(json_path, 'w', encoding='utf-8') as f:
+    json_path = output_path.with_suffix(".json")
+    with open(json_path, "w", encoding="utf-8") as f:
         json.dump(json_data, f, indent=2, default=str)
 
     # Save optimizer state if provided
@@ -188,11 +186,11 @@ def save_checkpoint(
         opt_tensors, opt_metadata = _extract_optimizer_tensors(optimizer_state)
 
         if opt_tensors:
-            opt_tensors_path = output_path.with_suffix('.optimizer.safetensors')
+            opt_tensors_path = output_path.with_suffix(".optimizer.safetensors")
             save_file(opt_tensors, str(opt_tensors_path))
 
-        opt_json_path = output_path.with_suffix('.optimizer.json')
-        with open(opt_json_path, 'w', encoding='utf-8') as f:
+        opt_json_path = output_path.with_suffix(".optimizer.json")
+        with open(opt_json_path, "w", encoding="utf-8") as f:
             json.dump(opt_metadata, f, indent=2, default=str)
 
     return safetensors_path
@@ -235,15 +233,15 @@ def load_checkpoint(
     checkpoint_path = Path(checkpoint_path)
 
     # Handle extension variations
-    if checkpoint_path.suffix == '.safetensors':
-        base_path = checkpoint_path.with_suffix('')
-    elif checkpoint_path.suffix == '.json':
-        base_path = checkpoint_path.with_suffix('')
+    if checkpoint_path.suffix == ".safetensors":
+        base_path = checkpoint_path.with_suffix("")
+    elif checkpoint_path.suffix == ".json":
+        base_path = checkpoint_path.with_suffix("")
     else:
         base_path = checkpoint_path
 
-    safetensors_path = base_path.with_suffix('.safetensors')
-    json_path = base_path.with_suffix('.json')
+    safetensors_path = base_path.with_suffix(".safetensors")
+    json_path = base_path.with_suffix(".json")
 
     if not safetensors_path.exists():
         raise FileNotFoundError(f"Checkpoint not found: {safetensors_path}")
@@ -269,7 +267,7 @@ def load_checkpoint(
     has_optimizer = False
 
     if json_path.exists():
-        with open(json_path, 'r', encoding='utf-8') as f:
+        with open(json_path, "r", encoding="utf-8") as f:
             json_data = json.load(f)
         config = json_data.get("config", {})
         metadata = json_data.get("metadata", {})
@@ -283,8 +281,8 @@ def load_checkpoint(
 
     # Load optimizer state if requested
     if load_optimizer and has_optimizer:
-        opt_tensors_path = base_path.with_suffix('.optimizer.safetensors')
-        opt_json_path = base_path.with_suffix('.optimizer.json')
+        opt_tensors_path = base_path.with_suffix(".optimizer.safetensors")
+        opt_json_path = base_path.with_suffix(".optimizer.json")
 
         opt_tensors = {}
         opt_metadata = {}
@@ -293,12 +291,10 @@ def load_checkpoint(
             opt_tensors = load_file(str(opt_tensors_path), device=device)
 
         if opt_json_path.exists():
-            with open(opt_json_path, 'r', encoding='utf-8') as f:
+            with open(opt_json_path, "r", encoding="utf-8") as f:
                 opt_metadata = json.load(f)
 
-        result["optimizer_state_dict"] = _reconstruct_optimizer_state(
-            opt_tensors, opt_metadata
-        )
+        result["optimizer_state_dict"] = _reconstruct_optimizer_state(opt_tensors, opt_metadata)
 
     return result
 
@@ -345,7 +341,7 @@ def migrate_legacy_checkpoint(
         optimizer_state = checkpoint.get("optimizer_state_dict")
 
         # Handle case where checkpoint IS the state dict
-        if model_state is None and any(k.endswith('.weight') for k in checkpoint.keys()):
+        if model_state is None and any(k.endswith(".weight") for k in checkpoint.keys()):
             model_state = checkpoint
             config = {}
             metadata = {}
@@ -368,14 +364,11 @@ def migrate_legacy_checkpoint(
             super().__init__()
             for name, param in state_dict.items():
                 # Register as buffer (not parameter) to preserve exact structure
-                self.register_buffer(name.replace('.', '__DOT__'), param)
+                self.register_buffer(name.replace(".", "__DOT__"), param)
 
         def state_dict(self, *args, **kwargs):
             # Return original keys
-            return {
-                name.replace('__DOT__', '.'): buf
-                for name, buf in self._buffers.items()
-            }
+            return {name.replace("__DOT__", "."): buf for name, buf in self._buffers.items()}
 
     temp_module = TempModule(model_state)
 
@@ -391,16 +384,13 @@ def migrate_legacy_checkpoint(
 
 # Convenience functions for common patterns
 
+
 def save_model_only(model: nn.Module, path: Union[str, Path]) -> Path:
     """Save just model weights without config/optimizer."""
     return save_checkpoint(model, path)
 
 
-def load_model_only(
-    model: nn.Module,
-    path: Union[str, Path],
-    device: str = "cpu"
-) -> nn.Module:
+def load_model_only(model: nn.Module, path: Union[str, Path], device: str = "cpu") -> nn.Module:
     """Load just model weights, return the model."""
     load_checkpoint(model, path, device=device)
     return model

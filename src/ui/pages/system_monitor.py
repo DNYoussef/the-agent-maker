@@ -2,11 +2,12 @@
 System Monitor Page
 Real-time GPU, RAM, and disk usage monitoring
 """
-import streamlit as st
 import sys
-from pathlib import Path
-import psutil
 import time
+from pathlib import Path
+
+import psutil
+import streamlit as st
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -14,8 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 def render():
     """Render system monitor page"""
-    st.markdown('<h1 class="main-header">System Monitor</h1>',
-                unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">System Monitor</h1>', unsafe_allow_html=True)
 
     # Real-time metrics
     col1, col2, col3 = st.columns(3)
@@ -23,37 +23,27 @@ def render():
     # CPU Usage
     with col1:
         cpu_percent = psutil.cpu_percent(interval=0.1)
-        st.metric(
-            "CPU Usage",
-            f"{cpu_percent:.1f}%",
-            delta=None
-        )
+        st.metric("CPU Usage", f"{cpu_percent:.1f}%", delta=None)
         st.progress(cpu_percent / 100.0)
 
     # RAM Usage
     with col2:
         ram = psutil.virtual_memory()
         ram_percent = ram.percent
-        ram_used_gb = ram.used / (1024 ** 3)
-        ram_total_gb = ram.total / (1024 ** 3)
+        ram_used_gb = ram.used / (1024**3)
+        ram_total_gb = ram.total / (1024**3)
 
-        st.metric(
-            "RAM Usage",
-            f"{ram_used_gb:.1f} / {ram_total_gb:.1f} GB"
-        )
+        st.metric("RAM Usage", f"{ram_used_gb:.1f} / {ram_total_gb:.1f} GB")
         st.progress(ram_percent / 100.0)
 
     # Disk Usage
     with col3:
-        disk = psutil.disk_usage('.')
+        disk = psutil.disk_usage(".")
         disk_percent = disk.percent
-        disk_used_gb = disk.used / (1024 ** 3)
-        disk_total_gb = disk.total / (1024 ** 3)
+        disk_used_gb = disk.used / (1024**3)
+        disk_total_gb = disk.total / (1024**3)
 
-        st.metric(
-            "Disk Usage",
-            f"{disk_used_gb:.1f} / {disk_total_gb:.1f} GB"
-        )
+        st.metric("Disk Usage", f"{disk_used_gb:.1f} / {disk_total_gb:.1f} GB")
         st.progress(disk_percent / 100.0)
 
     st.markdown("---")
@@ -63,23 +53,21 @@ def render():
 
     try:
         import torch
+
         if torch.cuda.is_available():
             gpu_count = torch.cuda.device_count()
 
             for i in range(gpu_count):
                 gpu_name = torch.cuda.get_device_name(i)
-                gpu_memory = torch.cuda.get_device_properties(i).total_memory / (1024 ** 3)
-                gpu_memory_allocated = torch.cuda.memory_allocated(i) / (1024 ** 3)
+                gpu_memory = torch.cuda.get_device_properties(i).total_memory / (1024**3)
+                gpu_memory_allocated = torch.cuda.memory_allocated(i) / (1024**3)
                 gpu_memory_percent = (gpu_memory_allocated / gpu_memory) * 100
 
                 with st.expander(f"🎮 GPU {i}: {gpu_name}"):
                     col1, col2 = st.columns(2)
 
                     with col1:
-                        st.metric(
-                            "VRAM Usage",
-                            f"{gpu_memory_allocated:.1f} / {gpu_memory:.1f} GB"
-                        )
+                        st.metric("VRAM Usage", f"{gpu_memory_allocated:.1f} / {gpu_memory:.1f} GB")
                         st.progress(gpu_memory_percent / 100.0)
 
                     with col2:
@@ -100,9 +88,9 @@ def render():
     st.subheader("Agent Forge Processes")
 
     processes = []
-    for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
+    for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_percent"]):
         try:
-            if 'python' in proc.info['name'].lower():
+            if "python" in proc.info["name"].lower():
                 processes.append(proc.info)
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
@@ -111,8 +99,8 @@ def render():
         import pandas as pd
 
         df = pd.DataFrame(processes)
-        df['memory_percent'] = df['memory_percent'].apply(lambda x: f"{x:.2f}%")
-        df['cpu_percent'] = df['cpu_percent'].apply(lambda x: f"{x:.1f}%")
+        df["memory_percent"] = df["memory_percent"].apply(lambda x: f"{x:.2f}%")
+        df["cpu_percent"] = df["cpu_percent"].apply(lambda x: f"{x:.1f}%")
 
         st.dataframe(df, use_container_width=True)
     else:
@@ -126,13 +114,14 @@ def render():
     # Get actual storage stats from registry
     try:
         from cross_phase.storage.model_registry import ModelRegistry
+
         registry = ModelRegistry()
         storage_stats = registry.get_storage_stats()
         registry.close()
 
-        model_count = storage_stats['model_count']
-        total_size_mb = storage_stats['total_size_mb']
-        checkpoint_count = storage_stats['checkpoint_count']
+        model_count = storage_stats["model_count"]
+        total_size_mb = storage_stats["total_size_mb"]
+        checkpoint_count = storage_stats["checkpoint_count"]
     except Exception:
         # Fallback to defaults if registry unavailable
         model_count = 0
@@ -144,18 +133,25 @@ def render():
     wandb_path = Path("./wandb")
 
     try:
-        dataset_size_gb = sum(
-            f.stat().st_size for f in dataset_cache_path.rglob('*') if f.is_file()
-        ) / (1024 ** 3) if dataset_cache_path.exists() else 0
-        dataset_count = len(list(dataset_cache_path.glob('*'))) if dataset_cache_path.exists() else 0
+        dataset_size_gb = (
+            sum(f.stat().st_size for f in dataset_cache_path.rglob("*") if f.is_file())
+            / (1024**3)
+            if dataset_cache_path.exists()
+            else 0
+        )
+        dataset_count = (
+            len(list(dataset_cache_path.glob("*"))) if dataset_cache_path.exists() else 0
+        )
     except Exception:
         dataset_size_gb = 0
         dataset_count = 0
 
     try:
-        wandb_size_mb = sum(
-            f.stat().st_size for f in wandb_path.rglob('*') if f.is_file()
-        ) / (1024 ** 2) if wandb_path.exists() else 0
+        wandb_size_mb = (
+            sum(f.stat().st_size for f in wandb_path.rglob("*") if f.is_file()) / (1024**2)
+            if wandb_path.exists()
+            else 0
+        )
     except Exception:
         wandb_size_mb = 0
 
@@ -180,7 +176,7 @@ def render():
     cleanup_items = [
         {"type": "Old sessions", "size": "450 MB", "age": "45 days"},
         {"type": "Temp checkpoints", "size": "280 MB", "age": "7 days"},
-        {"type": "W&B cache", "size": "120 MB", "age": "30 days"}
+        {"type": "W&B cache", "size": "120 MB", "age": "30 days"},
     ]
 
     for item in cleanup_items:

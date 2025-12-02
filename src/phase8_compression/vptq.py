@@ -18,10 +18,10 @@ This multi-codebook approach progressively refines the approximation,
 achieving higher quality than single-codebook quantization.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
 import copy
 import math
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -30,16 +30,18 @@ import torch.nn as nn
 @dataclass
 class ResidualQuantizationResult:
     """Result from residual quantization of a tensor."""
+
     indices_per_codebook: List[torch.Tensor]  # Indices for each codebook
-    codebooks: List[torch.Tensor]              # The codebooks themselves
-    per_codebook_retention: List[float]        # Retention after each level
-    final_retention: float                     # Overall retention
-    compression_ratio: float                   # Achieved compression
+    codebooks: List[torch.Tensor]  # The codebooks themselves
+    per_codebook_retention: List[float]  # Retention after each level
+    final_retention: float  # Overall retention
+    compression_ratio: float  # Achieved compression
 
 
 @dataclass
 class VPTQConfig:
     """Configuration for VPTQ compression."""
+
     codebook_size: int = 256  # Number of codewords per codebook
     vector_dim: int = 8  # Dimension of each vector
     num_codebooks: int = 4  # Number of residual codebooks
@@ -55,6 +57,7 @@ class VPTQConfig:
 @dataclass
 class VPTQResult:
     """Result from VPTQ compression."""
+
     success: bool
     compressed_state: Dict[str, Any]
     original_size_mb: float
@@ -89,15 +92,12 @@ class VPTQCompressor:
         """
         self.config = config or VPTQConfig()
         if self.config.preserve_layers is None:
-            self.config.preserve_layers = ['embed', 'norm', 'ln_', 'layernorm', 'bias']
+            self.config.preserve_layers = ["embed", "norm", "ln_", "layernorm", "bias"]
 
         self.codebooks: Dict[str, torch.Tensor] = {}
 
     def compress(
-        self,
-        model: nn.Module,
-        calibration_data: List[Any] = None,
-        tokenizer: Any = None
+        self, model: nn.Module, calibration_data: List[Any] = None, tokenizer: Any = None
     ) -> Tuple[nn.Module, VPTQResult]:
         """
         Compress model using VPTQ.
@@ -126,27 +126,24 @@ class VPTQCompressor:
 
             if should_preserve or param.dim() < 2 or param.numel() < self.config.vector_dim:
                 # Preserve layer
-                compressed_state[name] = {
-                    'type': 'preserved',
-                    'data': param.half()
-                }
+                compressed_state[name] = {"type": "preserved", "data": param.half()}
             else:
                 # Apply VPTQ
                 indices, codebook, retention = self._vptq_compress(param)
                 compressed_state[name] = {
-                    'type': 'vptq',
-                    'indices': indices,
-                    'codebook': codebook,
-                    'shape': param.shape
+                    "type": "vptq",
+                    "indices": indices,
+                    "codebook": codebook,
+                    "shape": param.shape,
                 }
 
                 self.codebooks[name] = codebook
 
                 codebook_stats[name] = {
-                    'codebook_size': codebook.shape[0],
-                    'vector_dim': codebook.shape[1],
-                    'num_vectors': indices.numel(),
-                    'retention': retention
+                    "codebook_size": codebook.shape[0],
+                    "vector_dim": codebook.shape[1],
+                    "num_vectors": indices.numel(),
+                    "retention": retention,
                 }
 
         # Calculate compressed size
@@ -169,13 +166,10 @@ class VPTQCompressor:
             compressed_size_mb=compressed_size,
             compression_ratio=compression_ratio,
             retention_score=retention,
-            codebook_stats=codebook_stats
+            codebook_stats=codebook_stats,
         )
 
-    def _vptq_compress(
-        self,
-        tensor: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor, float]:
+    def _vptq_compress(self, tensor: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, float]:
         """
         Compress tensor using vector quantization.
 
@@ -195,8 +189,7 @@ class VPTQCompressor:
         return self._single_codebook_compress(tensor)
 
     def _single_codebook_compress(
-        self,
-        tensor: torch.Tensor
+        self, tensor: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, float]:
         """
         Single-codebook vector quantization (original implementation).
@@ -209,7 +202,9 @@ class VPTQCompressor:
         """
         # Reshape to vectors
         flat = tensor.flatten()
-        pad_size = (self.config.vector_dim - len(flat) % self.config.vector_dim) % self.config.vector_dim
+        pad_size = (
+            self.config.vector_dim - len(flat) % self.config.vector_dim
+        ) % self.config.vector_dim
         if pad_size > 0:
             flat = torch.cat([flat, torch.zeros(pad_size)])
 
@@ -253,10 +248,7 @@ class VPTQCompressor:
 
         return indices, codebook.half(), retention
 
-    def _residual_quantize(
-        self,
-        tensor: torch.Tensor
-    ) -> ResidualQuantizationResult:
+    def _residual_quantize(self, tensor: torch.Tensor) -> ResidualQuantizationResult:
         """
         Multi-codebook residual vector quantization.
 
@@ -277,7 +269,9 @@ class VPTQCompressor:
         """
         # Reshape to vectors
         flat = tensor.flatten().float()
-        pad_size = (self.config.vector_dim - len(flat) % self.config.vector_dim) % self.config.vector_dim
+        pad_size = (
+            self.config.vector_dim - len(flat) % self.config.vector_dim
+        ) % self.config.vector_dim
         if pad_size > 0:
             flat = torch.cat([flat, torch.zeros(pad_size)])
 
@@ -356,8 +350,11 @@ class VPTQCompressor:
         num_vectors = vectors.shape[0]
         original_bytes = num_vectors * self.config.vector_dim * 4
         compressed_bytes = (
-            num_vectors * self.config.num_codebooks * 1 +  # indices
-            self.config.num_codebooks * self.config.codebook_size * self.config.vector_dim * 2  # codebooks
+            num_vectors * self.config.num_codebooks * 1
+            + self.config.num_codebooks  # indices
+            * self.config.codebook_size
+            * self.config.vector_dim
+            * 2  # codebooks
         )
         compression_ratio = original_bytes / max(compressed_bytes, 1)
 
@@ -366,13 +363,11 @@ class VPTQCompressor:
             codebooks=all_codebooks,
             per_codebook_retention=per_codebook_retention,
             final_retention=per_codebook_retention[-1] if per_codebook_retention else 0.0,
-            compression_ratio=compression_ratio
+            compression_ratio=compression_ratio,
         )
 
     def _pack_residual_result(
-        self,
-        result: ResidualQuantizationResult,
-        original_shape: torch.Size
+        self, result: ResidualQuantizationResult, original_shape: torch.Size
     ) -> Tuple[Any, Any, float]:
         """
         Pack residual quantization result for compatibility with existing interface.
@@ -386,26 +381,22 @@ class VPTQCompressor:
         """
         # Pack indices: concatenate along new dimension
         packed_indices = {
-            'type': 'residual',
-            'indices': result.indices_per_codebook,
-            'num_codebooks': len(result.indices_per_codebook),
-            'shape': original_shape
+            "type": "residual",
+            "indices": result.indices_per_codebook,
+            "num_codebooks": len(result.indices_per_codebook),
+            "shape": original_shape,
         }
 
         # Pack codebooks: list of codebooks
         packed_codebooks = {
-            'type': 'residual',
-            'codebooks': result.codebooks,
-            'per_codebook_retention': result.per_codebook_retention
+            "type": "residual",
+            "codebooks": result.codebooks,
+            "per_codebook_retention": result.per_codebook_retention,
         }
 
         return packed_indices, packed_codebooks, result.final_retention
 
-    def decompress_residual(
-        self,
-        packed_indices: Dict,
-        packed_codebooks: Dict
-    ) -> torch.Tensor:
+    def decompress_residual(self, packed_indices: Dict, packed_codebooks: Dict) -> torch.Tensor:
         """
         Decompress residual-quantized tensor.
 
@@ -416,9 +407,9 @@ class VPTQCompressor:
         Returns:
             Decompressed tensor
         """
-        indices_list = packed_indices['indices']
-        codebooks_list = packed_codebooks['codebooks']
-        original_shape = packed_indices['shape']
+        indices_list = packed_indices["indices"]
+        codebooks_list = packed_codebooks["codebooks"]
+        original_shape = packed_indices["shape"]
 
         # Accumulate reconstructions from all codebooks
         reconstruction = None
@@ -455,7 +446,7 @@ class VPTQCompressor:
             distances = torch.cdist(vectors, centroid_tensor).min(dim=1).values
 
             # Sample proportional to distance squared
-            probs = distances ** 2
+            probs = distances**2
             probs = probs / probs.sum()
 
             # Handle NaN
@@ -487,44 +478,40 @@ class VPTQCompressor:
         total_bytes = 0
 
         for name, data in compressed_state.items():
-            if data['type'] == 'preserved':
-                total_bytes += data['data'].numel() * 2  # FP16
+            if data["type"] == "preserved":
+                total_bytes += data["data"].numel() * 2  # FP16
             else:  # vptq
                 # Indices
-                indices = data['indices']
+                indices = data["indices"]
                 if indices.dtype == torch.uint8:
                     total_bytes += indices.numel() * 1
                 else:
                     total_bytes += indices.numel() * 2
 
                 # Codebook (FP16)
-                total_bytes += data['codebook'].numel() * 2
+                total_bytes += data["codebook"].numel() * 2
 
         return total_bytes / (1024 * 1024)
 
     def _calculate_retention(self, codebook_stats: Dict) -> float:
         """Calculate overall retention score."""
-        retentions = [stats['retention'] for stats in codebook_stats.values()]
+        retentions = [stats["retention"] for stats in codebook_stats.values()]
         return sum(retentions) / max(len(retentions), 1) if retentions else 1.0
 
     def _create_compressed_model(
-        self,
-        original_model: nn.Module,
-        compressed_state: Dict
+        self, original_model: nn.Module, compressed_state: Dict
     ) -> nn.Module:
         """Create model with decompressed weights."""
         model = copy.deepcopy(original_model)
 
         decompressed_state = {}
         for name, data in compressed_state.items():
-            if data['type'] == 'preserved':
-                decompressed_state[name] = data['data'].float()
+            if data["type"] == "preserved":
+                decompressed_state[name] = data["data"].float()
             else:
                 # Decompress from indices
                 decompressed = self._decompress_tensor(
-                    data['indices'],
-                    data['codebook'],
-                    data['shape']
+                    data["indices"], data["codebook"], data["shape"]
                 )
                 decompressed_state[name] = decompressed
 
@@ -532,10 +519,7 @@ class VPTQCompressor:
         return model
 
     def _decompress_tensor(
-        self,
-        indices: torch.Tensor,
-        codebook: torch.Tensor,
-        shape: torch.Size
+        self, indices: torch.Tensor, codebook: torch.Tensor, shape: torch.Size
     ) -> torch.Tensor:
         """Decompress tensor from indices."""
         vectors = codebook[indices.long()]
@@ -549,9 +533,4 @@ class VPTQCompressor:
         return flat[:original_size].reshape(shape).float()
 
 
-__all__ = [
-    'VPTQCompressor',
-    'VPTQConfig',
-    'VPTQResult',
-    'ResidualQuantizationResult'
-]
+__all__ = ["VPTQCompressor", "VPTQConfig", "VPTQResult", "ResidualQuantizationResult"]

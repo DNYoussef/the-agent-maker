@@ -3,12 +3,12 @@ SQLite Model Registry with WAL Mode
 Concurrent read/write access for model metadata and session tracking
 """
 
-import sqlite3
 import json
-from pathlib import Path
-from datetime import datetime
-from typing import Optional, Dict, List
 import os
+import sqlite3
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional
 
 
 class ModelRegistry:

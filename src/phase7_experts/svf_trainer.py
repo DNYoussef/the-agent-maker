@@ -14,9 +14,9 @@ REINFORCE Implementation Notes (Policy Gradient):
 - Gradient clipping for stability
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
 import math
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -26,18 +26,20 @@ import torch.nn.functional as F
 @dataclass
 class REINFORCEConfig:
     """Configuration for REINFORCE training with variance reduction."""
+
     learning_rate: float = 1e-4
-    baseline_decay: float = 0.99      # EMA decay for baseline (higher = slower adaptation)
-    entropy_coeff: float = 0.01       # Entropy bonus for exploration
-    max_grad_norm: float = 1.0        # Gradient clipping threshold
-    gamma: float = 1.0                # Discount factor (1.0 for bandit/single-step)
-    normalize_rewards: bool = True    # Normalize rewards for stable training
-    warmup_steps: int = 10            # Steps before baseline kicks in
+    baseline_decay: float = 0.99  # EMA decay for baseline (higher = slower adaptation)
+    entropy_coeff: float = 0.01  # Entropy bonus for exploration
+    max_grad_norm: float = 1.0  # Gradient clipping threshold
+    gamma: float = 1.0  # Discount factor (1.0 for bandit/single-step)
+    normalize_rewards: bool = True  # Normalize rewards for stable training
+    warmup_steps: int = 10  # Steps before baseline kicks in
 
 
 @dataclass
 class SVFConfig:
     """Configuration for SVF training."""
+
     num_singular_values: int = 32  # Number of SVs to train per layer
     learning_rate: float = 1e-4
     num_epochs: int = 5
@@ -48,8 +50,8 @@ class SVFConfig:
     # REINFORCE-specific settings
     reinforce_config: REINFORCEConfig = field(default_factory=REINFORCEConfig)
     use_policy_network: bool = False  # Use learned policy vs direct optimization
-    top_k_svs: int = 10               # Number of SVs to select per update
-    temperature: float = 1.0          # Sampling temperature for exploration
+    top_k_svs: int = 10  # Number of SVs to select per update
+    temperature: float = 1.0  # Sampling temperature for exploration
 
 
 class SVFPolicy(nn.Module):
@@ -62,12 +64,7 @@ class SVFPolicy(nn.Module):
     singular value adjustments. This enables learned, task-specific adaptation.
     """
 
-    def __init__(
-        self,
-        task_embed_dim: int,
-        num_singular_values: int,
-        hidden_dim: int = 256
-    ):
+    def __init__(self, task_embed_dim: int, num_singular_values: int, hidden_dim: int = 256):
         """
         Initialize SVF policy network.
 
@@ -85,7 +82,7 @@ class SVFPolicy(nn.Module):
             nn.LayerNorm(hidden_dim),
             nn.ReLU(),
             nn.Dropout(0.1),
-            nn.Linear(hidden_dim, num_singular_values)
+            nn.Linear(hidden_dim, num_singular_values),
         )
 
         # Magnitude head: how much to adjust each SV (bounded by tanh)
@@ -95,13 +92,10 @@ class SVFPolicy(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.1),
             nn.Linear(hidden_dim, num_singular_values),
-            nn.Tanh()  # Bound adjustments to [-1, 1]
+            nn.Tanh(),  # Bound adjustments to [-1, 1]
         )
 
-    def forward(
-        self,
-        task_embedding: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, task_embedding: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass produces selection probabilities and magnitude adjustments.
 
@@ -120,10 +114,7 @@ class SVFPolicy(nn.Module):
         return selection_probs, magnitudes
 
     def sample(
-        self,
-        task_embedding: torch.Tensor,
-        top_k: int = 10,
-        temperature: float = 1.0
+        self, task_embedding: torch.Tensor, top_k: int = 10, temperature: float = 1.0
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Sample singular value adjustments according to the learned policy.
@@ -217,18 +208,12 @@ class REINFORCETrainer:
         """
         self.policy = policy
         self.config = config
-        self.optimizer = torch.optim.Adam(
-            policy.parameters(),
-            lr=config.learning_rate
-        )
+        self.optimizer = torch.optim.Adam(policy.parameters(), lr=config.learning_rate)
         self.baseline = 0.0  # Moving average baseline for variance reduction
         self.step_count = 0
 
     def update(
-        self,
-        log_probs: torch.Tensor,
-        rewards: torch.Tensor,
-        task_embeddings: torch.Tensor
+        self, log_probs: torch.Tensor, rewards: torch.Tensor, task_embeddings: torch.Tensor
     ) -> Dict[str, float]:
         """
         Perform one REINFORCE update step with variance reduction.
@@ -262,8 +247,8 @@ class REINFORCETrainer:
         with torch.no_grad():
             batch_mean = rewards.mean().item()
             self.baseline = (
-                self.config.baseline_decay * self.baseline +
-                (1 - self.config.baseline_decay) * batch_mean
+                self.config.baseline_decay * self.baseline
+                + (1 - self.config.baseline_decay) * batch_mean
             )
 
         # REINFORCE loss: -log_prob * advantage
@@ -283,43 +268,43 @@ class REINFORCETrainer:
 
         # Gradient clipping for stability
         grad_norm = torch.nn.utils.clip_grad_norm_(
-            self.policy.parameters(),
-            self.config.max_grad_norm
+            self.policy.parameters(), self.config.max_grad_norm
         )
 
         self.optimizer.step()
 
         return {
-            'policy_loss': policy_loss.item(),
-            'entropy': entropy.item(),
-            'entropy_loss': entropy_loss.item(),
-            'total_loss': total_loss.item(),
-            'baseline': self.baseline,
-            'mean_reward': rewards.mean().item(),
-            'mean_advantage': advantages.mean().item(),
-            'reward_std': rewards.std().item(),
-            'grad_norm': grad_norm.item() if isinstance(grad_norm, torch.Tensor) else grad_norm,
-            'step_count': self.step_count
+            "policy_loss": policy_loss.item(),
+            "entropy": entropy.item(),
+            "entropy_loss": entropy_loss.item(),
+            "total_loss": total_loss.item(),
+            "baseline": self.baseline,
+            "mean_reward": rewards.mean().item(),
+            "mean_advantage": advantages.mean().item(),
+            "reward_std": rewards.std().item(),
+            "grad_norm": grad_norm.item() if isinstance(grad_norm, torch.Tensor) else grad_norm,
+            "step_count": self.step_count,
         }
 
     def state_dict(self) -> Dict:
         """Get trainer state for checkpointing."""
         return {
-            'optimizer_state': self.optimizer.state_dict(),
-            'baseline': self.baseline,
-            'step_count': self.step_count
+            "optimizer_state": self.optimizer.state_dict(),
+            "baseline": self.baseline,
+            "step_count": self.step_count,
         }
 
     def load_state_dict(self, state_dict: Dict):
         """Load trainer state from checkpoint."""
-        self.optimizer.load_state_dict(state_dict['optimizer_state'])
-        self.baseline = state_dict['baseline']
-        self.step_count = state_dict['step_count']
+        self.optimizer.load_state_dict(state_dict["optimizer_state"])
+        self.baseline = state_dict["baseline"]
+        self.step_count = state_dict["step_count"]
 
 
 @dataclass
 class SVFResult:
     """Result from SVF training."""
+
     success: bool
     expert_id: int
     final_loss: float
@@ -360,7 +345,7 @@ class SVFTrainer:
         expert_id: int,
         expert_capabilities: List[str],
         tokenizer: Any,
-        training_data: List[Dict] = None
+        training_data: List[Dict] = None,
     ) -> Tuple[nn.Module, SVFResult]:
         """
         Train an expert via SVF.
@@ -389,11 +374,7 @@ class SVFTrainer:
         if not sv_parameters:
             print("    No trainable SV parameters found")
             return model, SVFResult(
-                success=False,
-                expert_id=expert_id,
-                final_loss=0.0,
-                sv_changes={},
-                metrics={}
+                success=False, expert_id=expert_id, final_loss=0.0, sv_changes={}, metrics={}
             )
 
         optimizer = torch.optim.AdamW(sv_parameters, lr=self.config.learning_rate)
@@ -406,19 +387,17 @@ class SVFTrainer:
         print(f"    Training for {self.config.num_epochs} epochs...")
         model.train()
         final_loss = 0.0
-        metrics = {'epoch_losses': [], 'sv_norms': []}
+        metrics = {"epoch_losses": [], "sv_norms": []}
 
         for epoch in range(self.config.num_epochs):
             epoch_loss = 0.0
             num_batches = 0
 
             for i in range(0, len(training_data), self.config.batch_size):
-                batch = training_data[i:i + self.config.batch_size]
+                batch = training_data[i : i + self.config.batch_size]
 
                 # Forward pass with modified SVs
-                batch_loss = self._svf_forward_step(
-                    model, batch, tokenizer, device
-                )
+                batch_loss = self._svf_forward_step(model, batch, tokenizer, device)
 
                 if batch_loss is not None:
                     # REINFORCE-style gradient
@@ -430,10 +409,7 @@ class SVFTrainer:
                     batch_loss.backward()
 
                     # Gradient clipping
-                    torch.nn.utils.clip_grad_norm_(
-                        sv_parameters,
-                        self.config.gradient_clip
-                    )
+                    torch.nn.utils.clip_grad_norm_(sv_parameters, self.config.gradient_clip)
 
                     optimizer.step()
 
@@ -441,12 +417,12 @@ class SVFTrainer:
                     num_batches += 1
 
             avg_loss = epoch_loss / max(1, num_batches)
-            metrics['epoch_losses'].append(avg_loss)
+            metrics["epoch_losses"].append(avg_loss)
             final_loss = avg_loss
 
             # Track SV norms
             sv_norm = sum(p.norm().item() for p in sv_parameters) / len(sv_parameters)
-            metrics['sv_norms'].append(sv_norm)
+            metrics["sv_norms"].append(sv_norm)
 
             print(f"      Epoch {epoch + 1}: loss={avg_loss:.4f}, sv_norm={sv_norm:.4f}")
 
@@ -462,7 +438,7 @@ class SVFTrainer:
             expert_id=expert_id,
             final_loss=final_loss,
             sv_changes=sv_changes,
-            metrics=metrics
+            metrics=metrics,
         )
 
     def _extract_singular_values(self, model: nn.Module):
@@ -500,18 +476,14 @@ class SVFTrainer:
                         continue
 
     def _svf_forward_step(
-        self,
-        model: nn.Module,
-        batch: List[Dict],
-        tokenizer: Any,
-        device: torch.device
+        self, model: nn.Module, batch: List[Dict], tokenizer: Any, device: torch.device
     ) -> Optional[torch.Tensor]:
         """Forward pass with modified singular values."""
         # Temporarily modify weights using new SVs
         original_weights = {}
 
         for name, module in model.named_modules():
-            if hasattr(module, '_svf_S_param') and name in self.sv_params:
+            if hasattr(module, "_svf_S_param") and name in self.sv_params:
                 original_weights[name] = module.weight.data.clone()
 
                 # Reconstruct weight with modified SVs
@@ -537,34 +509,29 @@ class SVFTrainer:
 
         for sample in batch:
             try:
-                prompt = sample.get('prompt', sample.get('text', ''))
+                prompt = sample.get("prompt", sample.get("text", ""))
 
-                if hasattr(tokenizer, '__call__'):
+                if hasattr(tokenizer, "__call__"):
                     inputs = tokenizer(
-                        prompt,
-                        return_tensors="pt",
-                        max_length=256,
-                        truncation=True,
-                        padding=True
+                        prompt, return_tensors="pt", max_length=256, truncation=True, padding=True
                     )
                 else:
-                    inputs = {'input_ids': torch.tensor([[1, 2, 3, 4, 5]])}
+                    inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
 
-                inputs = {k: v.to(device) for k, v in inputs.items()
-                          if isinstance(v, torch.Tensor)}
+                inputs = {k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)}
 
                 outputs = model(**inputs)
 
-                if hasattr(outputs, 'loss') and outputs.loss is not None:
+                if hasattr(outputs, "loss") and outputs.loss is not None:
                     total_loss = total_loss + outputs.loss
-                elif hasattr(outputs, 'logits'):
+                elif hasattr(outputs, "logits"):
                     logits = outputs.logits
                     shift_logits = logits[..., :-1, :].contiguous()
-                    shift_labels = inputs['input_ids'][..., 1:].contiguous()
+                    shift_labels = inputs["input_ids"][..., 1:].contiguous()
                     loss = F.cross_entropy(
                         shift_logits.view(-1, shift_logits.size(-1)),
                         shift_labels.view(-1),
-                        ignore_index=0
+                        ignore_index=0,
                     )
                     total_loss = total_loss + loss
 
@@ -581,10 +548,11 @@ class SVFTrainer:
     def _apply_sv_modifications(self, model: nn.Module) -> nn.Module:
         """Apply trained SV modifications permanently."""
         import copy
+
         modified_model = copy.deepcopy(model)
 
         for name, module in modified_model.named_modules():
-            if hasattr(module, '_svf_S_param') and name in self.sv_params:
+            if hasattr(module, "_svf_S_param") and name in self.sv_params:
                 U = module._svf_U
                 S_new = self.sv_params[name].data
                 Vh = module._svf_Vh
@@ -601,12 +569,12 @@ class SVFTrainer:
                 module.weight.data = reconstructed
 
                 # Clean up SVF attributes
-                delattr(module, '_svf_U')
-                delattr(module, '_svf_S_param')
-                delattr(module, '_svf_Vh')
-                delattr(module, '_svf_S_original')
-                delattr(module, '_svf_U_rest')
-                delattr(module, '_svf_Vh_rest')
+                delattr(module, "_svf_U")
+                delattr(module, "_svf_S_param")
+                delattr(module, "_svf_Vh")
+                delattr(module, "_svf_S_original")
+                delattr(module, "_svf_U_rest")
+                delattr(module, "_svf_Vh_rest")
 
         return modified_model
 
@@ -658,16 +626,16 @@ class SVFTrainer:
         for cap in capabilities:
             prompts = capability_prompts.get(cap, [f"Demonstrate {cap} capability."])
             for prompt in prompts:
-                data.append({'prompt': prompt, 'capability': cap})
+                data.append({"prompt": prompt, "capability": cap})
 
         return data
 
 
 __all__ = [
-    'SVFTrainer',
-    'SVFConfig',
-    'SVFResult',
-    'REINFORCEConfig',
-    'REINFORCETrainer',
-    'SVFPolicy'
+    "SVFTrainer",
+    "SVFConfig",
+    "SVFResult",
+    "REINFORCEConfig",
+    "REINFORCETrainer",
+    "SVFPolicy",
 ]

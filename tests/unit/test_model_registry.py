@@ -3,10 +3,11 @@ Unit tests for Model Registry
 Tests SQLite WAL mode, session tracking, and model registration
 """
 
-import pytest
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
@@ -40,17 +41,13 @@ class TestModelRegistry:
         registry = ModelRegistry(str(temp_dir / "test.db"))
 
         session_id = "test_session_001"
-        session_data = {
-            "created": datetime.now().isoformat(),
-            "pipeline": "test-pipeline"
-        }
+        session_data = {"created": datetime.now().isoformat(), "pipeline": "test-pipeline"}
 
         registry.create_session(session_id, session_data)
 
         # Verify session exists
         cursor = registry.conn.execute(
-            "SELECT session_id, status FROM sessions WHERE session_id = ?",
-            (session_id,)
+            "SELECT session_id, status FROM sessions WHERE session_id = ?", (session_id,)
         )
         row = cursor.fetchone()
 
@@ -72,7 +69,7 @@ class TestModelRegistry:
 
         cursor = registry.conn.execute(
             "SELECT current_phase, progress_percent FROM sessions WHERE session_id = ?",
-            (session_id,)
+            (session_id,),
         )
         row = cursor.fetchone()
 
@@ -95,15 +92,14 @@ class TestModelRegistry:
             "model_path": "/path/to/model.pt",
             "params": 25_000_000,
             "size_mb": 95.4,
-            "metrics": {"loss": 2.34, "accuracy": 45.2}
+            "metrics": {"loss": 2.34, "accuracy": 45.2},
         }
 
         model_id = registry.register_model(**model_data)
 
         # Verify model exists
         cursor = registry.conn.execute(
-            "SELECT model_id, params, size_mb FROM models WHERE model_id = ?",
-            (model_id,)
+            "SELECT model_id, params, size_mb FROM models WHERE model_id = ?", (model_id,)
         )
         row = cursor.fetchone()
 

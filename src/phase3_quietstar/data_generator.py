@@ -21,13 +21,14 @@ Each model generates 4K examples across 7 reasoning strategies:
 Cost: $100-200 via OpenRouter API
 """
 
-import json
 import asyncio
-import aiohttp
-from typing import List, Dict, Optional, Tuple
-from dataclasses import dataclass, field, asdict
-from pathlib import Path
+import json
 import time
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+import aiohttp
 
 
 @dataclass
@@ -116,18 +117,14 @@ class OpenRouterClient:
 
         async with aiohttp.ClientSession() as session:
             for strategy, prompts in strategy_prompts.items():
-                strategy_examples = min(
-                    num_examples, len(prompts)
-                )
+                strategy_examples = min(num_examples, len(prompts))
 
                 for i in range(0, strategy_examples, self.batch_size):
                     batch_prompts = prompts[i : i + self.batch_size]
 
                     # Check cost limit
                     if self.stats.total_cost_usd >= self.cost_limit:
-                        print(
-                            f"Cost limit ${self.cost_limit} reached. Stopping."
-                        )
+                        print(f"Cost limit ${self.cost_limit} reached. Stopping.")
                         return examples
 
                     # Generate batch
@@ -139,17 +136,13 @@ class OpenRouterClient:
 
                     # Update stats
                     self.stats.total_examples += len(batch_results)
-                    self.stats.valid_examples += len(
-                        [e for e in batch_results if e.reasoning]
-                    )
-                    self.stats.examples_by_strategy[strategy] = (
-                        self.stats.examples_by_strategy.get(strategy, 0)
-                        + len(batch_results)
-                    )
-                    self.stats.examples_by_model[model_name] = (
-                        self.stats.examples_by_model.get(model_name, 0)
-                        + len(batch_results)
-                    )
+                    self.stats.valid_examples += len([e for e in batch_results if e.reasoning])
+                    self.stats.examples_by_strategy[strategy] = self.stats.examples_by_strategy.get(
+                        strategy, 0
+                    ) + len(batch_results)
+                    self.stats.examples_by_model[model_name] = self.stats.examples_by_model.get(
+                        model_name, 0
+                    ) + len(batch_results)
 
         return examples
 
@@ -165,9 +158,7 @@ class OpenRouterClient:
 
         for prompt in prompts:
             try:
-                example = await self._generate_single(
-                    session, model, strategy, prompt
-                )
+                example = await self._generate_single(session, model, strategy, prompt)
                 if example:
                     results.append(example)
             except Exception as e:
@@ -188,15 +179,11 @@ class OpenRouterClient:
 
         for attempt in range(max_retries):
             try:
-                response = await self._api_call(
-                    session, model, prompt
-                )
+                response = await self._api_call(session, model, prompt)
 
                 if response:
                     # Parse response
-                    example = self._parse_response(
-                        response, model, strategy, prompt
-                    )
+                    example = self._parse_response(response, model, strategy, prompt)
                     return example
 
             except Exception as e:
@@ -226,9 +213,7 @@ class OpenRouterClient:
             "max_tokens": 1024,
         }
 
-        async with session.post(
-            self.base_url, headers=headers, json=payload
-        ) as resp:
+        async with session.post(self.base_url, headers=headers, json=payload) as resp:
             if resp.status == 200:
                 return await resp.json()
             else:
@@ -255,9 +240,7 @@ class OpenRouterClient:
         self.stats.total_cost_usd += cost
 
         # Extract question, reasoning, answer
-        question, reasoning, answer = self._extract_components(
-            content, prompt
-        )
+        question, reasoning, answer = self._extract_components(content, prompt)
 
         return ReasoningExample(
             question=question,
@@ -273,18 +256,14 @@ class OpenRouterClient:
             },
         )
 
-    def _calculate_cost(
-        self, model: str, input_tokens: int, output_tokens: int
-    ) -> float:
+    def _calculate_cost(self, model: str, input_tokens: int, output_tokens: int) -> float:
         """Calculate cost based on token usage."""
         pricing = self.pricing.get(model, {"input": 0, "output": 0})
         input_cost = (input_tokens / 1_000_000) * pricing["input"]
         output_cost = (output_tokens / 1_000_000) * pricing["output"]
         return input_cost + output_cost
 
-    def _extract_components(
-        self, content: str, prompt: str
-    ) -> Tuple[str, str, str]:
+    def _extract_components(self, content: str, prompt: str) -> Tuple[str, str, str]:
         """Extract question, reasoning, answer from response."""
         # Simple parsing (can be enhanced with regex)
         lines = content.strip().split("\n")
@@ -319,16 +298,12 @@ class StrategyPromptGenerator:
         all_prompts = {}
 
         for strategy, count in self.strategies.items():
-            generator_method = getattr(
-                self, f"_generate_{strategy}_prompts"
-            )
+            generator_method = getattr(self, f"_generate_{strategy}_prompts")
             all_prompts[strategy] = generator_method(count)
 
         return all_prompts
 
-    def _generate_chain_of_thought_prompts(
-        self, count: int
-    ) -> List[str]:
+    def _generate_chain_of_thought_prompts(self, count: int) -> List[str]:
         """Chain-of-Thought reasoning prompts."""
         template = """Question: {question}
 
@@ -343,15 +318,12 @@ Use <think> and <step> tags to show your reasoning step-by-step:
 Answer:"""
 
         questions = [
-            f"Solve this problem using step-by-step reasoning: Problem {i}"
-            for i in range(count)
+            f"Solve this problem using step-by-step reasoning: Problem {i}" for i in range(count)
         ]
 
         return [template.format(question=q) for q in questions]
 
-    def _generate_mece_decomposition_prompts(
-        self, count: int
-    ) -> List[str]:
+    def _generate_mece_decomposition_prompts(self, count: int) -> List[str]:
         """MECE (Mutually Exclusive, Collectively Exhaustive) prompts."""
         template = """Question: {question}
 
@@ -368,15 +340,12 @@ Break this down using MECE decomposition with <mece> tags:
 Answer:"""
 
         questions = [
-            f"Break down this complex problem into categories: Problem {i}"
-            for i in range(count)
+            f"Break down this complex problem into categories: Problem {i}" for i in range(count)
         ]
 
         return [template.format(question=q) for q in questions]
 
-    def _generate_falsification_testing_prompts(
-        self, count: int
-    ) -> List[str]:
+    def _generate_falsification_testing_prompts(self, count: int) -> List[str]:
         """Falsification testing prompts."""
         template = """Question: {question}
 
@@ -391,16 +360,11 @@ Test what would disprove your answer using <falsify> tags:
 
 Answer:"""
 
-        questions = [
-            f"What evidence would disprove this claim: Claim {i}"
-            for i in range(count)
-        ]
+        questions = [f"What evidence would disprove this claim: Claim {i}" for i in range(count)]
 
         return [template.format(question=q) for q in questions]
 
-    def _generate_expert_perspective_prompts(
-        self, count: int
-    ) -> List[str]:
+    def _generate_expert_perspective_prompts(self, count: int) -> List[str]:
         """Expert perspective prompts."""
         template = """Question: {question}
 
@@ -414,16 +378,11 @@ As an expert, I would approach this by...
 
 Answer:"""
 
-        questions = [
-            f"Solve this from an expert's perspective: Problem {i}"
-            for i in range(count)
-        ]
+        questions = [f"Solve this from an expert's perspective: Problem {i}" for i in range(count)]
 
         return [template.format(question=q) for q in questions]
 
-    def _generate_orthogonal_wisdom_prompts(
-        self, count: int
-    ) -> List[str]:
+    def _generate_orthogonal_wisdom_prompts(self, count: int) -> List[str]:
         """Orthogonal wisdom (insights from unrelated fields) prompts."""
         template = """Question: {question}
 
@@ -436,10 +395,7 @@ Draw insights from an unrelated field to solve this:
 
 Answer:"""
 
-        questions = [
-            f"Apply cross-domain thinking to: Problem {i}"
-            for i in range(count)
-        ]
+        questions = [f"Apply cross-domain thinking to: Problem {i}" for i in range(count)]
 
         return [template.format(question=q) for q in questions]
 
@@ -459,16 +415,11 @@ Question your first answer using <doubt> tags:
 
 Final Answer:"""
 
-        questions = [
-            f"Solve this, then check your work: Problem {i}"
-            for i in range(count)
-        ]
+        questions = [f"Solve this, then check your work: Problem {i}" for i in range(count)]
 
         return [template.format(question=q) for q in questions]
 
-    def _generate_bayesian_rationalist_prompts(
-        self, count: int
-    ) -> List[str]:
+    def _generate_bayesian_rationalist_prompts(self, count: int) -> List[str]:
         """Bayesian rationalist (evidence-based belief updating) prompts."""
         template = """Question: {question}
 
@@ -482,10 +433,7 @@ Update your beliefs based on evidence:
 
 Answer:"""
 
-        questions = [
-            f"Update your beliefs given this evidence: Evidence {i}"
-            for i in range(count)
-        ]
+        questions = [f"Update your beliefs given this evidence: Evidence {i}" for i in range(count)]
 
         return [template.format(question=q) for q in questions]
 
@@ -530,9 +478,7 @@ async def generate_phase3_dataset(
     for model in models:
         print(f"\nGenerating {examples_per_model} examples from {model}...")
 
-        model_examples = await client.generate_examples(
-            strategy_prompts, model, examples_per_model
-        )
+        model_examples = await client.generate_examples(strategy_prompts, model, examples_per_model)
 
         all_examples.extend(model_examples)
 
@@ -546,24 +492,16 @@ async def generate_phase3_dataset(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(output_path, "w") as f:
-        json.dump(
-            [asdict(ex) for ex in all_examples], f, indent=2
-        )
+        json.dump([asdict(ex) for ex in all_examples], f, indent=2)
 
     # Print stats
     print("\n=== Generation Complete ===")
     print(f"Total examples: {client.stats.total_examples}")
     print(f"Valid examples: {client.stats.valid_examples}")
-    print(
-        f"Valid ratio: {client.stats.valid_ratio:.2%}"
-    )
+    print(f"Valid ratio: {client.stats.valid_ratio:.2%}")
     print(f"Total cost: ${client.stats.total_cost_usd:.2f}")
-    print(
-        f"Cost per example: ${client.stats.cost_per_example:.4f}"
-    )
-    print(
-        f"Elapsed time: {client.stats.elapsed_time / 60:.1f} minutes"
-    )
+    print(f"Cost per example: ${client.stats.cost_per_example:.4f}")
+    print(f"Elapsed time: {client.stats.elapsed_time / 60:.1f} minutes")
 
     return client.stats
 

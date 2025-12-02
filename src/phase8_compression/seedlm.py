@@ -8,9 +8,9 @@ Research: "SeedLM: Compressing LLM Weights into Seeds"
 Target: 2x compression with >95% retention.
 """
 
-from dataclasses import dataclass
-from typing import Dict, List, Optional, Any, Tuple
 import copy
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -20,6 +20,7 @@ import torch.nn.functional as F
 @dataclass
 class SeedLMConfig:
     """Configuration for SeedLM compression."""
+
     seed_bits: int = 8  # Bits per seed
     block_size: int = 64  # Weight block size
     num_iterations: int = 100  # Seed search iterations
@@ -30,6 +31,7 @@ class SeedLMConfig:
 @dataclass
 class SeedLMResult:
     """Result from SeedLM compression."""
+
     success: bool
     compressed_state: Dict[str, Any]
     original_size_mb: float
@@ -63,13 +65,10 @@ class SeedLMCompressor:
         """
         self.config = config or SeedLMConfig()
         if self.config.preserve_layers is None:
-            self.config.preserve_layers = ['embed', 'norm', 'ln_', 'layernorm', 'bias']
+            self.config.preserve_layers = ["embed", "norm", "ln_", "layernorm", "bias"]
 
     def compress(
-        self,
-        model: nn.Module,
-        calibration_data: List[Any] = None,
-        tokenizer: Any = None
+        self, model: nn.Module, calibration_data: List[Any] = None, tokenizer: Any = None
     ) -> Tuple[nn.Module, SeedLMResult]:
         """
         Compress model using SeedLM.
@@ -98,27 +97,21 @@ class SeedLMCompressor:
 
             if should_preserve or param.dim() < 2:
                 # Preserve layer as-is (but in FP16)
-                compressed_state[name] = {
-                    'type': 'preserved',
-                    'data': param.half()
-                }
-                layer_stats[name] = {
-                    'compression': 1.0,
-                    'preserved': True
-                }
+                compressed_state[name] = {"type": "preserved", "data": param.half()}
+                layer_stats[name] = {"compression": 1.0, "preserved": True}
             else:
                 # Compress via seed projection
                 seeds, scale, retention = self._compress_tensor(param)
                 compressed_state[name] = {
-                    'type': 'seedlm',
-                    'seeds': seeds,
-                    'scale': scale,
-                    'shape': param.shape
+                    "type": "seedlm",
+                    "seeds": seeds,
+                    "scale": scale,
+                    "shape": param.shape,
                 }
                 layer_stats[name] = {
-                    'compression': self._calculate_compression(param, seeds),
-                    'retention': retention,
-                    'preserved': False
+                    "compression": self._calculate_compression(param, seeds),
+                    "retention": retention,
+                    "preserved": False,
                 }
 
         # Calculate compressed size
@@ -141,13 +134,10 @@ class SeedLMCompressor:
             compressed_size_mb=compressed_size,
             compression_ratio=compression_ratio,
             retention_score=retention,
-            layer_stats=layer_stats
+            layer_stats=layer_stats,
         )
 
-    def _compress_tensor(
-        self,
-        tensor: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor, float]:
+    def _compress_tensor(self, tensor: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, float]:
         """
         Compress a tensor using seed-based projection.
 
@@ -195,11 +185,11 @@ class SeedLMCompressor:
     def _find_best_seed(self, block: torch.Tensor) -> Tuple[int, float]:
         """Find the best seed to approximate a block."""
         best_seed = 0
-        best_error = float('inf')
+        best_error = float("inf")
 
         for _ in range(self.config.num_iterations):
             # Try random seed
-            seed = torch.randint(0, 2 ** self.config.seed_bits, (1,)).item()
+            seed = torch.randint(0, 2**self.config.seed_bits, (1,)).item()
 
             # Generate pseudo-random block from seed
             generator = torch.Generator()
@@ -241,15 +231,15 @@ class SeedLMCompressor:
         total_bytes = 0
 
         for name, data in compressed_state.items():
-            if data['type'] == 'preserved':
-                tensor = data['data']
+            if data["type"] == "preserved":
+                tensor = data["data"]
                 if tensor.dtype == torch.float16:
                     total_bytes += tensor.numel() * 2
                 else:
                     total_bytes += tensor.numel() * 4
             else:  # seedlm
                 # Seeds (int64) + scale (float32) + shape metadata
-                seeds = data['seeds']
+                seeds = data["seeds"]
                 total_bytes += seeds.numel() * (self.config.seed_bits // 8)
                 total_bytes += 4  # scale
                 total_bytes += 32  # shape metadata
@@ -266,42 +256,33 @@ class SeedLMCompressor:
         """Calculate overall retention score."""
         retentions = []
         for name, stats in layer_stats.items():
-            if 'retention' in stats:
-                retentions.append(stats['retention'])
-            elif stats.get('preserved'):
+            if "retention" in stats:
+                retentions.append(stats["retention"])
+            elif stats.get("preserved"):
                 retentions.append(1.0)
 
         return sum(retentions) / max(len(retentions), 1)
 
     def _create_compressed_model(
-        self,
-        original_model: nn.Module,
-        compressed_state: Dict
+        self, original_model: nn.Module, compressed_state: Dict
     ) -> nn.Module:
         """Create model with decompressed weights."""
         model = copy.deepcopy(original_model)
 
         decompressed_state = {}
         for name, data in compressed_state.items():
-            if data['type'] == 'preserved':
-                decompressed_state[name] = data['data'].float()
+            if data["type"] == "preserved":
+                decompressed_state[name] = data["data"].float()
             else:
                 # Decompress from seeds
-                decompressed = self._decompress_tensor(
-                    data['seeds'],
-                    data['scale'],
-                    data['shape']
-                )
+                decompressed = self._decompress_tensor(data["seeds"], data["scale"], data["shape"])
                 decompressed_state[name] = decompressed
 
         model.load_state_dict(decompressed_state)
         return model
 
     def _decompress_tensor(
-        self,
-        seeds: torch.Tensor,
-        scale: torch.Tensor,
-        shape: torch.Size
+        self, seeds: torch.Tensor, scale: torch.Tensor, shape: torch.Size
     ) -> torch.Tensor:
         """Decompress tensor from seeds."""
         flat_size = 1
@@ -323,4 +304,4 @@ class SeedLMCompressor:
         return (flat * scale).reshape(shape)
 
 
-__all__ = ['SeedLMCompressor', 'SeedLMConfig', 'SeedLMResult']
+__all__ = ["SeedLMCompressor", "SeedLMConfig", "SeedLMResult"]

@@ -14,7 +14,8 @@ Adds 8 special thinking tokens to model vocabulary:
 Total: 8 core tokens for reasoning enhancement
 """
 
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
+
 import torch
 import torch.nn as nn
 from transformers import PreTrainedTokenizer
@@ -65,9 +66,7 @@ class ThinkingVocabulary:
 
         # Determine token set
         self.thinking_tokens = (
-            self.CORE_TOKENS + self.EXTENDED_TOKENS
-            if use_extended
-            else self.CORE_TOKENS
+            self.CORE_TOKENS + self.EXTENDED_TOKENS if use_extended else self.CORE_TOKENS
         )
 
         self.token_to_id: Dict[str, int] = {}
@@ -94,9 +93,7 @@ class ThinkingVocabulary:
 
         return num_added
 
-    def resize_embeddings(
-        self, model: nn.Module
-    ) -> Tuple[nn.Embedding, nn.Linear]:
+    def resize_embeddings(self, model: nn.Module) -> Tuple[nn.Embedding, nn.Linear]:
         """
         Resize model embeddings to accommodate new tokens.
 
@@ -130,15 +127,11 @@ class ThinkingVocabulary:
             std_embedding = old_embeddings.weight.std(dim=0)
 
             for i in range(old_vocab_size, new_vocab_size):
-                new_embeddings.weight[i] = torch.normal(
-                    mean_embedding, std_embedding
-                )
+                new_embeddings.weight[i] = torch.normal(mean_embedding, std_embedding)
 
         # Create new LM head
         hidden_size = old_lm_head.in_features
-        new_lm_head = nn.Linear(
-            hidden_size, new_vocab_size, bias=old_lm_head.bias is not None
-        )
+        new_lm_head = nn.Linear(hidden_size, new_vocab_size, bias=old_lm_head.bias is not None)
 
         # Copy old weights
         with torch.no_grad():
@@ -151,9 +144,7 @@ class ThinkingVocabulary:
             std_weight = old_lm_head.weight.std(dim=0)
 
             for i in range(old_vocab_size, new_vocab_size):
-                new_lm_head.weight[i] = torch.normal(
-                    mean_weight, std_weight
-                )
+                new_lm_head.weight[i] = torch.normal(mean_weight, std_weight)
                 if new_lm_head.bias is not None:
                     new_lm_head.bias[i] = 0.0
 
@@ -194,14 +185,10 @@ class ThinkingVocabulary:
             "new_vocab_size": len(self.tokenizer),
             "thinking_tokens_added": len(self.thinking_tokens),
             "core_tokens": len(self.CORE_TOKENS),
-            "extended_tokens": (
-                len(self.EXTENDED_TOKENS) if self.use_extended else 0
-            ),
+            "extended_tokens": (len(self.EXTENDED_TOKENS) if self.use_extended else 0),
         }
 
-    def format_with_thinking(
-        self, text: str, strategy: str = "chain_of_thought"
-    ) -> str:
+    def format_with_thinking(self, text: str, strategy: str = "chain_of_thought") -> str:
         """
         Wrap text with appropriate thinking tokens.
 
@@ -310,9 +297,7 @@ def prepare_model_for_phase3(
     return model, tokenizer, vocab
 
 
-def compute_thinking_token_usage(
-    outputs: List[str], vocab: ThinkingVocabulary
-) -> Dict[str, float]:
+def compute_thinking_token_usage(outputs: List[str], vocab: ThinkingVocabulary) -> Dict[str, float]:
     """
     Compute thinking token usage statistics.
 

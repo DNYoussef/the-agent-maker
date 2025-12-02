@@ -10,6 +10,7 @@ from dataclasses import dataclass
 @dataclass
 class LevelProgress:
     """Track progress through a curriculum level."""
+
     level: int
     initial_questions: int
     current_questions: int

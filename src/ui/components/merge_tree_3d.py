@@ -12,13 +12,13 @@ Features:
 - Sample data generation for demonstration
 """
 
-import streamlit as st
-import plotly.graph_objects as go
-import pandas as pd
-import numpy as np
-from typing import Tuple, Dict, List
 import random
+from typing import Dict, List, Tuple
 
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
 
 # ============================================================================
 # MERGE TECHNIQUE CONFIGURATION
@@ -38,11 +38,9 @@ MERGE_TECHNIQUES = {
 # DATA GENERATION
 # ============================================================================
 
+
 def generate_evolution_tree_data(
-    generations: int = 50,
-    models_per_gen: int = 8,
-    initial_models: int = 3,
-    seed: int = 42
+    generations: int = 50, models_per_gen: int = 8, initial_models: int = 3, seed: int = 42
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Generate sample evolutionary tree data for demonstration.
@@ -67,24 +65,26 @@ def generate_evolution_tree_data(
 
     # Generation 0: Phase 1 models (3 initial models)
     for i in range(initial_models):
-        nodes.append({
-            'id': f'gen0_model{i}',
-            'generation': 0,
-            'fitness': np.random.uniform(0.65, 0.75),
-            'diversity': np.random.uniform(0.4, 0.6),
-            'technique': 'Phase 1 (Cognate)',
-            'parents': [],
-            'size': 25_000_000,  # 25M parameters
-        })
+        nodes.append(
+            {
+                "id": f"gen0_model{i}",
+                "generation": 0,
+                "fitness": np.random.uniform(0.65, 0.75),
+                "diversity": np.random.uniform(0.4, 0.6),
+                "technique": "Phase 1 (Cognate)",
+                "parents": [],
+                "size": 25_000_000,  # 25M parameters
+            }
+        )
 
     # Generations 1-50: Evolutionary merging
-    best_fitness_history = [max(n['fitness'] for n in nodes)]
+    best_fitness_history = [max(n["fitness"] for n in nodes)]
 
     for gen in range(1, generations + 1):
         gen_models = []
 
         # Get previous generation models
-        prev_gen = [n for n in nodes if n['generation'] == gen - 1]
+        prev_gen = [n for n in nodes if n["generation"] == gen - 1]
 
         # Generate models for this generation
         for m in range(models_per_gen):
@@ -97,50 +97,46 @@ def generate_evolution_tree_data(
             else:
                 parents = random.sample(nodes, 2)
 
-            parent_ids = [p['id'] for p in parents]
+            parent_ids = [p["id"] for p in parents]
 
             # Calculate child fitness (inherit from parents with mutation)
-            parent_fitness_avg = np.mean([p['fitness'] for p in parents])
+            parent_fitness_avg = np.mean([p["fitness"] for p in parents])
 
             # Fitness improvement based on technique (TIES is most effective)
             technique_bonus = {
-                'Linear': 0.01,
-                'SLERP': 0.015,
-                'TIES': 0.025,
-                'DARE': 0.02,
-                'FrankenMerge': 0.008,
-                'DFS': 0.018,
+                "Linear": 0.01,
+                "SLERP": 0.015,
+                "TIES": 0.025,
+                "DARE": 0.02,
+                "FrankenMerge": 0.008,
+                "DFS": 0.018,
             }
 
             # Add evolutionary improvement with some randomness
-            fitness_mutation = np.random.normal(
-                technique_bonus[technique],
-                0.01
-            )
+            fitness_mutation = np.random.normal(technique_bonus[technique], 0.01)
 
             # Add generational improvement (decreasing over time)
             gen_improvement = 0.003 * (1 - gen / generations)
 
             child_fitness = min(
-                parent_fitness_avg + fitness_mutation + gen_improvement,
-                0.95  # Cap at 95% fitness
+                parent_fitness_avg + fitness_mutation + gen_improvement, 0.95  # Cap at 95% fitness
             )
 
             # Diversity metric (how different from parents)
-            diversity_base = np.mean([p['diversity'] for p in parents])
+            diversity_base = np.mean([p["diversity"] for p in parents])
             diversity = max(0.1, min(0.9, diversity_base + np.random.normal(0, 0.1)))
 
             # Model size (slightly compressed over generations)
             size = 25_000_000 * (1 - 0.001 * gen)
 
             model = {
-                'id': f'gen{gen}_model{m}',
-                'generation': gen,
-                'fitness': child_fitness,
-                'diversity': diversity,
-                'technique': technique,
-                'parents': parent_ids,
-                'size': int(size),
+                "id": f"gen{gen}_model{m}",
+                "generation": gen,
+                "fitness": child_fitness,
+                "diversity": diversity,
+                "technique": technique,
+                "parents": parent_ids,
+                "size": int(size),
             }
 
             nodes.append(model)
@@ -148,14 +144,16 @@ def generate_evolution_tree_data(
 
             # Create edges
             for parent_id in parent_ids:
-                edges.append({
-                    'parent_id': parent_id,
-                    'child_id': model['id'],
-                    'technique': technique,
-                })
+                edges.append(
+                    {
+                        "parent_id": parent_id,
+                        "child_id": model["id"],
+                        "technique": technique,
+                    }
+                )
 
         # Track best fitness
-        best_fitness_history.append(max(m['fitness'] for m in gen_models))
+        best_fitness_history.append(max(m["fitness"] for m in gen_models))
 
     nodes_df = pd.DataFrame(nodes)
     edges_df = pd.DataFrame(edges)
@@ -167,11 +165,9 @@ def generate_evolution_tree_data(
 # 3D VISUALIZATION
 # ============================================================================
 
+
 def create_3d_merge_tree(
-    nodes_df: pd.DataFrame,
-    edges_df: pd.DataFrame,
-    highlight_lineage: str = None,
-    height: int = 800
+    nodes_df: pd.DataFrame, edges_df: pd.DataFrame, highlight_lineage: str = None, height: int = 800
 ) -> go.Figure:
     """
     Create interactive 3D Plotly visualization of merge tree.
@@ -189,43 +185,43 @@ def create_3d_merge_tree(
 
     # Dark theme background
     fig.update_layout(
-        template='plotly_dark',
-        paper_bgcolor='#0D1B2A',
-        plot_bgcolor='#0D1B2A',
+        template="plotly_dark",
+        paper_bgcolor="#0D1B2A",
+        plot_bgcolor="#0D1B2A",
         height=height,
         margin=dict(l=0, r=0, t=40, b=0),
         title={
-            'text': '3D Evolutionary Merge Tree (Phase 2: EvoMerge)',
-            'font': {'size': 24, 'color': '#00F5D4', 'family': 'Space Grotesk'},
-            'x': 0.5,
-            'xanchor': 'center',
+            "text": "3D Evolutionary Merge Tree (Phase 2: EvoMerge)",
+            "font": {"size": 24, "color": "#00F5D4", "family": "Space Grotesk"},
+            "x": 0.5,
+            "xanchor": "center",
         },
         scene=dict(
             xaxis=dict(
-                title='Generation',
-                backgroundcolor='#0D1B2A',
-                gridcolor='#2D3748',
+                title="Generation",
+                backgroundcolor="#0D1B2A",
+                gridcolor="#2D3748",
                 showbackground=True,
-                zerolinecolor='#2D3748',
-                range=[0, nodes_df['generation'].max()],
+                zerolinecolor="#2D3748",
+                range=[0, nodes_df["generation"].max()],
             ),
             yaxis=dict(
-                title='Fitness Score',
-                backgroundcolor='#0D1B2A',
-                gridcolor='#2D3748',
+                title="Fitness Score",
+                backgroundcolor="#0D1B2A",
+                gridcolor="#2D3748",
                 showbackground=True,
-                zerolinecolor='#2D3748',
+                zerolinecolor="#2D3748",
                 range=[0, 1],
             ),
             zaxis=dict(
-                title='Model Diversity',
-                backgroundcolor='#0D1B2A',
-                gridcolor='#2D3748',
+                title="Model Diversity",
+                backgroundcolor="#0D1B2A",
+                gridcolor="#2D3748",
                 showbackground=True,
-                zerolinecolor='#2D3748',
+                zerolinecolor="#2D3748",
                 range=[0, 1],
             ),
-            bgcolor='#0D1B2A',
+            bgcolor="#0D1B2A",
             camera=dict(
                 eye=dict(x=1.5, y=1.5, z=1.3),
                 center=dict(x=0, y=0, z=0),
@@ -233,17 +229,17 @@ def create_3d_merge_tree(
         ),
         showlegend=True,
         legend=dict(
-            bgcolor='rgba(27, 38, 59, 0.8)',
-            bordercolor='#00F5D4',
+            bgcolor="rgba(27, 38, 59, 0.8)",
+            bordercolor="#00F5D4",
             borderwidth=1,
-            font=dict(color='#E0E1DD'),
+            font=dict(color="#E0E1DD"),
         ),
-        hovermode='closest',
+        hovermode="closest",
     )
 
     # Plot edges (parent-child connections)
     for technique in MERGE_TECHNIQUES.keys():
-        technique_edges = edges_df[edges_df['technique'] == technique]
+        technique_edges = edges_df[edges_df["technique"] == technique]
 
         if len(technique_edges) == 0:
             continue
@@ -254,44 +250,46 @@ def create_3d_merge_tree(
         z_lines = []
 
         for _, edge in technique_edges.iterrows():
-            parent = nodes_df[nodes_df['id'] == edge['parent_id']].iloc[0]
-            child = nodes_df[nodes_df['id'] == edge['child_id']].iloc[0]
+            parent = nodes_df[nodes_df["id"] == edge["parent_id"]].iloc[0]
+            child = nodes_df[nodes_df["id"] == edge["child_id"]].iloc[0]
 
             # Add line segment (parent -> child)
-            x_lines.extend([parent['generation'], child['generation'], None])
-            y_lines.extend([parent['fitness'], child['fitness'], None])
-            z_lines.extend([parent['diversity'], child['diversity'], None])
+            x_lines.extend([parent["generation"], child["generation"], None])
+            y_lines.extend([parent["fitness"], child["fitness"], None])
+            z_lines.extend([parent["diversity"], child["diversity"], None])
 
         # Plot technique-specific edges
-        fig.add_trace(go.Scatter3d(
-            x=x_lines,
-            y=y_lines,
-            z=z_lines,
-            mode='lines',
-            line=dict(
-                color=MERGE_TECHNIQUES[technique]['color'],
-                width=2,
-            ),
-            opacity=0.3,
-            name=f'{technique} merges',
-            hoverinfo='skip',
-            showlegend=True,
-        ))
+        fig.add_trace(
+            go.Scatter3d(
+                x=x_lines,
+                y=y_lines,
+                z=z_lines,
+                mode="lines",
+                line=dict(
+                    color=MERGE_TECHNIQUES[technique]["color"],
+                    width=2,
+                ),
+                opacity=0.3,
+                name=f"{technique} merges",
+                hoverinfo="skip",
+                showlegend=True,
+            )
+        )
 
     # Plot nodes (models) by technique
     for technique, config in MERGE_TECHNIQUES.items():
-        technique_nodes = nodes_df[nodes_df['technique'] == technique]
+        technique_nodes = nodes_df[nodes_df["technique"] == technique]
 
         if len(technique_nodes) == 0:
             continue
 
         # Size proportional to fitness
-        sizes = technique_nodes['fitness'] * 10 + 5
+        sizes = technique_nodes["fitness"] * 10 + 5
 
         # Hover text
         hover_text = []
         for _, node in technique_nodes.iterrows():
-            parents_str = ', '.join(node['parents']) if node['parents'] else 'None (Phase 1)'
+            parents_str = ", ".join(node["parents"]) if node["parents"] else "None (Phase 1)"
             text = (
                 f"<b>{node['id']}</b><br>"
                 f"Generation: {node['generation']}<br>"
@@ -303,26 +301,28 @@ def create_3d_merge_tree(
             )
             hover_text.append(text)
 
-        fig.add_trace(go.Scatter3d(
-            x=technique_nodes['generation'],
-            y=technique_nodes['fitness'],
-            z=technique_nodes['diversity'],
-            mode='markers',
-            marker=dict(
-                size=sizes,
-                color=config['color'],
-                symbol=config['symbol'],
-                line=dict(color='#E0E1DD', width=1),
-                opacity=0.9,
-            ),
-            text=hover_text,
-            hovertemplate='%{text}<extra></extra>',
-            name=technique,
-            showlegend=True,
-        ))
+        fig.add_trace(
+            go.Scatter3d(
+                x=technique_nodes["generation"],
+                y=technique_nodes["fitness"],
+                z=technique_nodes["diversity"],
+                mode="markers",
+                marker=dict(
+                    size=sizes,
+                    color=config["color"],
+                    symbol=config["symbol"],
+                    line=dict(color="#E0E1DD", width=1),
+                    opacity=0.9,
+                ),
+                text=hover_text,
+                hovertemplate="%{text}<extra></extra>",
+                name=technique,
+                showlegend=True,
+            )
+        )
 
     # Special handling for Phase 1 models (larger, distinctive)
-    phase1_nodes = nodes_df[nodes_df['technique'] == 'Phase 1 (Cognate)']
+    phase1_nodes = nodes_df[nodes_df["technique"] == "Phase 1 (Cognate)"]
     if len(phase1_nodes) > 0:
         hover_text = []
         for _, node in phase1_nodes.iterrows():
@@ -336,55 +336,55 @@ def create_3d_merge_tree(
             )
             hover_text.append(text)
 
-        fig.add_trace(go.Scatter3d(
-            x=phase1_nodes['generation'],
-            y=phase1_nodes['fitness'],
-            z=phase1_nodes['diversity'],
-            mode='markers',
-            marker=dict(
-                size=20,
-                color='#F72585',  # Magenta accent
-                symbol='diamond',
-                line=dict(color='#E0E1DD', width=2),
-                opacity=1.0,
-            ),
-            text=hover_text,
-            hovertemplate='%{text}<extra></extra>',
-            name='Phase 1 (Cognate)',
-            showlegend=True,
-        ))
+        fig.add_trace(
+            go.Scatter3d(
+                x=phase1_nodes["generation"],
+                y=phase1_nodes["fitness"],
+                z=phase1_nodes["diversity"],
+                mode="markers",
+                marker=dict(
+                    size=20,
+                    color="#F72585",  # Magenta accent
+                    symbol="diamond",
+                    line=dict(color="#E0E1DD", width=2),
+                    opacity=1.0,
+                ),
+                text=hover_text,
+                hovertemplate="%{text}<extra></extra>",
+                name="Phase 1 (Cognate)",
+                showlegend=True,
+            )
+        )
 
     # Highlight lineage if specified
-    if highlight_lineage and highlight_lineage in nodes_df['id'].values:
+    if highlight_lineage and highlight_lineage in nodes_df["id"].values:
         lineage_nodes = _get_lineage_nodes(nodes_df, edges_df, highlight_lineage)
-        lineage_df = nodes_df[nodes_df['id'].isin(lineage_nodes)]
+        lineage_df = nodes_df[nodes_df["id"].isin(lineage_nodes)]
 
         # Highlight nodes
-        fig.add_trace(go.Scatter3d(
-            x=lineage_df['generation'],
-            y=lineage_df['fitness'],
-            z=lineage_df['diversity'],
-            mode='markers',
-            marker=dict(
-                size=15,
-                color='#FFB703',  # Amber highlight
-                symbol='circle',
-                line=dict(color='#FFFFFF', width=3),
-                opacity=1.0,
-            ),
-            name='Highlighted Lineage',
-            showlegend=True,
-            hoverinfo='skip',
-        ))
+        fig.add_trace(
+            go.Scatter3d(
+                x=lineage_df["generation"],
+                y=lineage_df["fitness"],
+                z=lineage_df["diversity"],
+                mode="markers",
+                marker=dict(
+                    size=15,
+                    color="#FFB703",  # Amber highlight
+                    symbol="circle",
+                    line=dict(color="#FFFFFF", width=3),
+                    opacity=1.0,
+                ),
+                name="Highlighted Lineage",
+                showlegend=True,
+                hoverinfo="skip",
+            )
+        )
 
     return fig
 
 
-def _get_lineage_nodes(
-    nodes_df: pd.DataFrame,
-    edges_df: pd.DataFrame,
-    node_id: str
-) -> List[str]:
+def _get_lineage_nodes(nodes_df: pd.DataFrame, edges_df: pd.DataFrame, node_id: str) -> List[str]:
     """
     Get all ancestor nodes (lineage) for a given node.
 
@@ -403,10 +403,10 @@ def _get_lineage_nodes(
         current = to_process.pop()
 
         # Find parents
-        parent_edges = edges_df[edges_df['child_id'] == current]
+        parent_edges = edges_df[edges_df["child_id"] == current]
 
         for _, edge in parent_edges.iterrows():
-            parent_id = edge['parent_id']
+            parent_id = edge["parent_id"]
             if parent_id not in lineage:
                 lineage.add(parent_id)
                 to_process.append(parent_id)
@@ -418,11 +418,9 @@ def _get_lineage_nodes(
 # STREAMLIT COMPONENT
 # ============================================================================
 
+
 def render_phase2_3d_visualization(
-    generations: int = 50,
-    models_per_gen: int = 8,
-    height: int = 800,
-    show_controls: bool = True
+    generations: int = 50, models_per_gen: int = 8, height: int = 800, show_controls: bool = True
 ) -> None:
     """
     Render the complete Phase 2 3D visualization component in Streamlit.
@@ -435,16 +433,14 @@ def render_phase2_3d_visualization(
     """
     st.markdown("---")
     st.markdown(
-        '<h2 class="section-header">3D Merge Tree Visualization</h2>',
-        unsafe_allow_html=True
+        '<h2 class="section-header">3D Merge Tree Visualization</h2>', unsafe_allow_html=True
     )
 
     # Generate or load data
-    if 'merge_tree_data' not in st.session_state:
-        with st.spinner('Generating evolutionary tree data...'):
+    if "merge_tree_data" not in st.session_state:
+        with st.spinner("Generating evolutionary tree data..."):
             nodes_df, edges_df = generate_evolution_tree_data(
-                generations=generations,
-                models_per_gen=models_per_gen
+                generations=generations, models_per_gen=models_per_gen
             )
             st.session_state.merge_tree_data = (nodes_df, edges_df)
 
@@ -456,51 +452,41 @@ def render_phase2_3d_visualization(
 
         with col1:
             # Model selection for lineage highlighting
-            model_ids = ['None'] + sorted(nodes_df['id'].tolist())
+            model_ids = ["None"] + sorted(nodes_df["id"].tolist())
             selected_model = st.selectbox(
-                'Highlight Lineage (click model)',
-                model_ids,
-                index=0,
-                key='lineage_select'
+                "Highlight Lineage (click model)", model_ids, index=0, key="lineage_select"
             )
 
         with col2:
             # Generation range filter
-            max_gen = int(nodes_df['generation'].max())
+            max_gen = int(nodes_df["generation"].max())
             gen_range = st.slider(
-                'Generation Range',
-                0, max_gen,
-                (0, max_gen),
-                key='gen_range_slider'
+                "Generation Range", 0, max_gen, (0, max_gen), key="gen_range_slider"
             )
 
         with col3:
             # Regenerate button
-            if st.button('Regenerate Tree', key='regen_tree'):
+            if st.button("Regenerate Tree", key="regen_tree"):
                 del st.session_state.merge_tree_data
                 st.rerun()
     else:
         selected_model = None
-        gen_range = (0, int(nodes_df['generation'].max()))
+        gen_range = (0, int(nodes_df["generation"].max()))
 
     # Filter data by generation range
     filtered_nodes = nodes_df[
-        (nodes_df['generation'] >= gen_range[0]) &
-        (nodes_df['generation'] <= gen_range[1])
+        (nodes_df["generation"] >= gen_range[0]) & (nodes_df["generation"] <= gen_range[1])
     ]
     filtered_edges = edges_df[
-        edges_df['child_id'].isin(filtered_nodes['id']) &
-        edges_df['parent_id'].isin(filtered_nodes['id'])
+        edges_df["child_id"].isin(filtered_nodes["id"])
+        & edges_df["parent_id"].isin(filtered_nodes["id"])
     ]
 
     # Create and display figure
-    highlight = selected_model if selected_model != 'None' else None
+    highlight = selected_model if selected_model != "None" else None
 
     fig = create_3d_merge_tree(
-        filtered_nodes,
-        filtered_edges,
-        highlight_lineage=highlight,
-        height=height
+        filtered_nodes, filtered_edges, highlight_lineage=highlight, height=height
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -512,56 +498,47 @@ def render_phase2_3d_visualization(
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        initial_fitness = nodes_df[nodes_df['generation'] == 0]['fitness'].mean()
-        st.metric(
-            'Initial Avg Fitness',
-            f'{initial_fitness:.3f}',
-            delta=None
-        )
+        initial_fitness = nodes_df[nodes_df["generation"] == 0]["fitness"].mean()
+        st.metric("Initial Avg Fitness", f"{initial_fitness:.3f}", delta=None)
 
     with col2:
-        final_fitness = nodes_df[nodes_df['generation'] == nodes_df['generation'].max()]['fitness'].mean()
+        final_fitness = nodes_df[nodes_df["generation"] == nodes_df["generation"].max()][
+            "fitness"
+        ].mean()
         st.metric(
-            'Final Avg Fitness',
-            f'{final_fitness:.3f}',
-            delta=f'+{(final_fitness - initial_fitness):.3f}'
+            "Final Avg Fitness",
+            f"{final_fitness:.3f}",
+            delta=f"+{(final_fitness - initial_fitness):.3f}",
         )
 
     with col3:
-        best_fitness = nodes_df['fitness'].max()
-        best_model = nodes_df[nodes_df['fitness'] == best_fitness].iloc[0]
+        best_fitness = nodes_df["fitness"].max()
+        best_model = nodes_df[nodes_df["fitness"] == best_fitness].iloc[0]
         st.metric(
-            'Best Fitness',
-            f'{best_fitness:.3f}',
-            delta=f'Gen {int(best_model["generation"])}'
+            "Best Fitness", f"{best_fitness:.3f}", delta=f'Gen {int(best_model["generation"])}'
         )
 
     with col4:
         improvement = ((final_fitness - initial_fitness) / initial_fitness) * 100
-        st.metric(
-            'Total Improvement',
-            f'{improvement:.1f}%',
-            delta=f'{generations} generations'
-        )
+        st.metric("Total Improvement", f"{improvement:.1f}%", delta=f"{generations} generations")
 
     # Technique breakdown
-    with st.expander('View Merge Technique Breakdown'):
-        technique_stats = nodes_df[nodes_df['technique'] != 'Phase 1 (Cognate)'].groupby('technique').agg({
-            'fitness': ['count', 'mean', 'max'],
-            'id': 'count'
-        }).round(3)
-
-        st.dataframe(
-            technique_stats,
-            use_container_width=True
+    with st.expander("View Merge Technique Breakdown"):
+        technique_stats = (
+            nodes_df[nodes_df["technique"] != "Phase 1 (Cognate)"]
+            .groupby("technique")
+            .agg({"fitness": ["count", "mean", "max"], "id": "count"})
+            .round(3)
         )
+
+        st.dataframe(technique_stats, use_container_width=True)
 
 
 # ============================================================================
 # STANDALONE TESTING
 # ============================================================================
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
     from pathlib import Path
 
@@ -571,24 +548,16 @@ if __name__ == '__main__':
     from ui.design_system import get_custom_css
 
     st.set_page_config(
-        page_title='3D Merge Tree Visualization',
-        page_icon='🧬',
-        layout='wide',
-        initial_sidebar_state='collapsed'
+        page_title="3D Merge Tree Visualization",
+        page_icon="🧬",
+        layout="wide",
+        initial_sidebar_state="collapsed",
     )
 
     # Inject custom CSS
     st.markdown(get_custom_css(), unsafe_allow_html=True)
 
     # Render component
-    st.markdown(
-        '<h1 class="main-header">Phase 2: EvoMerge</h1>',
-        unsafe_allow_html=True
-    )
+    st.markdown('<h1 class="main-header">Phase 2: EvoMerge</h1>', unsafe_allow_html=True)
 
-    render_phase2_3d_visualization(
-        generations=50,
-        models_per_gen=8,
-        height=800,
-        show_controls=True
-    )
+    render_phase2_3d_visualization(generations=50, models_per_gen=8, height=800, show_controls=True)

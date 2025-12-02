@@ -3,10 +3,11 @@ Model-Size-Agnostic Utilities
 Runtime detection and adaptive strategies for any model size
 """
 
-import torch
-import torch.nn as nn
 import math
 from typing import Dict, Tuple
+
+import torch
+import torch.nn as nn
 
 
 def get_model_size(model: nn.Module) -> Dict:
@@ -21,7 +22,7 @@ def get_model_size(model: nn.Module) -> Dict:
         }
     """
     total_params = sum(p.numel() for p in model.parameters())
-    size_mb = total_params * 4 / (1024 ** 2)  # FP32
+    size_mb = total_params * 4 / (1024**2)  # FP32
 
     # Categorize for adaptive strategies
     if total_params < 50_000_000:  # <50M
@@ -33,17 +34,10 @@ def get_model_size(model: nn.Module) -> Dict:
     else:
         size_category = "large"
 
-    return {
-        "params": total_params,
-        "size_mb": size_mb,
-        "size_category": size_category
-    }
+    return {"params": total_params, "size_mb": size_mb, "size_category": size_category}
 
 
-def calculate_safe_batch_size(
-    model_or_size,
-    device_vram_gb: float
-) -> int:
+def calculate_safe_batch_size(model_or_size, device_vram_gb: float) -> int:
     """
     Calculate batch size that fits in VRAM with gradient accumulation
 
@@ -78,9 +72,7 @@ def calculate_safe_batch_size(
     else:
         # Fits, calculate optimal batch size
         overhead_per_sample = model_size_mb * 0.1
-        batch_size = int(
-            (available_vram_mb - required_vram_mb) / overhead_per_sample
-        )
+        batch_size = int((available_vram_mb - required_vram_mb) / overhead_per_sample)
         batch_size = min(batch_size, 32)  # Cap at 32
         accumulation_steps = 1
 
@@ -147,17 +139,13 @@ def detect_training_issues(loss_history: list):
     if len(last_100) > 10:
         recent_trend = np.polyfit(range(len(last_100)), last_100, 1)[0]
         if recent_trend > 0.01:  # Loss increasing
-            raise RuntimeError(
-                f"Loss diverging: trend={recent_trend:.4f}"
-            )
+            raise RuntimeError(f"Loss diverging: trend={recent_trend:.4f}")
 
     # Issue 2: Plateau (no improvement for 50 steps)
     if len(last_100) >= 50:
         recent_variance = np.var(last_100[-50:])
         if recent_variance < 0.001:  # No change
-            print(
-                f"[WARN] Loss plateaued: variance={recent_variance:.6f}"
-            )
+            print(f"[WARN] Loss plateaued: variance={recent_variance:.6f}")
 
     # Issue 3: NaN
     if np.isnan(last_100[-1]):
@@ -178,9 +166,7 @@ def compute_diversity(population: list) -> float:
 
     def get_weights_flat(model):
         """Flatten all model weights into 1D vector"""
-        return torch.cat(
-            [p.data.flatten() for p in model.parameters()]
-        ).cpu().numpy()
+        return torch.cat([p.data.flatten() for p in model.parameters()]).cpu().numpy()
 
     def cosine_distance(vec1, vec2):
         """Cosine distance (1 - cosine similarity)"""
@@ -205,6 +191,7 @@ def compute_diversity(population: list) -> float:
 # =============================================================================
 # ISS-016: Unified MockTokenizer Utility
 # =============================================================================
+
 
 class MockTokenizer:
     """
@@ -253,13 +240,7 @@ class MockTokenizer:
         }
 
     def __call__(
-        self,
-        text,
-        return_tensors="pt",
-        max_length=512,
-        truncation=True,
-        padding=True,
-        **kwargs
+        self, text, return_tensors="pt", max_length=512, truncation=True, padding=True, **kwargs
     ):
         """
         Tokenize text using deterministic hash-based encoding.
@@ -297,13 +278,10 @@ class MockTokenizer:
         if return_tensors == "pt":
             return {
                 "input_ids": torch.tensor([input_ids]),
-                "attention_mask": torch.tensor([attention_mask])
+                "attention_mask": torch.tensor([attention_mask]),
             }
         else:
-            return {
-                "input_ids": [input_ids],
-                "attention_mask": [attention_mask]
-            }
+            return {"input_ids": [input_ids], "attention_mask": [attention_mask]}
 
     def _hash_token(self, token):
         """Hash a token to an ID deterministically."""
@@ -362,6 +340,7 @@ def get_tokenizer(model_name="gpt2"):
     """
     try:
         from transformers import GPT2Tokenizer
+
         tokenizer = GPT2Tokenizer.from_pretrained(model_name)
         tokenizer.pad_token = tokenizer.eos_token
         return tokenizer
@@ -374,10 +353,8 @@ def get_tokenizer(model_name="gpt2"):
 # ISS-001: Compatibility aliases for test_utils.py
 # =============================================================================
 
-def validate_model_diversity(
-    models: list,
-    min_diversity: float = 0.1
-) -> bool:
+
+def validate_model_diversity(models: list, min_diversity: float = 0.1) -> bool:
     """
     Validate diversity across models (alias for compute_diversity).
 
@@ -395,10 +372,7 @@ def validate_model_diversity(
     return diversity_score >= min_diversity
 
 
-def detect_training_divergence(
-    losses: list,
-    window: int = 10
-) -> bool:
+def detect_training_divergence(losses: list, window: int = 10) -> bool:
     """
     Detect if training is diverging (loss increasing).
 

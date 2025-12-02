@@ -5,13 +5,19 @@ Main ADASOptimizer class that orchestrates the NSGA-II evolution process.
 """
 
 import random
-from typing import List, Tuple, Callable, Any, Dict
+from typing import Any, Callable, Dict, List, Tuple
+
 import torch.nn as nn
 
-from .config import ADASConfig, Individual, ADASResult
-from .nsga2 import assign_ranks, calculate_crowding_distance, tournament_selection, survivor_selection
-from .operators import create_offspring
+from .config import ADASConfig, ADASResult, Individual
 from .evaluation import evaluate_population
+from .nsga2 import (
+    assign_ranks,
+    calculate_crowding_distance,
+    survivor_selection,
+    tournament_selection,
+)
+from .operators import create_offspring
 
 
 class ADASOptimizer:
@@ -44,11 +50,7 @@ class ADASOptimizer:
         self.generation_history: List[Dict] = []
 
     def optimize(
-        self,
-        model: nn.Module,
-        experts: List[Any],
-        tokenizer: Any,
-        evaluator: Callable = None
+        self, model: nn.Module, experts: List[Any], tokenizer: Any, evaluator: Callable = None
     ) -> Tuple[nn.Module, ADASResult]:
         """
         Run ADAS optimization.
@@ -91,8 +93,8 @@ class ADASOptimizer:
             self.generation_history.append(gen_stats)
 
             if gen % 20 == 0:
-                best_acc = gen_stats['best_accuracy']
-                best_lat = gen_stats['best_latency']
+                best_acc = gen_stats["best_accuracy"]
+                best_lat = gen_stats["best_latency"]
                 print(f"    Gen {gen}: best_acc={best_acc:.3f}, best_lat={best_lat:.3f}")
 
             # Selection
@@ -111,8 +113,10 @@ class ADASOptimizer:
 
         # Step 4: Select best individual (knee point)
         best = self._select_knee_point()
-        print(f"  Best solution: acc={best.fitness_scores.get('accuracy', 0):.3f}, "
-              f"lat={best.fitness_scores.get('latency', 0):.3f}")
+        print(
+            f"  Best solution: acc={best.fitness_scores.get('accuracy', 0):.3f}, "
+            f"lat={best.fitness_scores.get('latency', 0):.3f}"
+        )
 
         # Step 5: Apply routing to model
         optimized_model = self._apply_routing(model, experts, best)
@@ -123,10 +127,10 @@ class ADASOptimizer:
             pareto_front=self.pareto_front,
             generation_history=self.generation_history,
             metrics={
-                'final_population_size': len(self.population),
-                'pareto_front_size': len(self.pareto_front),
-                'total_evaluations': self.config.population_size * self.config.num_generations
-            }
+                "final_population_size": len(self.population),
+                "pareto_front_size": len(self.pareto_front),
+                "total_evaluations": self.config.population_size * self.config.num_generations,
+            },
         )
 
     def _initialize_population(self, num_experts: int) -> None:
@@ -146,17 +150,15 @@ class ADASOptimizer:
 
             # Random expert configs
             expert_configs = {
-                f'expert_{i}': {
-                    'threshold': random.uniform(0.1, 0.9),
-                    'temperature': random.uniform(0.5, 2.0)
+                f"expert_{i}": {
+                    "threshold": random.uniform(0.1, 0.9),
+                    "temperature": random.uniform(0.5, 2.0),
                 }
                 for i in range(num_experts)
             }
 
             individual = Individual(
-                routing_weights=weights,
-                expert_configs=expert_configs,
-                fitness_scores={}
+                routing_weights=weights, expert_configs=expert_configs, fitness_scores={}
             )
             self.population.append(individual)
 
@@ -167,14 +169,14 @@ class ADASOptimizer:
         Returns:
             Dictionary of generation statistics
         """
-        accuracies = [ind.fitness_scores.get('accuracy', 0) for ind in self.population]
-        latencies = [ind.fitness_scores.get('latency', 0) for ind in self.population]
+        accuracies = [ind.fitness_scores.get("accuracy", 0) for ind in self.population]
+        latencies = [ind.fitness_scores.get("latency", 0) for ind in self.population]
 
         return {
-            'best_accuracy': max(accuracies) if accuracies else 0,
-            'mean_accuracy': sum(accuracies) / len(accuracies) if accuracies else 0,
-            'best_latency': max(latencies) if latencies else 0,
-            'pareto_front_size': len([ind for ind in self.population if ind.rank == 0])
+            "best_accuracy": max(accuracies) if accuracies else 0,
+            "mean_accuracy": sum(accuracies) / len(accuracies) if accuracies else 0,
+            "best_latency": max(latencies) if latencies else 0,
+            "pareto_front_size": len([ind for ind in self.population if ind.rank == 0]),
         }
 
     def _select_knee_point(self) -> Individual:
@@ -189,18 +191,13 @@ class ADASOptimizer:
 
         # Simple: select by balanced accuracy and latency
         def balance_score(ind):
-            acc = ind.fitness_scores.get('accuracy', 0)
-            lat = ind.fitness_scores.get('latency', 0)
+            acc = ind.fitness_scores.get("accuracy", 0)
+            lat = ind.fitness_scores.get("latency", 0)
             return acc + lat  # Both maximized
 
         return max(self.pareto_front, key=balance_score)
 
-    def _apply_routing(
-        self,
-        model: nn.Module,
-        experts: List[Any],
-        best: Individual
-    ) -> nn.Module:
+    def _apply_routing(self, model: nn.Module, experts: List[Any], best: Individual) -> nn.Module:
         """
         Apply optimal routing to model.
 
@@ -214,9 +211,9 @@ class ADASOptimizer:
         """
         # Store routing configuration as model attribute
         model._expert_routing = {
-            'weights': best.routing_weights,
-            'configs': best.expert_configs,
-            'num_experts': len(experts)
+            "weights": best.routing_weights,
+            "configs": best.expert_configs,
+            "num_experts": len(experts),
         }
 
         return model

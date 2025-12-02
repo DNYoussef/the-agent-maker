@@ -3,9 +3,10 @@ Agent Forge V2 - Streamlit Dashboard
 Main entry point for the web UI
 Enhanced with futuristic command center aesthetics
 """
-import streamlit as st
 import sys
 from pathlib import Path
+
+import streamlit as st
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -17,14 +18,15 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
-        'Get Help': None,
-        'Report a bug': None,
-        'About': "Agent Forge V2: 8-phase AI agent creation pipeline"
-    }
+        "Get Help": None,
+        "Report a bug": None,
+        "About": "Agent Forge V2: 8-phase AI agent creation pipeline",
+    },
 )
 
 # Comprehensive Custom CSS - Futuristic Command Center Theme
-st.markdown("""
+st.markdown(
+    """
 <style>
     /* CSS Custom Properties - Dark Theme */
     :root {
@@ -470,11 +472,13 @@ st.markdown("""
         border-color: var(--accent-cyan) transparent transparent transparent !important;
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # Initialize session state for theme
-if 'theme' not in st.session_state:
-    st.session_state.theme = 'dark'
+if "theme" not in st.session_state:
+    st.session_state.theme = "dark"
 
 # Sidebar navigation with enhanced styling
 st.sidebar.markdown('<h1 style="text-align: center;">🧬 Agent Forge V2</h1>', unsafe_allow_html=True)
@@ -496,9 +500,9 @@ page = st.sidebar.radio(
         "W&B Monitor",
         "Model Browser",
         "System Monitor",
-        "Configuration"
+        "Configuration",
     ],
-    key="navigation"
+    key="navigation",
 )
 
 st.sidebar.markdown("---")
@@ -523,7 +527,7 @@ st.sidebar.markdown(
         </p>
     </div>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
 # System Stats in Sidebar
@@ -552,52 +556,65 @@ st.sidebar.markdown(
         </div>
     </div>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
 st.sidebar.markdown("---")
 st.sidebar.markdown(
     "<p style='text-align: center; color: #778DA9; font-size: 0.75rem; font-family: \"JetBrains Mono\", monospace;'>v2.0.0 | Command Center</p>",
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
 # Load selected page
 if page == "Pipeline Overview":
     from pages import pipeline_overview
+
     pipeline_overview.render()
 elif page == "Phase 1: Cognate":
     from pages import phase1_cognate
+
     phase1_cognate.render_phase1_cognate()
 elif page == "Phase 2: EvoMerge":
     from pages import phase2_evomerge
+
     phase2_evomerge.render_phase2_dashboard()
 elif page == "Phase 3: Quiet-STaR":
     from pages import phase3_quietstar
+
     phase3_quietstar.render_phase3_dashboard()
 elif page == "Phase 4: BitNet":
     from pages import phase4_bitnet
+
     phase4_bitnet.render_phase4_dashboard()
 elif page == "Phase 5: Curriculum":
     from pages import phase5_curriculum
+
     phase5_curriculum.render_phase5_dashboard()
 elif page == "Phase 6: Baking":
     from pages import phase6_baking
+
     phase6_baking.render_phase6_dashboard()
 elif page == "Phase 7: Experts":
     from pages import phase7_experts
+
     phase7_experts.render_phase7_dashboard()
 elif page == "Phase 8: Compression":
     from pages import phase8_compression
+
     phase8_compression.render()
 elif page == "W&B Monitor":
     from pages import wandb_monitor
+
     wandb_monitor.render()
 elif page == "Model Browser":
     from pages import model_browser
+
     model_browser.render()
 elif page == "System Monitor":
     from pages import system_monitor
+
     system_monitor.render()
 elif page == "Configuration":
     from pages import config_editor
+
     config_editor.render()

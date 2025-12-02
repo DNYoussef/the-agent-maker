@@ -20,6 +20,7 @@ class Phase3Controller(PhaseController):
             PhaseResult with reasoning-enhanced model
         """
         import time
+
         start_time = time.time()
 
         print("\n" + "=" * 60)
@@ -53,18 +54,18 @@ class Phase3Controller(PhaseController):
                 phase_name="phase3",
                 model=enhanced_model,
                 metrics={
-                    'baking_completed': True,
-                    'rl_completed': True,
-                    'anti_theater_passed': anti_theater_results.get('all_passed', False),
-                    'duration_seconds': duration
+                    "baking_completed": True,
+                    "rl_completed": True,
+                    "anti_theater_passed": anti_theater_results.get("all_passed", False),
+                    "duration_seconds": duration,
                 },
                 duration=duration,
                 artifacts={
-                    'anti_theater_results': anti_theater_results,
-                    'baked_model': baked_model
+                    "anti_theater_results": anti_theater_results,
+                    "baked_model": baked_model,
                 },
                 config=self.config,
-                error=None
+                error=None,
             )
 
         except Exception as e:
@@ -77,7 +78,7 @@ class Phase3Controller(PhaseController):
                 duration=duration,
                 artifacts={},
                 config=self.config,
-                error=str(e)
+                error=str(e),
             )
 
     def _get_tokenizer(self):
@@ -89,11 +90,11 @@ class Phase3Controller(PhaseController):
         from cross_phase.prompt_baking.baker import PromptBaker, PromptBakingConfig
 
         config = PromptBakingConfig(
-            lora_r=self.config.get('lora_r', 16),
-            lora_alpha=self.config.get('lora_alpha', 32),
-            num_epochs=self.config.get('baking_epochs', 3),
-            batch_size=self.config.get('batch_size', 8),
-            learning_rate=self.config.get('learning_rate', 1e-4)
+            lora_r=self.config.get("lora_r", 16),
+            lora_alpha=self.config.get("lora_alpha", 32),
+            num_epochs=self.config.get("baking_epochs", 3),
+            batch_size=self.config.get("batch_size", 8),
+            learning_rate=self.config.get("learning_rate", 1e-4),
         )
 
         baker = PromptBaker(config)
@@ -112,7 +113,7 @@ class Phase3Controller(PhaseController):
             "Explain why the sky is blue.",
             "What are the factors of 12?",
             "How does photosynthesis work?",
-            "What is the capital of France?"
+            "What is the capital of France?",
         ]
 
         print(f"  Baking reasoning prompt into model...")
@@ -121,7 +122,7 @@ class Phase3Controller(PhaseController):
             prompt=reasoning_prompt,
             tokenizer=tokenizer,
             calibration_data=calibration_data,
-            half_bake=False
+            half_bake=False,
         )
 
         print(f"  Prompt baking complete")
@@ -152,10 +153,10 @@ class Phase3Controller(PhaseController):
         print(f"  Running anti-theater validation...")
 
         results = {
-            'divergence_test': True,
-            'ablation_test': True,
-            'consistency_test': True,
-            'all_passed': True
+            "divergence_test": True,
+            "ablation_test": True,
+            "consistency_test": True,
+            "all_passed": True,
         }
 
         try:
@@ -166,9 +167,11 @@ class Phase3Controller(PhaseController):
             model.eval()
             with torch.no_grad():
                 for text in test_inputs:
-                    enc = tokenizer(text, return_tensors="pt", max_length=64, truncation=True, padding=True)
+                    enc = tokenizer(
+                        text, return_tensors="pt", max_length=64, truncation=True, padding=True
+                    )
                     # Simple forward pass check
-                    if hasattr(model, 'generate'):
+                    if hasattr(model, "generate"):
                         out = model.generate(**enc, max_new_tokens=10, do_sample=False)
                         outputs.append(out[0].tolist())
                     else:
@@ -176,37 +179,37 @@ class Phase3Controller(PhaseController):
 
             # Check outputs are different
             unique_outputs = len(set(str(o) for o in outputs))
-            results['divergence_test'] = unique_outputs > 1
+            results["divergence_test"] = unique_outputs > 1
 
             # Test 2: Consistency - same input should give similar output
-            results['consistency_test'] = True  # Simplified
+            results["consistency_test"] = True  # Simplified
 
             # Test 3: Ablation - model should degrade gracefully
-            results['ablation_test'] = True  # Simplified
+            results["ablation_test"] = True  # Simplified
 
-            results['all_passed'] = all([
-                results['divergence_test'],
-                results['ablation_test'],
-                results['consistency_test']
-            ])
+            results["all_passed"] = all(
+                [results["divergence_test"], results["ablation_test"], results["consistency_test"]]
+            )
 
-            status = "PASSED" if results['all_passed'] else "FAILED"
+            status = "PASSED" if results["all_passed"] else "FAILED"
             print(f"  Anti-theater validation: {status}")
 
         except Exception as e:
             print(f"  Anti-theater validation error: {e}")
-            results['all_passed'] = False
+            results["all_passed"] = False
 
         return results
 
     def validate_input(self, input_models: list = None) -> bool:
         """Validate 1 input model from Phase 2"""
         if not input_models or len(input_models) != 1:
-            raise ValueError(f"Phase 3 requires 1 input model, got {len(input_models) if input_models else 0}")
+            raise ValueError(
+                f"Phase 3 requires 1 input model, got {len(input_models) if input_models else 0}"
+            )
         return True
 
     def validate_output(self, result: PhaseResult) -> bool:
         """Validate Phase 3 output (anti-theater tests pass)"""
-        if result.artifacts and 'anti_theater_results' in result.artifacts:
-            return result.artifacts['anti_theater_results'].get('all_passed', False)
+        if result.artifacts and "anti_theater_results" in result.artifacts:
+            return result.artifacts["anti_theater_results"].get("all_passed", False)
         return True

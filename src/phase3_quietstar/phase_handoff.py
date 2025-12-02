@@ -10,16 +10,17 @@ Ensures model integrity, metadata preservation, and format compatibility.
 ISS-004: Updated to use secure SafeTensors checkpoint loading.
 """
 
-import torch
-import torch.nn as nn
+import json
 from pathlib import Path
 from typing import Dict, Optional, Tuple
-import json
 
-from ..cross_phase.storage import ModelRegistry
+import torch
+import torch.nn as nn
 
 # ISS-004: Secure checkpoint validation
 from safetensors.torch import load_file as safe_load_file
+
+from ..cross_phase.storage import ModelRegistry
 
 
 def _secure_load_checkpoint_metadata(checkpoint_path: Path) -> Tuple[Dict, Dict, Dict]:
@@ -29,9 +30,9 @@ def _secure_load_checkpoint_metadata(checkpoint_path: Path) -> Tuple[Dict, Dict,
     Returns:
         (state_dict, config, metadata) - all loaded securely without pickle
     """
-    base_path = checkpoint_path.with_suffix('')
-    safetensors_path = base_path.with_suffix('.safetensors')
-    json_path = base_path.with_suffix('.json')
+    base_path = checkpoint_path.with_suffix("")
+    safetensors_path = base_path.with_suffix(".safetensors")
+    json_path = base_path.with_suffix(".json")
 
     # Load state dict from SafeTensors (secure)
     if safetensors_path.exists():
@@ -43,7 +44,7 @@ def _secure_load_checkpoint_metadata(checkpoint_path: Path) -> Tuple[Dict, Dict,
     config = {}
     metadata = {}
     if json_path.exists():
-        with open(json_path, 'r', encoding='utf-8') as f:
+        with open(json_path, "r", encoding="utf-8") as f:
             json_data = json.load(f)
             config = json_data.get("config", {})
             metadata = json_data.get("metadata", {})
@@ -65,9 +66,7 @@ class Phase3HandoffValidator:
     def __init__(self, registry_path: Path):
         self.registry = ModelRegistry(str(registry_path))
 
-    def validate_phase2_input(
-        self, model_path: Path
-    ) -> Tuple[bool, Dict[str, any]]:
+    def validate_phase2_input(self, model_path: Path) -> Tuple[bool, Dict[str, any]]:
         """
         Validate Phase 2 champion model for Phase 3 input.
 
@@ -82,7 +81,7 @@ class Phase3HandoffValidator:
         print("\n[>>] Validating Phase 2 -> Phase 3 handoff...")
 
         # Check for SafeTensors format
-        safetensors_path = model_path.with_suffix('.safetensors')
+        safetensors_path = model_path.with_suffix(".safetensors")
         if not safetensors_path.exists() and not model_path.exists():
             print(f"[X] Model not found: {model_path}")
             return False, {}
@@ -111,10 +110,7 @@ class Phase3HandoffValidator:
         # Validate fitness improvement
         fitness_gain = metadata.get("fitness_improvement", 0.0)
         if fitness_gain < 0.20:
-            print(
-                f"⚠️  Warning: Low fitness gain: {fitness_gain:.2%} "
-                f"(expected ≥20%)"
-            )
+            print(f"⚠️  Warning: Low fitness gain: {fitness_gain:.2%} " f"(expected ≥20%)")
         else:
             print(f"✅ Fitness gain: {fitness_gain:.2%}")
 
@@ -146,7 +142,7 @@ class Phase3HandoffValidator:
         print("\n[<<] Validating Phase 3 -> Phase 4 handoff...")
 
         # Check for SafeTensors format
-        safetensors_path = model_path.with_suffix('.safetensors')
+        safetensors_path = model_path.with_suffix(".safetensors")
         if not safetensors_path.exists() and not model_path.exists():
             print(f"[X] Final model not found: {model_path}")
             return False, {}
@@ -164,16 +160,13 @@ class Phase3HandoffValidator:
             thinking_tokens = metadata.get("thinking_tokens", [])
 
         if len(thinking_tokens) < 8:
-            print(
-                f"[!] Warning: Expected >=8 thinking tokens, "
-                f"got {len(thinking_tokens)}"
-            )
+            print(f"[!] Warning: Expected >=8 thinking tokens, " f"got {len(thinking_tokens)}")
         else:
             print(f"[OK] Thinking tokens: {len(thinking_tokens)}")
 
         # Validate Step 1 (baking) results - secure loading (ISS-004)
         baking_acc = 0.0
-        baked_safetensors = baked_path.with_suffix('.safetensors')
+        baked_safetensors = baked_path.with_suffix(".safetensors")
         if baked_safetensors.exists() or baked_path.exists():
             try:
                 _, _, baked_meta = _secure_load_checkpoint_metadata(baked_path)
@@ -182,10 +175,7 @@ class Phase3HandoffValidator:
                     baking_acc = sum(baking_acc.values()) / len(baking_acc) if baking_acc else 0.0
 
                 if baking_acc < 0.85:
-                    print(
-                        f"[!] Warning: Baking accuracy {baking_acc:.2%} "
-                        f"< 85% threshold"
-                    )
+                    print(f"[!] Warning: Baking accuracy {baking_acc:.2%} " f"< 85% threshold")
                 else:
                     print(f"[OK] Baking accuracy: {baking_acc:.2%}")
             except Exception:
@@ -193,16 +183,14 @@ class Phase3HandoffValidator:
 
         # Validate Step 2 (RL) results - secure loading (ISS-004)
         avg_reward = 0.0
-        rl_safetensors = rl_path.with_suffix('.safetensors')
+        rl_safetensors = rl_path.with_suffix(".safetensors")
         if rl_safetensors.exists() or rl_path.exists():
             try:
                 _, _, rl_meta = _secure_load_checkpoint_metadata(rl_path)
                 reward_history = rl_meta.get("reward_history", [])
 
                 if reward_history:
-                    avg_reward = sum(reward_history[-100:]) / min(
-                        100, len(reward_history)
-                    )
+                    avg_reward = sum(reward_history[-100:]) / min(100, len(reward_history))
                     print(f"[OK] Avg reward (last 100): {avg_reward:.4f}")
             except Exception:
                 print(f"[!] Warning: Could not load RL checkpoint for validation")
@@ -213,9 +201,7 @@ class Phase3HandoffValidator:
             all_passed = anti_theater.get("all_passed", False)
             if not all_passed:
                 print(f"⚠️  Warning: Anti-theater tests failed")
-                print(
-                    f"   Divergence: {anti_theater.get('divergence', 0):.3f}"
-                )
+                print(f"   Divergence: {anti_theater.get('divergence', 0):.3f}")
                 print(f"   Ablation: {anti_theater.get('ablation', 0):.3f}")
             else:
                 print(f"✅ Anti-theater: All tests passed")
@@ -257,12 +243,8 @@ class Phase3HandoffValidator:
                 validation_status="passed",
                 validation_metrics={
                     "fitness_gain": input_metadata.get("fitness_gain", 0.0),
-                    "baking_accuracy": output_metadata.get(
-                        "baking_accuracy", 0.0
-                    ),
-                    "anti_theater_passed": output_metadata.get(
-                        "anti_theater_passed", False
-                    ),
+                    "baking_accuracy": output_metadata.get("baking_accuracy", 0.0),
+                    "anti_theater_passed": output_metadata.get("anti_theater_passed", False),
                 },
             )
 
@@ -303,9 +285,7 @@ def validate_full_phase3_pipeline(
     validator = Phase3HandoffValidator(registry_path)
 
     # Validate Phase 2 → Phase 3
-    input_valid, input_metadata = validator.validate_phase2_input(
-        phase2_model_path
-    )
+    input_valid, input_metadata = validator.validate_phase2_input(phase2_model_path)
 
     if not input_valid:
         print("\n❌ Phase 2 → Phase 3 handoff FAILED")
@@ -321,9 +301,7 @@ def validate_full_phase3_pipeline(
         return False
 
     # Register completion
-    registered = validator.register_phase3_completion(
-        session_id, input_metadata, output_metadata
-    )
+    registered = validator.register_phase3_completion(session_id, input_metadata, output_metadata)
 
     if not registered:
         print("\n⚠️  Warning: Failed to register Phase 3 completion")
@@ -335,9 +313,7 @@ def validate_full_phase3_pipeline(
     print(f"✅ Phase 2 → Phase 3: PASSED")
     print(f"   Fitness gain: {input_metadata.get('fitness_gain', 0):.2%}")
     print(f"✅ Phase 3 → Phase 4: PASSED")
-    print(
-        f"   Baking accuracy: {output_metadata.get('baking_accuracy', 0):.2%}"
-    )
+    print(f"   Baking accuracy: {output_metadata.get('baking_accuracy', 0):.2%}")
     print(
         f"   Anti-theater: {'✅ PASSED' if output_metadata.get('anti_theater_passed') else '❌ FAILED'}"
     )

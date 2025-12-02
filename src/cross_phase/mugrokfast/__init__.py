@@ -4,7 +4,7 @@ MuGrokfast Optimizer Package
 Unified optimizer combining Grokfast and Muon techniques.
 """
 
-from .optimizer import MuonGrokfast
 from .config import MuGrokConfig
+from .optimizer import MuonGrokfast
 
 __all__ = ["MuonGrokfast", "MuGrokConfig"]

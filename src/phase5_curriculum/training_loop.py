@@ -10,12 +10,12 @@ The dataset shrinks as concepts are mastered, providing visible progress.
 M5 TIER 1: OpenRouter integration for variant/hint generation using FREE models.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
-import random
-import copy
 import asyncio
+import copy
 import logging
+import random
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -26,11 +26,12 @@ from .curriculum_generator import Question
 # Import OpenRouter client
 try:
     from .openrouter_client import (
-        OpenRouterClient,
+        CompletionResponse,
         ModelProvider,
+        OpenRouterClient,
         get_free_models,
-        CompletionResponse
     )
+
     OPENROUTER_AVAILABLE = True
 except ImportError:
     OPENROUTER_AVAILABLE = False
@@ -41,6 +42,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TrainingMetrics:
     """Metrics from training a level."""
+
     accuracy: float
     mastered: int
     remaining_questions: int
@@ -74,7 +76,7 @@ class CurriculumTrainingLoop:
         max_hints: int = 5,
         enable_variants: bool = True,
         max_epochs: int = 50,
-        convergence_threshold: int = 50  # Stop when this many questions remain
+        convergence_threshold: int = 50,  # Stop when this many questions remain
     ):
         """
         Initialize training loop.
@@ -99,7 +101,7 @@ class CurriculumTrainingLoop:
         tokenizer: Any,
         coding_env: Optional[Any],
         frontier_client: Optional[Any],
-        level: int
+        level: int,
     ) -> Tuple[nn.Module, TrainingMetrics]:
         """
         Train model on a curriculum level.
@@ -141,14 +143,12 @@ class CurriculumTrainingLoop:
 
             for question in active_questions:
                 # Attempt question
-                result = self._attempt_question(
-                    model, question, tokenizer, coding_env
-                )
+                result = self._attempt_question(model, question, tokenizer, coding_env)
 
                 epoch_total += 1
                 total_attempts += 1
 
-                if result['success']:
+                if result["success"]:
                     # Success path
                     epoch_correct += 1
                     total_correct += 1
@@ -160,18 +160,14 @@ class CurriculumTrainingLoop:
                         mastered_count += 1
                     elif self.enable_variants:
                         # Generate variant
-                        variant = self._generate_variant(
-                            question, frontier_client
-                        )
+                        variant = self._generate_variant(question, frontier_client)
                         if variant:
                             questions_to_remove.append(question)
                             questions_to_add.append(variant)
                             variants_generated += 1
 
                     # Train on successful response
-                    loss = self._train_step(
-                        model, optimizer, question, result, tokenizer
-                    )
+                    loss = self._train_step(model, optimizer, question, result, tokenizer)
                     epoch_loss += loss
 
                 else:
@@ -181,17 +177,14 @@ class CurriculumTrainingLoop:
 
                     if len(question.hints) < self.max_hints:
                         # Generate hint
-                        hint = self._generate_hint(
-                            question, result, frontier_client
-                        )
+                        hint = self._generate_hint(question, result, frontier_client)
                         if hint:
                             question.hints.append(hint)
                             hints_given += 1
 
                     # Train on corrected response
                     loss = self._train_step(
-                        model, optimizer, question, result, tokenizer,
-                        include_hints=True
+                        model, optimizer, question, result, tokenizer, include_hints=True
                     )
                     epoch_loss += loss
 
@@ -207,8 +200,10 @@ class CurriculumTrainingLoop:
 
             # Progress update
             if (epoch + 1) % 5 == 0 or epoch == 0:
-                print(f"    Epoch {epoch + 1}: accuracy={epoch_accuracy:.1%}, "
-                      f"remaining={len(active_questions)}, mastered={mastered_count}")
+                print(
+                    f"    Epoch {epoch + 1}: accuracy={epoch_accuracy:.1%}, "
+                    f"remaining={len(active_questions)}, mastered={mastered_count}"
+                )
 
             # Check convergence
             if len(active_questions) <= self.convergence_threshold:
@@ -225,15 +220,11 @@ class CurriculumTrainingLoop:
             variants=variants_generated,
             hints=hints_given,
             epochs=epoch + 1,
-            loss=avg_loss
+            loss=avg_loss,
         )
 
     def _attempt_question(
-        self,
-        model: nn.Module,
-        question: Question,
-        tokenizer: Any,
-        coding_env: Optional[Any]
+        self, model: nn.Module, question: Question, tokenizer: Any, coding_env: Optional[Any]
     ) -> Dict[str, Any]:
         """Have model attempt to answer a question."""
         # Build prompt with any accumulated hints
@@ -247,31 +238,26 @@ class CurriculumTrainingLoop:
         with torch.no_grad():
             try:
                 # Tokenize
-                if hasattr(tokenizer, '__call__'):
+                if hasattr(tokenizer, "__call__"):
                     inputs = tokenizer(
-                        prompt,
-                        return_tensors="pt",
-                        max_length=512,
-                        truncation=True,
-                        padding=True
+                        prompt, return_tensors="pt", max_length=512, truncation=True, padding=True
                     )
                 else:
-                    inputs = {'input_ids': torch.tensor([[1, 2, 3, 4, 5]])}
+                    inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
 
                 device = next(model.parameters()).device
-                inputs = {k: v.to(device) for k, v in inputs.items()
-                          if isinstance(v, torch.Tensor)}
+                inputs = {k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)}
 
                 # Generate
-                if hasattr(model, 'generate'):
+                if hasattr(model, "generate"):
                     outputs = model.generate(
-                        **inputs,
-                        max_new_tokens=256,
-                        temperature=0.7,
-                        do_sample=True
+                        **inputs, max_new_tokens=256, temperature=0.7, do_sample=True
                     )
-                    response = tokenizer.decode(outputs[0], skip_special_tokens=True) \
-                        if hasattr(tokenizer, 'decode') else str(outputs[0].tolist())
+                    response = (
+                        tokenizer.decode(outputs[0], skip_special_tokens=True)
+                        if hasattr(tokenizer, "decode")
+                        else str(outputs[0].tolist())
+                    )
                 else:
                     response = "Model output (no generate)"
 
@@ -279,22 +265,12 @@ class CurriculumTrainingLoop:
                 response = f"Error: {e}"
 
         # Validate response
-        success, error = self._validate_response(
-            response, question, coding_env
-        )
+        success, error = self._validate_response(response, question, coding_env)
 
-        return {
-            'success': success,
-            'response': response,
-            'error': error,
-            'prompt': prompt
-        }
+        return {"success": success, "response": response, "error": error, "prompt": prompt}
 
     def _validate_response(
-        self,
-        response: str,
-        question: Question,
-        coding_env: Optional[Any]
+        self, response: str, question: Question, coding_env: Optional[Any]
     ) -> Tuple[bool, Optional[str]]:
         """Validate model's response against test cases."""
         if coding_env:
@@ -306,7 +282,7 @@ class CurriculumTrainingLoop:
 
                 # Run test cases
                 for test_case in question.test_cases:
-                    if not result.check(test_case['input'], test_case['expected']):
+                    if not result.check(test_case["input"], test_case["expected"]):
                         return False, f"Failed test: {test_case['description']}"
 
                 return True, None
@@ -344,9 +320,7 @@ class CurriculumTrainingLoop:
         return response
 
     def _generate_variant(
-        self,
-        question: Question,
-        frontier_client: Optional[Any]
+        self, question: Question, frontier_client: Optional[Any]
     ) -> Optional[Question]:
         """
         Generate a variant of a successfully answered question.
@@ -371,16 +345,12 @@ class CurriculumTrainingLoop:
             test_cases=question.test_cases,  # Same concept, similar tests
             hints=[],  # Reset hints
             success_count=0,  # Reset success count
-            attempt_count=0
+            attempt_count=0,
         )
 
         return variant
 
-    def _generate_variant_api(
-        self,
-        question: Question,
-        frontier_client: Any
-    ) -> Optional[Question]:
+    def _generate_variant_api(self, question: Question, frontier_client: Any) -> Optional[Question]:
         """Generate variant using OpenRouter API."""
         prompt = f"""Given this question:
 "{question.question}"
@@ -398,12 +368,9 @@ Generate high-quality variant questions that test the same underlying concept
 but use different specific examples and wording."""
 
         try:
-            response = asyncio.run(self._async_complete(
-                frontier_client,
-                prompt,
-                system_prompt,
-                max_tokens=256
-            ))
+            response = asyncio.run(
+                self._async_complete(frontier_client, prompt, system_prompt, max_tokens=256)
+            )
 
             if response.success and response.content.strip():
                 return Question(
@@ -415,7 +382,7 @@ but use different specific examples and wording."""
                     test_cases=question.test_cases,
                     hints=[],
                     success_count=0,
-                    attempt_count=0
+                    attempt_count=0,
                 )
         except Exception as e:
             logger.warning(f"Variant API error: {e}")
@@ -423,26 +390,22 @@ but use different specific examples and wording."""
         return None
 
     async def _async_complete(
-        self,
-        frontier_client: Any,
-        prompt: str,
-        system_prompt: str,
-        max_tokens: int = 256
-    ) -> 'CompletionResponse':
+        self, frontier_client: Any, prompt: str, system_prompt: str, max_tokens: int = 256
+    ) -> "CompletionResponse":
         """Async wrapper for OpenRouter completion."""
         # Use first free model available
         model = ModelProvider.QWEN_FREE
 
         async with OpenRouterClient(
-            api_key=frontier_client.api_key if hasattr(frontier_client, 'api_key') else None,
-            default_model=model
+            api_key=frontier_client.api_key if hasattr(frontier_client, "api_key") else None,
+            default_model=model,
         ) as client:
             return await client.complete(
                 prompt=prompt,
                 model=model,
                 system_prompt=system_prompt,
                 max_tokens=max_tokens,
-                temperature=0.7
+                temperature=0.7,
             )
 
     def _modify_question(self, question_text: str) -> str:
@@ -464,7 +427,8 @@ but use different specific examples and wording."""
 
         # Change numbers
         import re
-        numbers = re.findall(r'\d+', result)
+
+        numbers = re.findall(r"\d+", result)
         for num in numbers[:1]:  # Change first number
             new_num = str(int(num) + random.randint(1, 10))
             result = result.replace(num, new_num, 1)
@@ -472,10 +436,7 @@ but use different specific examples and wording."""
         return result
 
     def _generate_hint(
-        self,
-        question: Question,
-        result: Dict,
-        frontier_client: Optional[Any]
+        self, question: Question, result: Dict, frontier_client: Optional[Any]
     ) -> Optional[str]:
         """
         Generate hint based on failure analysis.
@@ -491,7 +452,7 @@ but use different specific examples and wording."""
                 logger.warning(f"API hint generation failed: {e}, using placeholder")
 
         # Fallback: Placeholder hints based on error type
-        error = result.get('error', '')
+        error = result.get("error", "")
 
         hint_templates = [
             "Consider breaking down the problem into smaller steps.",
@@ -511,14 +472,11 @@ but use different specific examples and wording."""
         return random.choice(hint_templates)
 
     def _generate_hint_api(
-        self,
-        question: Question,
-        result: Dict,
-        frontier_client: Any
+        self, question: Question, result: Dict, frontier_client: Any
     ) -> Optional[str]:
         """Generate hint using OpenRouter API with root cause analysis."""
-        error = result.get('error', 'Unknown error')
-        response_text = result.get('response', '')
+        error = result.get("error", "Unknown error")
+        response_text = result.get("response", "")
 
         prompt = f"""A student attempted this question:
 "{question.question}"
@@ -541,12 +499,9 @@ Generate hints that help students discover solutions themselves
 rather than giving direct answers. Be encouraging and specific."""
 
         try:
-            response = asyncio.run(self._async_complete(
-                frontier_client,
-                prompt,
-                system_prompt,
-                max_tokens=128
-            ))
+            response = asyncio.run(
+                self._async_complete(frontier_client, prompt, system_prompt, max_tokens=128)
+            )
 
             if response.success and response.content.strip():
                 return response.content.strip()
@@ -562,7 +517,7 @@ rather than giving direct answers. Be encouraging and specific."""
         question: Question,
         result: Dict,
         tokenizer: Any,
-        include_hints: bool = False
+        include_hints: bool = False,
     ) -> float:
         """Execute one training step."""
         model.train()
@@ -575,40 +530,35 @@ rather than giving direct answers. Be encouraging and specific."""
 
         try:
             # Tokenize
-            if hasattr(tokenizer, '__call__'):
+            if hasattr(tokenizer, "__call__"):
                 inputs = tokenizer(
-                    prompt,
-                    return_tensors="pt",
-                    max_length=512,
-                    truncation=True,
-                    padding=True
+                    prompt, return_tensors="pt", max_length=512, truncation=True, padding=True
                 )
             else:
-                inputs = {'input_ids': torch.tensor([[1, 2, 3, 4, 5]])}
+                inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
 
             device = next(model.parameters()).device
-            inputs = {k: v.to(device) for k, v in inputs.items()
-                      if isinstance(v, torch.Tensor)}
+            inputs = {k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)}
 
             # Forward pass
-            if hasattr(model, 'forward'):
+            if hasattr(model, "forward"):
                 outputs = model(**inputs)
-                if hasattr(outputs, 'logits'):
+                if hasattr(outputs, "logits"):
                     logits = outputs.logits
-                elif hasattr(outputs, 'loss'):
+                elif hasattr(outputs, "loss"):
                     loss = outputs.loss
                 else:
                     logits = outputs
 
                 # Compute loss if not provided
-                if 'loss' not in dir():
+                if "loss" not in dir():
                     # Simple language modeling loss
                     shift_logits = logits[..., :-1, :].contiguous()
-                    shift_labels = inputs['input_ids'][..., 1:].contiguous()
+                    shift_labels = inputs["input_ids"][..., 1:].contiguous()
                     loss = F.cross_entropy(
                         shift_logits.view(-1, shift_logits.size(-1)),
                         shift_labels.view(-1),
-                        ignore_index=0
+                        ignore_index=0,
                     )
             else:
                 return 0.0
@@ -625,4 +575,4 @@ rather than giving direct answers. Be encouraging and specific."""
             return 0.0
 
 
-__all__ = ['CurriculumTrainingLoop', 'TrainingMetrics']
+__all__ = ["CurriculumTrainingLoop", "TrainingMetrics"]

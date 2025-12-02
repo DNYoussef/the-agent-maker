@@ -6,13 +6,15 @@ Tests STE wrapper, dual output, and compression stats
 import pytest
 import torch
 import torch.nn as nn
+
 from src.phase4_bitnet.compressed_model import CompressedModel
-from src.phase4_bitnet.quantizer import BitNetQuantizer
 from src.phase4_bitnet.config import Phase4Config
+from src.phase4_bitnet.quantizer import BitNetQuantizer
 
 
 class SimpleTestModel(nn.Module):
     """Simple model for testing"""
+
     def __init__(self):
         super().__init__()
         self.embeddings = nn.Embedding(100, 32)
@@ -113,19 +115,14 @@ class TestCompressedModel:
 
         # Create loss
         target = torch.randint(0, 100, (2, 10))
-        loss = nn.CrossEntropyLoss()(
-            output.view(-1, 100),
-            target.view(-1)
-        )
+        loss = nn.CrossEntropyLoss()(output.view(-1, 100), target.view(-1))
 
         # Backward pass
         loss.backward()
 
         # Check gradients exist
         has_gradients = any(
-            p.grad is not None
-            for p in compressed_model.base_model.parameters()
-            if p.requires_grad
+            p.grad is not None for p in compressed_model.base_model.parameters() if p.requires_grad
         )
 
         assert has_gradients, "STE should preserve gradient flow"
@@ -138,8 +135,8 @@ class TestCompressedModel:
         assert len(quantized_dict) > 0
 
         # Check linear layers are int8
-        assert quantized_dict['linear1.weight'].dtype == torch.int8
-        assert quantized_dict['linear2.weight'].dtype == torch.int8
+        assert quantized_dict["linear1.weight"].dtype == torch.int8
+        assert quantized_dict["linear2.weight"].dtype == torch.int8
 
     def test_get_dequantized_state_dict(self, compressed_model):
         """Test dequantized FP16 state dict"""
@@ -186,25 +183,25 @@ class TestCompressedModel:
         stats = compressed_model.get_compression_stats()
 
         # Check required fields
-        assert 'is_compressed' in stats
-        assert 'original_size_mb' in stats
-        assert 'quantized_size_mb' in stats
-        assert 'compression_ratio' in stats
-        assert 'layers_quantized' in stats
-        assert 'sparsity_ratio' in stats
+        assert "is_compressed" in stats
+        assert "original_size_mb" in stats
+        assert "quantized_size_mb" in stats
+        assert "compression_ratio" in stats
+        assert "layers_quantized" in stats
+        assert "sparsity_ratio" in stats
 
         # Check values
-        assert stats['is_compressed'] is True
-        assert stats['compression_ratio'] > 1.0
-        assert 0.0 <= stats['sparsity_ratio'] <= 1.0
+        assert stats["is_compressed"] is True
+        assert stats["compression_ratio"] > 1.0
+        assert 0.0 <= stats["sparsity_ratio"] <= 1.0
 
     def test_compression_ratio_calculation(self, compressed_model):
         """Test compression ratio is calculated correctly"""
         stats = compressed_model.get_compression_stats()
 
-        original_mb = stats['original_size_mb']
-        compressed_mb = stats['quantized_size_mb']
-        ratio = stats['compression_ratio']
+        original_mb = stats["original_size_mb"]
+        compressed_mb = stats["quantized_size_mb"]
+        ratio = stats["compression_ratio"]
 
         # Check formula
         expected_ratio = original_mb / compressed_mb
@@ -216,8 +213,8 @@ class TestCompressedModel:
 
         stats = model.get_compression_stats()
 
-        assert stats['is_compressed'] is False
-        assert stats['compression_ratio'] == 1.0
+        assert stats["is_compressed"] is False
+        assert stats["compression_ratio"] == 1.0
 
     def test_dual_output_size_difference(self, compressed_model):
         """Test quantized vs dequantized size difference"""
@@ -225,15 +222,9 @@ class TestCompressedModel:
         dequantized_dict = compressed_model.get_dequantized_state_dict()
 
         # Calculate sizes
-        quantized_size = sum(
-            t.nelement() * t.element_size()
-            for t in quantized_dict.values()
-        )
+        quantized_size = sum(t.nelement() * t.element_size() for t in quantized_dict.values())
 
-        dequantized_size = sum(
-            t.nelement() * t.element_size()
-            for t in dequantized_dict.values()
-        )
+        dequantized_size = sum(t.nelement() * t.element_size() for t in dequantized_dict.values())
 
         # Quantized should be smaller
         assert quantized_size < dequantized_size
@@ -261,33 +252,21 @@ class TestCompressedModelEdgeCases:
 
     def test_get_quantized_before_compression_raises(self, quantizer, config):
         """Test getting quantized dict before compression raises error"""
-        model = CompressedModel(
-            SimpleTestModel(),
-            quantizer,
-            config
-        )
+        model = CompressedModel(SimpleTestModel(), quantizer, config)
 
         with pytest.raises(RuntimeError):
             model.get_quantized_state_dict()
 
     def test_get_scales_before_compression_raises(self, quantizer, config):
         """Test getting scales before compression raises error"""
-        model = CompressedModel(
-            SimpleTestModel(),
-            quantizer,
-            config
-        )
+        model = CompressedModel(SimpleTestModel(), quantizer, config)
 
         with pytest.raises(RuntimeError):
             model.get_scale_factors()
 
     def test_multiple_compressions(self, quantizer, config):
         """Test compressing same model multiple times"""
-        model = CompressedModel(
-            SimpleTestModel(),
-            quantizer,
-            config
-        )
+        model = CompressedModel(SimpleTestModel(), quantizer, config)
 
         # Compress twice
         model.compress()
@@ -297,13 +276,11 @@ class TestCompressedModelEdgeCases:
         second_stats = model.get_compression_stats()
 
         # Stats should be similar (may vary slightly due to randomness)
-        assert abs(
-            first_stats['compression_ratio'] -
-            second_stats['compression_ratio']
-        ) < 1.0
+        assert abs(first_stats["compression_ratio"] - second_stats["compression_ratio"]) < 1.0
 
     def test_empty_model_compression(self, quantizer, config):
         """Test compressing empty model"""
+
         class EmptyModel(nn.Module):
             def forward(self, x):
                 return x
@@ -314,15 +291,11 @@ class TestCompressedModelEdgeCases:
         model.compress()
 
         stats = model.get_compression_stats()
-        assert stats['is_compressed'] is True
+        assert stats["is_compressed"] is True
 
     def test_large_batch_forward(self, quantizer, config):
         """Test forward pass with large batch"""
-        model = CompressedModel(
-            SimpleTestModel(),
-            quantizer,
-            config
-        )
+        model = CompressedModel(SimpleTestModel(), quantizer, config)
         model.compress()
 
         # Large batch
@@ -385,11 +358,7 @@ class TestCompressedModelIntegration:
         )
 
         quantizer = BitNetQuantizer(config_no_preserve)
-        model = CompressedModel(
-            SimpleTestModel(),
-            quantizer,
-            config_no_preserve
-        )
+        model = CompressedModel(SimpleTestModel(), quantizer, config_no_preserve)
         model.compress()
 
         # Get quantized dict
@@ -398,4 +367,4 @@ class TestCompressedModelIntegration:
         # Even embeddings should be quantized (if config allows)
         # Note: This depends on quantizer implementation
         stats = model.get_compression_stats()
-        assert stats['is_compressed'] is True
+        assert stats["is_compressed"] is True

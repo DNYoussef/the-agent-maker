@@ -4,9 +4,10 @@ Phase 3 Quiet-STaR Data Classes
 Core data structures for thought generation and coherence scoring.
 """
 
-import torch
-from typing import List, Optional
 from dataclasses import dataclass
+from typing import List, Optional
+
+import torch
 
 
 @dataclass

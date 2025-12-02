@@ -6,24 +6,20 @@ Tests complete pipeline from Phase 2 input to Phase 4 output.
 Target: ≥85% coverage
 """
 
+import json
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
 import torch
 import torch.nn as nn
-from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
-import json
 
-from src.phase3_quietstar.config import QuietSTaRConfig
-from src.phase3_quietstar.vocabulary import prepare_model_for_phase3
-from src.phase3_quietstar.step1_baking import (
-    PromptBakingTrainer,
-    ReasoningDataset,
-)
-from src.phase3_quietstar.step2_rl import REINFORCETrainer
 from src.phase3_quietstar.anti_theater import validate_anti_theater
-from src.phase3_quietstar.phase_handoff import (
-    validate_full_phase3_pipeline,
-)
+from src.phase3_quietstar.config import QuietSTaRConfig
+from src.phase3_quietstar.phase_handoff import validate_full_phase3_pipeline
+from src.phase3_quietstar.step1_baking import PromptBakingTrainer, ReasoningDataset
+from src.phase3_quietstar.step2_rl import REINFORCETrainer
+from src.phase3_quietstar.vocabulary import prepare_model_for_phase3
 
 
 @pytest.fixture
@@ -42,15 +38,11 @@ def mock_model():
     model.return_value = mock_output
 
     # Mock parameters
-    model.parameters = Mock(
-        return_value=[torch.randn(100, 100) for _ in range(10)]
-    )
+    model.parameters = Mock(return_value=[torch.randn(100, 100) for _ in range(10)])
 
     # Mock state dict
     model.state_dict = Mock(
-        return_value={
-            f"layer{i}.weight": torch.randn(100, 100) for i in range(10)
-        }
+        return_value={f"layer{i}.weight": torch.randn(100, 100) for i in range(10)}
     )
 
     # Mock load_state_dict
@@ -73,9 +65,7 @@ def mock_tokenizer():
     tokenizer = Mock()
     tokenizer.__len__ = Mock(return_value=50257)
     tokenizer.add_special_tokens = Mock(return_value=8)
-    tokenizer.convert_tokens_to_ids = Mock(
-        side_effect=lambda t: hash(t) % 100000
-    )
+    tokenizer.convert_tokens_to_ids = Mock(side_effect=lambda t: hash(t) % 100000)
     tokenizer.get_vocab = Mock(
         return_value={
             "<think>": 50257,
@@ -132,9 +122,7 @@ class TestVocabularyIntegration:
 
     def test_prepare_model_adds_tokens(self, mock_model, mock_tokenizer):
         """Test prepare_model_for_phase3 adds tokens."""
-        model, tokenizer, vocab = prepare_model_for_phase3(
-            mock_model, mock_tokenizer
-        )
+        model, tokenizer, vocab = prepare_model_for_phase3(mock_model, mock_tokenizer)
 
         # Check tokens were added
         mock_tokenizer.add_special_tokens.assert_called_once()
@@ -145,9 +133,7 @@ class TestVocabularyIntegration:
 
     def test_thinking_tokens_count(self, mock_model, mock_tokenizer):
         """Test correct number of thinking tokens."""
-        model, tokenizer, vocab = prepare_model_for_phase3(
-            mock_model, mock_tokenizer
-        )
+        model, tokenizer, vocab = prepare_model_for_phase3(mock_model, mock_tokenizer)
 
         assert len(vocab.thinking_tokens) == 8
 
@@ -155,30 +141,22 @@ class TestVocabularyIntegration:
 class TestStep1Integration:
     """Test Step 1 (Prompt Baking) integration."""
 
-    def test_trainer_initialization(
-        self, mock_model, mock_tokenizer, config
-    ):
+    def test_trainer_initialization(self, mock_model, mock_tokenizer, config):
         """Test PromptBakingTrainer initialization."""
-        with patch(
-            "src.phase3_quietstar.step1_baking.prepare_model_for_phase3"
-        ) as mock_prepare:
+        with patch("src.phase3_quietstar.step1_baking.prepare_model_for_phase3") as mock_prepare:
             mock_prepare.return_value = (
                 mock_model,
                 mock_tokenizer,
                 Mock(),
             )
 
-            trainer = PromptBakingTrainer(
-                mock_model, mock_tokenizer, config, device="cpu"
-            )
+            trainer = PromptBakingTrainer(mock_model, mock_tokenizer, config, device="cpu")
 
             assert trainer.model is not None
             assert trainer.tokenizer is not None
             assert trainer.optimizer is not None
 
-    def test_dataset_creation(
-        self, sample_reasoning_data, mock_tokenizer
-    ):
+    def test_dataset_creation(self, sample_reasoning_data, mock_tokenizer):
         """Test ReasoningDataset creation."""
         with open(sample_reasoning_data) as f:
             examples = json.load(f)
@@ -198,13 +176,9 @@ class TestStep1Integration:
 class TestStep2Integration:
     """Test Step 2 (Quiet-STaR RL) integration."""
 
-    def test_reinforce_trainer_initialization(
-        self, mock_model, mock_tokenizer, config
-    ):
+    def test_reinforce_trainer_initialization(self, mock_model, mock_tokenizer, config):
         """Test REINFORCETrainer initialization."""
-        with patch(
-            "src.phase3_quietstar.step2_rl.QuietSTaRModel"
-        ) as mock_quietstar:
+        with patch("src.phase3_quietstar.step2_rl.QuietSTaRModel") as mock_quietstar:
             mock_quietstar.return_value = Mock(spec=nn.Module)
 
             trainer = REINFORCETrainer(
@@ -221,9 +195,7 @@ class TestStep2Integration:
 
     def test_compute_reward(self, mock_model, mock_tokenizer, config):
         """Test reward computation."""
-        with patch(
-            "src.phase3_quietstar.step2_rl.QuietSTaRModel"
-        ) as mock_quietstar:
+        with patch("src.phase3_quietstar.step2_rl.QuietSTaRModel") as mock_quietstar:
             mock_quietstar.return_value = Mock(spec=nn.Module)
 
             trainer = REINFORCETrainer(
@@ -238,20 +210,14 @@ class TestStep2Integration:
             logits_without = torch.randn(2, 10, 50257)
             labels = torch.randint(0, 50257, (2, 10))
 
-            reward = trainer.compute_reward(
-                logits_with, logits_without, labels
-            )
+            reward = trainer.compute_reward(logits_with, logits_without, labels)
 
             assert reward.shape == (2,)
             assert torch.all((reward == 0) | (reward == 1))
 
-    def test_compute_kl_divergence(
-        self, mock_model, mock_tokenizer, config
-    ):
+    def test_compute_kl_divergence(self, mock_model, mock_tokenizer, config):
         """Test KL divergence computation."""
-        with patch(
-            "src.phase3_quietstar.step2_rl.QuietSTaRModel"
-        ) as mock_quietstar:
+        with patch("src.phase3_quietstar.step2_rl.QuietSTaRModel") as mock_quietstar:
             mock_quietstar.return_value = Mock(spec=nn.Module)
 
             trainer = REINFORCETrainer(
@@ -276,13 +242,9 @@ class TestAntiTheaterIntegration:
 
     def test_divergence_test(self, mock_model, mock_tokenizer, config):
         """Test divergence test."""
-        from src.phase3_quietstar.anti_theater import (
-            AntiTheaterValidator,
-        )
+        from src.phase3_quietstar.anti_theater import AntiTheaterValidator
 
-        with patch.object(
-            mock_model, "generate", return_value=torch.randint(0, 50257, (1, 30))
-        ):
+        with patch.object(mock_model, "generate", return_value=torch.randint(0, 50257, (1, 30))):
             validator = AntiTheaterValidator(
                 mock_model, mock_tokenizer, config.anti_theater, device="cpu"
             )
@@ -301,18 +263,13 @@ class TestPhaseHandoffIntegration:
 
     def test_validate_phase2_input(self, tmp_path):
         """Test Phase 2 input validation."""
-        from src.phase3_quietstar.phase_handoff import (
-            Phase3HandoffValidator,
-        )
+        from src.phase3_quietstar.phase_handoff import Phase3HandoffValidator
 
         # Create mock Phase 2 checkpoint
         phase2_path = tmp_path / "phase2_model.pt"
         torch.save(
             {
-                "model_state_dict": {
-                    f"layer{i}.weight": torch.randn(100, 100)
-                    for i in range(10)
-                },
+                "model_state_dict": {f"layer{i}.weight": torch.randn(100, 100) for i in range(10)},
                 "config": {"phase": 2},
                 "metadata": {
                     "phase": 2,
@@ -334,9 +291,7 @@ class TestPhaseHandoffIntegration:
 
     def test_validate_phase3_output(self, tmp_path):
         """Test Phase 3 output validation."""
-        from src.phase3_quietstar.phase_handoff import (
-            Phase3HandoffValidator,
-        )
+        from src.phase3_quietstar.phase_handoff import Phase3HandoffValidator
 
         # Create mock checkpoints
         final_path = tmp_path / "phase3_final.pt"
@@ -345,10 +300,7 @@ class TestPhaseHandoffIntegration:
 
         torch.save(
             {
-                "model_state_dict": {
-                    f"layer{i}.weight": torch.randn(100, 100)
-                    for i in range(10)
-                },
+                "model_state_dict": {f"layer{i}.weight": torch.randn(100, 100) for i in range(10)},
                 "config": {
                     "thinking_tokens": [
                         "<think>",
@@ -371,18 +323,14 @@ class TestPhaseHandoffIntegration:
             final_path,
         )
 
-        torch.save(
-            {"final_accuracy": 0.87, "strategy_accuracies": {}}, baked_path
-        )
+        torch.save({"final_accuracy": 0.87, "strategy_accuracies": {}}, baked_path)
 
         torch.save({"reward_history": [0.5] * 1000, "episode": 1000}, rl_path)
 
         registry_path = tmp_path / "registry.db"
         validator = Phase3HandoffValidator(registry_path)
 
-        valid, metadata = validator.validate_phase3_output(
-            final_path, baked_path, rl_path
-        )
+        valid, metadata = validator.validate_phase3_output(final_path, baked_path, rl_path)
 
         assert valid is True
         assert metadata["num_thinking_tokens"] == 8
@@ -406,10 +354,7 @@ class TestFullPipeline:
         # Phase 2 checkpoint
         torch.save(
             {
-                "model_state_dict": {
-                    f"layer{i}.weight": torch.randn(100, 100)
-                    for i in range(10)
-                },
+                "model_state_dict": {f"layer{i}.weight": torch.randn(100, 100) for i in range(10)},
                 "config": {},
                 "metadata": {
                     "phase": 2,
@@ -427,17 +372,12 @@ class TestFullPipeline:
         )
 
         # Phase 3 Step 2 (RL)
-        torch.save(
-            {"reward_history": [0.6] * 1000, "episode": 1000}, phase3_rl_path
-        )
+        torch.save({"reward_history": [0.6] * 1000, "episode": 1000}, phase3_rl_path)
 
         # Phase 3 final
         torch.save(
             {
-                "model_state_dict": {
-                    f"layer{i}.weight": torch.randn(100, 100)
-                    for i in range(10)
-                },
+                "model_state_dict": {f"layer{i}.weight": torch.randn(100, 100) for i in range(10)},
                 "config": {"thinking_tokens": ["<think>"] * 8},
                 "anti_theater_results": {"all_passed": True},
             },
@@ -465,9 +405,7 @@ def test_different_thought_counts(mock_model, mock_tokenizer, config, num_though
     with patch("src.phase3_quietstar.step2_rl.QuietSTaRModel") as mock_quietstar:
         mock_quietstar.return_value = Mock(spec=nn.Module)
 
-        trainer = REINFORCETrainer(
-            mock_model, mock_model, mock_tokenizer, config, device="cpu"
-        )
+        trainer = REINFORCETrainer(mock_model, mock_model, mock_tokenizer, config, device="cpu")
 
         # Should initialize without error
         assert trainer.config.rl.num_thoughts == num_thoughts

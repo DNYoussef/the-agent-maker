@@ -8,14 +8,16 @@ Tests the complete model creation pipeline including:
 - Checkpoint save/load operations
 """
 
+import json
+import sys
+from pathlib import Path
+from unittest.mock import Mock, patch
+
 import pytest
 import torch
 import torch.nn as nn
-from pathlib import Path
-from unittest.mock import Mock, patch
-import sys
-import json
-from safetensors.torch import save_file as safe_save_file, load_file as safe_load_file
+from safetensors.torch import load_file as safe_load_file
+from safetensors.torch import save_file as safe_save_file
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
@@ -25,16 +27,16 @@ class TestPhase1CognateE2E:
 
     def test_model_creation(self, mock_model):
         """Test model can be created with expected architecture."""
-        assert hasattr(mock_model, 'config')
+        assert hasattr(mock_model, "config")
         assert mock_model.config.hidden_size == 256
         assert mock_model.config.num_layers == 2
         assert mock_model.config.vocab_size == 1000
 
     def test_model_has_required_components(self, mock_model):
         """Test model has all required components."""
-        assert hasattr(mock_model, 'embeddings')
-        assert hasattr(mock_model, 'layers')
-        assert hasattr(mock_model, 'lm_head')
+        assert hasattr(mock_model, "embeddings")
+        assert hasattr(mock_model, "layers")
+        assert hasattr(mock_model, "lm_head")
         assert isinstance(mock_model.embeddings, nn.Embedding)
         assert isinstance(mock_model.layers, nn.ModuleList)
         assert isinstance(mock_model.lm_head, nn.Linear)
@@ -42,7 +44,7 @@ class TestPhase1CognateE2E:
     def test_forward_pass(self, mock_model, mock_tokenizer):
         """Test model forward pass works."""
         inputs = mock_tokenizer("Test input text")
-        outputs = mock_model(inputs['input_ids'])
+        outputs = mock_model(inputs["input_ids"])
 
         assert outputs.logits is not None
         assert outputs.logits.shape[0] == 1  # batch size
@@ -51,10 +53,7 @@ class TestPhase1CognateE2E:
     def test_forward_pass_with_attention_mask(self, mock_model, mock_tokenizer):
         """Test forward pass with attention mask."""
         inputs = mock_tokenizer("Test input text with multiple tokens")
-        outputs = mock_model(
-            inputs['input_ids'],
-            attention_mask=inputs['attention_mask']
-        )
+        outputs = mock_model(inputs["input_ids"], attention_mask=inputs["attention_mask"])
 
         assert outputs.logits is not None
         assert outputs.hidden_states is not None
@@ -62,7 +61,7 @@ class TestPhase1CognateE2E:
     def test_training_step(self, mock_model, mock_dataloader):
         """Test single training step completes."""
         batch = next(iter(mock_dataloader))
-        outputs = mock_model(batch['input_ids'], labels=batch['labels'])
+        outputs = mock_model(batch["input_ids"], labels=batch["labels"])
 
         assert outputs.loss is not None
         assert outputs.loss.requires_grad
@@ -85,7 +84,7 @@ class TestPhase1CognateE2E:
                 break
 
             optimizer.zero_grad()
-            outputs = mock_model(batch['input_ids'], labels=batch['labels'])
+            outputs = mock_model(batch["input_ids"], labels=batch["labels"])
             outputs.loss.backward()
             optimizer.step()
 
@@ -105,13 +104,13 @@ class TestPhase1CognateE2E:
 
         # Save metadata separately as JSON
         metadata = {
-            'config': {
-                'vocab_size': mock_model.config.vocab_size,
-                'hidden_size': mock_model.config.hidden_size,
-                'num_layers': mock_model.config.num_layers
+            "config": {
+                "vocab_size": mock_model.config.vocab_size,
+                "hidden_size": mock_model.config.hidden_size,
+                "num_layers": mock_model.config.num_layers,
             }
         }
-        with open(json_path, 'w') as f:
+        with open(json_path, "w") as f:
             json.dump(metadata, f)
 
         assert safetensors_path.exists()
@@ -128,13 +127,13 @@ class TestPhase1CognateE2E:
         safe_save_file(state_dict, str(safetensors_path))
 
         metadata = {
-            'config': {
-                'vocab_size': mock_model.config.vocab_size,
-                'hidden_size': mock_model.config.hidden_size,
-                'num_layers': mock_model.config.num_layers
+            "config": {
+                "vocab_size": mock_model.config.vocab_size,
+                "hidden_size": mock_model.config.hidden_size,
+                "num_layers": mock_model.config.num_layers,
             }
         }
-        with open(json_path, 'w') as f:
+        with open(json_path, "w") as f:
             json.dump(metadata, f)
 
         # Load checkpoint
@@ -142,22 +141,18 @@ class TestPhase1CognateE2E:
         mock_model.load_state_dict(loaded_state_dict)
 
         # Load metadata
-        with open(json_path, 'r') as f:
+        with open(json_path, "r") as f:
             loaded_config = json.load(f)
 
-        assert loaded_config['config']['vocab_size'] == 1000
-        assert loaded_config['config']['hidden_size'] == 256
+        assert loaded_config["config"]["vocab_size"] == 1000
+        assert loaded_config["config"]["hidden_size"] == 256
 
-    def test_checkpoint_save_load_preserves_weights(
-        self, mock_model, temp_checkpoint_dir
-    ):
+    def test_checkpoint_save_load_preserves_weights(self, mock_model, temp_checkpoint_dir):
         """Test checkpoint save/load preserves model weights."""
         safetensors_path = temp_checkpoint_dir / "phase1_weights_test.safetensors"
 
         # Save original weights
-        original_weights = {
-            k: v.clone() for k, v in mock_model.state_dict().items()
-        }
+        original_weights = {k: v.clone() for k, v in mock_model.state_dict().items()}
         safe_save_file(mock_model.state_dict(), str(safetensors_path))
 
         # Modify model weights
@@ -179,7 +174,7 @@ class TestPhase1CognateE2E:
         texts = ["Text one", "Text two", "Text three"]
         inputs = mock_tokenizer(texts)
 
-        outputs = mock_model(inputs['input_ids'])
+        outputs = mock_model(inputs["input_ids"])
 
         assert outputs.logits.shape[0] == len(texts)
         assert outputs.logits.shape[2] == mock_model.config.vocab_size
@@ -196,16 +191,16 @@ class TestPhase1CognateE2E:
     def test_model_device_placement(self, mock_model):
         """Test model can be moved to different devices."""
         # Test CPU placement (default)
-        assert next(mock_model.parameters()).device.type == 'cpu'
+        assert next(mock_model.parameters()).device.type == "cpu"
 
         # Test moving to CPU explicitly
         mock_model.cpu()
-        assert next(mock_model.parameters()).device.type == 'cpu'
+        assert next(mock_model.parameters()).device.type == "cpu"
 
     def test_gradient_flow(self, mock_model, mock_dataloader):
         """Test gradients flow through all layers."""
         batch = next(iter(mock_dataloader))
-        outputs = mock_model(batch['input_ids'], labels=batch['labels'])
+        outputs = mock_model(batch["input_ids"], labels=batch["labels"])
         outputs.loss.backward()
 
         # Check all parameters have gradients
@@ -220,7 +215,7 @@ class TestPhase1CognateE2E:
 
         with torch.no_grad():
             inputs = mock_tokenizer("Inference test")
-            outputs = mock_model(inputs['input_ids'])
+            outputs = mock_model(inputs["input_ids"])
 
         assert outputs.logits is not None
         assert not outputs.logits.requires_grad

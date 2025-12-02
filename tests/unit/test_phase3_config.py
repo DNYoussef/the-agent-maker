@@ -13,13 +13,14 @@ Target: ≥95% coverage
 """
 
 import pytest
+
 from src.phase3_quietstar.config import (
-    ThinkingTokens,
-    ReasoningStrategies,
-    PromptBakingConfig,
-    QuietSTaRRLConfig,
     AntiTheaterConfig,
+    PromptBakingConfig,
     QuietSTaRConfig,
+    QuietSTaRRLConfig,
+    ReasoningStrategies,
+    ThinkingTokens,
 )
 
 
@@ -385,9 +386,7 @@ class TestConfigConsistency:
 )
 def test_custom_optimizer_configs(muon_lr, grokfast_lambda):
     """Test custom optimizer configurations."""
-    config = PromptBakingConfig(
-        muon_lr=muon_lr, grokfast_lambda=grokfast_lambda
-    )
+    config = PromptBakingConfig(muon_lr=muon_lr, grokfast_lambda=grokfast_lambda)
 
     assert config.muon_lr == muon_lr
     assert config.grokfast_lambda == grokfast_lambda

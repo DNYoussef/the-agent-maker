@@ -24,15 +24,15 @@ Example:
 """
 
 from .config import EvolutionConfig
-from .population import initialize_population
-from .mutation import mutate_model
 from .diversity import compute_diversity
 from .evolution_loop import EvolutionLoop
+from .mutation import mutate_model
+from .population import initialize_population
 
 __all__ = [
-    'EvolutionConfig',
-    'EvolutionLoop',
-    'initialize_population',
-    'mutate_model',
-    'compute_diversity'
+    "EvolutionConfig",
+    "EvolutionLoop",
+    "initialize_population",
+    "mutate_model",
+    "compute_diversity",
 ]

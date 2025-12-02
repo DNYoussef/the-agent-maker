@@ -45,7 +45,7 @@ jobs:
         twine upload dist/* --skip-existing
 
     - name: Upload release assets
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: release-distributions
         path: dist/

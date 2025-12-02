@@ -2,22 +2,22 @@
 Pipeline Overview Page
 Shows current pipeline status, progress, and session information
 """
-import streamlit as st
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import streamlit as st
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from cross_phase.storage.model_registry import ModelRegistry
 from cross_phase.orchestrator.pipeline import PipelineOrchestrator
+from cross_phase.storage.model_registry import ModelRegistry
 
 
 def render():
     """Render pipeline overview page"""
-    st.markdown('<h1 class="main-header">Pipeline Overview</h1>',
-                unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">Pipeline Overview</h1>', unsafe_allow_html=True)
 
     # Initialize registry
     registry = ModelRegistry()
@@ -27,13 +27,11 @@ def render():
 
     with col1:
         st.subheader("Current Session")
-        sessions = registry.list_sessions() if hasattr(registry, 'list_sessions') else []
+        sessions = registry.list_sessions() if hasattr(registry, "list_sessions") else []
 
         if sessions:
             session_id = st.selectbox(
-                "Select Session",
-                sessions,
-                format_func=lambda x: f"Session: {x}"
+                "Select Session", sessions, format_func=lambda x: f"Session: {x}"
             )
         else:
             st.info("No active sessions. Create a new session to begin.")
@@ -43,10 +41,10 @@ def render():
         st.subheader("Quick Actions")
         if st.button("Create New Session", type="primary"):
             new_session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            registry.create_session(new_session_id, {
-                "created": datetime.now().isoformat(),
-                "pipeline": "agent-forge-v2"
-            })
+            registry.create_session(
+                new_session_id,
+                {"created": datetime.now().isoformat(), "pipeline": "agent-forge-v2"},
+            )
             st.success(f"Created session: {new_session_id}")
             st.rerun()
 
@@ -54,37 +52,31 @@ def render():
 
     if session_id:
         # Get session info
-        session_info = registry.get_session(session_id) if hasattr(registry, 'get_session') else None
+        session_info = (
+            registry.get_session(session_id) if hasattr(registry, "get_session") else None
+        )
 
         if session_info:
             # Session status
             col1, col2, col3, col4 = st.columns(4)
 
             with col1:
-                st.metric(
-                    "Status",
-                    session_info.get('status', 'unknown').upper()
-                )
+                st.metric("Status", session_info.get("status", "unknown").upper())
 
             with col2:
-                st.metric(
-                    "Current Phase",
-                    session_info.get('current_phase', 'N/A')
-                )
+                st.metric("Current Phase", session_info.get("current_phase", "N/A"))
 
             with col3:
-                progress = session_info.get('progress_percent', 0.0)
-                st.metric(
-                    "Progress",
-                    f"{progress:.1f}%"
-                )
+                progress = session_info.get("progress_percent", 0.0)
+                st.metric("Progress", f"{progress:.1f}%")
 
             with col4:
-                models_count = len(registry.get_session_models(session_id)) if hasattr(registry, 'get_session_models') else 0
-                st.metric(
-                    "Models Created",
-                    models_count
+                models_count = (
+                    len(registry.get_session_models(session_id))
+                    if hasattr(registry, "get_session_models")
+                    else 0
                 )
+                st.metric("Models Created", models_count)
 
             # Progress bar
             st.progress(progress / 100.0)
@@ -102,10 +94,10 @@ def render():
                 ("Phase 5", "Curriculum Learning", "7-stage adaptive"),
                 ("Phase 6", "Tool & Persona Baking", "A/B optimization"),
                 ("Phase 7", "Self-Guided Experts", "Model-driven discovery"),
-                ("Phase 8", "Final Compression", "280× compression")
+                ("Phase 8", "Final Compression", "280× compression"),
             ]
 
-            current_phase = session_info.get('current_phase', 'phase1')
+            current_phase = session_info.get("current_phase", "phase1")
 
             for phase_name, description, detail in phases:
                 phase_key = phase_name.lower().replace(" ", "")
@@ -130,8 +122,9 @@ def render():
                     st.markdown(f"{description} • {detail}")
 
                 with col3:
-                    st.markdown(f'<span class="{status_class}">{status}</span>',
-                               unsafe_allow_html=True)
+                    st.markdown(
+                        f'<span class="{status_class}">{status}</span>', unsafe_allow_html=True
+                    )
 
             st.markdown("---")
 
@@ -158,6 +151,7 @@ def render():
     # Auto-refresh
     if st.sidebar.checkbox("Auto-refresh (5s)", value=False):
         import time
+
         time.sleep(5)
         st.rerun()
 

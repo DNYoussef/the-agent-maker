@@ -5,11 +5,11 @@ Coordinates execution of all 8 phases with handoff validation
 
 import time
 from datetime import datetime
-from typing import Optional, List
 from pathlib import Path
+from typing import List, Optional
 
-from .phase_controller import PhaseController, PhaseResult
 from ..storage.model_registry import ModelRegistry
+from .phase_controller import PhaseController, PhaseResult
 
 
 class PipelineOrchestrator:
@@ -28,7 +28,9 @@ class PipelineOrchestrator:
         self.session_id = session_id or self._generate_session_id()
 
         # Initialize model registry
-        self.registry = ModelRegistry(config.get('registry_path', './storage/registry/model_registry.db'))
+        self.registry = ModelRegistry(
+            config.get("registry_path", "./storage/registry/model_registry.db")
+        )
 
         # Create session
         self.registry.create_session(self.session_id, config)
@@ -75,17 +77,13 @@ class PipelineOrchestrator:
 
             # Update progress
             progress_percent = (phase_num / 8) * 100
-            self.registry.update_session_progress(
-                self.session_id,
-                phase_name,
-                progress_percent
-            )
+            self.registry.update_session_progress(self.session_id, phase_name, progress_percent)
 
             # Store results
             results[phase_name] = {
-                'success': result.success,
-                'duration': duration,
-                'metrics': result.metrics
+                "success": result.success,
+                "duration": duration,
+                "metrics": result.metrics,
             }
 
             # Pass model(s) to next phase
@@ -103,7 +101,7 @@ class PipelineOrchestrator:
         print("PIPELINE COMPLETE")
         print(f"{'='*60}\n")
 
-        total_duration = sum(r['duration'] for r in results.values())
+        total_duration = sum(r["duration"] for r in results.values())
         print(f"Total Duration: {total_duration/3600:.1f} hours")
 
         return results
@@ -143,8 +141,10 @@ class PipelineOrchestrator:
         """
         # Import phase controllers
         from .phase_controller import (
-            Phase1Controller, Phase2Controller,
-            Phase3Controller, Phase4Controller
+            Phase1Controller,
+            Phase2Controller,
+            Phase3Controller,
+            Phase4Controller,
         )
 
         # Map phase numbers to controllers
@@ -161,7 +161,7 @@ class PipelineOrchestrator:
             raise NotImplementedError(f"Phase {phase_num} not yet implemented")
 
         # Get phase-specific config
-        phase_config = self.config.get('phases', {}).get(f'phase{phase_num}', {})
+        phase_config = self.config.get("phases", {}).get(f"phase{phase_num}", {})
 
         return controller_class(phase_config, self.session_id)
 
@@ -176,10 +176,7 @@ class PipelineOrchestrator:
 
         # Load checkpoint from registry
         phase_name = f"phase{phase_num}"
-        model_info = self.registry.get_model(
-            session_id=self.session_id,
-            phase_name=phase_name
-        )
+        model_info = self.registry.get_model(session_id=self.session_id, phase_name=phase_name)
 
         print(f"✅ Loaded checkpoint from {model_info['created_at']}")
         print(f"   Model: {model_info['model_path']}")

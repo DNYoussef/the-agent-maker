@@ -8,9 +8,9 @@ Research: Transformer^2 SVF, NSGA-II ADAS
 Key insight: Self-guided discovery (N=3-10 experts) vs manual design.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
 import random
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -20,6 +20,7 @@ import torch.nn.functional as F
 @dataclass
 class ExpertProfile:
     """Profile of a discovered expert."""
+
     id: int
     name: str
     capabilities: List[str]
@@ -30,14 +31,22 @@ class ExpertProfile:
 @dataclass
 class DiscoveryConfig:
     """Configuration for expert discovery."""
+
     min_experts: int = 3
     max_experts: int = 10
     discovery_samples: int = 100
     clustering_threshold: float = 0.7
-    capability_categories: List[str] = field(default_factory=lambda: [
-        "reasoning", "coding", "math", "writing",
-        "analysis", "creativity", "instruction_following"
-    ])
+    capability_categories: List[str] = field(
+        default_factory=lambda: [
+            "reasoning",
+            "coding",
+            "math",
+            "writing",
+            "analysis",
+            "creativity",
+            "instruction_following",
+        ]
+    )
 
 
 class ExpertDiscovery:
@@ -64,11 +73,7 @@ class ExpertDiscovery:
         self.discovered_experts: List[ExpertProfile] = []
         self.activation_cache: Dict[str, List[float]] = {}
 
-    def discover(
-        self,
-        model: nn.Module,
-        tokenizer: Any
-    ) -> Tuple[int, List[ExpertProfile]]:
+    def discover(self, model: nn.Module, tokenizer: Any) -> Tuple[int, List[ExpertProfile]]:
         """
         Discover experts through model self-analysis.
 
@@ -161,10 +166,7 @@ class ExpertDiscovery:
         return prompts
 
     def _collect_activations(
-        self,
-        model: nn.Module,
-        tokenizer: Any,
-        prompts: Dict[str, List[str]]
+        self, model: nn.Module, tokenizer: Any, prompts: Dict[str, List[str]]
     ) -> Dict[str, List[Dict]]:
         """Collect activation patterns for each prompt."""
         activations = {}
@@ -179,13 +181,13 @@ class ExpertDiscovery:
             else:
                 out = output
             # Store mean activation per layer
-            if hasattr(out, 'mean'):
+            if hasattr(out, "mean"):
                 layer_activations.append(out.mean().item())
 
         # Register hooks on transformer layers
         hooks = []
         for name, module in model.named_modules():
-            if 'layer' in name.lower() or 'block' in name.lower():
+            if "layer" in name.lower() or "block" in name.lower():
                 hook = module.register_forward_hook(activation_hook)
                 hooks.append(hook)
 
@@ -199,27 +201,32 @@ class ExpertDiscovery:
                     layer_activations = []  # Reset
 
                     try:
-                        if hasattr(tokenizer, '__call__'):
+                        if hasattr(tokenizer, "__call__"):
                             inputs = tokenizer(
                                 prompt,
                                 return_tensors="pt",
                                 max_length=128,
                                 truncation=True,
-                                padding=True
+                                padding=True,
                             )
                         else:
-                            inputs = {'input_ids': torch.tensor([[1, 2, 3, 4, 5]])}
+                            inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
 
-                        inputs = {k: v.to(device) for k, v in inputs.items()
-                                  if isinstance(v, torch.Tensor)}
+                        inputs = {
+                            k: v.to(device)
+                            for k, v in inputs.items()
+                            if isinstance(v, torch.Tensor)
+                        }
 
                         _ = model(**inputs)
 
-                        activations[category].append({
-                            'prompt': prompt,
-                            'activations': layer_activations.copy(),
-                            'category': category
-                        })
+                        activations[category].append(
+                            {
+                                "prompt": prompt,
+                                "activations": layer_activations.copy(),
+                                "category": category,
+                            }
+                        )
 
                     except Exception:
                         continue
@@ -230,20 +237,19 @@ class ExpertDiscovery:
 
         return activations
 
-    def _cluster_activations(
-        self,
-        activations: Dict[str, List[Dict]]
-    ) -> Dict[int, List[Dict]]:
+    def _cluster_activations(self, activations: Dict[str, List[Dict]]) -> Dict[int, List[Dict]]:
         """Cluster activation patterns to find natural groupings."""
         # Flatten all activations
         all_patterns = []
         for category, patterns in activations.items():
             for pattern in patterns:
-                all_patterns.append({
-                    'category': category,
-                    'activations': pattern['activations'],
-                    'prompt': pattern['prompt']
-                })
+                all_patterns.append(
+                    {
+                        "category": category,
+                        "activations": pattern["activations"],
+                        "prompt": pattern["prompt"],
+                    }
+                )
 
         if not all_patterns:
             return {0: all_patterns}
@@ -261,10 +267,7 @@ class ExpertDiscovery:
                 if cluster_patterns:
                     # Compare to cluster centroid
                     centroid = self._compute_centroid(cluster_patterns)
-                    similarity = self._compute_similarity(
-                        pattern['activations'],
-                        centroid
-                    )
+                    similarity = self._compute_similarity(pattern["activations"], centroid)
 
                     if similarity > self.config.clustering_threshold:
                         clusters[cid].append(pattern)
@@ -282,7 +285,7 @@ class ExpertDiscovery:
         if not patterns:
             return []
 
-        all_acts = [p['activations'] for p in patterns if p['activations']]
+        all_acts = [p["activations"] for p in patterns if p["activations"]]
         if not all_acts:
             return []
 
@@ -320,8 +323,7 @@ class ExpertDiscovery:
         """Determine optimal number of experts."""
         # Number of significant clusters
         significant_clusters = [
-            cid for cid, patterns in clusters.items()
-            if len(patterns) >= 2  # At least 2 patterns
+            cid for cid, patterns in clusters.items() if len(patterns) >= 2  # At least 2 patterns
         ]
 
         num_experts = len(significant_clusters)
@@ -333,23 +335,19 @@ class ExpertDiscovery:
         return num_experts
 
     def _profile_experts(
-        self,
-        clusters: Dict[int, List[Dict]],
-        num_experts: int
+        self, clusters: Dict[int, List[Dict]], num_experts: int
     ) -> List[ExpertProfile]:
         """Create profiles for discovered experts."""
         experts = []
 
         # Sort clusters by size
-        sorted_clusters = sorted(
-            clusters.items(),
-            key=lambda x: len(x[1]),
-            reverse=True
-        )[:num_experts]
+        sorted_clusters = sorted(clusters.items(), key=lambda x: len(x[1]), reverse=True)[
+            :num_experts
+        ]
 
         for i, (cluster_id, patterns) in enumerate(sorted_clusters):
             # Determine capabilities from patterns
-            capabilities = list(set(p['category'] for p in patterns))
+            capabilities = list(set(p["category"] for p in patterns))
 
             # Calculate strength score
             strength = len(patterns) / max(1, sum(len(c) for _, c in sorted_clusters))
@@ -361,13 +359,15 @@ class ExpertDiscovery:
             primary_cap = capabilities[0] if capabilities else "general"
             name = f"{primary_cap}_expert_{i+1}"
 
-            experts.append(ExpertProfile(
-                id=i,
-                name=name,
-                capabilities=capabilities,
-                strength_score=strength,
-                activation_pattern=activation_pattern
-            ))
+            experts.append(
+                ExpertProfile(
+                    id=i,
+                    name=name,
+                    capabilities=capabilities,
+                    strength_score=strength,
+                    activation_pattern=activation_pattern,
+                )
+            )
 
         return experts
 
@@ -383,4 +383,4 @@ class ExpertDiscovery:
         return assignments
 
 
-__all__ = ['ExpertDiscovery', 'ExpertProfile', 'DiscoveryConfig']
+__all__ = ["ExpertDiscovery", "ExpertProfile", "DiscoveryConfig"]

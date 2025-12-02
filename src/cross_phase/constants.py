@@ -26,8 +26,8 @@ DEFAULT_MASK_TOKEN_ID = 4
 # =============================================================================
 # Memory & Size Constants
 # =============================================================================
-BYTES_PER_MB = 1024 ** 2
-BYTES_PER_GB = 1024 ** 3
+BYTES_PER_MB = 1024**2
+BYTES_PER_GB = 1024**3
 FP32_BYTES = 4  # 4 bytes per FP32 parameter
 
 # VRAM headroom (10% reserved for system)
@@ -84,6 +84,7 @@ TOTAL_COMPRESSION_TARGET = 280.0  # 2 x 20 x 6.25 = 280
 # Quality & Validation Thresholds
 # =============================================================================
 
+
 class ValidationThresholds:
     """Thresholds for phase validation (ISS-022)."""
 
@@ -115,8 +116,10 @@ class ValidationThresholds:
 # W&B Metrics Count (for validation)
 # =============================================================================
 
+
 class WandBMetricsCounts:
     """Expected metric counts per phase."""
+
     PHASE1 = 37
     PHASE2 = 370
     PHASE3 = 17
@@ -141,51 +144,51 @@ DEFAULT_WINDOW_SIZE = 256
 
 __all__ = [
     # Tokenizer
-    'VOCAB_SIZE',
-    'DEFAULT_MAX_LENGTH',
-    'DEFAULT_PAD_TOKEN_ID',
-    'DEFAULT_EOS_TOKEN_ID',
-    'DEFAULT_BOS_TOKEN_ID',
-    'DEFAULT_UNK_TOKEN_ID',
-    'DEFAULT_MASK_TOKEN_ID',
+    "VOCAB_SIZE",
+    "DEFAULT_MAX_LENGTH",
+    "DEFAULT_PAD_TOKEN_ID",
+    "DEFAULT_EOS_TOKEN_ID",
+    "DEFAULT_BOS_TOKEN_ID",
+    "DEFAULT_UNK_TOKEN_ID",
+    "DEFAULT_MASK_TOKEN_ID",
     # Memory
-    'BYTES_PER_MB',
-    'BYTES_PER_GB',
-    'FP32_BYTES',
-    'VRAM_HEADROOM_RATIO',
-    'MAX_BATCH_SIZE',
-    'TEST_TENSOR_DIM',
+    "BYTES_PER_MB",
+    "BYTES_PER_GB",
+    "FP32_BYTES",
+    "VRAM_HEADROOM_RATIO",
+    "MAX_BATCH_SIZE",
+    "TEST_TENSOR_DIM",
     # Training
-    'DEFAULT_GRADIENT_CLIP',
-    'DEFAULT_WARMUP_STEPS',
-    'DEFAULT_LEARNING_RATE',
-    'LOSS_HISTORY_WINDOW',
-    'PLATEAU_DETECTION_STEPS',
-    'PLATEAU_VARIANCE_THRESHOLD',
-    'DIVERGENCE_TREND_THRESHOLD',
+    "DEFAULT_GRADIENT_CLIP",
+    "DEFAULT_WARMUP_STEPS",
+    "DEFAULT_LEARNING_RATE",
+    "LOSS_HISTORY_WINDOW",
+    "PLATEAU_DETECTION_STEPS",
+    "PLATEAU_VARIANCE_THRESHOLD",
+    "DIVERGENCE_TREND_THRESHOLD",
     # Phases
-    'EVOMERGE_GENERATIONS',
-    'EVOMERGE_POPULATION_SIZE',
-    'CURRICULUM_LEVELS',
-    'EDGE_OF_CHAOS_ACCURACY',
-    'CONVERGENCE_THRESHOLD',
-    'CONSECUTIVE_FOR_MASTERY',
-    'MAX_HINTS_PER_QUESTION',
-    'MIN_EXPERTS',
-    'MAX_EXPERTS',
-    'ADAS_POPULATION',
-    'ADAS_GENERATIONS',
-    'SVF_SINGULAR_VALUES',
-    'SEEDLM_COMPRESSION_RATIO',
-    'VPTQ_COMPRESSION_RATIO',
-    'HYPERCOMPRESSION_RATIO',
-    'TOTAL_COMPRESSION_TARGET',
+    "EVOMERGE_GENERATIONS",
+    "EVOMERGE_POPULATION_SIZE",
+    "CURRICULUM_LEVELS",
+    "EDGE_OF_CHAOS_ACCURACY",
+    "CONVERGENCE_THRESHOLD",
+    "CONSECUTIVE_FOR_MASTERY",
+    "MAX_HINTS_PER_QUESTION",
+    "MIN_EXPERTS",
+    "MAX_EXPERTS",
+    "ADAS_POPULATION",
+    "ADAS_GENERATIONS",
+    "SVF_SINGULAR_VALUES",
+    "SEEDLM_COMPRESSION_RATIO",
+    "VPTQ_COMPRESSION_RATIO",
+    "HYPERCOMPRESSION_RATIO",
+    "TOTAL_COMPRESSION_TARGET",
     # Validation
-    'ValidationThresholds',
-    'WandBMetricsCounts',
+    "ValidationThresholds",
+    "WandBMetricsCounts",
     # QK-Clip
-    'DEFAULT_QK_CLIP_THRESHOLD',
-    'RL_QK_CLIP_THRESHOLD',
+    "DEFAULT_QK_CLIP_THRESHOLD",
+    "RL_QK_CLIP_THRESHOLD",
     # Attention
-    'DEFAULT_WINDOW_SIZE',
+    "DEFAULT_WINDOW_SIZE",
 ]

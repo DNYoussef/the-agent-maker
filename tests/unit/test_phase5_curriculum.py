@@ -12,22 +12,23 @@ Tests:
 Target: >=90% coverage for core functionality
 """
 
+import sys
+from dataclasses import asdict
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
 import torch
 import torch.nn as nn
-from unittest.mock import Mock, MagicMock, patch
-from dataclasses import asdict
 
-import sys
-from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from phase5_curriculum.curriculum_engine import (
-    CurriculumEngine,
     CurriculumConfig,
-    Phase5Result,
+    CurriculumEngine,
     LevelProgress,
-    SpecializationType
+    Phase5Result,
+    SpecializationType,
 )
 
 
@@ -84,9 +85,7 @@ class TestCurriculumConfig:
     def test_custom_config(self):
         """Test custom configuration."""
         config = CurriculumConfig(
-            edge_of_chaos_threshold=0.80,
-            num_levels=5,
-            specialization=SpecializationType.RESEARCH
+            edge_of_chaos_threshold=0.80, num_levels=5, specialization=SpecializationType.RESEARCH
         )
 
         assert config.edge_of_chaos_threshold == 0.80
@@ -99,8 +98,8 @@ class TestCurriculumConfig:
         config_dict = asdict(config)
 
         assert isinstance(config_dict, dict)
-        assert 'edge_of_chaos_threshold' in config_dict
-        assert 'num_levels' in config_dict
+        assert "edge_of_chaos_threshold" in config_dict
+        assert "num_levels" in config_dict
 
 
 class TestLevelProgress:
@@ -115,7 +114,7 @@ class TestLevelProgress:
             mastered_questions=500,
             variants_generated=50,
             hints_given=100,
-            accuracy=0.85
+            accuracy=0.85,
         )
 
         assert progress.level == 1
@@ -137,7 +136,7 @@ class TestLevelProgress:
             variants_generated=100,
             hints_given=50,
             accuracy=0.95,
-            completed=True
+            completed=True,
         )
 
         assert progress.completed is True
@@ -155,8 +154,8 @@ class TestPhase5Result:
             model=mock_model,
             specialization=SpecializationType.CODING,
             levels_completed=10,
-            metrics={'final_accuracy': 0.95},
-            artifacts={'level_progress': []}
+            metrics={"final_accuracy": 0.95},
+            artifacts={"level_progress": []},
         )
 
         assert result.success is True
@@ -174,7 +173,7 @@ class TestPhase5Result:
             levels_completed=3,
             metrics={},
             artifacts={},
-            error="Training failed at level 4"
+            error="Training failed at level 4",
         )
 
         assert result.success is False
@@ -207,8 +206,8 @@ class TestCurriculumEngine:
         ranges = engine._calculate_temperature_ranges(level=1)
 
         assert len(ranges) == 10  # base_num_ranges
-        assert ranges[0]['start'] == 0.0
-        assert ranges[0]['width'] if 'width' in ranges[0] else True
+        assert ranges[0]["start"] == 0.0
+        assert ranges[0]["width"] if "width" in ranges[0] else True
 
     def test_calculate_temperature_ranges_level5(self):
         """Test temperature range calculation for level 5."""
@@ -220,7 +219,7 @@ class TestCurriculumEngine:
 
         # width = 0.2 + (5-1) * 0.1 = 0.6
         expected_width = 0.2 + 4 * 0.1
-        actual_width = ranges[0]['end'] - ranges[0]['start']
+        actual_width = ranges[0]["end"] - ranges[0]["start"]
         assert abs(actual_width - expected_width) < 0.01
 
     def test_compile_metrics_empty(self):
@@ -228,8 +227,8 @@ class TestCurriculumEngine:
         engine = CurriculumEngine()
         metrics = engine._compile_metrics(duration=100.0)
 
-        assert 'duration_seconds' in metrics
-        assert metrics['duration_seconds'] == 100.0
+        assert "duration_seconds" in metrics
+        assert metrics["duration_seconds"] == 100.0
 
     def test_compile_metrics_with_progress(self):
         """Test metrics compilation with level progress."""
@@ -243,7 +242,7 @@ class TestCurriculumEngine:
                 variants_generated=50,
                 hints_given=100,
                 accuracy=0.85,
-                completed=True
+                completed=True,
             ),
             LevelProgress(
                 level=2,
@@ -253,33 +252,33 @@ class TestCurriculumEngine:
                 variants_generated=60,
                 hints_given=80,
                 accuracy=0.90,
-                completed=True
-            )
+                completed=True,
+            ),
         ]
 
         metrics = engine._compile_metrics(duration=7200.0)
 
-        assert metrics['levels_completed'] == 2
-        assert metrics['final_accuracy'] == 0.90
-        assert metrics['curriculum_stats']['total_questions_mastered'] == 3200
-        assert metrics['curriculum_stats']['variants_generated'] == 110
-        assert metrics['curriculum_stats']['hints_given'] == 180
+        assert metrics["levels_completed"] == 2
+        assert metrics["final_accuracy"] == 0.90
+        assert metrics["curriculum_stats"]["total_questions_mastered"] == 3200
+        assert metrics["curriculum_stats"]["variants_generated"] == 110
+        assert metrics["curriculum_stats"]["hints_given"] == 180
 
     def test_get_curriculum_stats(self):
         """Test curriculum statistics calculation."""
         engine = CurriculumEngine()
         curriculum = {
-            1: [{'q': 'a'}, {'q': 'b'}],
-            2: [{'q': 'c'}, {'q': 'd'}, {'q': 'e'}],
-            3: [{'q': 'f'}]
+            1: [{"q": "a"}, {"q": "b"}],
+            2: [{"q": "c"}, {"q": "d"}, {"q": "e"}],
+            3: [{"q": "f"}],
         }
 
         stats = engine._get_curriculum_stats(curriculum)
 
-        assert stats['total_questions'] == 6
-        assert stats['questions_per_level'][1] == 2
-        assert stats['questions_per_level'][2] == 3
-        assert stats['questions_per_level'][3] == 1
+        assert stats["total_questions"] == 6
+        assert stats["questions_per_level"][1] == 2
+        assert stats["questions_per_level"][2] == 3
+        assert stats["questions_per_level"][3] == 1
 
 
 @pytest.fixture
@@ -295,8 +294,8 @@ def mock_tokenizer():
     """Create mock tokenizer for testing."""
     tokenizer = Mock()
     tokenizer.return_value = {
-        'input_ids': torch.tensor([[1, 2, 3, 4, 5]]),
-        'attention_mask': torch.tensor([[1, 1, 1, 1, 1]])
+        "input_ids": torch.tensor([[1, 2, 3, 4, 5]]),
+        "attention_mask": torch.tensor([[1, 1, 1, 1, 1]]),
     }
     return tokenizer
 
@@ -304,8 +303,8 @@ def mock_tokenizer():
 class TestCurriculumEngineRun:
     """Test CurriculumEngine.run() method."""
 
-    @patch('phase5_curriculum.curriculum_engine.CurriculumEngine._run_assessment')
-    @patch('phase5_curriculum.curriculum_engine.CurriculumEngine._generate_curriculum')
+    @patch("phase5_curriculum.curriculum_engine.CurriculumEngine._run_assessment")
+    @patch("phase5_curriculum.curriculum_engine.CurriculumEngine._generate_curriculum")
     def test_run_catches_exception(self, mock_gen, mock_assess, mock_model, mock_tokenizer):
         """Test run() handles exceptions gracefully."""
         mock_assess.side_effect = Exception("Assessment failed")
@@ -320,7 +319,7 @@ class TestCurriculumEngineRun:
         """Test run() returns Phase5Result."""
         engine = CurriculumEngine()
 
-        with patch.object(engine, '_run_assessment') as mock_assess:
+        with patch.object(engine, "_run_assessment") as mock_assess:
             mock_assess.side_effect = Exception("Test exception")
             result = engine.run(mock_model, mock_tokenizer)
 
@@ -355,5 +354,5 @@ class TestEdgeCases:
 
         # width = 0.2 + (10-1) * 0.1 = 1.1
         expected_width = 0.2 + 9 * 0.1
-        actual_width = ranges[0]['end'] - ranges[0]['start']
+        actual_width = ranges[0]["end"] - ranges[0]["start"]
         assert abs(actual_width - expected_width) < 0.01

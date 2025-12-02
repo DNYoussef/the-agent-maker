@@ -21,8 +21,9 @@ class Phase4Controller(PhaseController):
         Returns:
             PhaseResult with quantized model
         """
-        import time
         import copy
+        import time
+
         start_time = time.time()
 
         print("\n" + "=" * 60)
@@ -56,14 +57,14 @@ class Phase4Controller(PhaseController):
             # Step 4: Validate compression
             print("\n--- Step 4: Validation ---")
             compressed_size = self._get_model_size(fine_tuned_model)
-            compression_ratio = original_size['size_mb'] / max(compressed_size['size_mb'], 0.01)
+            compression_ratio = original_size["size_mb"] / max(compressed_size["size_mb"], 0.01)
 
             print(f"Compressed model size: {compressed_size['size_mb']:.2f} MB")
             print(f"Compression ratio: {compression_ratio:.1f}x")
             print(f"Sparsity ratio: {quant_stats.get('sparsity_ratio', 0):.2%}")
 
             # Validate thresholds
-            validation_passed = compression_ratio >= self.config.get('min_compression', 4.0)
+            validation_passed = compression_ratio >= self.config.get("min_compression", 4.0)
 
             duration = time.time() - start_time
 
@@ -72,22 +73,19 @@ class Phase4Controller(PhaseController):
                 phase_name="phase4",
                 model=fine_tuned_model,
                 metrics={
-                    'original_size_mb': original_size['size_mb'],
-                    'compressed_size_mb': compressed_size['size_mb'],
-                    'compression_ratio': compression_ratio,
-                    'sparsity_ratio': quant_stats.get('sparsity_ratio', 0),
-                    'layers_quantized': quant_stats.get('layers_quantized', 0),
-                    'layers_preserved': quant_stats.get('layers_preserved', 0),
-                    'validation_passed': validation_passed,
-                    'duration_seconds': duration
+                    "original_size_mb": original_size["size_mb"],
+                    "compressed_size_mb": compressed_size["size_mb"],
+                    "compression_ratio": compression_ratio,
+                    "sparsity_ratio": quant_stats.get("sparsity_ratio", 0),
+                    "layers_quantized": quant_stats.get("layers_quantized", 0),
+                    "layers_preserved": quant_stats.get("layers_preserved", 0),
+                    "validation_passed": validation_passed,
+                    "duration_seconds": duration,
                 },
                 duration=duration,
-                artifacts={
-                    'scale_factors': scale_factors,
-                    'quantization_stats': quant_stats
-                },
+                artifacts={"scale_factors": scale_factors, "quantization_stats": quant_stats},
                 config=self.config,
-                error=None
+                error=None,
             )
 
         except Exception as e:
@@ -100,12 +98,13 @@ class Phase4Controller(PhaseController):
                 duration=duration,
                 artifacts={},
                 config=self.config,
-                error=str(e)
+                error=str(e),
             )
 
     def _get_model_size(self, model) -> dict:
         """Calculate model size in MB and parameter count."""
         import torch
+
         total_params = sum(p.numel() for p in model.parameters())
 
         # Calculate size based on dtype
@@ -122,11 +121,7 @@ class Phase4Controller(PhaseController):
 
         size_mb = size_bytes / (1024 * 1024)
 
-        return {
-            'params': total_params,
-            'size_mb': size_mb,
-            'size_bytes': size_bytes
-        }
+        return {"params": total_params, "size_mb": size_mb, "size_bytes": size_bytes}
 
     def _quantize_model(self, model):
         """Apply BitNet ternary quantization to model."""
@@ -136,22 +131,22 @@ class Phase4Controller(PhaseController):
         quantized_state = {}
         scale_factors = {}
         stats = {
-            'layers_quantized': 0,
-            'layers_preserved': 0,
-            'total_params': 0,
-            'quantized_params': 0,
-            'zero_params': 0,
-            'sparsity_ratio': 0.0
+            "layers_quantized": 0,
+            "layers_preserved": 0,
+            "total_params": 0,
+            "quantized_params": 0,
+            "zero_params": 0,
+            "sparsity_ratio": 0.0,
         }
 
         # Sparsity threshold from config
-        threshold = self.config.get('sparsity_threshold', 0.1)
+        threshold = self.config.get("sparsity_threshold", 0.1)
 
         # Layers to preserve (embeddings, layer norms)
-        preserve_patterns = ['embed', 'norm', 'ln_', 'layernorm', 'bias']
+        preserve_patterns = ["embed", "norm", "ln_", "layernorm", "bias"]
 
         for name, param in model.state_dict().items():
-            stats['total_params'] += param.numel()
+            stats["total_params"] += param.numel()
 
             # Check if layer should be preserved
             should_preserve = any(p in name.lower() for p in preserve_patterns)
@@ -160,7 +155,7 @@ class Phase4Controller(PhaseController):
                 # Keep in FP16
                 quantized_state[name] = param.data.half()
                 scale_factors[name] = torch.tensor(1.0)
-                stats['layers_preserved'] += 1
+                stats["layers_preserved"] += 1
             else:
                 # Quantize to ternary {-1, 0, +1}
                 # Step 1: Calculate scale (mean absolute value)
@@ -181,13 +176,13 @@ class Phase4Controller(PhaseController):
 
                 quantized_state[name] = quantized_int8
                 scale_factors[name] = scale
-                stats['layers_quantized'] += 1
-                stats['quantized_params'] += param.numel()
-                stats['zero_params'] += (quantized_int8 == 0).sum().item()
+                stats["layers_quantized"] += 1
+                stats["quantized_params"] += param.numel()
+                stats["zero_params"] += (quantized_int8 == 0).sum().item()
 
         # Calculate sparsity
-        if stats['quantized_params'] > 0:
-            stats['sparsity_ratio'] = stats['zero_params'] / stats['quantized_params']
+        if stats["quantized_params"] > 0:
+            stats["sparsity_ratio"] = stats["zero_params"] / stats["quantized_params"]
 
         print(f"  Quantized {stats['layers_quantized']} layers")
         print(f"  Preserved {stats['layers_preserved']} layers")
@@ -198,6 +193,7 @@ class Phase4Controller(PhaseController):
     def _create_compressed_model(self, original_model, quantized_state, scale_factors):
         """Create compressed model from quantized state dict."""
         import copy
+
         import torch
 
         # Create a copy of the model
@@ -233,13 +229,15 @@ class Phase4Controller(PhaseController):
     def validate_input(self, input_models: list = None) -> bool:
         """Validate 1 input model from Phase 3"""
         if not input_models or len(input_models) != 1:
-            raise ValueError(f"Phase 4 requires 1 input model, got {len(input_models) if input_models else 0}")
+            raise ValueError(
+                f"Phase 4 requires 1 input model, got {len(input_models) if input_models else 0}"
+            )
         return True
 
     def validate_output(self, result: PhaseResult) -> bool:
         """Validate Phase 4 output (compression >6x, accuracy drop <10%)"""
         if result.metrics:
-            compression = result.metrics.get('compression_ratio', 0)
-            min_compression = self.config.get('min_compression', 4.0) if self.config else 4.0
+            compression = result.metrics.get("compression_ratio", 0)
+            min_compression = self.config.get("min_compression", 4.0) if self.config else 4.0
             return compression >= min_compression
         return True

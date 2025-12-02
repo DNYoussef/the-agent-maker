@@ -5,15 +5,14 @@ This module provides functions for creating the initial population
 of 8 models using all binary merge combinations.
 """
 
-import torch.nn as nn
 from typing import List
+
+import torch.nn as nn
 
 from src.phase2_evomerge.merge import MergeTechniques
 
 
-def initialize_population(
-    base_models: List[nn.Module]
-) -> List[nn.Module]:
+def initialize_population(base_models: List[nn.Module]) -> List[nn.Module]:
     """
     Create initial population of 8 models using all binary combinations.
 
@@ -36,9 +35,7 @@ def initialize_population(
         8
     """
     if len(base_models) != 3:
-        raise ValueError(
-            f"Expected exactly 3 base models, got {len(base_models)}"
-        )
+        raise ValueError(f"Expected exactly 3 base models, got {len(base_models)}")
 
     # Initialize merge techniques
     merger = MergeTechniques()

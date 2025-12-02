@@ -10,14 +10,15 @@ Integrates all components:
 Target: ~25M parameters, fits in 6GB VRAM
 """
 
-import torch
-import torch.nn as nn
 from typing import Dict, List, Optional, Tuple
 
+import torch
+import torch.nn as nn
+
+from .act_head import ACTHead
 from .model_config import Phase1Config
 from .titans_mag import TitansMAGBackbone
 from .trm_wrapper import TRMWrapper
-from .act_head import ACTHead
 
 
 class TRMTitansMAGModel(nn.Module):
@@ -59,7 +60,7 @@ class TRMTitansMAGModel(nn.Module):
         input_ids: torch.Tensor,
         labels: Optional[torch.Tensor] = None,
         mask: Optional[torch.Tensor] = None,
-        return_all_steps: bool = False
+        return_all_steps: bool = False,
     ) -> Dict[str, torch.Tensor]:
         """
         Forward pass with multi-step reasoning
@@ -114,7 +115,7 @@ class TRMTitansMAGModel(nn.Module):
             # Deep supervision: weighted loss across all steps
             if self.config.trm_config.deep_supervision and len(step_logits) > 1:
                 step_weights = self.config.trm_config.step_weights
-                total_weight = sum(step_weights[:len(step_logits)])
+                total_weight = sum(step_weights[: len(step_logits)])
                 loss_ce = torch.tensor(0.0, device=labels.device)
 
                 step_losses = []
@@ -122,9 +123,7 @@ class TRMTitansMAGModel(nn.Module):
                     # Clone logits to avoid graph reuse issues (M4 fix)
                     logits_clone = logits_t.clone()
                     step_loss = nn.functional.cross_entropy(
-                        logits_clone.view(-1, vocab_size),
-                        labels.view(-1),
-                        reduction='mean'
+                        logits_clone.view(-1, vocab_size), labels.view(-1), reduction="mean"
                     )
                     step_losses.append(step_loss.item())
                     loss_ce = loss_ce + weight * step_loss
@@ -135,15 +134,11 @@ class TRMTitansMAGModel(nn.Module):
             else:
                 # Final step only (standard training)
                 loss_ce = nn.functional.cross_entropy(
-                    logits.view(-1, vocab_size),
-                    labels.view(-1),
-                    reduction='mean'
+                    logits.view(-1, vocab_size), labels.view(-1), reduction="mean"
                 )
 
             # Add ACT loss (encourage halting at appropriate time)
-            loss_act = self.config.act_config.act_loss_weight * (
-                halting_steps.float().mean()
-            )
+            loss_act = self.config.act_config.act_loss_weight * (halting_steps.float().mean())
 
             # Total loss
             loss_total = loss_ce + loss_act + loss_gate
@@ -163,10 +158,7 @@ class TRMTitansMAGModel(nn.Module):
 
         return output
 
-    def _compute_halting_steps(
-        self,
-        halt_probs: List[torch.Tensor]
-    ) -> torch.Tensor:
+    def _compute_halting_steps(self, halt_probs: List[torch.Tensor]) -> torch.Tensor:
         """
         Compute number of steps taken per sample
 
@@ -179,11 +171,7 @@ class TRMTitansMAGModel(nn.Module):
         batch_size = halt_probs[0].shape[0]
         threshold = self.config.act_config.halt_threshold
 
-        halting_steps = torch.full(
-            (batch_size,),
-            len(halt_probs),
-            device=halt_probs[0].device
-        )
+        halting_steps = torch.full((batch_size,), len(halt_probs), device=halt_probs[0].device)
 
         # Find first step where halt_prob > threshold
         for t, q_t in enumerate(halt_probs):
@@ -204,10 +192,7 @@ class TRMTitansMAGModel(nn.Module):
         counts = {
             "backbone": self.backbone.count_parameters(),
             "trm": self.trm.count_parameters(),
-            "act_head": sum(
-                p.numel() for p in self.act_head.parameters()
-                if p.requires_grad
-            ),
+            "act_head": sum(p.numel() for p in self.act_head.parameters() if p.requires_grad),
             "lm_head": 0,  # Tied with embeddings
         }
         counts["total"] = sum(counts.values())
@@ -222,9 +207,7 @@ class TRMTitansMAGModel(nn.Module):
         return self.config.to_dict()
 
 
-def create_phase1_models(
-    device: str = "cuda"
-) -> Dict[str, TRMTitansMAGModel]:
+def create_phase1_models(device: str = "cuda") -> Dict[str, TRMTitansMAGModel]:
     """
     Create all 3 specialized Phase 1 models
 

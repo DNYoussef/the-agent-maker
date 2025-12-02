@@ -5,15 +5,15 @@ This module provides functions for measuring population diversity
 via pairwise L2 distance between model parameters.
 """
 
+from typing import List, Optional
+
+import numpy as np
 import torch
 import torch.nn as nn
-from typing import List, Optional
-import numpy as np
 
 
 def compute_diversity(
-    population: List[nn.Module],
-    expected_distance: Optional[float] = None
+    population: List[nn.Module], expected_distance: Optional[float] = None
 ) -> float:
     """
     Compute population diversity via average pairwise L2 distance.

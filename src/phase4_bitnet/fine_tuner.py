@@ -5,23 +5,24 @@ MuGrokfast-based recovery for compressed models
 ISS-004: Updated to use secure SafeTensors checkpoint format.
 """
 
+from pathlib import Path
+from typing import Callable, Dict, Optional
+
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from typing import Dict, Optional, Callable
 from tqdm import tqdm
-from pathlib import Path
-from src.phase4_bitnet.config import Phase4Config
-from src.phase4_bitnet.compressed_model import CompressedModel
-from src.cross_phase.mugrokfast.optimizer import MuonGrokfast
+
 from src.cross_phase.mugrokfast.config import MuGrokConfig
-from src.cross_phase.utils.checkpoint_utils import (
-    save_checkpoint as secure_save,
-    load_checkpoint as secure_load,
-)
+from src.cross_phase.mugrokfast.optimizer import MuonGrokfast
+from src.cross_phase.utils.checkpoint_utils import load_checkpoint as secure_load
+from src.cross_phase.utils.checkpoint_utils import save_checkpoint as secure_save
+from src.phase4_bitnet.compressed_model import CompressedModel
+from src.phase4_bitnet.config import Phase4Config
 
 try:
     import wandb
+
     WANDB_AVAILABLE = True
 except ImportError:
     WANDB_AVAILABLE = False
@@ -40,12 +41,7 @@ class FineTuner:
     Trigger: Accuracy drop > fine_tune_threshold (default 5%)
     """
 
-    def __init__(
-        self,
-        model: CompressedModel,
-        config: Phase4Config,
-        device: str = "cuda"
-    ):
+    def __init__(self, model: CompressedModel, config: Phase4Config, device: str = "cuda"):
         """
         Initialize fine-tuner
 
@@ -66,9 +62,7 @@ class FineTuner:
 
         # ISS-008: Mixed precision support
         self.scaler = (
-            torch.cuda.amp.GradScaler()
-            if config.use_mixed_precision and device == "cuda"
-            else None
+            torch.cuda.amp.GradScaler() if config.use_mixed_precision and device == "cuda" else None
         )
         self.use_amp = config.use_mixed_precision and device == "cuda"
 
@@ -84,7 +78,7 @@ class FineTuner:
                     "warmup_steps": config.warmup_steps,
                     "max_grad_norm": config.max_grad_norm,
                     "use_mixed_precision": config.use_mixed_precision,
-                }
+                },
             )
 
         # ISS-008: Checkpoint directory setup
@@ -93,7 +87,7 @@ class FineTuner:
 
         # Training state
         self.current_epoch = 0
-        self.best_perplexity = float('inf')
+        self.best_perplexity = float("inf")
         self.training_history = []
         self.global_step = 0
 
@@ -122,10 +116,7 @@ class FineTuner:
         )
 
         # Create optimizer
-        optimizer = MuonGrokfast(
-            self.model.parameters(),
-            config=muon_config
-        )
+        optimizer = MuonGrokfast(self.model.parameters(), config=muon_config)
 
         return optimizer
 
@@ -147,7 +138,7 @@ class FineTuner:
         self,
         train_dataloader: DataLoader,
         eval_dataloader: Optional[DataLoader] = None,
-        log_callback: Optional[Callable] = None
+        log_callback: Optional[Callable] = None,
     ) -> Dict:
         """
         Fine-tune compressed model
@@ -171,10 +162,7 @@ class FineTuner:
             self.current_epoch = epoch
 
             # Train one epoch
-            epoch_stats = self._train_epoch(
-                train_dataloader,
-                log_callback
-            )
+            epoch_stats = self._train_epoch(train_dataloader, log_callback)
 
             # Evaluate if dataloader provided
             if eval_dataloader is not None:
@@ -182,17 +170,15 @@ class FineTuner:
                 epoch_stats.update(eval_stats)
 
                 # Track best perplexity
-                if eval_stats['perplexity'] < self.best_perplexity:
-                    self.best_perplexity = eval_stats['perplexity']
+                if eval_stats["perplexity"] < self.best_perplexity:
+                    self.best_perplexity = eval_stats["perplexity"]
 
             # Store history
             self.training_history.append(epoch_stats)
 
             # ISS-008: Save checkpoint
             if (epoch + 1) % self.config.save_every_n_epochs == 0:
-                checkpoint_path = (
-                    self.checkpoint_dir / f"checkpoint_epoch_{epoch + 1}.pt"
-                )
+                checkpoint_path = self.checkpoint_dir / f"checkpoint_epoch_{epoch + 1}.pt"
                 self.save_checkpoint(checkpoint_path)
                 print(f"Saved checkpoint: {checkpoint_path}")
 
@@ -202,37 +188,33 @@ class FineTuner:
                 f"Loss={epoch_stats['loss']:.4f}"
             )
 
-            if 'perplexity' in epoch_stats:
+            if "perplexity" in epoch_stats:
                 print(f"  Perplexity: {epoch_stats['perplexity']:.2f}")
 
             # ISS-008: W&B epoch logging
             if self.wandb_enabled:
-                wandb.log({
-                    'fine_tune/epoch_loss': epoch_stats['loss'],
-                    'fine_tune/epoch': epoch + 1,
-                    'fine_tune/best_perplexity': self.best_perplexity,
-                })
+                wandb.log(
+                    {
+                        "fine_tune/epoch_loss": epoch_stats["loss"],
+                        "fine_tune/epoch": epoch + 1,
+                        "fine_tune/best_perplexity": self.best_perplexity,
+                    }
+                )
 
         # Prepare results
         results = {
-            'epochs_completed': self.config.fine_tune_epochs,
-            'final_loss': self.training_history[-1]['loss'],
-            'best_perplexity': self.best_perplexity,
-            'training_history': self.training_history,
+            "epochs_completed": self.config.fine_tune_epochs,
+            "final_loss": self.training_history[-1]["loss"],
+            "best_perplexity": self.best_perplexity,
+            "training_history": self.training_history,
         }
 
         if eval_dataloader is not None:
-            results['final_perplexity'] = (
-                self.training_history[-1]['perplexity']
-            )
+            results["final_perplexity"] = self.training_history[-1]["perplexity"]
 
         return results
 
-    def _train_epoch(
-        self,
-        dataloader: DataLoader,
-        log_callback: Optional[Callable] = None
-    ) -> Dict:
+    def _train_epoch(self, dataloader: DataLoader, log_callback: Optional[Callable] = None) -> Dict:
         """
         Train one epoch
 
@@ -247,50 +229,37 @@ class FineTuner:
         num_batches = 0
 
         # Progress bar
-        pbar = tqdm(
-            dataloader,
-            desc=f"Epoch {self.current_epoch + 1}",
-            leave=False
-        )
+        pbar = tqdm(dataloader, desc=f"Epoch {self.current_epoch + 1}", leave=False)
 
         for batch_idx, batch in enumerate(pbar):
             # Move to device
             input_ids = batch["input_ids"].to(self.device)
-            attention_mask = batch.get(
-                "attention_mask",
-                torch.ones_like(input_ids)
-            ).to(self.device)
+            attention_mask = batch.get("attention_mask", torch.ones_like(input_ids)).to(self.device)
 
             # ISS-008: Apply learning rate warmup
             lr_multiplier = self._get_lr_multiplier(self.global_step)
             for param_group in self.optimizer.param_groups:
-                param_group['lr'] = self.config.fine_tune_lr * lr_multiplier
+                param_group["lr"] = self.config.fine_tune_lr * lr_multiplier
 
             # ISS-008: Mixed precision forward pass
             with torch.cuda.amp.autocast(enabled=self.use_amp):
                 outputs = self.model(
                     input_ids=input_ids,
                     attention_mask=attention_mask,
-                    labels=input_ids  # Language modeling
+                    labels=input_ids,  # Language modeling
                 )
-                loss = outputs.loss if hasattr(outputs, 'loss') else outputs[0]
+                loss = outputs.loss if hasattr(outputs, "loss") else outputs[0]
 
             # ISS-008: Mixed precision backward pass with gradient clipping
             if self.scaler:
                 self.scaler.scale(loss).backward()
                 self.scaler.unscale_(self.optimizer)
-                torch.nn.utils.clip_grad_norm_(
-                    self.model.parameters(),
-                    self.config.max_grad_norm
-                )
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.max_grad_norm)
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
             else:
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(
-                    self.model.parameters(),
-                    self.config.max_grad_norm
-                )
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.max_grad_norm)
                 self.optimizer.step()
 
             self.optimizer.zero_grad()
@@ -301,38 +270,39 @@ class FineTuner:
             self.global_step += 1
 
             # Update progress bar
-            current_lr = self.optimizer.param_groups[0]['lr']
-            pbar.set_postfix({
-                'loss': loss.item(),
-                'lr': f'{current_lr:.2e}'
-            })
+            current_lr = self.optimizer.param_groups[0]["lr"]
+            pbar.set_postfix({"loss": loss.item(), "lr": f"{current_lr:.2e}"})
 
             # ISS-008: W&B batch logging
             if self.wandb_enabled and batch_idx % 10 == 0:
-                wandb.log({
-                    'fine_tune/batch_loss': loss.item(),
-                    'fine_tune/epoch': self.current_epoch,
-                    'fine_tune/learning_rate': current_lr,
-                    'fine_tune/global_step': self.global_step,
-                    'fine_tune/warmup_multiplier': lr_multiplier,
-                })
+                wandb.log(
+                    {
+                        "fine_tune/batch_loss": loss.item(),
+                        "fine_tune/epoch": self.current_epoch,
+                        "fine_tune/learning_rate": current_lr,
+                        "fine_tune/global_step": self.global_step,
+                        "fine_tune/warmup_multiplier": lr_multiplier,
+                    }
+                )
 
             # Log callback
             if log_callback is not None and batch_idx % 10 == 0:
-                log_callback({
-                    'epoch': self.current_epoch,
-                    'batch': batch_idx,
-                    'loss': loss.item(),
-                    'learning_rate': current_lr,
-                })
+                log_callback(
+                    {
+                        "epoch": self.current_epoch,
+                        "batch": batch_idx,
+                        "loss": loss.item(),
+                        "learning_rate": current_lr,
+                    }
+                )
 
         # Calculate average loss
         avg_loss = total_loss / num_batches if num_batches > 0 else 0.0
 
         return {
-            'epoch': self.current_epoch,
-            'loss': avg_loss,
-            'num_batches': num_batches,
+            "epoch": self.current_epoch,
+            "loss": avg_loss,
+            "num_batches": num_batches,
         }
 
     def _evaluate(self, dataloader: DataLoader) -> Dict:
@@ -353,21 +323,16 @@ class FineTuner:
         with torch.no_grad():
             for batch in dataloader:
                 input_ids = batch["input_ids"].to(self.device)
-                attention_mask = batch.get(
-                    "attention_mask",
-                    torch.ones_like(input_ids)
-                ).to(self.device)
+                attention_mask = batch.get("attention_mask", torch.ones_like(input_ids)).to(
+                    self.device
+                )
 
                 # Forward pass
                 outputs = self.model(
-                    input_ids=input_ids,
-                    attention_mask=attention_mask,
-                    labels=input_ids
+                    input_ids=input_ids, attention_mask=attention_mask, labels=input_ids
                 )
 
-                loss = outputs.loss if hasattr(
-                    outputs, 'loss'
-                ) else outputs[0]
+                loss = outputs.loss if hasattr(outputs, "loss") else outputs[0]
 
                 # Accumulate
                 batch_size = input_ids.size(0)
@@ -383,15 +348,11 @@ class FineTuner:
         self.model.train()
 
         return {
-            'eval_loss': avg_loss,
-            'perplexity': perplexity,
+            "eval_loss": avg_loss,
+            "perplexity": perplexity,
         }
 
-    def should_fine_tune(
-        self,
-        pre_perplexity: float,
-        post_perplexity: float
-    ) -> bool:
+    def should_fine_tune(self, pre_perplexity: float, post_perplexity: float) -> bool:
         """
         Check if fine-tuning is needed
 
@@ -406,9 +367,7 @@ class FineTuner:
             return False
 
         # Calculate degradation
-        degradation = (
-            (post_perplexity - pre_perplexity) / pre_perplexity
-        )
+        degradation = (post_perplexity - pre_perplexity) / pre_perplexity
 
         # Compare to threshold
         return degradation > self.config.fine_tune_threshold
@@ -421,22 +380,24 @@ class FineTuner:
             path: Path to save checkpoint (extension will be replaced with .safetensors)
         """
         # Remove extension if present
-        base_path = path.with_suffix('') if path.suffix else path
+        base_path = path.with_suffix("") if path.suffix else path
 
         # Training state goes in metadata (JSON-serializable)
         training_metadata = {
-            'epoch': self.current_epoch,
-            'global_step': self.global_step,
-            'best_perplexity': float(self.best_perplexity),
-            'training_history': self.training_history,
+            "epoch": self.current_epoch,
+            "global_step": self.global_step,
+            "best_perplexity": float(self.best_perplexity),
+            "training_history": self.training_history,
         }
 
         # Note: scaler state is handled separately if needed
         if self.scaler:
             # GradScaler state is small, can go in metadata
             scaler_state = self.scaler.state_dict()
-            training_metadata['scaler_scale'] = float(scaler_state.get('scale', 1.0))
-            training_metadata['scaler_growth_factor'] = float(scaler_state.get('_growth_factor', 2.0))
+            training_metadata["scaler_scale"] = float(scaler_state.get("scale", 1.0))
+            training_metadata["scaler_growth_factor"] = float(
+                scaler_state.get("_growth_factor", 2.0)
+            )
 
         secure_save(
             model=self.model,
@@ -466,28 +427,28 @@ class FineTuner:
         )
 
         # Restore optimizer state
-        if checkpoint_data.get('optimizer_state_dict'):
-            self.optimizer.load_state_dict(checkpoint_data['optimizer_state_dict'])
+        if checkpoint_data.get("optimizer_state_dict"):
+            self.optimizer.load_state_dict(checkpoint_data["optimizer_state_dict"])
 
         # Restore training state from metadata
-        metadata = checkpoint_data.get('metadata', {})
-        self.current_epoch = metadata.get('epoch', 0)
-        self.global_step = metadata.get('global_step', 0)
-        self.best_perplexity = metadata.get('best_perplexity', float('inf'))
-        self.training_history = metadata.get('training_history', [])
+        metadata = checkpoint_data.get("metadata", {})
+        self.current_epoch = metadata.get("epoch", 0)
+        self.global_step = metadata.get("global_step", 0)
+        self.best_perplexity = metadata.get("best_perplexity", float("inf"))
+        self.training_history = metadata.get("training_history", [])
 
         # Restore scaler if available
-        if self.scaler and 'scaler_scale' in metadata:
-            self.scaler._scale = torch.tensor(metadata['scaler_scale'])
+        if self.scaler and "scaler_scale" in metadata:
+            self.scaler._scale = torch.tensor(metadata["scaler_scale"])
 
         print(f"Loaded checkpoint from epoch {self.current_epoch}")
         print(f"Best perplexity: {self.best_perplexity:.2f}")
 
         return {
-            'epoch': self.current_epoch,
-            'global_step': self.global_step,
-            'best_perplexity': self.best_perplexity,
-            'num_history_entries': len(self.training_history),
+            "epoch": self.current_epoch,
+            "global_step": self.global_step,
+            "best_perplexity": self.best_perplexity,
+            "num_history_entries": len(self.training_history),
         }
 
     def get_training_summary(self) -> Dict:
@@ -499,20 +460,17 @@ class FineTuner:
         """
         if not self.training_history:
             return {
-                'trained': False,
-                'message': 'No fine-tuning performed',
+                "trained": False,
+                "message": "No fine-tuning performed",
             }
 
         return {
-            'trained': True,
-            'epochs': len(self.training_history),
-            'final_loss': self.training_history[-1]['loss'],
-            'best_perplexity': self.best_perplexity,
-            'initial_loss': self.training_history[0]['loss'],
-            'improvement': (
-                self.training_history[0]['loss'] -
-                self.training_history[-1]['loss']
-            ),
-            'global_steps': self.global_step,
-            'mixed_precision_enabled': self.use_amp,
+            "trained": True,
+            "epochs": len(self.training_history),
+            "final_loss": self.training_history[-1]["loss"],
+            "best_perplexity": self.best_perplexity,
+            "initial_loss": self.training_history[0]["loss"],
+            "improvement": (self.training_history[0]["loss"] - self.training_history[-1]["loss"]),
+            "global_steps": self.global_step,
+            "mixed_precision_enabled": self.use_amp,
         }

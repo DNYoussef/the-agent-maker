@@ -32,3 +32,6 @@ jupyter>=1.0.0
 # CI/CD
 coverage>=7.4.0
 tox>=4.11.0
+
+# Async HTTP (for Phase 3 data generation)
+aiohttp>=3.9.0

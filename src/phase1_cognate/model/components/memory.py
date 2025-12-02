@@ -17,12 +17,7 @@ class LongTermMemory(nn.Module):
     decayed memory, expands back to d_model.
     """
 
-    def __init__(
-        self,
-        d_model: int,
-        d_mem: int,
-        decay: float = 0.99
-    ):
+    def __init__(self, d_model: int, d_mem: int, decay: float = 0.99):
         """
         Initialize Long-Term Memory.
 
@@ -66,10 +61,7 @@ class LongTermMemory(nn.Module):
         m_list = []
         for t in range(seq_len):
             # Decay previous memory and add current
-            memory = (
-                self.decay * memory +
-                (1 - self.decay) * x_compressed[:, t:t+1, :]
-            )
+            memory = self.decay * memory + (1 - self.decay) * x_compressed[:, t : t + 1, :]
             m_list.append(memory)
 
         # Update global memory_state (average across batch, detached)

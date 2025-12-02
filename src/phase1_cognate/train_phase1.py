@@ -18,30 +18,32 @@ Usage:
 """
 
 import argparse
-import torch
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import torch
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
+from cross_phase.utils import get_tokenizer
+from phase1_cognate.data.dataset_downloader import DATASET_CONFIGS, download_all_datasets
+from phase1_cognate.data.dataset_processor import process_dataset
 from phase1_cognate.model.full_model import TRMTitansMAGModel
 from phase1_cognate.model.model_config import Phase1Config
-from phase1_cognate.data.dataset_downloader import download_all_datasets, DATASET_CONFIGS
-from phase1_cognate.data.dataset_processor import process_dataset
 from phase1_cognate.training.trainer import Phase1Trainer, TrainingConfig
-from cross_phase.utils import get_tokenizer
 
 
 def get_tokenizer_phase1():
     """Get GPT-2 tokenizer with Phase 1 specific settings"""
     try:
         import os
+
         from transformers import GPT2Tokenizer
 
         # Temporarily disable offline mode for tokenizer download
-        old_offline = os.environ.get('HF_DATASETS_OFFLINE', None)
-        os.environ['HF_DATASETS_OFFLINE'] = '0'
+        old_offline = os.environ.get("HF_DATASETS_OFFLINE", None)
+        os.environ["HF_DATASETS_OFFLINE"] = "0"
 
         try:
             tokenizer = GPT2Tokenizer.from_pretrained("gpt2", local_files_only=False)
@@ -51,7 +53,7 @@ def get_tokenizer_phase1():
         finally:
             # Restore offline mode setting
             if old_offline:
-                os.environ['HF_DATASETS_OFFLINE'] = old_offline
+                os.environ["HF_DATASETS_OFFLINE"] = old_offline
 
     except (ImportError, OSError) as e:
         print(f"WARNING: Could not load GPT-2 tokenizer ({e}), using mock tokenizer")
@@ -69,16 +71,16 @@ def download_and_process_datasets(dataset_names, cache_dir=None):
     Returns:
         Dict of processed datasets
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("STEP 1: DOWNLOAD DATASETS")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     # Download
     raw_datasets = download_all_datasets(dataset_names, cache_dir)
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("STEP 2: PROCESS DATASETS")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     # Process
     processed_datasets = {}
@@ -91,12 +93,7 @@ def download_and_process_datasets(dataset_names, cache_dir=None):
     return processed_datasets
 
 
-def train_single_model(
-    specialization: str,
-    datasets: dict,
-    tokenizer,
-    args
-):
+def train_single_model(specialization: str, datasets: dict, tokenizer, args):
     """
     Train a single model
 
@@ -106,9 +103,9 @@ def train_single_model(
         tokenizer: Tokenizer
         args: Command line arguments
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print(f"TRAINING MODEL: {specialization.upper()}")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     # Create model config
     model_config = Phase1Config(specialization=specialization)
@@ -130,7 +127,7 @@ def train_single_model(
         batch_size=args.batch_size,
         checkpoint_dir=Path(args.checkpoint_dir) / specialization,
         wandb_mode=args.wandb_mode,
-        device=args.device
+        device=args.device,
     )
 
     # Create trainer
@@ -139,7 +136,7 @@ def train_single_model(
         config=train_config,
         train_datasets=datasets,
         val_datasets=datasets if args.validate else None,
-        tokenizer=tokenizer
+        tokenizer=tokenizer,
     )
 
     # Train
@@ -153,21 +150,16 @@ def main():
 
     # Model selection
     parser.add_argument(
-        "--model",
-        type=str,
-        choices=["reasoning", "memory", "speed"],
-        help="Train single model"
+        "--model", type=str, choices=["reasoning", "memory", "speed"], help="Train single model"
     )
-    parser.add_argument(
-        "--all",
-        action="store_true",
-        help="Train all 3 models sequentially"
-    )
+    parser.add_argument("--all", action="store_true", help="Train all 3 models sequentially")
 
     # Training parameters
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs")
     parser.add_argument("--batch-size", type=int, default=16, help="Batch size")
-    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument(
+        "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu"
+    )
 
     # Datasets
     parser.add_argument(
@@ -175,7 +167,7 @@ def main():
         type=str,
         nargs="+",
         default=None,
-        help="Datasets to use (default: foundation datasets)"
+        help="Datasets to use (default: foundation datasets)",
     )
     parser.add_argument("--cache-dir", type=Path, default=None, help="Dataset cache directory")
 
@@ -183,11 +175,17 @@ def main():
     parser.add_argument("--checkpoint-dir", type=Path, default=Path("checkpoints/phase1"))
 
     # Logging
-    parser.add_argument("--wandb-mode", type=str, default="offline", choices=["online", "offline", "disabled"])
-    parser.add_argument("--no-validate", dest="validate", action="store_false", help="Disable validation")
+    parser.add_argument(
+        "--wandb-mode", type=str, default="offline", choices=["online", "offline", "disabled"]
+    )
+    parser.add_argument(
+        "--no-validate", dest="validate", action="store_false", help="Disable validation"
+    )
 
     # Testing
-    parser.add_argument("--test", action="store_true", help="Quick test mode (CPU, 1 epoch, small datasets)")
+    parser.add_argument(
+        "--test", action="store_true", help="Quick test mode (CPU, 1 epoch, small datasets)"
+    )
 
     args = parser.parse_args()
 
@@ -201,9 +199,7 @@ def main():
 
     # Default datasets (foundation stage)
     if args.datasets is None:
-        args.datasets = [
-            "gsm8k", "svamp", "mbpp", "arc_easy", "piqa", "wikitext"
-        ]
+        args.datasets = ["gsm8k", "svamp", "mbpp", "arc_easy", "piqa", "wikitext"]
 
     # Get tokenizer
     tokenizer = get_tokenizer_phase1()
@@ -223,9 +219,9 @@ def main():
         print("Error: Must specify --model or --all")
         return 1
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("ALL TRAINING COMPLETE!")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     return 0
 

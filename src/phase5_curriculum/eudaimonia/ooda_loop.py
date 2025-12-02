@@ -20,20 +20,21 @@ Key Constraint: SMALLEST MEASURABLE ACTION
 
 Based on PHASE5_EUDAIMONIA_SYSTEM.md specification.
 """
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Callable
-from enum import Enum
 import logging
 import time
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
 
-from .rules import EudaimoniaRuleSystem, EudaimoniaScore
 from .archetypes import ArchetypeCouncil
+from .rules import EudaimoniaRuleSystem, EudaimoniaScore
 
 logger = logging.getLogger(__name__)
 
 
 class OODAState(Enum):
     """States in the OODA loop."""
+
     OBSERVE = "observe"
     ORIENT = "orient"
     DECIDE = "decide"
@@ -52,6 +53,7 @@ class SmallestMeasurableAction:
     - low_risk: Minimal potential for harm
     - aligned: Consistent with moral direction
     """
+
     description: str
     measurability: float  # 0.0 to 1.0
     reversibility: float  # 0.0 to 1.0
@@ -65,25 +67,22 @@ class SmallestMeasurableAction:
         """Calculate overall action score (higher is better)."""
         # Weighted formula: prioritize low risk and high measurability
         return (
-            0.30 * self.measurability +
-            0.25 * self.reversibility +
-            0.25 * (1.0 - self.risk_level) +  # Inverse of risk
-            0.20 * self.alignment_score
+            0.30 * self.measurability
+            + 0.25 * self.reversibility
+            + 0.25 * (1.0 - self.risk_level)
+            + 0.20 * self.alignment_score  # Inverse of risk
         )
 
     @property
     def is_acceptable(self) -> bool:
         """Check if action meets minimum thresholds."""
-        return (
-            self.measurability >= 0.5 and
-            self.risk_level <= 0.5 and
-            self.overall_score >= 0.6
-        )
+        return self.measurability >= 0.5 and self.risk_level <= 0.5 and self.overall_score >= 0.6
 
 
 @dataclass
 class OODADecision:
     """Result of an OODA loop iteration."""
+
     iteration: int
     initial_score: float
     final_score: float
@@ -118,7 +117,7 @@ class OODALoop:
         self,
         confidence_threshold: float = 0.65,
         max_iterations: int = 5,
-        action_executor: Optional[Callable[[SmallestMeasurableAction], bool]] = None
+        action_executor: Optional[Callable[[SmallestMeasurableAction], bool]] = None,
     ):
         """
         Initialize OODA loop.
@@ -142,7 +141,7 @@ class OODALoop:
         self,
         situation: str,
         context: Optional[Dict[str, Any]] = None,
-        candidate_actions: Optional[List[str]] = None
+        candidate_actions: Optional[List[str]] = None,
     ) -> OODADecision:
         """
         Run one complete OODA loop iteration.
@@ -177,7 +176,7 @@ class OODALoop:
                 success=True,
                 needs_another_loop=False,
                 reasoning="Eudaimonia score already above confidence threshold",
-                duration_ms=duration_ms
+                duration_ms=duration_ms,
             )
             self.history.append(decision)
             return decision
@@ -185,9 +184,7 @@ class OODALoop:
         # STEP 2: ORIENT
         # Consult archetypes for moral direction
         moral_direction = self.council.get_moral_direction(
-            situation=situation,
-            eudaimonia_score=initial_score.overall_score,
-            context=context
+            situation=situation, eudaimonia_score=initial_score.overall_score, context=context
         )
 
         # STEP 3: DECIDE
@@ -202,12 +199,7 @@ class OODALoop:
         best_score = 0.0
 
         for action_desc in candidate_actions:
-            action = self._evaluate_action(
-                action_desc,
-                moral_direction,
-                initial_score,
-                context
-            )
+            action = self._evaluate_action(action_desc, moral_direction, initial_score, context)
             if action.overall_score > best_score:
                 best_score = action.overall_score
                 best_action = action
@@ -232,15 +224,12 @@ class OODALoop:
 
         # Re-calculate score (simulated improvement)
         final_score = self._estimate_post_action_score(
-            initial_score.overall_score,
-            best_action,
-            action_success
+            initial_score.overall_score, best_action, action_success
         )
 
         # Determine if loop continues
         needs_another_loop = (
-            final_score < self.confidence_threshold and
-            iteration < self.max_iterations
+            final_score < self.confidence_threshold and iteration < self.max_iterations
         )
 
         success = final_score >= self.confidence_threshold
@@ -258,16 +247,14 @@ class OODALoop:
             reasoning=self._build_reasoning(
                 initial_score, final_score, best_action, moral_direction
             ),
-            duration_ms=duration_ms
+            duration_ms=duration_ms,
         )
 
         self.history.append(decision)
         return decision
 
     def run_until_confident(
-        self,
-        situation: str,
-        context: Optional[Dict[str, Any]] = None
+        self, situation: str, context: Optional[Dict[str, Any]] = None
     ) -> List[OODADecision]:
         """
         Run OODA loop repeatedly until confidence threshold is reached.
@@ -297,10 +284,7 @@ class OODALoop:
         return decisions
 
     def _generate_candidate_actions(
-        self,
-        situation: str,
-        moral_direction: Dict[str, Any],
-        score: EudaimoniaScore
+        self, situation: str, moral_direction: Dict[str, Any], score: EudaimoniaScore
     ) -> List[str]:
         """Generate candidate actions based on moral direction."""
         candidates = []
@@ -311,17 +295,21 @@ class OODALoop:
 
         # Add generic small actions based on score
         if score.overall_score < 0.40:
-            candidates.extend([
-                "Acknowledge the difficulty and offer to approach differently",
-                "Ask a clarifying question to understand the real need",
-                "Propose a smaller first step that builds trust"
-            ])
+            candidates.extend(
+                [
+                    "Acknowledge the difficulty and offer to approach differently",
+                    "Ask a clarifying question to understand the real need",
+                    "Propose a smaller first step that builds trust",
+                ]
+            )
         else:
-            candidates.extend([
-                "Offer a collaborative approach to the task",
-                "Explain the reasoning behind the suggested approach",
-                "Check if the user wants to proceed with this direction"
-            ])
+            candidates.extend(
+                [
+                    "Offer a collaborative approach to the task",
+                    "Explain the reasoning behind the suggested approach",
+                    "Check if the user wants to proceed with this direction",
+                ]
+            )
 
         return candidates[:5]  # Maximum 5 candidates
 
@@ -330,7 +318,7 @@ class OODALoop:
         action_desc: str,
         moral_direction: Dict[str, Any],
         score: EudaimoniaScore,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> SmallestMeasurableAction:
         """Evaluate a candidate action."""
         action_lower = action_desc.lower()
@@ -361,14 +349,11 @@ class OODALoop:
             reversibility=reversibility,
             risk_level=risk_level,
             alignment_score=alignment_score,
-            expected_outcome=expected_outcome
+            expected_outcome=expected_outcome,
         )
 
     def _estimate_post_action_score(
-        self,
-        initial_score: float,
-        action: Optional[SmallestMeasurableAction],
-        success: bool
+        self, initial_score: float, action: Optional[SmallestMeasurableAction], success: bool
     ) -> float:
         """Estimate score improvement after action."""
         if not action or not success:
@@ -385,14 +370,12 @@ class OODALoop:
         initial_score: EudaimoniaScore,
         final_score: float,
         action: Optional[SmallestMeasurableAction],
-        moral_direction: Dict[str, Any]
+        moral_direction: Dict[str, Any],
     ) -> str:
         """Build human-readable reasoning for the decision."""
         parts = []
 
-        parts.append(
-            f"Initial Eudaimonia score: {initial_score.overall_score:.0%}"
-        )
+        parts.append(f"Initial Eudaimonia score: {initial_score.overall_score:.0%}")
 
         if initial_score.overall_score < self.confidence_threshold:
             parts.append(
@@ -422,9 +405,7 @@ class OODALoop:
 
 # Convenience function
 def run_ooda_intervention(
-    situation: str,
-    context: Optional[Dict[str, Any]] = None,
-    threshold: float = 0.65
+    situation: str, context: Optional[Dict[str, Any]] = None, threshold: float = 0.65
 ) -> OODADecision:
     """
     Run a single OODA intervention for an ethical situation.
@@ -446,5 +427,5 @@ __all__ = [
     "OODAState",
     "OODADecision",
     "SmallestMeasurableAction",
-    "run_ooda_intervention"
+    "run_ooda_intervention",
 ]

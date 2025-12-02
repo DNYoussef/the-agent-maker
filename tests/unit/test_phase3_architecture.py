@@ -11,19 +11,20 @@ Tests all 5 core classes:
 Target: ≥95% coverage for critical paths
 """
 
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
 import torch
 import torch.nn as nn
-from unittest.mock import Mock, MagicMock, patch
 
 from src.phase3_quietstar.architecture import (
-    ThoughtGenerator,
     CoherenceScorer,
-    MixingHead,
-    ThoughtInjector,
-    QuietSTaRModel,
-    ThoughtOutput,
     CoherenceScores,
+    MixingHead,
+    QuietSTaRModel,
+    ThoughtGenerator,
+    ThoughtInjector,
+    ThoughtOutput,
 )
 
 
@@ -51,8 +52,7 @@ def mock_base_model():
     model.side_effect = dynamic_forward
     # Also support direct call without arguments for some tests
     model.return_value = Mock(
-        logits=torch.randn(2, 10, 50257),
-        last_hidden_state=torch.randn(2, 10, 512)
+        logits=torch.randn(2, 10, 50257), last_hidden_state=torch.randn(2, 10, 512)
     )
 
     return model
@@ -90,9 +90,7 @@ class TestThoughtGenerator:
         assert generator.temperature == 1.0
         assert generator.top_p == 0.9
 
-    def test_forward_generates_thoughts(
-        self, mock_base_model, sample_input_ids
-    ):
+    def test_forward_generates_thoughts(self, mock_base_model, sample_input_ids):
         """Test thought generation forward pass."""
         generator = ThoughtGenerator(mock_base_model, num_thoughts=4)
 
@@ -121,13 +119,9 @@ class TestThoughtGenerator:
         # Most mass should be in top-p
         assert cumsum[0, :100].item() > 0.8
 
-    def test_generate_single_thought(
-        self, mock_base_model, sample_input_ids
-    ):
+    def test_generate_single_thought(self, mock_base_model, sample_input_ids):
         """Test single thought generation."""
-        generator = ThoughtGenerator(
-            mock_base_model, min_length=5, max_length=10
-        )
+        generator = ThoughtGenerator(mock_base_model, min_length=5, max_length=10)
 
         thought, log_prob, ids = generator._generate_single(
             sample_input_ids, position=3, hidden_states=None
@@ -138,9 +132,7 @@ class TestThoughtGenerator:
         assert isinstance(log_prob, torch.Tensor)
         assert 5 <= len(ids) <= 10  # Within min/max range
 
-    def test_thought_count_matches_num_thoughts(
-        self, mock_base_model, sample_input_ids
-    ):
+    def test_thought_count_matches_num_thoughts(self, mock_base_model, sample_input_ids):
         """Test correct number of thoughts generated."""
         for num_thoughts in [2, 4, 8]:
             generator = ThoughtGenerator(mock_base_model, num_thoughts=num_thoughts)
@@ -226,11 +218,7 @@ class TestCoherenceScorer:
         scores = scorer.forward(base_hidden, thought_hiddens)
 
         # Compute expected composite
-        expected = (
-            0.5 * scores.semantic
-            + 0.3 * scores.syntactic
-            + 0.2 * scores.predictive
-        )
+        expected = 0.5 * scores.semantic + 0.3 * scores.syntactic + 0.2 * scores.predictive
 
         assert torch.allclose(scores.composite, expected, atol=1e-5)
 
@@ -403,9 +391,7 @@ class TestQuietSTaRModel:
         assert isinstance(model.mixing_head, MixingHead)
         assert isinstance(model.thought_injector, ThoughtInjector)
 
-    def test_forward_without_thoughts(
-        self, mock_base_model, sample_input_ids
-    ):
+    def test_forward_without_thoughts(self, mock_base_model, sample_input_ids):
         """Test forward pass without thought generation."""
         model = QuietSTaRModel(mock_base_model, hidden_size=512)
 
@@ -415,9 +401,7 @@ class TestQuietSTaRModel:
         assert outputs["logits"].shape == (2, 10, 50257)
         assert "loss" not in outputs  # No labels provided
 
-    def test_forward_with_thoughts(
-        self, mock_base_model, sample_input_ids
-    ):
+    def test_forward_with_thoughts(self, mock_base_model, sample_input_ids):
         """Test forward pass with thought generation."""
         model = QuietSTaRModel(mock_base_model, hidden_size=512)
 
@@ -432,17 +416,13 @@ class TestQuietSTaRModel:
         assert isinstance(outputs["avg_coherence"], float)
         assert isinstance(outputs["num_thoughts_used"], int)
 
-    def test_forward_with_labels_computes_loss(
-        self, mock_base_model, sample_input_ids
-    ):
+    def test_forward_with_labels_computes_loss(self, mock_base_model, sample_input_ids):
         """Test loss computation with labels."""
         model = QuietSTaRModel(mock_base_model, hidden_size=512)
 
         labels = sample_input_ids.clone()
 
-        outputs = model.forward(
-            sample_input_ids, labels=labels, use_thoughts=False
-        )
+        outputs = model.forward(sample_input_ids, labels=labels, use_thoughts=False)
 
         assert "loss" in outputs
         assert isinstance(outputs["loss"], torch.Tensor)
@@ -494,9 +474,7 @@ class TestDataStructures:
 
 @pytest.mark.parametrize("batch_size", [1, 2, 4])
 @pytest.mark.parametrize("num_thoughts", [2, 4, 8])
-def test_architecture_different_batch_and_thought_sizes(
-    mock_base_model, batch_size, num_thoughts
-):
+def test_architecture_different_batch_and_thought_sizes(mock_base_model, batch_size, num_thoughts):
     """Test architecture with different batch and thought sizes."""
     generator = ThoughtGenerator(mock_base_model, num_thoughts=num_thoughts)
 

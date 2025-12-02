@@ -8,14 +8,13 @@ importance-weighted scaling for improved efficiency.
 
 import copy
 from typing import Dict, Optional
+
 import torch
 import torch.nn as nn
 
 
 def compute_scaling_matrix(
-    model: nn.Module,
-    method: str = 'gradient_magnitude',
-    epsilon: float = 1e-8
+    model: nn.Module, method: str = "gradient_magnitude", epsilon: float = 1e-8
 ) -> Dict[str, torch.Tensor]:
     """
     Compute per-parameter importance weights for scaled mutation.
@@ -48,14 +47,14 @@ def compute_scaling_matrix(
 
     with torch.no_grad():
         for name, param in model.named_parameters():
-            if method == 'gradient_magnitude':
+            if method == "gradient_magnitude":
                 # Use parameter magnitude as importance proxy
                 # Larger absolute values = more important = higher scaling
                 scaling[name] = param.abs().mean() + epsilon
-            elif method == 'fisher':
+            elif method == "fisher":
                 # Fisher information approximation
                 # Higher variance = more important = higher scaling
-                scaling[name] = (param ** 2).mean() + epsilon
+                scaling[name] = (param**2).mean() + epsilon
             else:
                 raise ValueError(f"Unknown method: {method}. Use 'gradient_magnitude' or 'fisher'.")
 
@@ -66,8 +65,8 @@ def mutate_model(
     model: nn.Module,
     sigma: float = 0.01,
     rate: float = 0.01,
-    device: str = 'cuda',
-    scaling_matrix: Optional[Dict[str, torch.Tensor]] = None
+    device: str = "cuda",
+    scaling_matrix: Optional[Dict[str, torch.Tensor]] = None,
 ) -> nn.Module:
     """
     Apply Gaussian noise mutation to model parameters.

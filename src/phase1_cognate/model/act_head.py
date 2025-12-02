@@ -7,10 +7,11 @@ Uses EMA calibration to prevent pathological halting behavior.
 Reference: Graves, A. (2016). Adaptive Computation Time for RNNs
 """
 
+from typing import Dict, Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Dict, Optional
 
 from .model_config import ACTConfig
 
@@ -32,10 +33,7 @@ class ACTHead(nn.Module):
         self.w_halt = nn.Linear(d_model, 1)
 
         # EMA step accuracies (tracked during training)
-        self.register_buffer(
-            "ema_step_acc",
-            torch.zeros(10)  # Support up to T_max=10
-        )
+        self.register_buffer("ema_step_acc", torch.zeros(10))  # Support up to T_max=10
         self.register_buffer("step_count", torch.zeros(10))
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:
@@ -52,11 +50,7 @@ class ACTHead(nn.Module):
         q = torch.sigmoid(halt_logit)
         return q
 
-    def should_halt(
-        self,
-        q: torch.Tensor,
-        threshold: Optional[float] = None
-    ) -> bool:
+    def should_halt(self, q: torch.Tensor, threshold: Optional[float] = None) -> bool:
         """
         Determine if should halt based on halt probabilities
 
@@ -74,10 +68,7 @@ class ACTHead(nn.Module):
         return avg_halt_prob > threshold
 
     def compute_act_loss(
-        self,
-        q: torch.Tensor,
-        step: int,
-        is_correct: Optional[torch.Tensor] = None
+        self, q: torch.Tensor, step: int, is_correct: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
         Compute ACT loss with EMA calibration + diversity regularization
@@ -111,10 +102,7 @@ class ACTHead(nn.Module):
 
         # Entropy regularization (prevent saturation)
         eps = 1e-8
-        entropy = -(
-            q * torch.log(q + eps) +
-            (1 - q) * torch.log(1 - q + eps)
-        )
+        entropy = -(q * torch.log(q + eps) + (1 - q) * torch.log(1 - q + eps))
         loss_entropy = -self.config.entropy_reg * entropy.mean()
 
         # Diversity regularization (encourage variance across tokens)
@@ -141,10 +129,7 @@ class ACTHead(nn.Module):
 
         # EMA update
         alpha = self.config.ema_decay
-        self.ema_step_acc[step] = (
-            alpha * self.ema_step_acc[step] +
-            (1 - alpha) * accuracy
-        )
+        self.ema_step_acc[step] = alpha * self.ema_step_acc[step] + (1 - alpha) * accuracy
         self.step_count[step] += 1
 
     def get_ema_stats(self) -> Dict[str, float]:
@@ -152,7 +137,5 @@ class ACTHead(nn.Module):
         stats = {}
         for i in range(10):
             if self.step_count[i] > 0:
-                stats[f"act/ema_acc_step{i}"] = (
-                    self.ema_step_acc[i].item()
-                )
+                stats[f"act/ema_acc_step{i}"] = self.ema_step_acc[i].item()
         return stats

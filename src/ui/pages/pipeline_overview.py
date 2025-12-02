@@ -2,16 +2,17 @@
 Pipeline Overview Page - Enhanced Visual Edition
 Shows current pipeline status, progress, and session information with modern UI
 """
-import streamlit as st
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import streamlit as st
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from cross_phase.storage.model_registry import ModelRegistry
 from cross_phase.orchestrator.pipeline import PipelineOrchestrator
+from cross_phase.storage.model_registry import ModelRegistry
 
 
 def inject_custom_css():
@@ -433,91 +434,157 @@ def inject_custom_css():
 
 def render_hero_section(session_id, session_info):
     """Render enhanced hero section with gradient and status"""
-    status = session_info.get('status', 'unknown').upper() if session_info else 'NO SESSION'
-    current_phase = session_info.get('current_phase', 'N/A') if session_info else 'N/A'
+    status = session_info.get("status", "unknown").upper() if session_info else "NO SESSION"
+    current_phase = session_info.get("current_phase", "N/A") if session_info else "N/A"
 
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div class="hero-section">
         <div class="hero-title">Agent Forge V2 Pipeline</div>
         <div class="hero-subtitle">8-Phase AI Agent Creation System</div>
         <div class="hero-status">Status: {status} | Current: {current_phase}</div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_enhanced_metrics(session_info, models_count):
     """Render enhanced metric cards with icons and animations"""
     col1, col2, col3, col4 = st.columns(4)
 
-    status = session_info.get('status', 'unknown').upper()
-    current_phase = session_info.get('current_phase', 'N/A')
-    progress = session_info.get('progress_percent', 0.0)
+    status = session_info.get("status", "unknown").upper()
+    current_phase = session_info.get("current_phase", "N/A")
+    progress = session_info.get("progress_percent", 0.0)
 
     with col1:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div class="metric-card-enhanced">
             <div class="metric-icon">⚡</div>
             <div class="metric-label">Pipeline Status</div>
             <div class="metric-value">{status}</div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     with col2:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div class="metric-card-enhanced">
             <div class="metric-icon">🔄</div>
             <div class="metric-label">Current Phase</div>
             <div class="metric-value">{current_phase}</div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     with col3:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div class="metric-card-enhanced">
             <div class="metric-icon">📊</div>
             <div class="metric-label">Progress</div>
             <div class="metric-value">{progress:.1f}%%</div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     with col4:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div class="metric-card-enhanced">
             <div class="metric-icon">🤖</div>
             <div class="metric-label">Models Created</div>
             <div class="metric-value">{models_count}</div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     # Enhanced progress bar
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div class="custom-progress-container">
         <div class="custom-progress-bar" style="width: {progress}%%">
             <span class="progress-text">{progress:.1f}%%</span>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_phase_timeline(current_phase):
     """Render visual 8-phase timeline with status indicators"""
     phases = [
-        {"number": 1, "name": "Cognate", "description": "TRM x Titans-MAG",
-         "detail": "25M params, 3 specialized models", "key": "phase1", "progress": 100},
-        {"number": 2, "name": "EvoMerge", "description": "50 generations evolutionary optimization",
-         "detail": "6 merge techniques, binary pairing", "key": "phase2", "progress": 65},
-        {"number": 3, "name": "Quiet-STaR", "description": "Reasoning enhancement",
-         "detail": "Token-wise thought generation", "key": "phase3", "progress": 0},
-        {"number": 4, "name": "BitNet", "description": "1.58-bit compression",
-         "detail": "8.2x compression, 3.8x speedup", "key": "phase4", "progress": 0},
-        {"number": 5, "name": "Curriculum Learning", "description": "7-stage adaptive curriculum",
-         "detail": "Edge-of-chaos, frontier models", "key": "phase5", "progress": 0},
-        {"number": 6, "name": "Tool & Persona Baking", "description": "A/B optimization loops",
-         "detail": "SWE-Bench, self-guided personas", "key": "phase6", "progress": 0},
-        {"number": 7, "name": "Self-Guided Experts", "description": "Model-driven discovery",
-         "detail": "Transformer(2) SVF, NSGA-II ADAS", "key": "phase7", "progress": 0},
-        {"number": 8, "name": "Final Compression", "description": "280x compression",
-         "detail": "SeedLM -> VPTQ -> Hypercompression", "key": "phase8", "progress": 0}
+        {
+            "number": 1,
+            "name": "Cognate",
+            "description": "TRM x Titans-MAG",
+            "detail": "25M params, 3 specialized models",
+            "key": "phase1",
+            "progress": 100,
+        },
+        {
+            "number": 2,
+            "name": "EvoMerge",
+            "description": "50 generations evolutionary optimization",
+            "detail": "6 merge techniques, binary pairing",
+            "key": "phase2",
+            "progress": 65,
+        },
+        {
+            "number": 3,
+            "name": "Quiet-STaR",
+            "description": "Reasoning enhancement",
+            "detail": "Token-wise thought generation",
+            "key": "phase3",
+            "progress": 0,
+        },
+        {
+            "number": 4,
+            "name": "BitNet",
+            "description": "1.58-bit compression",
+            "detail": "8.2x compression, 3.8x speedup",
+            "key": "phase4",
+            "progress": 0,
+        },
+        {
+            "number": 5,
+            "name": "Curriculum Learning",
+            "description": "7-stage adaptive curriculum",
+            "detail": "Edge-of-chaos, frontier models",
+            "key": "phase5",
+            "progress": 0,
+        },
+        {
+            "number": 6,
+            "name": "Tool & Persona Baking",
+            "description": "A/B optimization loops",
+            "detail": "SWE-Bench, self-guided personas",
+            "key": "phase6",
+            "progress": 0,
+        },
+        {
+            "number": 7,
+            "name": "Self-Guided Experts",
+            "description": "Model-driven discovery",
+            "detail": "Transformer(2) SVF, NSGA-II ADAS",
+            "key": "phase7",
+            "progress": 0,
+        },
+        {
+            "number": 8,
+            "name": "Final Compression",
+            "description": "280x compression",
+            "detail": "SeedLM -> VPTQ -> Hypercompression",
+            "key": "phase8",
+            "progress": 0,
+        },
     ]
 
     st.markdown('<div class="section-header">8-Phase Pipeline Status</div>', unsafe_allow_html=True)
@@ -525,12 +592,12 @@ def render_phase_timeline(current_phase):
 
     for phase in phases:
         # Determine status
-        if phase['key'] < current_phase:
+        if phase["key"] < current_phase:
             status_class = "complete"
             badge_class = "status-badge-complete"
             badge_text = "Complete"
             badge_icon = "✓"
-        elif phase['key'] == current_phase:
+        elif phase["key"] == current_phase:
             status_class = "running"
             badge_class = "status-badge-running"
             badge_text = "Running"
@@ -541,9 +608,14 @@ def render_phase_timeline(current_phase):
             badge_text = "Pending"
             badge_icon = "○"
 
-        progress_html = f'<div class="phase-progress"><div class="phase-progress-bar" style="width: {phase["progress"]}%%"></div></div>' if status_class == 'running' else ''
+        progress_html = (
+            f'<div class="phase-progress"><div class="phase-progress-bar" style="width: {phase["progress"]}%%"></div></div>'
+            if status_class == "running"
+            else ""
+        )
 
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div class="phase-item {status_class}">
             <div class="phase-number">{phase['number']}</div>
             <div class="phase-content">
@@ -556,9 +628,11 @@ def render_phase_timeline(current_phase):
                 {badge_icon} {badge_text}
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_activity_log():
@@ -566,32 +640,67 @@ def render_activity_log():
     st.markdown('<div class="section-header">Recent Activity</div>', unsafe_allow_html=True)
 
     activity_log = [
-        {"time": "2 minutes ago", "event": "Phase 2 Model 5 evolution completed successfully",
-         "type": "success", "absolute_time": "10:45 AM"},
-        {"time": "5 minutes ago", "event": "Phase 2 Generation 15/50 started",
-         "type": "info", "absolute_time": "10:42 AM"},
-        {"time": "8 minutes ago", "event": "Champion model fitness: 0.876 (+23.5%% from baseline)",
-         "type": "success", "absolute_time": "10:39 AM"},
-        {"time": "12 minutes ago", "event": "Phase 1 Model 3 handoff validation complete",
-         "type": "success", "absolute_time": "10:35 AM"},
-        {"time": "15 minutes ago", "event": "SLERP merge technique applied (interpolation: 0.6)",
-         "type": "info", "absolute_time": "10:32 AM"},
-        {"time": "18 minutes ago", "event": "Binary pairing strategy: Group A vs Group B",
-         "type": "info", "absolute_time": "10:29 AM"},
-        {"time": "22 minutes ago", "event": "MuGrokfast optimizer checkpoint saved",
-         "type": "success", "absolute_time": "10:25 AM"},
-        {"time": "25 minutes ago", "event": "W&B logging: 370 metrics tracked for Phase 2",
-         "type": "info", "absolute_time": "10:22 AM"}
+        {
+            "time": "2 minutes ago",
+            "event": "Phase 2 Model 5 evolution completed successfully",
+            "type": "success",
+            "absolute_time": "10:45 AM",
+        },
+        {
+            "time": "5 minutes ago",
+            "event": "Phase 2 Generation 15/50 started",
+            "type": "info",
+            "absolute_time": "10:42 AM",
+        },
+        {
+            "time": "8 minutes ago",
+            "event": "Champion model fitness: 0.876 (+23.5%% from baseline)",
+            "type": "success",
+            "absolute_time": "10:39 AM",
+        },
+        {
+            "time": "12 minutes ago",
+            "event": "Phase 1 Model 3 handoff validation complete",
+            "type": "success",
+            "absolute_time": "10:35 AM",
+        },
+        {
+            "time": "15 minutes ago",
+            "event": "SLERP merge technique applied (interpolation: 0.6)",
+            "type": "info",
+            "absolute_time": "10:32 AM",
+        },
+        {
+            "time": "18 minutes ago",
+            "event": "Binary pairing strategy: Group A vs Group B",
+            "type": "info",
+            "absolute_time": "10:29 AM",
+        },
+        {
+            "time": "22 minutes ago",
+            "event": "MuGrokfast optimizer checkpoint saved",
+            "type": "success",
+            "absolute_time": "10:25 AM",
+        },
+        {
+            "time": "25 minutes ago",
+            "event": "W&B logging: 370 metrics tracked for Phase 2",
+            "type": "info",
+            "absolute_time": "10:22 AM",
+        },
     ]
 
-    st.markdown('<div class="activity-log"><div class="activity-log-container">', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="activity-log"><div class="activity-log-container">', unsafe_allow_html=True
+    )
 
     for entry in activity_log:
-        type_class = entry['type']
+        type_class = entry["type"]
         type_badge_class = f"log-type-{type_class}"
-        type_label = entry['type'].upper()
+        type_label = entry["type"].upper()
 
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div class="log-entry {type_class}">
             <div class="log-timestamp">{entry['time']} ({entry['absolute_time']})</div>
             <div class="log-event">
@@ -599,9 +708,11 @@ def render_activity_log():
                 <span class="log-type-badge {type_badge_class}">{type_label}</span>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
-    st.markdown('</div></div>', unsafe_allow_html=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
 
 def render():
@@ -613,14 +724,14 @@ def render():
 
     with col1:
         st.markdown('<div class="section-header">Session Management</div>', unsafe_allow_html=True)
-        sessions = registry.list_sessions() if hasattr(registry, 'list_sessions') else []
+        sessions = registry.list_sessions() if hasattr(registry, "list_sessions") else []
 
         if sessions:
             session_id = st.selectbox(
                 "Select Active Session",
                 sessions,
                 format_func=lambda x: f"Session: {x}",
-                key="session_selector"
+                key="session_selector",
             )
         else:
             st.info("No active sessions. Create a new session to begin.")
@@ -630,13 +741,16 @@ def render():
         st.markdown('<div class="section-header">Quick Actions</div>', unsafe_allow_html=True)
         if st.button("🚀 Create New Session", type="primary", use_container_width=True):
             new_session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            registry.create_session(new_session_id, {
-                "created": datetime.now().isoformat(),
-                "pipeline": "agent-forge-v2",
-                "status": "active",
-                "current_phase": "phase1",
-                "progress_percent": 0.0
-            })
+            registry.create_session(
+                new_session_id,
+                {
+                    "created": datetime.now().isoformat(),
+                    "pipeline": "agent-forge-v2",
+                    "status": "active",
+                    "current_phase": "phase1",
+                    "progress_percent": 0.0,
+                },
+            )
             st.success(f"Created session: {new_session_id}")
             st.rerun()
 
@@ -650,17 +764,23 @@ def render():
     st.markdown("---")
 
     if session_id:
-        session_info = registry.get_session(session_id) if hasattr(registry, 'get_session') else None
+        session_info = (
+            registry.get_session(session_id) if hasattr(registry, "get_session") else None
+        )
 
         if session_info:
             render_hero_section(session_id, session_info)
 
-            models_count = len(registry.get_session_models(session_id)) if hasattr(registry, 'get_session_models') else 0
+            models_count = (
+                len(registry.get_session_models(session_id))
+                if hasattr(registry, "get_session_models")
+                else 0
+            )
             render_enhanced_metrics(session_info, models_count)
 
             st.markdown("---")
 
-            current_phase = session_info.get('current_phase', 'phase1')
+            current_phase = session_info.get("current_phase", "phase1")
             render_phase_timeline(current_phase)
 
             st.markdown("---")
@@ -669,14 +789,18 @@ def render():
         else:
             st.warning(f"Session {session_id} not found.")
     else:
-        st.markdown("""
+        st.markdown(
+            """
         <div class="hero-section">
             <div class="hero-title">Welcome to Agent Forge V2</div>
             <div class="hero-subtitle">Create your first session to begin the 8-phase pipeline</div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
-        st.markdown("""
+        st.markdown(
+            """
         ### Getting Started
 
         1. Click **Create New Session** to begin
@@ -690,10 +814,12 @@ def render():
         **Phase 3-4**: Enhancement (Quiet-STaR + BitNet)
         **Phase 5-6**: Training (Curriculum + Baking)
         **Phase 7-8**: Optimization (Experts + Compression)
-        """)
+        """
+        )
 
     if st.sidebar.checkbox("Auto-refresh (5s)", value=False):
         import time
+
         time.sleep(5)
         st.rerun()
 

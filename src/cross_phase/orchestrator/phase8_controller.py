@@ -16,6 +16,7 @@ class Phase8Controller(PhaseController):
             PhaseResult with compressed model
         """
         import time
+
         start_time = time.time()
 
         print("\n" + "=" * 60)
@@ -31,22 +32,19 @@ class Phase8Controller(PhaseController):
             tokenizer = self._get_tokenizer()
 
             # Create compression config
-            from phase8_compression import CompressionEngine, CompressionConfig
+            from phase8_compression import CompressionConfig, CompressionEngine
 
             config = CompressionConfig(
-                seedlm_enabled=self.config.get('seedlm_enabled', True) if self.config else True,
-                vptq_enabled=self.config.get('vptq_enabled', True) if self.config else True,
-                hyper_enabled=self.config.get('hyper_enabled', True) if self.config else True,
-                min_retention_final=self.config.get('min_retention', 0.84) if self.config else 0.84,
-                run_benchmarks=self.config.get('run_benchmarks', True) if self.config else True
+                seedlm_enabled=self.config.get("seedlm_enabled", True) if self.config else True,
+                vptq_enabled=self.config.get("vptq_enabled", True) if self.config else True,
+                hyper_enabled=self.config.get("hyper_enabled", True) if self.config else True,
+                min_retention_final=self.config.get("min_retention", 0.84) if self.config else 0.84,
+                run_benchmarks=self.config.get("run_benchmarks", True) if self.config else True,
             )
 
             # Run compression engine
             engine = CompressionEngine(config=config)
-            result = engine.run(
-                model=expert_model,
-                tokenizer=tokenizer
-            )
+            result = engine.run(model=expert_model, tokenizer=tokenizer)
 
             duration = time.time() - start_time
 
@@ -55,20 +53,18 @@ class Phase8Controller(PhaseController):
                 phase_name="phase8",
                 model=result.model,
                 metrics={
-                    'original_size_mb': result.original_size_mb,
-                    'final_size_mb': result.final_size_mb,
-                    'total_compression': result.total_compression,
-                    'retention_score': result.retention_score,
-                    'stage_results': result.stage_results,
-                    'benchmark_results': result.benchmark_results,
-                    'duration_seconds': duration
+                    "original_size_mb": result.original_size_mb,
+                    "final_size_mb": result.final_size_mb,
+                    "total_compression": result.total_compression,
+                    "retention_score": result.retention_score,
+                    "stage_results": result.stage_results,
+                    "benchmark_results": result.benchmark_results,
+                    "duration_seconds": duration,
                 },
                 duration=duration,
-                artifacts={
-                    'rollback_stage': result.rollback_stage
-                },
+                artifacts={"rollback_stage": result.rollback_stage},
                 config=self.config,
-                error=result.error
+                error=result.error,
             )
 
         except Exception as e:
@@ -81,7 +77,7 @@ class Phase8Controller(PhaseController):
                 duration=duration,
                 artifacts={},
                 config=self.config,
-                error=str(e)
+                error=str(e),
             )
 
     def _get_tokenizer(self):
@@ -91,13 +87,15 @@ class Phase8Controller(PhaseController):
     def validate_input(self, input_models: list = None) -> bool:
         """Validate 1 input model from Phase 7."""
         if not input_models or len(input_models) != 1:
-            raise ValueError(f"Phase 8 requires 1 input model, got {len(input_models) if input_models else 0}")
+            raise ValueError(
+                f"Phase 8 requires 1 input model, got {len(input_models) if input_models else 0}"
+            )
         return True
 
     def validate_output(self, result: PhaseResult) -> bool:
         """Validate Phase 8 output (compression achieved)."""
         if result.metrics:
-            compression = result.metrics.get('total_compression', 0)
-            retention = result.metrics.get('retention_score', 0)
+            compression = result.metrics.get("total_compression", 0)
+            retention = result.metrics.get("retention_score", 0)
             return compression >= 1.0 and retention >= 0.5
         return True

@@ -15,66 +15,53 @@ Research:
 Key insight: Model-driven expert discovery, not manual design.
 """
 
-from .experts_engine import (
-    ExpertsEngine,
-    ExpertsConfig,
-    Phase7Result
-)
-from .expert_discovery import (
-    ExpertDiscovery,
-    ExpertProfile,
-    DiscoveryConfig
-)
+from .adas_optimizer import ADASConfig, ADASOptimizer, ADASResult, Individual
+from .expert_discovery import DiscoveryConfig, ExpertDiscovery, ExpertProfile
+from .experts_engine import ExpertsConfig, ExpertsEngine, Phase7Result
 from .svf_trainer import (
-    SVFTrainer,
-    SVFConfig,
-    SVFResult,
     REINFORCEConfig,
     REINFORCETrainer,
-    SVFPolicy
+    SVFConfig,
+    SVFPolicy,
+    SVFResult,
+    SVFTrainer,
 )
 from .transformer2 import (
+    ExpertAdapter,
+    Router,
     Transformer2,
     Transformer2Config,
     Transformer2Result,
-    ExpertAdapter,
-    Router,
-    ZVectorSparseRouter
-)
-from .adas_optimizer import (
-    ADASOptimizer,
-    ADASConfig,
-    ADASResult,
-    Individual
+    ZVectorSparseRouter,
 )
 
 __all__ = [
     # Main engine
-    'ExpertsEngine',
-    'ExpertsConfig',
-    'Phase7Result',
+    "ExpertsEngine",
+    "ExpertsConfig",
+    "Phase7Result",
     # Expert discovery
-    'ExpertDiscovery',
-    'ExpertProfile',
-    'DiscoveryConfig',
+    "ExpertDiscovery",
+    "ExpertProfile",
+    "DiscoveryConfig",
     # SVF training
-    'SVFTrainer',
-    'SVFConfig',
-    'SVFResult',
+    "SVFTrainer",
+    "SVFConfig",
+    "SVFResult",
     # REINFORCE training
-    'REINFORCEConfig',
-    'REINFORCETrainer',
-    'SVFPolicy',
+    "REINFORCEConfig",
+    "REINFORCETrainer",
+    "SVFPolicy",
     # Transformer2 two-pass inference
-    'Transformer2',
-    'Transformer2Config',
-    'Transformer2Result',
-    'ExpertAdapter',
-    'Router',
-    'ZVectorSparseRouter',
+    "Transformer2",
+    "Transformer2Config",
+    "Transformer2Result",
+    "ExpertAdapter",
+    "Router",
+    "ZVectorSparseRouter",
     # ADAS optimization
-    'ADASOptimizer',
-    'ADASConfig',
-    'ADASResult',
-    'Individual',
+    "ADASOptimizer",
+    "ADASConfig",
+    "ADASResult",
+    "Individual",
 ]

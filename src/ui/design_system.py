@@ -3,9 +3,8 @@ Agent Forge V2 - Design System
 Comprehensive design system for the Streamlit UI with futuristic command center theme
 """
 
-from typing import Dict, Any, Optional, Literal
 from dataclasses import dataclass, field
-
+from typing import Any, Dict, Literal, Optional
 
 # ============================================================================
 # COLOR PALETTE - Futuristic Command Center Theme
@@ -13,42 +12,36 @@ from dataclasses import dataclass, field
 
 COLORS = {
     # Primary Colors
-    "primary": "#0D1B2A",          # Deep navy - Primary background
-    "secondary": "#1B263B",         # Slate - Secondary surfaces
-    "accent": "#00F5D4",            # Electric cyan - Primary accent
-    "accent_2": "#F72585",          # Magenta - Secondary accent
-    "surface": "#415A77",           # Dark slate - Elevated surfaces
-
+    "primary": "#0D1B2A",  # Deep navy - Primary background
+    "secondary": "#1B263B",  # Slate - Secondary surfaces
+    "accent": "#00F5D4",  # Electric cyan - Primary accent
+    "accent_2": "#F72585",  # Magenta - Secondary accent
+    "surface": "#415A77",  # Dark slate - Elevated surfaces
     # Text Colors
-    "text_primary": "#E0E1DD",      # Off-white - Primary text
-    "text_secondary": "#778DA9",    # Muted blue-gray - Secondary text
-    "text_disabled": "#4A5568",     # Dark gray - Disabled text
-    "text_inverse": "#0D1B2A",      # Dark on light backgrounds
-
+    "text_primary": "#E0E1DD",  # Off-white - Primary text
+    "text_secondary": "#778DA9",  # Muted blue-gray - Secondary text
+    "text_disabled": "#4A5568",  # Dark gray - Disabled text
+    "text_inverse": "#0D1B2A",  # Dark on light backgrounds
     # Status Colors
-    "success": "#39FF14",           # Neon green - Success states
-    "warning": "#FFB703",           # Amber - Warning states
-    "error": "#FF006E",             # Hot pink - Error states
-    "info": "#00B4D8",              # Bright cyan - Info states
-
+    "success": "#39FF14",  # Neon green - Success states
+    "warning": "#FFB703",  # Amber - Warning states
+    "error": "#FF006E",  # Hot pink - Error states
+    "info": "#00B4D8",  # Bright cyan - Info states
     # Semantic Colors
-    "running": "#FFB703",           # Amber - Running/in-progress
-    "completed": "#39FF14",         # Neon green - Completed
-    "failed": "#FF006E",            # Hot pink - Failed
-    "pending": "#778DA9",           # Muted - Pending/idle
-
+    "running": "#FFB703",  # Amber - Running/in-progress
+    "completed": "#39FF14",  # Neon green - Completed
+    "failed": "#FF006E",  # Hot pink - Failed
+    "pending": "#778DA9",  # Muted - Pending/idle
     # UI Elements
-    "border": "#2D3748",            # Subtle border color
-    "border_accent": "#00F5D4",     # Accent border for focus/hover
-    "shadow": "rgba(0, 0, 0, 0.4)", # Drop shadow
-    "overlay": "rgba(13, 27, 42, 0.85)", # Modal overlay
-
+    "border": "#2D3748",  # Subtle border color
+    "border_accent": "#00F5D4",  # Accent border for focus/hover
+    "shadow": "rgba(0, 0, 0, 0.4)",  # Drop shadow
+    "overlay": "rgba(13, 27, 42, 0.85)",  # Modal overlay
     # Gradients (CSS gradient strings)
     "gradient_primary": "linear-gradient(135deg, #0D1B2A 0%, #1B263B 100%)",
     "gradient_accent": "linear-gradient(135deg, #00F5D4 0%, #00B4D8 100%)",
     "gradient_accent_2": "linear-gradient(135deg, #F72585 0%, #FF006E 100%)",
     "gradient_surface": "linear-gradient(135deg, #1B263B 0%, #415A77 100%)",
-
     # Glassmorphism
     "glass_bg": "rgba(27, 38, 59, 0.6)",
     "glass_border": "rgba(224, 225, 221, 0.1)",
@@ -78,17 +71,15 @@ TYPOGRAPHY = {
     "font_heading": "'Space Grotesk', 'Helvetica Neue', sans-serif",
     "font_body": "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
     "font_code": "'JetBrains Mono', 'Fira Code', 'Monaco', monospace",
-
     # Font Sizes
-    "size_display": "3rem",      # 48px - Hero text
-    "size_h1": "2.5rem",         # 40px - Page titles
-    "size_h2": "2rem",           # 32px - Section headers
-    "size_h3": "1.5rem",         # 24px - Subsections
-    "size_h4": "1.25rem",        # 20px - Card titles
-    "size_body": "1rem",         # 16px - Body text
-    "size_small": "0.875rem",    # 14px - Small text
-    "size_tiny": "0.75rem",      # 12px - Captions, labels
-
+    "size_display": "3rem",  # 48px - Hero text
+    "size_h1": "2.5rem",  # 40px - Page titles
+    "size_h2": "2rem",  # 32px - Section headers
+    "size_h3": "1.5rem",  # 24px - Subsections
+    "size_h4": "1.25rem",  # 20px - Card titles
+    "size_body": "1rem",  # 16px - Body text
+    "size_small": "0.875rem",  # 14px - Small text
+    "size_tiny": "0.75rem",  # 12px - Captions, labels
     # Font Weights
     "weight_light": "300",
     "weight_normal": "400",
@@ -96,13 +87,11 @@ TYPOGRAPHY = {
     "weight_semibold": "600",
     "weight_bold": "700",
     "weight_black": "900",
-
     # Line Heights
     "line_tight": "1.2",
     "line_normal": "1.5",
     "line_relaxed": "1.75",
     "line_loose": "2.0",
-
     # Letter Spacing
     "tracking_tight": "-0.025em",
     "tracking_normal": "0",
@@ -116,13 +105,13 @@ TYPOGRAPHY = {
 # ============================================================================
 
 SPACING = {
-    "xs": "4px",      # 0.5 * base
-    "sm": "8px",      # 1 * base
-    "md": "16px",     # 2 * base
-    "lg": "24px",     # 3 * base
-    "xl": "32px",     # 4 * base
-    "xxl": "48px",    # 6 * base
-    "xxxl": "64px",   # 8 * base
+    "xs": "4px",  # 0.5 * base
+    "sm": "8px",  # 1 * base
+    "md": "16px",  # 2 * base
+    "lg": "24px",  # 3 * base
+    "xl": "32px",  # 4 * base
+    "xxl": "48px",  # 6 * base
+    "xxxl": "64px",  # 8 * base
 }
 
 
@@ -161,6 +150,7 @@ SHADOWS = {
 # COMPONENT STYLES
 # ============================================================================
 
+
 def get_card_styles(variant: Literal["glass", "solid", "elevated"] = "glass") -> Dict[str, str]:
     """Get card component styles"""
     base = {
@@ -193,7 +183,9 @@ def get_card_styles(variant: Literal["glass", "solid", "elevated"] = "glass") ->
         }
 
 
-def get_button_styles(variant: Literal["primary", "secondary", "accent", "ghost"] = "primary") -> Dict[str, str]:
+def get_button_styles(
+    variant: Literal["primary", "secondary", "accent", "ghost"] = "primary"
+) -> Dict[str, str]:
     """Get button component styles"""
     base = {
         "border-radius": RADII["md"],
@@ -238,7 +230,9 @@ def get_button_styles(variant: Literal["primary", "secondary", "accent", "ghost"
         }
 
 
-def get_badge_styles(status: Literal["success", "warning", "error", "info", "pending"] = "info") -> Dict[str, str]:
+def get_badge_styles(
+    status: Literal["success", "warning", "error", "info", "pending"] = "info"
+) -> Dict[str, str]:
     """Get badge component styles"""
     color_map = {
         "success": COLORS["success"],
@@ -302,10 +296,11 @@ def get_metric_styles(size: Literal["small", "medium", "large"] = "medium") -> D
 # UTILITY FUNCTIONS
 # ============================================================================
 
+
 def _hex_to_rgb(hex_color: str) -> str:
     """Convert hex color to RGB string (for rgba usage)"""
-    hex_color = hex_color.lstrip('#')
-    r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    hex_color = hex_color.lstrip("#")
+    r, g, b = tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
     return f"{r}, {g}, {b}"
 
 
@@ -327,6 +322,7 @@ def css_dict_to_string(styles: Dict[str, str]) -> str:
 # ============================================================================
 # COMPLETE CSS GENERATION
 # ============================================================================
+
 
 def get_custom_css(theme: Literal["dark", "light"] = "dark") -> str:
     """

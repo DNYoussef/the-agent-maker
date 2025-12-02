@@ -5,14 +5,16 @@ Usage:
     python src/phase1_cognate/test_training_synthetic.py
 """
 
-import torch
 import sys
 from pathlib import Path
+
+import torch
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
 from phase1_cognate.model.full_model import TRMTitansMAGModel
 from phase1_cognate.model.model_config import Phase1Config
+
 
 def generate_synthetic_batch(batch_size=4, seq_len=64, vocab_size=50257):
     """Generate synthetic training batch"""
@@ -20,15 +22,16 @@ def generate_synthetic_batch(batch_size=4, seq_len=64, vocab_size=50257):
     labels = torch.randint(0, vocab_size, (batch_size, seq_len))
     return input_ids, labels
 
+
 def test_training_loop():
     """Test training loop with synthetic data"""
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("QUICK TRAINING TEST (Synthetic Data)")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     # Create model
-    config = Phase1Config(specialization='reasoning')
+    config = Phase1Config(specialization="reasoning")
     model = TRMTitansMAGModel(config)
 
     print("Model created:")
@@ -51,7 +54,7 @@ def test_training_loop():
 
         # Forward pass
         output = model(input_ids, labels=labels)
-        loss = output['loss']
+        loss = output["loss"]
 
         # Backward pass
         loss.backward()
@@ -65,9 +68,11 @@ def test_training_loop():
 
         # Log
         if step % 2 == 0:
-            halt_mean = output['halting_steps'].float().mean().item()
-            print(f"Step {step:2d}: loss={loss.item():.4f}, grad_norm={grad_norm:.4f}, "
-                  f"halt_steps={halt_mean:.2f}")
+            halt_mean = output["halting_steps"].float().mean().item()
+            print(
+                f"Step {step:2d}: loss={loss.item():.4f}, grad_norm={grad_norm:.4f}, "
+                f"halt_steps={halt_mean:.2f}"
+            )
 
     print("\n[OK] Training loop successful!\n")
 
@@ -83,14 +88,17 @@ def test_training_loop():
     print(f"  Output shape: {output['logits'].shape}")
     print(f"  Halting steps: {output['halting_steps'].item():.1f}")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("ALL TESTS PASSED!")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     print("Next steps:")
     print("1. Install datasets: pip install datasets")
     print("2. Run full test: python src/phase1_cognate/train_phase1.py --model reasoning --test")
-    print("3. Full training: python src/phase1_cognate/train_phase1.py --model reasoning --epochs 10")
+    print(
+        "3. Full training: python src/phase1_cognate/train_phase1.py --model reasoning --epochs 10"
+    )
+
 
 if __name__ == "__main__":
     test_training_loop()

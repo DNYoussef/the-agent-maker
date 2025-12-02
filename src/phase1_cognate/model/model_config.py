@@ -47,8 +47,7 @@ class TitansMAGConfig:
     def __post_init__(self):
         """Validate configuration"""
         assert self.d_model % self.n_heads == 0, (
-            f"d_model ({self.d_model}) must be divisible by "
-            f"n_heads ({self.n_heads})"
+            f"d_model ({self.d_model}) must be divisible by " f"n_heads ({self.n_heads})"
         )
         assert self.head_dim == self.d_model // self.n_heads
 
@@ -120,32 +119,36 @@ class Phase1Config:
     specialization: Literal["reasoning", "memory", "speed"] = "reasoning"
 
     # ACT thresholds per specialization
-    act_thresholds: dict[str, float] = field(default_factory=lambda: {
-        "reasoning": 0.95,  # Think longer
-        "memory": 0.90,     # Balanced
-        "speed": 0.99       # Halt quickly
-    })
+    act_thresholds: dict[str, float] = field(
+        default_factory=lambda: {
+            "reasoning": 0.95,  # Think longer
+            "memory": 0.90,  # Balanced
+            "speed": 0.99,  # Halt quickly
+        }
+    )
 
     # LTM capacity (number of memory slots) per specialization
-    ltm_capacities: dict[str, int] = field(default_factory=lambda: {
-        "reasoning": 4096,
-        "memory": 8192,   # Large memory
-        "speed": 2048      # Small memory
-    })
+    ltm_capacities: dict[str, int] = field(
+        default_factory=lambda: {
+            "reasoning": 4096,
+            "memory": 8192,  # Large memory
+            "speed": 2048,  # Small memory
+        }
+    )
 
     # Surprise thresholds per specialization
-    surprise_thresholds: dict[str, float] = field(default_factory=lambda: {
-        "reasoning": 0.7,  # Very selective
-        "memory": 0.5,     # Balanced
-        "speed": 0.3       # Store more
-    })
+    surprise_thresholds: dict[str, float] = field(
+        default_factory=lambda: {
+            "reasoning": 0.7,  # Very selective
+            "memory": 0.5,  # Balanced
+            "speed": 0.3,  # Store more
+        }
+    )
 
     # Random seed per model
-    seeds: dict[str, int] = field(default_factory=lambda: {
-        "reasoning": 42,
-        "memory": 1337,
-        "speed": 2023
-    })
+    seeds: dict[str, int] = field(
+        default_factory=lambda: {"reasoning": 42, "memory": 1337, "speed": 2023}
+    )
 
     # Training hyperparameters
     batch_size: int = 16  # Fits in 6GB VRAM
@@ -175,9 +178,7 @@ class Phase1Config:
         """Apply specialization settings"""
         if self.specialization:
             # Override ACT threshold
-            self.act_config.halt_threshold = (
-                self.act_thresholds[self.specialization]
-            )
+            self.act_config.halt_threshold = self.act_thresholds[self.specialization]
 
             # Note: LTM capacity will be handled in model initialization
             # titans_config.d_mem stays at 256 (factorized dimension)

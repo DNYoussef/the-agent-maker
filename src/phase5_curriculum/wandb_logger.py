@@ -27,17 +27,18 @@ Usage:
     # Finish run
     logger.finish()
 """
-import os
-from dataclasses import dataclass, field, asdict
-from typing import Optional, Dict, Any, List
-from datetime import datetime
 import logging
+import os
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 # Try to import wandb, but don't fail if not installed
 try:
     import wandb
+
     WANDB_AVAILABLE = True
 except ImportError:
     WANDB_AVAILABLE = False
@@ -47,6 +48,7 @@ except ImportError:
 @dataclass
 class MetricsConfig:
     """Configuration for metrics logging."""
+
     project: str = "agent-forge-v2"
     entity: Optional[str] = None
     enabled: bool = True
@@ -57,6 +59,7 @@ class MetricsConfig:
 @dataclass
 class AssessmentMetrics:
     """Metrics from edge-of-chaos assessment."""
+
     level: int
     accuracy: float
     threshold: float
@@ -68,6 +71,7 @@ class AssessmentMetrics:
 @dataclass
 class TrainingStepMetrics:
     """Metrics from a single training step."""
+
     level: int
     step: int
     loss: float
@@ -81,6 +85,7 @@ class TrainingStepMetrics:
 @dataclass
 class SelfModelingMetrics:
     """Metrics from self-modeling training."""
+
     level: int
     temperature_ranges: int
     prediction_accuracy: float
@@ -91,6 +96,7 @@ class SelfModelingMetrics:
 @dataclass
 class DreamConsolidationMetrics:
     """Metrics from dream consolidation."""
+
     level: int
     dream_samples: int
     reconstruction_loss: float
@@ -101,6 +107,7 @@ class DreamConsolidationMetrics:
 @dataclass
 class EudaimoniaMetrics:
     """Metrics from Eudaimonia alignment."""
+
     level: int
     eudaimonia_score: float
     rule_1_score: float  # Prime directive
@@ -114,6 +121,7 @@ class EudaimoniaMetrics:
 @dataclass
 class LevelCompletionMetrics:
     """Metrics for level completion."""
+
     level: int
     total_questions: int
     mastered_questions: int
@@ -149,15 +157,14 @@ class Phase5WandBLogger:
 
         if not WANDB_AVAILABLE and self.config.enabled:
             logger.warning(
-                "W&B logging requested but wandb not installed. "
-                "Install with: pip install wandb"
+                "W&B logging requested but wandb not installed. " "Install with: pip install wandb"
             )
 
     def start_run(
         self,
         run_name: str,
         run_config: Optional[Dict[str, Any]] = None,
-        resume: Optional[str] = None
+        resume: Optional[str] = None,
     ) -> bool:
         """
         Start a new W&B run.
@@ -180,7 +187,7 @@ class Phase5WandBLogger:
                 entity=self.config.entity,
                 name=run_name,
                 config=run_config or {},
-                resume=resume
+                resume=resume,
             )
             logger.info(f"W&B run started: {run_name}")
             return True
@@ -264,7 +271,8 @@ class Phase5WandBLogger:
             f"level_{metrics.level}/baking_time_minutes": metrics.baking_time_minutes,
             f"level_{metrics.level}/mastery_rate": (
                 metrics.mastered_questions / metrics.total_questions
-                if metrics.total_questions > 0 else 0.0
+                if metrics.total_questions > 0
+                else 0.0
             ),
         }
         self._log(data)
@@ -272,13 +280,7 @@ class Phase5WandBLogger:
         # Store for final summary
         self._level_metrics[metrics.level] = data
 
-    def log_prompt_baking(
-        self,
-        level: int,
-        prompt_type: str,
-        loss: float,
-        time_minutes: float
-    ):
+    def log_prompt_baking(self, level: int, prompt_type: str, loss: float, time_minutes: float):
         """Log prompt baking metrics."""
         data = {
             f"baking/level_{level}/{prompt_type}_loss": loss,
@@ -291,7 +293,7 @@ class Phase5WandBLogger:
         level: int,
         questions_generated: int,
         model_distribution: Dict[str, int],
-        difficulty_distribution: Dict[str, int]
+        difficulty_distribution: Dict[str, int],
     ):
         """Log curriculum generation statistics."""
         data = {
@@ -307,12 +309,7 @@ class Phase5WandBLogger:
         self._log(data)
 
     def log_api_usage(
-        self,
-        model: str,
-        input_tokens: int,
-        output_tokens: int,
-        cost_usd: float,
-        latency_ms: float
+        self, model: str, input_tokens: int, output_tokens: int, cost_usd: float, latency_ms: float
     ):
         """Log OpenRouter API usage."""
         data = {
@@ -348,18 +345,14 @@ class Phase5WandBLogger:
         summary = {
             "summary/total_levels": len(self._level_metrics),
             "summary/total_questions_mastered": sum(
-                m.get(f"level_{l}/mastered_questions", 0)
-                for l, m in self._level_metrics.items()
+                m.get(f"level_{l}/mastered_questions", 0) for l, m in self._level_metrics.items()
             ),
             "summary/total_training_hours": sum(
-                m.get(f"level_{l}/training_time_hours", 0)
-                for l, m in self._level_metrics.items()
+                m.get(f"level_{l}/training_time_hours", 0) for l, m in self._level_metrics.items()
             ),
             "summary/average_accuracy": (
-                sum(
-                    m.get(f"level_{l}/final_accuracy", 0)
-                    for l, m in self._level_metrics.items()
-                ) / len(self._level_metrics)
+                sum(m.get(f"level_{l}/final_accuracy", 0) for l, m in self._level_metrics.items())
+                / len(self._level_metrics)
             ),
         }
 
@@ -392,8 +385,7 @@ class Phase5WandBLogger:
 
 # Convenience function for creating logger
 def create_phase5_logger(
-    project: str = "agent-forge-v2",
-    enabled: bool = True
+    project: str = "agent-forge-v2", enabled: bool = True
 ) -> Phase5WandBLogger:
     """
     Create a Phase 5 W&B logger.
@@ -419,5 +411,5 @@ __all__ = [
     "EudaimoniaMetrics",
     "LevelCompletionMetrics",
     "create_phase5_logger",
-    "WANDB_AVAILABLE"
+    "WANDB_AVAILABLE",
 ]

@@ -6,8 +6,9 @@ Tests ternary quantization, scaling, and layer preservation
 import pytest
 import torch
 import torch.nn as nn
-from src.phase4_bitnet.quantizer import BitNetQuantizer
+
 from src.phase4_bitnet.config import Phase4Config
+from src.phase4_bitnet.quantizer import BitNetQuantizer
 
 
 class TestBitNetQuantizer:
@@ -31,15 +32,12 @@ class TestBitNetQuantizer:
         """Test quantizer initializes correctly"""
         assert quantizer.config == config
         assert isinstance(quantizer.stats, dict)
-        assert quantizer.stats['layers_quantized'] == 0
+        assert quantizer.stats["layers_quantized"] == 0
 
     def test_quantize_tensor_to_ternary(self, quantizer):
         """Test tensor quantization to {-1, 0, +1}"""
         # Create test tensor
-        tensor = torch.tensor([
-            [1.0, -1.0, 0.1, -0.1, 0.01],
-            [2.0, -2.0, 0.2, -0.2, 0.02]
-        ])
+        tensor = torch.tensor([[1.0, -1.0, 0.1, -0.1, 0.01], [2.0, -2.0, 0.2, -0.2, 0.02]])
 
         # Quantize
         quantized, scale = quantizer.quantize_tensor(tensor, threshold=0.1)
@@ -57,15 +55,14 @@ class TestBitNetQuantizer:
     def test_quantize_tensor_sparsity(self, quantizer):
         """Test sparsity injection"""
         # Create tensor with small values
-        tensor = torch.tensor([
-            [1.0, 0.05, 0.01, -1.0, -0.05],
-        ])
+        tensor = torch.tensor(
+            [
+                [1.0, 0.05, 0.01, -1.0, -0.05],
+            ]
+        )
 
         # Quantize with threshold
-        quantized, scale = quantizer.quantize_tensor(
-            tensor,
-            threshold=0.1
-        )
+        quantized, scale = quantizer.quantize_tensor(tensor, threshold=0.1)
 
         # Count zeros (sparsity)
         zero_count = (quantized == 0).sum().item()
@@ -128,6 +125,7 @@ class TestBitNetQuantizer:
 
     def test_quantize_model(self, quantizer):
         """Test full model quantization"""
+
         # Create simple test model
         class SimpleModel(nn.Module):
             def __init__(self):
@@ -153,22 +151,21 @@ class TestBitNetQuantizer:
 
         # Check statistics
         stats = quantizer.get_stats()
-        assert stats['layers_quantized'] > 0
-        assert stats['layers_preserved'] > 0
-        assert stats['total_params'] > 0
-        assert 0.0 <= stats['sparsity_ratio'] <= 1.0
+        assert stats["layers_quantized"] > 0
+        assert stats["layers_preserved"] > 0
+        assert stats["total_params"] > 0
+        assert 0.0 <= stats["sparsity_ratio"] <= 1.0
 
         # Check linear layers are int8
-        assert quantized_dict['linear1.weight'].dtype == torch.int8
-        assert quantized_dict['linear2.weight'].dtype == torch.int8
+        assert quantized_dict["linear1.weight"].dtype == torch.int8
+        assert quantized_dict["linear2.weight"].dtype == torch.int8
 
         # Check embeddings are preserved (FP16)
-        assert quantized_dict['embeddings.weight'].dtype in [
-            torch.float16, torch.float32
-        ]
+        assert quantized_dict["embeddings.weight"].dtype in [torch.float16, torch.float32]
 
     def test_dequantize_model(self, quantizer):
         """Test full model dequantization"""
+
         # Create and quantize model
         class TinyModel(nn.Module):
             def __init__(self):
@@ -182,10 +179,7 @@ class TestBitNetQuantizer:
         quantized_dict, scales = quantizer.quantize_model(model)
 
         # Dequantize
-        dequantized_dict = quantizer.dequantize_model(
-            quantized_dict,
-            scales
-        )
+        dequantized_dict = quantizer.dequantize_model(quantized_dict, scales)
 
         # Check all parameters present
         assert len(dequantized_dict) == len(quantized_dict)
@@ -231,15 +225,15 @@ class TestBitNetQuantizer:
         stats = quantizer.get_stats()
 
         # Check required fields
-        assert 'layers_quantized' in stats
-        assert 'layers_preserved' in stats
-        assert 'total_params' in stats
-        assert 'quantized_params' in stats
-        assert 'sparsity_ratio' in stats
+        assert "layers_quantized" in stats
+        assert "layers_preserved" in stats
+        assert "total_params" in stats
+        assert "quantized_params" in stats
+        assert "sparsity_ratio" in stats
 
         # Check types
-        assert isinstance(stats['layers_quantized'], int)
-        assert isinstance(stats['sparsity_ratio'], float)
+        assert isinstance(stats["layers_quantized"], int)
+        assert isinstance(stats["sparsity_ratio"], float)
 
     def test_zero_prevention_in_scale(self, quantizer):
         """Test that scale factors never become zero"""

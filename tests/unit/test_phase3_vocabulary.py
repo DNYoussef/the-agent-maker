@@ -6,15 +6,16 @@ Tests thinking token management and model preparation.
 Target: ≥95% coverage
 """
 
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
 import torch
 import torch.nn as nn
-from unittest.mock import Mock, MagicMock, patch
 
 from src.phase3_quietstar.vocabulary import (
     ThinkingVocabulary,
-    prepare_model_for_phase3,
     compute_thinking_token_usage,
+    prepare_model_for_phase3,
 )
 
 
@@ -26,9 +27,7 @@ def mock_tokenizer():
 
     # Mock methods
     tokenizer.add_special_tokens = Mock(return_value=8)
-    tokenizer.convert_tokens_to_ids = Mock(
-        side_effect=lambda token: hash(token) % 100000
-    )
+    tokenizer.convert_tokens_to_ids = Mock(side_effect=lambda token: hash(token) % 100000)
     tokenizer.get_vocab = Mock(
         return_value={
             "<think>": 50257,
@@ -134,9 +133,7 @@ class TestThinkingVocabulary:
             token_id = vocab.token_to_id[token]
             assert vocab.id_to_token[token_id] == token
 
-    def test_resize_embeddings_preserves_old_weights(
-        self, mock_tokenizer, mock_model
-    ):
+    def test_resize_embeddings_preserves_old_weights(self, mock_tokenizer, mock_model):
         """Test resizing preserves old embedding weights."""
         vocab = ThinkingVocabulary(mock_tokenizer, use_extended=False)
         vocab.add_tokens()
@@ -150,13 +147,9 @@ class TestThinkingVocabulary:
         new_embeddings, new_lm_head = vocab.resize_embeddings(mock_model)
 
         # Check old weights preserved
-        assert torch.allclose(
-            new_embeddings.weight[:50257], old_weights
-        )
+        assert torch.allclose(new_embeddings.weight[:50257], old_weights)
 
-    def test_resize_embeddings_initializes_new_tokens(
-        self, mock_tokenizer, mock_model
-    ):
+    def test_resize_embeddings_initializes_new_tokens(self, mock_tokenizer, mock_model):
         """Test new token embeddings are initialized."""
         vocab = ThinkingVocabulary(mock_tokenizer, use_extended=False)
         vocab.add_tokens()
@@ -255,9 +248,7 @@ class TestThinkingVocabulary:
         """Test format_with_thinking for chain-of-thought."""
         vocab = ThinkingVocabulary(mock_tokenizer, use_extended=False)
 
-        formatted = vocab.format_with_thinking(
-            "Step 1: Analyze", strategy="chain_of_thought"
-        )
+        formatted = vocab.format_with_thinking("Step 1: Analyze", strategy="chain_of_thought")
 
         assert "<think>" in formatted
         assert "</think>" in formatted
@@ -268,9 +259,7 @@ class TestThinkingVocabulary:
         """Test format_with_thinking for MECE."""
         vocab = ThinkingVocabulary(mock_tokenizer, use_extended=False)
 
-        formatted = vocab.format_with_thinking(
-            "Category 1", strategy="mece_decomposition"
-        )
+        formatted = vocab.format_with_thinking("Category 1", strategy="mece_decomposition")
 
         assert "<mece>" in formatted
 
@@ -278,9 +267,7 @@ class TestThinkingVocabulary:
         """Test format_with_thinking for falsification."""
         vocab = ThinkingVocabulary(mock_tokenizer, use_extended=False)
 
-        formatted = vocab.format_with_thinking(
-            "Test hypothesis", strategy="falsification_testing"
-        )
+        formatted = vocab.format_with_thinking("Test hypothesis", strategy="falsification_testing")
 
         assert "<falsify>" in formatted
 
@@ -288,9 +275,7 @@ class TestThinkingVocabulary:
         """Test format_with_thinking for expert perspective."""
         vocab = ThinkingVocabulary(mock_tokenizer, use_extended=False)
 
-        formatted = vocab.format_with_thinking(
-            "Expert view", strategy="expert_perspective"
-        )
+        formatted = vocab.format_with_thinking("Expert view", strategy="expert_perspective")
 
         assert "<expert>" in formatted
 
@@ -298,9 +283,7 @@ class TestThinkingVocabulary:
         """Test format_with_thinking for self-doubt."""
         vocab = ThinkingVocabulary(mock_tokenizer, use_extended=False)
 
-        formatted = vocab.format_with_thinking(
-            "Check answer", strategy="self_doubt"
-        )
+        formatted = vocab.format_with_thinking("Check answer", strategy="self_doubt")
 
         assert "<doubt>" in formatted
 
@@ -308,9 +291,7 @@ class TestThinkingVocabulary:
         """Test format_with_thinking for Bayesian (extended)."""
         vocab = ThinkingVocabulary(mock_tokenizer, use_extended=True)
 
-        formatted = vocab.format_with_thinking(
-            "Update belief", strategy="bayesian_rationalist"
-        )
+        formatted = vocab.format_with_thinking("Update belief", strategy="bayesian_rationalist")
 
         assert "<bayesian>" in formatted
 
@@ -330,9 +311,7 @@ class TestThinkingVocabulary:
         """Test extract_thinking_content with multiple blocks."""
         vocab = ThinkingVocabulary(mock_tokenizer, use_extended=False)
 
-        text = (
-            "<think>Block 1</think> Some text <think>Block 2</think>"
-        )
+        text = "<think>Block 1</think> Some text <think>Block 2</think>"
 
         extracted = vocab.extract_thinking_content(text)
 
@@ -363,9 +342,7 @@ class TestThinkingVocabulary:
         vocab.add_tokens()
 
         thinking_id = vocab.token_to_id["<think>"]
-        token_ids = torch.tensor(
-            [[thinking_id, 100, 200], [300, thinking_id, 400]]
-        )
+        token_ids = torch.tensor([[thinking_id, 100, 200], [300, thinking_id, 400]])
 
         count = vocab.count_thinking_tokens(token_ids)
 
@@ -375,9 +352,7 @@ class TestThinkingVocabulary:
 class TestPrepareModelForPhase3:
     """Test prepare_model_for_phase3 function."""
 
-    def test_prepare_model_adds_tokens(
-        self, mock_model, mock_tokenizer
-    ):
+    def test_prepare_model_adds_tokens(self, mock_model, mock_tokenizer):
         """Test prepare_model_for_phase3 adds tokens."""
         model, tokenizer, vocab = prepare_model_for_phase3(
             mock_model, mock_tokenizer, use_extended_tokens=False
@@ -385,13 +360,9 @@ class TestPrepareModelForPhase3:
 
         mock_tokenizer.add_special_tokens.assert_called_once()
 
-    def test_prepare_model_resizes_embeddings(
-        self, mock_model, mock_tokenizer
-    ):
+    def test_prepare_model_resizes_embeddings(self, mock_model, mock_tokenizer):
         """Test prepare_model_for_phase3 resizes embeddings."""
-        mock_tokenizer.__len__ = Mock(
-            side_effect=[50257, 50265]
-        )  # Before and after
+        mock_tokenizer.__len__ = Mock(side_effect=[50257, 50265])  # Before and after
 
         model, tokenizer, vocab = prepare_model_for_phase3(
             mock_model, mock_tokenizer, use_extended_tokens=False
@@ -400,36 +371,22 @@ class TestPrepareModelForPhase3:
         mock_model.set_input_embeddings.assert_called_once()
         mock_model.set_output_embeddings.assert_called_once()
 
-    def test_prepare_model_validates_tokens(
-        self, mock_model, mock_tokenizer
-    ):
+    def test_prepare_model_validates_tokens(self, mock_model, mock_tokenizer):
         """Test prepare_model_for_phase3 validates tokens."""
-        with patch.object(
-            ThinkingVocabulary, "validate_tokens", return_value=True
-        ):
-            model, tokenizer, vocab = prepare_model_for_phase3(
-                mock_model, mock_tokenizer
-            )
+        with patch.object(ThinkingVocabulary, "validate_tokens", return_value=True):
+            model, tokenizer, vocab = prepare_model_for_phase3(mock_model, mock_tokenizer)
 
         # Should not raise ValueError
 
-    def test_prepare_model_raises_on_validation_failure(
-        self, mock_model, mock_tokenizer
-    ):
+    def test_prepare_model_raises_on_validation_failure(self, mock_model, mock_tokenizer):
         """Test prepare_model_for_phase3 raises on validation failure."""
-        with patch.object(
-            ThinkingVocabulary, "validate_tokens", return_value=False
-        ):
+        with patch.object(ThinkingVocabulary, "validate_tokens", return_value=False):
             with pytest.raises(ValueError, match="Failed to add"):
                 prepare_model_for_phase3(mock_model, mock_tokenizer)
 
-    def test_prepare_model_returns_vocabulary(
-        self, mock_model, mock_tokenizer
-    ):
+    def test_prepare_model_returns_vocabulary(self, mock_model, mock_tokenizer):
         """Test prepare_model_for_phase3 returns vocabulary."""
-        model, tokenizer, vocab = prepare_model_for_phase3(
-            mock_model, mock_tokenizer
-        )
+        model, tokenizer, vocab = prepare_model_for_phase3(mock_model, mock_tokenizer)
 
         assert isinstance(vocab, ThinkingVocabulary)
 

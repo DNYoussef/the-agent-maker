@@ -7,15 +7,17 @@ Verifies that:
 3. Gradient magnitudes are in reasonable ranges
 4. No "dead" layers with zero gradients
 """
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple
+
 import torch
 import torch.nn as nn
-from typing import Dict, List, Tuple, Optional
-from dataclasses import dataclass, field
 
 
 @dataclass
 class GradientCheckResult:
     """Result of gradient flow validation."""
+
     all_have_gradients: bool
     no_nan: bool
     no_inf: bool
@@ -40,7 +42,7 @@ def validate_gradient_flow(
     attention_mask: Optional[torch.Tensor] = None,
     labels: Optional[torch.Tensor] = None,
     min_grad_norm: float = 1e-10,
-    max_grad_norm: float = 1e5
+    max_grad_norm: float = 1e5,
 ) -> GradientCheckResult:
     """
     Run a forward/backward pass and analyze gradient flow.
@@ -68,19 +70,15 @@ def validate_gradient_flow(
 
     # Forward pass
     try:
-        output = model(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            labels=labels
-        )
+        output = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
     except TypeError:
         # Model may not support all arguments
         output = model(input_ids)
 
     # Get loss
-    if hasattr(output, 'loss') and output.loss is not None:
+    if hasattr(output, "loss") and output.loss is not None:
         loss = output.loss
-    elif hasattr(output, 'logits'):
+    elif hasattr(output, "logits"):
         loss = output.logits.sum()
     elif isinstance(output, torch.Tensor):
         loss = output.sum()
@@ -99,7 +97,7 @@ def validate_gradient_flow(
         no_inf=True,
         dead_parameters=[],
         suspicious_parameters=[],
-        stats={}
+        stats={},
     )
 
     for name, param in model.named_parameters():
@@ -131,21 +129,17 @@ def validate_gradient_flow(
 
         # Check for suspicious magnitudes
         if grad_norm < min_grad_norm:
-            result.suspicious_parameters.append(
-                f"{name} (very small: {grad_norm:.2e})"
-            )
+            result.suspicious_parameters.append(f"{name} (very small: {grad_norm:.2e})")
         elif grad_norm > max_grad_norm:
-            result.suspicious_parameters.append(
-                f"{name} (very large: {grad_norm:.2e})"
-            )
+            result.suspicious_parameters.append(f"{name} (very large: {grad_norm:.2e})")
 
         # Record statistics
         result.stats[name] = {
-            'norm': grad_norm,
-            'mean': grad.mean().item(),
-            'std': grad.std().item() if grad.numel() > 1 else 0.0,
-            'max': grad.max().item(),
-            'min': grad.min().item()
+            "norm": grad_norm,
+            "mean": grad.mean().item(),
+            "std": grad.std().item() if grad.numel() > 1 else 0.0,
+            "max": grad.max().item(),
+            "min": grad.min().item(),
         }
 
     return result
@@ -157,16 +151,11 @@ def print_gradient_report(result: GradientCheckResult) -> None:
     print("GRADIENT FLOW VALIDATION REPORT")
     print("=" * 60)
 
-    overall_pass = (
-        result.all_have_gradients
-        and result.no_nan
-        and result.no_inf
-    )
+    overall_pass = result.all_have_gradients and result.no_nan and result.no_inf
     status = "PASS" if overall_pass else "FAIL"
     print(f"\nOverall Status: {status}")
 
-    print(f"\nAll parameters have gradients: "
-          f"{'PASS' if result.all_have_gradients else 'FAIL'}")
+    print(f"\nAll parameters have gradients: " f"{'PASS' if result.all_have_gradients else 'FAIL'}")
     print(f"No NaN gradients: {'PASS' if result.no_nan else 'FAIL'}")
     print(f"No Inf gradients: {'PASS' if result.no_inf else 'FAIL'}")
 
@@ -186,20 +175,13 @@ def print_gradient_report(result: GradientCheckResult) -> None:
 
     # Print top 5 largest gradients for debugging
     if result.stats:
-        sorted_by_norm = sorted(
-            result.stats.items(),
-            key=lambda x: x[1]['norm'],
-            reverse=True
-        )
+        sorted_by_norm = sorted(result.stats.items(), key=lambda x: x[1]["norm"], reverse=True)
         print("\nTop 5 largest gradient norms:")
         for name, stats in sorted_by_norm[:5]:
             print(f"    {name}: {stats['norm']:.4e}")
 
         print("\nTop 5 smallest gradient norms:")
-        sorted_by_norm_asc = sorted(
-            result.stats.items(),
-            key=lambda x: x[1]['norm']
-        )
+        sorted_by_norm_asc = sorted(result.stats.items(), key=lambda x: x[1]["norm"])
         for name, stats in sorted_by_norm_asc[:5]:
             print(f"    {name}: {stats['norm']:.4e}")
 
@@ -209,7 +191,7 @@ def print_gradient_report(result: GradientCheckResult) -> None:
 def validate_ste_gradient_flow(
     compressed_model: "CompressedModel",
     input_ids: torch.Tensor,
-    attention_mask: Optional[torch.Tensor] = None
+    attention_mask: Optional[torch.Tensor] = None,
 ) -> Tuple[bool, str]:
     """
     Validate STE (Straight-Through Estimator) gradient flow.
@@ -230,9 +212,7 @@ def validate_ste_gradient_flow(
 
     # Run gradient validation
     result = validate_gradient_flow(
-        model=compressed_model,
-        input_ids=input_ids,
-        attention_mask=attention_mask
+        model=compressed_model, input_ids=input_ids, attention_mask=attention_mask
     )
 
     if not result.passed:
@@ -257,8 +237,8 @@ def validate_ste_gradient_flow(
 if __name__ == "__main__":
     # Test with a simple model
     from src.phase4_bitnet.compressed_model import CompressedModel
-    from src.phase4_bitnet.quantizer import BitNetQuantizer
     from src.phase4_bitnet.config import Phase4Config
+    from src.phase4_bitnet.quantizer import BitNetQuantizer
 
     print("Testing gradient flow validation...")
 
@@ -276,7 +256,7 @@ if __name__ == "__main__":
 
             if labels is not None:
                 loss = nn.MSELoss()(x, labels.float())
-                return type('Output', (), {'loss': loss, 'logits': x})()
+                return type("Output", (), {"loss": loss, "logits": x})()
 
             return x
 

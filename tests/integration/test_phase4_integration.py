@@ -3,36 +3,34 @@ Integration Tests for Phase 4
 Tests Phase 3→4→5 handoffs, W&B integration, and end-to-end pipeline
 """
 
+import shutil
+import sys
+import tempfile
+from pathlib import Path
+
 import pytest
 import torch
 import torch.nn as nn
-import sys
-from pathlib import Path
-import tempfile
-import shutil
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from phase4_bitnet.phase_controller import Phase4Controller
-from phase4_bitnet.config import Phase4Config
-from phase4_bitnet.utils import (
-    test_gradient_flow,
-    load_compression_metadata,
-)
 from cross_phase.monitoring.wandb_integration import WandBIntegration
 from cross_phase.utils import MockTokenizer
+from phase4_bitnet.config import Phase4Config
+from phase4_bitnet.phase_controller import Phase4Controller
+from phase4_bitnet.utils import load_compression_metadata, test_gradient_flow
 
 
 class MockTransformerModel(nn.Module):
     """Mock transformer model for testing"""
+
     def __init__(self):
         super().__init__()
-        self.config = type('Config', (), {})()
+        self.config = type("Config", (), {})()
         self.embeddings = nn.Embedding(1000, 128)
         self.transformer = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(d_model=128, nhead=4),
-            num_layers=2
+            nn.TransformerEncoderLayer(d_model=128, nhead=4), num_layers=2
         )
         self.lm_head = nn.Linear(128, 1000)
 
@@ -42,11 +40,8 @@ class MockTransformerModel(nn.Module):
         output = self.lm_head(x)
 
         if labels is not None:
-            loss = nn.CrossEntropyLoss()(
-                output.view(-1, 1000),
-                labels.view(-1)
-            )
-            return type('Output', (), {'loss': loss})()
+            loss = nn.CrossEntropyLoss()(output.view(-1, 1000), labels.view(-1))
+            return type("Output", (), {"loss": loss})()
 
         return output
 
@@ -58,6 +53,7 @@ class MockTransformerModel(nn.Module):
 
 class MockTokenizerWithSave(MockTokenizer):
     """MockTokenizer with save_pretrained for testing"""
+
     def save_pretrained(self, path):
         Path(path).mkdir(parents=True, exist_ok=True)
         # Create dummy files
@@ -140,7 +136,7 @@ class TestPhase4To5Handoff:
         dequantized_path = Path(phase4_output_dir) / "bitnet_dequantized_fp16.pt"
 
         # Save dummy models
-        torch.save({'state_dict': {}}, quantized_path)
+        torch.save({"state_dict": {}}, quantized_path)
         torch.save({}, dequantized_path)
 
         # Check both exist
@@ -151,13 +147,13 @@ class TestPhase4To5Handoff:
         """Test that dequantized FP16 is marked as primary"""
         # This would be in controller's output
         output_paths = {
-            'quantized': str(Path(phase4_output_dir) / "quantized.pt"),
-            'dequantized_fp16': str(Path(phase4_output_dir) / "deq.pt"),
-            'primary_output': str(Path(phase4_output_dir) / "deq.pt"),
+            "quantized": str(Path(phase4_output_dir) / "quantized.pt"),
+            "dequantized_fp16": str(Path(phase4_output_dir) / "deq.pt"),
+            "primary_output": str(Path(phase4_output_dir) / "deq.pt"),
         }
 
         # Primary should point to dequantized
-        assert output_paths['primary_output'] == output_paths['dequantized_fp16']
+        assert output_paths["primary_output"] == output_paths["dequantized_fp16"]
 
     def test_gradient_flow_validation(self):
         """Test gradient flow through dequantized model"""
@@ -165,7 +161,7 @@ class TestPhase4To5Handoff:
         model = nn.Linear(10, 10)
 
         # Test gradient flow
-        passed, error = test_gradient_flow(model, device='cpu')
+        passed, error = test_gradient_flow(model, device="cpu")
 
         # Should pass for normal model
         assert passed is True
@@ -176,9 +172,9 @@ class TestPhase4To5Handoff:
         from src.phase4_bitnet.utils import save_compression_metadata
 
         metadata = {
-            'compression_method': 'BitNet-1.58',
-            'compression_ratio': 8.2,
-            'sparsity_ratio': 0.35,
+            "compression_method": "BitNet-1.58",
+            "compression_ratio": 8.2,
+            "sparsity_ratio": 0.35,
         }
 
         save_compression_metadata(phase4_output_dir, metadata)
@@ -186,8 +182,8 @@ class TestPhase4To5Handoff:
         # Load and verify
         loaded = load_compression_metadata(phase4_output_dir)
 
-        assert loaded['compression_method'] == 'BitNet-1.58'
-        assert loaded['compression_ratio'] == 8.2
+        assert loaded["compression_method"] == "BitNet-1.58"
+        assert loaded["compression_ratio"] == 8.2
 
 
 class TestWandBIntegration:
@@ -201,9 +197,9 @@ class TestWandBIntegration:
     def test_log_pre_compression(self, wandb_logger):
         """Test logging pre-compression metrics"""
         metrics = {
-            'original_size_mb': 100.0,
-            'pre_perplexity': 12.5,
-            'pre_eval_loss': 2.3,
+            "original_size_mb": 100.0,
+            "pre_perplexity": 12.5,
+            "pre_eval_loss": 2.3,
         }
 
         # Should not raise error
@@ -212,12 +208,12 @@ class TestWandBIntegration:
     def test_log_compression_process(self, wandb_logger):
         """Test logging compression process metrics"""
         metrics = {
-            'compressed_size_mb': 12.0,
-            'compression_ratio': 8.3,
-            'layers_quantized': 24,
-            'sparsity_ratio': 0.35,
-            'quantized_params': 85000000,
-            'total_params': 100000000,
+            "compressed_size_mb": 12.0,
+            "compression_ratio": 8.3,
+            "layers_quantized": 24,
+            "sparsity_ratio": 0.35,
+            "quantized_params": 85000000,
+            "total_params": 100000000,
         }
 
         wandb_logger.log_phase4_compression(metrics)
@@ -225,11 +221,11 @@ class TestWandBIntegration:
     def test_log_post_compression(self, wandb_logger):
         """Test logging post-compression metrics"""
         metrics = {
-            'post_perplexity': 13.2,
-            'perplexity_degradation': 0.056,
-            'accuracy_preserved': True,
-            'dequantization_accuracy': 0.998,
-            'gradient_flow_passed': True,
+            "post_perplexity": 13.2,
+            "perplexity_degradation": 0.056,
+            "accuracy_preserved": True,
+            "dequantization_accuracy": 0.998,
+            "gradient_flow_passed": True,
         }
 
         wandb_logger.log_phase4_post_compression(metrics)
@@ -237,10 +233,10 @@ class TestWandBIntegration:
     def test_log_fine_tuning(self, wandb_logger):
         """Test logging fine-tuning metrics"""
         metrics = {
-            'best_perplexity': 12.8,
-            'improvement': 0.4,
-            'epochs': 2,
-            'time_hours': 1.5,
+            "best_perplexity": 12.8,
+            "improvement": 0.4,
+            "epochs": 2,
+            "time_hours": 1.5,
         }
 
         wandb_logger.log_phase4_fine_tuning(metrics)
@@ -253,17 +249,17 @@ class TestWandBIntegration:
     def test_log_phase_summary(self, wandb_logger):
         """Test logging phase summary"""
         results = {
-            'success': True,
-            'pre_compression': {
-                'original_size_mb': 100.0,
+            "success": True,
+            "pre_compression": {
+                "original_size_mb": 100.0,
             },
-            'post_compression': {
-                'compressed_size_mb': 12.0,
-                'compression_ratio': 8.3,
-                'sparsity_ratio': 0.35,
-                'accuracy_preserved': True,
+            "post_compression": {
+                "compressed_size_mb": 12.0,
+                "compression_ratio": 8.3,
+                "sparsity_ratio": 0.35,
+                "accuracy_preserved": True,
             },
-            'fine_tuning': None,
+            "fine_tuning": None,
         }
 
         wandb_logger.log_phase4_summary(results)
@@ -273,38 +269,46 @@ class TestWandBIntegration:
         # This is a comprehensive test to ensure all metrics are covered
 
         # Pre-compression (3)
-        wandb_logger.log_phase4_pre_compression({
-            'original_size_mb': 100.0,
-            'pre_perplexity': 12.0,
-            'pre_eval_loss': 2.0,
-        })
+        wandb_logger.log_phase4_pre_compression(
+            {
+                "original_size_mb": 100.0,
+                "pre_perplexity": 12.0,
+                "pre_eval_loss": 2.0,
+            }
+        )
 
         # Compression (7)
-        wandb_logger.log_phase4_compression({
-            'compressed_size_mb': 12.0,
-            'compression_ratio': 8.0,
-            'layers_quantized': 24,
-            'sparsity_ratio': 0.35,
-            'quantized_params': 85000000,
-            'total_params': 100000000,
-        })
+        wandb_logger.log_phase4_compression(
+            {
+                "compressed_size_mb": 12.0,
+                "compression_ratio": 8.0,
+                "layers_quantized": 24,
+                "sparsity_ratio": 0.35,
+                "quantized_params": 85000000,
+                "total_params": 100000000,
+            }
+        )
 
         # Post-compression (5)
-        wandb_logger.log_phase4_post_compression({
-            'post_perplexity': 13.0,
-            'perplexity_degradation': 0.08,
-            'accuracy_preserved': True,
-            'dequantization_accuracy': 0.998,
-            'gradient_flow_passed': True,
-        })
+        wandb_logger.log_phase4_post_compression(
+            {
+                "post_perplexity": 13.0,
+                "perplexity_degradation": 0.08,
+                "accuracy_preserved": True,
+                "dequantization_accuracy": 0.998,
+                "gradient_flow_passed": True,
+            }
+        )
 
         # Fine-tuning (4)
-        wandb_logger.log_phase4_fine_tuning({
-            'best_perplexity': 12.5,
-            'improvement': 0.5,
-            'epochs': 2,
-            'time_hours': 1.0,
-        })
+        wandb_logger.log_phase4_fine_tuning(
+            {
+                "best_perplexity": 12.5,
+                "improvement": 0.5,
+                "epochs": 2,
+                "time_hours": 1.0,
+            }
+        )
 
         # Total: 3 + 7 + 5 + 4 = 19 unique metrics
 
@@ -367,15 +371,15 @@ class TestEndToEndPipeline:
 
         # Check all required fields
         required_fields = [
-            'is_compressed',
-            'original_size_mb',
-            'quantized_size_mb',
-            'compression_ratio',
-            'layers_quantized',
-            'layers_preserved',
-            'total_params',
-            'quantized_params',
-            'sparsity_ratio',
+            "is_compressed",
+            "original_size_mb",
+            "quantized_size_mb",
+            "compression_ratio",
+            "layers_quantized",
+            "layers_preserved",
+            "total_params",
+            "quantized_params",
+            "sparsity_ratio",
         ]
 
         for field in required_fields:

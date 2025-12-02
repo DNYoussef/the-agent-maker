@@ -38,7 +38,7 @@ class EvolutionConfig:
 
     # Mutation
     mutation_sigma: float = 0.01  # 1% noise std
-    mutation_rate: float = 0.01   # 1% of weights
+    mutation_rate: float = 0.01  # 1% of weights
 
     # Diversity
     min_diversity: float = 0.3
@@ -50,7 +50,7 @@ class EvolutionConfig:
     convergence_patience: int = 5  # Generations
 
     # Device
-    device: str = 'cuda'
+    device: str = "cuda"
 
     def validate(self) -> None:
         """
@@ -60,15 +60,9 @@ class EvolutionConfig:
             AssertionError: If any validation check fails
         """
         assert self.generations > 0, "Generations must be positive"
-        assert self.population_size == 8, \
-            "Population size must be 8 (binary combos)"
-        assert self.elite_count == 2, \
-            "Elite count must be 2 (for 6 children)"
-        assert 0 < self.mutation_rate < 1, \
-            "Mutation rate must be in (0, 1)"
-        assert self.mutation_sigma > 0, \
-            "Mutation sigma must be positive"
-        assert 0 <= self.min_diversity <= 1, \
-            "Diversity must be in [0, 1]"
-        assert self.convergence_patience > 0, \
-            "Convergence patience must be positive"
+        assert self.population_size == 8, "Population size must be 8 (binary combos)"
+        assert self.elite_count == 2, "Elite count must be 2 (for 6 children)"
+        assert 0 < self.mutation_rate < 1, "Mutation rate must be in (0, 1)"
+        assert self.mutation_sigma > 0, "Mutation sigma must be positive"
+        assert 0 <= self.min_diversity <= 1, "Diversity must be in [0, 1]"
+        assert self.convergence_patience > 0, "Convergence patience must be positive"

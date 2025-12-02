@@ -6,17 +6,19 @@ Based on: Prompt Baking paper (arXiv:2409.13697v1)
 Core Algorithm: θ_u = argmin D_KL(P_θ(·|u) || P_θu(·))
 """
 
+from dataclasses import dataclass
+from typing import Dict, Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from typing import Optional, Dict
-from dataclasses import dataclass
 
 
 @dataclass
 class PromptBakingConfig:
     """Configuration for prompt baking"""
+
     lora_r: int = 16  # LoRA rank (16 or 32)
     lora_alpha: int = 32
     num_epochs: int = 3
@@ -46,7 +48,7 @@ class PromptBaker:
         prompt: str,
         tokenizer,
         calibration_data: list,
-        half_bake: bool = False
+        half_bake: bool = False,
     ) -> nn.Module:
         """
         Bake a prompt into model weights
@@ -66,17 +68,11 @@ class PromptBaker:
 
         # Generate prompted responses for KL target
         prompted_responses = self._generate_prompted_responses(
-            model,
-            prompt,
-            tokenizer,
-            calibration_data
+            model, prompt, tokenizer, calibration_data
         )
 
         # Train LoRA to match prompted behavior
-        optimizer = torch.optim.AdamW(
-            model_with_lora.parameters(),
-            lr=self.config.learning_rate
-        )
+        optimizer = torch.optim.AdamW(model_with_lora.parameters(), lr=self.config.learning_rate)
 
         num_epochs = self.config.num_epochs
         if half_bake:
@@ -85,14 +81,14 @@ class PromptBaker:
         for epoch in range(num_epochs):
             for batch in prompted_responses:
                 # KL divergence loss
-                base_logits = model(batch['input_ids'])
-                lora_logits = model_with_lora(batch['input_ids'])
+                base_logits = model(batch["input_ids"])
+                lora_logits = model_with_lora(batch["input_ids"])
 
                 # D_KL(P_θ(·|u) || P_θu(·))
                 kl_loss = F.kl_div(
                     F.log_softmax(lora_logits, dim=-1),
                     F.softmax(base_logits, dim=-1),
-                    reduction='batchmean'
+                    reduction="batchmean",
                 )
 
                 kl_loss.backward()
@@ -105,11 +101,7 @@ class PromptBaker:
         return baked_model
 
     def sequential_baking(
-        self,
-        model: nn.Module,
-        prompts: list,
-        tokenizer,
-        calibration_data: list
+        self, model: nn.Module, prompts: list, tokenizer, calibration_data: list
     ) -> nn.Module:
         """
         Sequential baking: θ_u1u2 = B(B(θ, u1), u2)
@@ -127,12 +119,7 @@ class PromptBaker:
 
         for i, prompt in enumerate(prompts):
             print(f"Baking prompt {i+1}/{len(prompts)}: {prompt[:50]}...")
-            baked_model = self.bake_prompt(
-                baked_model,
-                prompt,
-                tokenizer,
-                calibration_data
-            )
+            baked_model = self.bake_prompt(baked_model, prompt, tokenizer, calibration_data)
 
         return baked_model
 
@@ -142,7 +129,7 @@ class PromptBaker:
         prompt: str,
         tokenizer,
         calibration_data: list,
-        num_iterations: int = 3
+        num_iterations: int = 3,
     ) -> nn.Module:
         """
         Prompt Pursuit: Iterative re-baking for amplification
@@ -163,12 +150,7 @@ class PromptBaker:
 
         for i in range(num_iterations):
             print(f"Prompt pursuit iteration {i+1}/{num_iterations}...")
-            baked_model = self.bake_prompt(
-                baked_model,
-                prompt,
-                tokenizer,
-                calibration_data
-            )
+            baked_model = self.bake_prompt(baked_model, prompt, tokenizer, calibration_data)
 
         return baked_model
 
@@ -179,7 +161,7 @@ class PromptBaker:
         Target modules: q_proj, v_proj, k_proj, o_proj (standard transformer attention)
         """
         try:
-            from peft import get_peft_model, LoraConfig, TaskType
+            from peft import LoraConfig, TaskType, get_peft_model
         except ImportError:
             print("Warning: peft not installed. Run: pip install peft")
             return model
@@ -190,17 +172,13 @@ class PromptBaker:
             target_modules=["q_proj", "v_proj", "k_proj", "o_proj"],
             lora_dropout=0.05,
             bias="none",
-            task_type=TaskType.CAUSAL_LM
+            task_type=TaskType.CAUSAL_LM,
         )
 
         return get_peft_model(model, lora_config)
 
     def _generate_prompted_responses(
-        self,
-        model: nn.Module,
-        prompt: str,
-        tokenizer,
-        calibration_data: list
+        self, model: nn.Module, prompt: str, tokenizer, calibration_data: list
     ) -> list:
         """Generate responses with prompt prepended for KL divergence targets.
 
@@ -226,7 +204,7 @@ class PromptBaker:
                     return_tensors="pt",
                     padding=True,
                     truncation=True,
-                    max_length=512
+                    max_length=512,
                 )
 
                 # Move to model device
@@ -240,22 +218,17 @@ class PromptBaker:
                     temperature=0.7,
                     top_p=0.9,
                     do_sample=True,
-                    pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id
+                    pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
                 )
 
-                responses.append({
-                    'input_ids': outputs,
-                    'attention_mask': torch.ones_like(outputs)
-                })
+                responses.append({"input_ids": outputs, "attention_mask": torch.ones_like(outputs)})
 
         # Batch responses
         batched = []
         for i in range(0, len(responses), self.config.batch_size):
-            batch = responses[i:i + self.config.batch_size]
+            batch = responses[i : i + self.config.batch_size]
             if batch:
-                batched.append({
-                    'input_ids': torch.cat([r['input_ids'] for r in batch], dim=0)
-                })
+                batched.append({"input_ids": torch.cat([r["input_ids"] for r in batch], dim=0)})
 
         return batched
 
@@ -292,7 +265,7 @@ def bake_prompt(
     prompt: str,
     tokenizer,
     calibration_data: list,
-    config: Optional[PromptBakingConfig] = None
+    config: Optional[PromptBakingConfig] = None,
 ) -> nn.Module:
     """
     Convenience function for prompt baking

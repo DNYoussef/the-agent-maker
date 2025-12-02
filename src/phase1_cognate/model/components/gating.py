@@ -4,10 +4,11 @@ Memory-Augmented Gate (MAG)
 Learns convex combination of current output and memory contribution.
 """
 
+from typing import Tuple
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Tuple
 
 
 class MAGGate(nn.Module):
@@ -17,12 +18,7 @@ class MAGGate(nn.Module):
     Learns convex combination of current output (y) and memory (m).
     """
 
-    def __init__(
-        self,
-        d_model: int,
-        hidden: int = 256,
-        entropy_reg: float = 0.001
-    ):
+    def __init__(self, d_model: int, hidden: int = 256, entropy_reg: float = 0.001):
         """
         Initialize MAG Gate.
 
@@ -39,11 +35,7 @@ class MAGGate(nn.Module):
         self.w_concat = nn.Linear(2 * d_model, hidden)
         self.w_gate = nn.Linear(hidden, d_model)
 
-    def forward(
-        self,
-        y: torch.Tensor,
-        m: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, y: torch.Tensor, m: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Apply memory-augmented gating.
 
@@ -67,10 +59,7 @@ class MAGGate(nn.Module):
 
         # Entropy regularization (prevent saturation)
         eps = 1e-8
-        entropy = -(
-            g * torch.log(g + eps) +
-            (1 - g) * torch.log(1 - g + eps)
-        )
+        entropy = -(g * torch.log(g + eps) + (1 - g) * torch.log(1 - g + eps))
         loss_entropy = -self.entropy_reg * entropy.mean()
 
         return output, loss_entropy

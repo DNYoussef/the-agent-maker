@@ -4,8 +4,9 @@ Phase 3 W&B Logger Wrapper
 Simplifies W&B logging for Phase 3 (Step 1 & Step 2).
 """
 
-from typing import Dict, Optional
 from pathlib import Path
+from typing import Dict, Optional
+
 import wandb
 
 from ..cross_phase.monitoring.wandb_integration import WandBIntegration
@@ -36,9 +37,7 @@ class WandBLogger:
             tags: Tags for run
             mode: 'offline' or 'online'
         """
-        self.integration = WandBIntegration(
-            project_name=project, mode=mode
-        )
+        self.integration = WandBIntegration(project_name=project, mode=mode)
 
         # Initialize run
         self.run = wandb.init(
@@ -136,14 +135,10 @@ class WandBLogger:
             arc_accuracy=accuracy_metrics.get("arc", 0.0),
             inference_time_ms=accuracy_metrics.get("inference_time_ms", 0.0),
             anti_theater_divergence=(
-                anti_theater_metrics.get("divergence")
-                if anti_theater_metrics
-                else None
+                anti_theater_metrics.get("divergence") if anti_theater_metrics else None
             ),
             anti_theater_ablation=(
-                anti_theater_metrics.get("ablation")
-                if anti_theater_metrics
-                else None
+                anti_theater_metrics.get("ablation") if anti_theater_metrics else None
             ),
             step=step,
         )

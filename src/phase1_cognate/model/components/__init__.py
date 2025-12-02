@@ -4,16 +4,16 @@ Titans-MAG Components Module
 Re-exports all component classes for backward compatibility.
 """
 
-from .normalization import RMSNorm
-from .mlp import SwiGLUMLP
 from .attention import SlidingWindowAttention
-from .memory import LongTermMemory
 from .gating import MAGGate
+from .memory import LongTermMemory
+from .mlp import SwiGLUMLP
+from .normalization import RMSNorm
 
 __all__ = [
-    'RMSNorm',
-    'SwiGLUMLP',
-    'SlidingWindowAttention',
-    'LongTermMemory',
-    'MAGGate',
+    "RMSNorm",
+    "SwiGLUMLP",
+    "SlidingWindowAttention",
+    "LongTermMemory",
+    "MAGGate",
 ]

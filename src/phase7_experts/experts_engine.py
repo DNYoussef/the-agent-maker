@@ -9,9 +9,9 @@ Main orchestrator for the 3-stage expert training pipeline:
 Research: Transformer^2 SVF, NSGA-II ADAS
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
 import time
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -20,6 +20,7 @@ import torch.nn as nn
 @dataclass
 class ExpertsConfig:
     """Configuration for Phase 7 expert system."""
+
     # Discovery settings
     min_experts: int = 3
     max_experts: int = 10
@@ -39,6 +40,7 @@ class ExpertsConfig:
 @dataclass
 class Phase7Result:
     """Result from Phase 7 expert training."""
+
     success: bool
     model: nn.Module
     num_experts: int
@@ -71,17 +73,13 @@ class ExpertsEngine:
         """
         self.config = config or ExpertsConfig()
         self.metrics = {
-            'discovery_time': 0.0,
-            'svf_time': 0.0,
-            'adas_time': 0.0,
-            'expert_metrics': []
+            "discovery_time": 0.0,
+            "svf_time": 0.0,
+            "adas_time": 0.0,
+            "expert_metrics": [],
         }
 
-    def run(
-        self,
-        model: nn.Module,
-        tokenizer: Any
-    ) -> Phase7Result:
+    def run(self, model: nn.Module, tokenizer: Any) -> Phase7Result:
         """
         Execute Phase 7 expert training pipeline.
 
@@ -101,26 +99,26 @@ class ExpertsEngine:
         try:
             # Stage 1: Expert Discovery
             stage1_start = time.time()
-            from .expert_discovery import ExpertDiscovery, DiscoveryConfig
+            from .expert_discovery import DiscoveryConfig, ExpertDiscovery
 
             discovery_config = DiscoveryConfig(
                 min_experts=self.config.min_experts,
                 max_experts=self.config.max_experts,
-                discovery_samples=self.config.discovery_samples
+                discovery_samples=self.config.discovery_samples,
             )
             discovery = ExpertDiscovery(config=discovery_config)
 
             num_experts, expert_profiles = discovery.discover(model, tokenizer)
-            self.metrics['discovery_time'] = time.time() - stage1_start
+            self.metrics["discovery_time"] = time.time() - stage1_start
 
             # Stage 2: SVF Training
             stage2_start = time.time()
-            from .svf_trainer import SVFTrainer, SVFConfig
+            from .svf_trainer import SVFConfig, SVFTrainer
 
             svf_config = SVFConfig(
                 num_singular_values=self.config.num_singular_values,
                 num_epochs=self.config.svf_epochs,
-                learning_rate=self.config.svf_learning_rate
+                learning_rate=self.config.svf_learning_rate,
             )
 
             print("\nStage 2: SVF Expert Training")
@@ -135,41 +133,41 @@ class ExpertsEngine:
                     model=current_model,
                     expert_id=expert.id,
                     expert_capabilities=expert.capabilities,
-                    tokenizer=tokenizer
+                    tokenizer=tokenizer,
                 )
 
                 if result.success:
                     current_model = trained_model
                     svf_results.append(result)
-                    self.metrics['expert_metrics'].append({
-                        'expert_id': expert.id,
-                        'final_loss': result.final_loss,
-                        'sv_changes': result.sv_changes
-                    })
+                    self.metrics["expert_metrics"].append(
+                        {
+                            "expert_id": expert.id,
+                            "final_loss": result.final_loss,
+                            "sv_changes": result.sv_changes,
+                        }
+                    )
 
-            self.metrics['svf_time'] = time.time() - stage2_start
+            self.metrics["svf_time"] = time.time() - stage2_start
 
             # Stage 3: ADAS Optimization
             stage3_start = time.time()
-            from .adas_optimizer import ADASOptimizer, ADASConfig
+            from .adas_optimizer import ADASConfig, ADASOptimizer
 
             adas_config = ADASConfig(
                 population_size=self.config.adas_population,
                 num_generations=self.config.adas_generations,
-                mutation_rate=self.config.mutation_rate
+                mutation_rate=self.config.mutation_rate,
             )
 
             adas = ADASOptimizer(config=adas_config)
             optimized_model, adas_result = adas.optimize(
-                model=current_model,
-                experts=expert_profiles,
-                tokenizer=tokenizer
+                model=current_model, experts=expert_profiles, tokenizer=tokenizer
             )
-            self.metrics['adas_time'] = time.time() - stage3_start
+            self.metrics["adas_time"] = time.time() - stage3_start
 
             # Extract routing configuration
             routing_config = {}
-            if hasattr(optimized_model, '_expert_routing'):
+            if hasattr(optimized_model, "_expert_routing"):
                 routing_config = optimized_model._expert_routing
 
             total_duration = time.time() - start_time
@@ -188,11 +186,11 @@ class ExpertsEngine:
                 routing_config=routing_config,
                 metrics=self.metrics,
                 artifacts={
-                    'svf_results': svf_results,
-                    'adas_result': adas_result,
-                    'discovery': discovery
+                    "svf_results": svf_results,
+                    "adas_result": adas_result,
+                    "discovery": discovery,
                 },
-                duration=total_duration
+                duration=total_duration,
             )
 
         except Exception as e:
@@ -206,8 +204,8 @@ class ExpertsEngine:
                 metrics=self.metrics,
                 artifacts={},
                 duration=duration,
-                error=str(e)
+                error=str(e),
             )
 
 
-__all__ = ['ExpertsEngine', 'ExpertsConfig', 'Phase7Result']
+__all__ = ["ExpertsEngine", "ExpertsConfig", "Phase7Result"]

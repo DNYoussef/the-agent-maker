@@ -12,27 +12,29 @@ Tests all 6 merge techniques:
 Coverage Target: ≥98%
 """
 
-import pytest
-import torch
-import torch.nn as nn
 import copy
 import random
 
+import pytest
+import torch
+import torch.nn as nn
+
+from src.phase2_evomerge.merge.dare_merge import DAREMerge
+from src.phase2_evomerge.merge.dfs_merge import DFSMerge
+from src.phase2_evomerge.merge.frankenmerge import FrankenMerge
 from src.phase2_evomerge.merge.linear_merge import LinearMerge
 from src.phase2_evomerge.merge.slerp_merge import SLERPMerge
-from src.phase2_evomerge.merge.dare_merge import DAREMerge
 from src.phase2_evomerge.merge.ties_merge import TIESMerge
-from src.phase2_evomerge.merge.frankenmerge import FrankenMerge
-from src.phase2_evomerge.merge.dfs_merge import DFSMerge
-
 
 # ============================================================================
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def simple_model():
     """Create a simple neural network for testing."""
+
     class SimpleNet(nn.Module):
         def __init__(self):
             super().__init__()
@@ -89,6 +91,7 @@ def opposite_models(simple_model):
 # Linear Merge Tests
 # ============================================================================
 
+
 class TestLinearMerge:
     """Tests for LinearMerge technique."""
 
@@ -99,9 +102,7 @@ class TestLinearMerge:
 
         # Result should be identical to any of the inputs
         for param_name, result_param in result.named_parameters():
-            original_param = dict(identical_models[0].named_parameters())[
-                param_name
-            ]
+            original_param = dict(identical_models[0].named_parameters())[param_name]
             assert torch.allclose(result_param, original_param, atol=1e-6)
 
     def test_linear_random_models(self, random_models):
@@ -111,9 +112,7 @@ class TestLinearMerge:
 
         # Manually compute expected average
         for param_name, result_param in result.named_parameters():
-            params = [
-                dict(m.named_parameters())[param_name] for m in random_models
-            ]
+            params = [dict(m.named_parameters())[param_name] for m in random_models]
             expected = sum(params) / len(params)
             assert torch.allclose(result_param, expected, atol=1e-6)
 
@@ -124,9 +123,7 @@ class TestLinearMerge:
 
         # Result should be close to zero (average of +1 and -1)
         for param in result.parameters():
-            assert torch.allclose(
-                param, torch.zeros_like(param), atol=1e-6
-            )
+            assert torch.allclose(param, torch.zeros_like(param), atol=1e-6)
 
     def test_linear_empty_list_raises(self):
         """Linear merge raises ValueError for empty list."""
@@ -152,6 +149,7 @@ class TestLinearMerge:
 # SLERP Merge Tests
 # ============================================================================
 
+
 class TestSLERPMerge:
     """Tests for SLERPMerge technique."""
 
@@ -162,13 +160,12 @@ class TestSLERPMerge:
 
         # Result should be identical to inputs (θ=0 → linear fallback)
         for param_name, result_param in result.named_parameters():
-            original_param = dict(identical_models[0].named_parameters())[
-                param_name
-            ]
+            original_param = dict(identical_models[0].named_parameters())[param_name]
             assert torch.allclose(result_param, original_param, atol=1e-5)
 
     def test_slerp_orthogonal_models(self):
         """SLERP with θ=90° produces expected interpolation."""
+
         # Create two models with orthogonal weight vectors
         class TinyNet(nn.Module):
             def __init__(self):
@@ -245,6 +242,7 @@ class TestSLERPMerge:
 
     def test_slerp_zero_vector_fallback(self):
         """SLERP falls back to linear when encountering zero vectors."""
+
         class TinyNet(nn.Module):
             def __init__(self):
                 super().__init__()
@@ -265,6 +263,7 @@ class TestSLERPMerge:
 # ============================================================================
 # DARE Merge Tests
 # ============================================================================
+
 
 class TestDAREMerge:
     """Tests for DAREMerge technique."""
@@ -321,8 +320,7 @@ class TestDAREMerge:
             if total_count > 10:  # Only check for parameters with enough elements
                 sparsity = 1.0 - (nonzero_count / total_count)
                 # Should be close to 90% sparse (allow more variance)
-                assert 0.8 <= sparsity <= 0.98, \
-                    f"Sparsity {sparsity:.2f} not in range [0.8, 0.98]"
+                assert 0.8 <= sparsity <= 0.98, f"Sparsity {sparsity:.2f} not in range [0.8, 0.98]"
 
     def test_dare_rescaling(self, simple_model):
         """DARE rescales remaining parameters by 10×."""
@@ -348,11 +346,13 @@ class TestDAREMerge:
                 # Non-zero deltas should be close to 10 * delta_value
                 expected = delta_value * 10.0
                 mean_delta = torch.mean(torch.abs(nonzero_deltas)).item()
-                assert abs(mean_delta - expected) < 0.01, \
-                    f"Mean delta {mean_delta:.3f} not close to {expected:.3f}"
+                assert (
+                    abs(mean_delta - expected) < 0.01
+                ), f"Mean delta {mean_delta:.3f} not close to {expected:.3f}"
 
     def test_dare_incompatible_models_raises(self, simple_model):
         """DARE raises ValueError for incompatible models."""
+
         class DifferentNet(nn.Module):
             def __init__(self):
                 super().__init__()
@@ -369,6 +369,7 @@ class TestDAREMerge:
 # ============================================================================
 # TIES Merge Tests
 # ============================================================================
+
 
 class TestTIESMerge:
     """Tests for TIESMerge technique."""
@@ -431,8 +432,9 @@ class TestTIESMerge:
             if total_count > 10:
                 ratio = nonzero_count / total_count
                 # Should keep roughly 20% (allow more variance due to voting + merging)
-                assert ratio <= 0.5, \
-                    f"Kept {ratio:.2f} of params, expected ≤0.5 (20% trimmed + voting)"
+                assert (
+                    ratio <= 0.5
+                ), f"Kept {ratio:.2f} of params, expected ≤0.5 (20% trimmed + voting)"
 
     def test_ties_conflict_resolution(self, simple_model):
         """TIES resolves conflicting signs correctly."""
@@ -473,6 +475,7 @@ class TestTIESMerge:
 
     def test_ties_incompatible_models_raises(self, simple_model):
         """TIES raises ValueError for incompatible models."""
+
         class DifferentNet(nn.Module):
             def __init__(self):
                 super().__init__()
@@ -489,6 +492,7 @@ class TestTIESMerge:
 # ============================================================================
 # FrankenMerge Tests
 # ============================================================================
+
 
 class TestFrankenMerge:
     """Tests for FrankenMerge technique."""
@@ -584,6 +588,7 @@ class TestFrankenMerge:
 
     def test_frankenmerge_incompatible_models_raises(self, simple_model):
         """FrankenMerge raises ValueError for incompatible models."""
+
         class DifferentNet(nn.Module):
             def __init__(self):
                 super().__init__()
@@ -636,6 +641,7 @@ class TestFrankenMerge:
 # ============================================================================
 # DFS Merge Tests
 # ============================================================================
+
 
 class TestDFSMerge:
     """Tests for DFSMerge technique."""
@@ -720,6 +726,7 @@ class TestDFSMerge:
 
     def test_dfs_incompatible_models_raises(self, simple_model):
         """DFS raises ValueError for incompatible models."""
+
         class DifferentNet(nn.Module):
             def __init__(self):
                 super().__init__()
@@ -756,6 +763,7 @@ pytestmark = [pytest.mark.phase2, pytest.mark.merge_technique]
 # Binary Combination Tests
 # ============================================================================
 
+
 @pytest.mark.phase2
 @pytest.mark.merge_technique
 class TestBinaryCombinations:
@@ -772,6 +780,7 @@ class TestBinaryCombinations:
             models.append(model)
 
         from src.phase2_evomerge.merge import MergeTechniques
+
         merger = MergeTechniques()
 
         # Apply all 8 combos with DIFFERENT random seeds
@@ -800,8 +809,9 @@ class TestBinaryCombinations:
 
         # At least 50% of combos should be different
         different_ratio = different_count / total_comparisons
-        assert different_ratio >= 0.5, \
-            f"Only {different_count}/{total_comparisons} ({different_ratio:.1%}) combos differ, expected ≥50%"
+        assert (
+            different_ratio >= 0.5
+        ), f"Only {different_count}/{total_comparisons} ({different_ratio:.1%}) combos differ, expected ≥50%"
 
     def test_combo_000_linear_dare_franken(self, simple_model):
         """Combo 000 uses Linear + DARE + FrankenMerge."""
@@ -813,11 +823,12 @@ class TestBinaryCombinations:
                 param.data += i * 0.2
 
         from src.phase2_evomerge.merge import MergeTechniques
+
         merger = MergeTechniques()
         result = merger.apply_combo(models, combo_id=0)
 
         # Verify combo_id tagged
-        assert hasattr(result, 'combo_id')
+        assert hasattr(result, "combo_id")
         assert result.combo_id == 0
 
         # Verify result is reasonable (not NaN/Inf)
@@ -835,11 +846,12 @@ class TestBinaryCombinations:
                 param.data += i * 0.2
 
         from src.phase2_evomerge.merge import MergeTechniques
+
         merger = MergeTechniques()
         result = merger.apply_combo(models, combo_id=7)
 
         # Verify combo_id tagged
-        assert hasattr(result, 'combo_id')
+        assert hasattr(result, "combo_id")
         assert result.combo_id == 7
 
         # Verify result is reasonable
@@ -857,6 +869,7 @@ class TestBinaryCombinations:
                 param.data.fill_(float(i + 1))  # Model 0=1.0, Model 1=2.0, Model 2=3.0
 
         from src.phase2_evomerge.merge import MergeTechniques
+
         merger = MergeTechniques()
 
         # Combo 0 (000): Linear → DARE → Franken
@@ -870,6 +883,7 @@ class TestBinaryCombinations:
     def test_combo_decode(self):
         """Test decode_combo() produces correct technique names."""
         from src.phase2_evomerge.merge import MergeTechniques
+
         merger = MergeTechniques()
 
         assert merger.decode_combo(0) == "Linear + DARE + Franken"
@@ -886,6 +900,7 @@ class TestBinaryCombinations:
         models = [copy.deepcopy(simple_model) for _ in range(3)]
 
         from src.phase2_evomerge.merge import MergeTechniques
+
         merger = MergeTechniques()
 
         # Valid range
@@ -903,6 +918,7 @@ class TestBinaryCombinations:
     def test_model_count_validation(self, simple_model):
         """Test exactly 3 models required."""
         from src.phase2_evomerge.merge import MergeTechniques
+
         merger = MergeTechniques()
 
         # Too few
@@ -927,6 +943,7 @@ class TestBinaryCombinations:
                 param.data += i * 0.3
 
         from src.phase2_evomerge.merge import MergeTechniques
+
         merger = MergeTechniques()
 
         result_000 = merger.apply_combo(models, combo_id=0)
@@ -944,5 +961,6 @@ class TestBinaryCombinations:
         magnitude_000 = torch.norm(first_param_000)
         relative_diff = diff / (magnitude_000 + 1e-8)
 
-        assert relative_diff > 0.01, \
-            f"Combo 000 and 111 too similar (relative diff: {relative_diff:.4f})"
+        assert (
+            relative_diff > 0.01
+        ), f"Combo 000 and 111 too similar (relative diff: {relative_diff:.4f})"

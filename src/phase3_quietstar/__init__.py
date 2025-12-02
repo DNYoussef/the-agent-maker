@@ -10,11 +10,11 @@ before RL training begins (the "jumpstart effect").
 """
 
 from .architecture import (
-    ThoughtGenerator,
     CoherenceScorer,
     MixingHead,
-    ThoughtInjector,
     QuietSTaRModel,
+    ThoughtGenerator,
+    ThoughtInjector,
 )
 from .config import QuietSTaRConfig
 

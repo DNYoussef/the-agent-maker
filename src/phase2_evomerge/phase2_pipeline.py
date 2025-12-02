@@ -10,8 +10,8 @@ Implements: 50-generation evolutionary optimization using 6 merge techniques.
 import copy
 import random
 import time
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 import torch
 import torch.nn as nn
@@ -20,24 +20,22 @@ import torch.nn as nn
 @dataclass
 class EvolutionConfig:
     """Configuration for evolutionary optimization."""
+
     num_generations: int = 50
     population_size: int = 10
     elite_count: int = 2
     mutation_rate: float = 0.1
     crossover_rate: float = 0.7
-    merge_techniques: List[str] = field(default_factory=lambda: [
-        'slerp', 'ties', 'dare', 'linear', 'frankenmerge', 'dfs'
-    ])
-    fitness_weights: Dict[str, float] = field(default_factory=lambda: {
-        'perplexity': 0.4,
-        'accuracy': 0.3,
-        'speed': 0.2,
-        'memory': 0.1
-    })
+    merge_techniques: List[str] = field(
+        default_factory=lambda: ["slerp", "ties", "dare", "linear", "frankenmerge", "dfs"]
+    )
+    fitness_weights: Dict[str, float] = field(
+        default_factory=lambda: {"perplexity": 0.4, "accuracy": 0.3, "speed": 0.2, "memory": 0.1}
+    )
     target_fitness_gain: float = 0.20  # 20% improvement target
 
     @classmethod
-    def from_dict(cls, config_dict: Dict) -> 'EvolutionConfig':
+    def from_dict(cls, config_dict: Dict) -> "EvolutionConfig":
         """Create config from dictionary."""
         return cls(**{k: v for k, v in config_dict.items() if k in cls.__dataclass_fields__})
 
@@ -75,32 +73,38 @@ class Phase2Pipeline:
         mergers = {}
         try:
             from phase2_evomerge.merge.slerp_merge import SLERPMerge
-            mergers['slerp'] = SLERPMerge()
+
+            mergers["slerp"] = SLERPMerge()
         except ImportError:
             pass
         try:
             from phase2_evomerge.merge.ties_merge import TIESMerge
-            mergers['ties'] = TIESMerge()
+
+            mergers["ties"] = TIESMerge()
         except ImportError:
             pass
         try:
             from phase2_evomerge.merge.dare_merge import DAREMerge
-            mergers['dare'] = DAREMerge()
+
+            mergers["dare"] = DAREMerge()
         except ImportError:
             pass
         try:
             from phase2_evomerge.merge.linear_merge import LinearMerge
-            mergers['linear'] = LinearMerge()
+
+            mergers["linear"] = LinearMerge()
         except ImportError:
             pass
         try:
             from phase2_evomerge.merge.frankenmerge import FrankenMerge
-            mergers['frankenmerge'] = FrankenMerge()
+
+            mergers["frankenmerge"] = FrankenMerge()
         except ImportError:
             pass
         try:
             from phase2_evomerge.merge.dfs_merge import DFSMerge
-            mergers['dfs'] = DFSMerge()
+
+            mergers["dfs"] = DFSMerge()
         except ImportError:
             pass
         return mergers
@@ -165,8 +169,10 @@ class Phase2Pipeline:
             # Progress update
             if (gen + 1) % 10 == 0 or gen == 0:
                 gain = (gen_best_fitness / initial_fitness - 1) * 100 if initial_fitness > 0 else 0
-                print(f"Gen {gen + 1}/{self.config.num_generations}: "
-                      f"fitness={gen_best_fitness:.4f} (+{gain:.1f}%)")
+                print(
+                    f"Gen {gen + 1}/{self.config.num_generations}: "
+                    f"fitness={gen_best_fitness:.4f} (+{gain:.1f}%)"
+                )
 
         # Step 3: Final evaluation and metrics
         final_fitness = self._evaluate_population()
@@ -174,13 +180,13 @@ class Phase2Pipeline:
 
         elapsed = time.time() - start_time
         self.metrics = {
-            'initial_fitness': initial_fitness,
-            'final_fitness': final_fitness,
-            'fitness_gain': fitness_gain,
-            'generations': self.config.num_generations,
-            'population_size': self.config.population_size,
-            'duration_seconds': elapsed,
-            'merge_techniques_used': list(self._mergers.keys())
+            "initial_fitness": initial_fitness,
+            "final_fitness": final_fitness,
+            "fitness_gain": fitness_gain,
+            "generations": self.config.num_generations,
+            "population_size": self.config.population_size,
+            "duration_seconds": elapsed,
+            "merge_techniques_used": list(self._mergers.keys()),
         }
 
         print(f"\nPhase 2 Complete!")
@@ -217,12 +223,12 @@ class Phase2Pipeline:
         for i, model in enumerate(self.population):
             # Quick fitness approximation (full eval is expensive)
             fitness_result = self._quick_fitness(model)
-            model._fitness = fitness_result['composite']
+            model._fitness = fitness_result["composite"]
             if model._fitness > best_fitness:
                 best_fitness = model._fitness
 
         # Sort by fitness (descending)
-        self.population.sort(key=lambda m: getattr(m, '_fitness', 0), reverse=True)
+        self.population.sort(key=lambda m: getattr(m, "_fitness", 0), reverse=True)
         return best_fitness
 
     def _quick_fitness(self, model: nn.Module) -> Dict[str, Any]:
@@ -231,11 +237,15 @@ class Phase2Pipeline:
 
         # Get parameter stats as proxy for fitness
         total_params = sum(p.numel() for p in model.parameters())
-        param_variance = sum(p.var().item() for p in model.parameters()) / max(1, len(list(model.parameters())))
+        param_variance = sum(p.var().item() for p in model.parameters()) / max(
+            1, len(list(model.parameters()))
+        )
 
         # Approximate metrics (real eval would use actual inference)
         perplexity = 10.0 + param_variance * 5  # Lower variance = lower perplexity (proxy)
-        accuracy = min(0.9, 0.3 + (1.0 / (1.0 + param_variance)))  # Higher variance = lower accuracy
+        accuracy = min(
+            0.9, 0.3 + (1.0 / (1.0 + param_variance))
+        )  # Higher variance = lower accuracy
         speed = 1000.0 + random.uniform(-100, 100)  # Tokens/sec (approx)
         memory = total_params * 4 / (1024 * 1024)  # MB
 
@@ -244,7 +254,7 @@ class Phase2Pipeline:
             accuracy=max(0.0, min(1.0, accuracy)),
             speed=max(100.0, speed),
             memory=max(1.0, memory),
-            weights=self.config.fitness_weights
+            weights=self.config.fitness_weights,
         )
 
     def _tournament_selection(self, k: int = 3) -> List[nn.Module]:
@@ -252,7 +262,7 @@ class Phase2Pipeline:
         parents = []
         for _ in range(self.config.population_size):
             tournament = random.sample(self.population, min(k, len(self.population)))
-            winner = max(tournament, key=lambda m: getattr(m, '_fitness', 0))
+            winner = max(tournament, key=lambda m: getattr(m, "_fitness", 0))
             parents.append(winner)
         return parents
 
@@ -285,13 +295,13 @@ class Phase2Pipeline:
     def _elitism_replacement(self, offspring: List[nn.Module]) -> List[nn.Module]:
         """Replace population keeping elite models."""
         # Keep top elite_count from current population
-        elite = self.population[:self.config.elite_count]
+        elite = self.population[: self.config.elite_count]
 
         # Add offspring
         new_population = elite + offspring
 
         # Trim to population size
-        return new_population[:self.config.population_size]
+        return new_population[: self.config.population_size]
 
     def get_metrics(self) -> Dict:
         """Return collected metrics."""

@@ -5,20 +5,21 @@ This module provides functions for calculating model perplexity on validation da
 which is one component of the composite fitness score (40% weight - highest priority).
 """
 
+import math
+from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from typing import Optional
-import math
 
 
 def calculate_perplexity(
     model: nn.Module,
     validation_dataset: DataLoader,
-    device: str = 'cuda',
+    device: str = "cuda",
     mixed_precision: bool = True,
-    max_batches: Optional[int] = None
+    max_batches: Optional[int] = None,
 ) -> float:
     """
     Calculate perplexity on validation dataset.
@@ -54,7 +55,7 @@ def calculate_perplexity(
     # Use automatic mixed precision if enabled
     autocast_ctx = (
         torch.amp.autocast(device_type=device)
-        if mixed_precision and device == 'cuda'
+        if mixed_precision and device == "cuda"
         else torch.no_grad()
     )
 
@@ -72,9 +73,7 @@ def calculate_perplexity(
                 logits = model(input_ids)
 
                 # Calculate cross-entropy loss
-                loss = _compute_cross_entropy_loss(
-                    logits, labels
-                )
+                loss = _compute_cross_entropy_loss(logits, labels)
 
             # Accumulate loss
             total_loss += loss.item()
@@ -92,8 +91,7 @@ def calculate_perplexity(
     # Validate result
     if math.isnan(perplexity) or math.isinf(perplexity):
         raise ValueError(
-            f"Invalid perplexity: {perplexity} "
-            f"(avg_loss={avg_loss}, num_batches={num_batches})"
+            f"Invalid perplexity: {perplexity} " f"(avg_loss={avg_loss}, num_batches={num_batches})"
         )
 
     return perplexity
@@ -115,8 +113,8 @@ def _unpack_batch(batch, device: str):
         Tuple of (input_ids, labels) on device
     """
     if isinstance(batch, dict):
-        input_ids = batch['input_ids'].to(device)
-        labels = batch['labels'].to(device)
+        input_ids = batch["input_ids"].to(device)
+        labels = batch["labels"].to(device)
     elif isinstance(batch, (list, tuple)):
         input_ids, labels = batch
         input_ids = input_ids.to(device)
@@ -146,6 +144,6 @@ def _compute_cross_entropy_loss(logits, labels):
     labels_flat = labels.view(-1)
 
     # Compute loss
-    loss = F.cross_entropy(logits_flat, labels_flat, reduction='mean')
+    loss = F.cross_entropy(logits_flat, labels_flat, reduction="mean")
 
     return loss

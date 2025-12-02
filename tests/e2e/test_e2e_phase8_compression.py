@@ -1,9 +1,10 @@
 """E2E tests for Phase 8: Final Compression (SeedLM -> VPTQ -> Hypercompression)"""
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-import torch
 import sys
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+import torch
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
@@ -13,13 +14,13 @@ class TestPhase8CompressionE2E:
 
     def test_compression_engine_initialization(self, mock_model, temp_output_dir):
         """Test compression engine can be initialized."""
-        from phase8_compression.compression_engine import CompressionEngine, CompressionConfig
+        from phase8_compression.compression_engine import CompressionConfig, CompressionEngine
 
         config = CompressionConfig()
         engine = CompressionEngine(config=config)
 
         assert engine.config is not None
-        assert hasattr(engine, 'metrics')
+        assert hasattr(engine, "metrics")
         assert isinstance(engine.metrics, dict)
 
     def test_compression_config_defaults(self):
@@ -46,19 +47,16 @@ class TestPhase8CompressionE2E:
         assert config.curve_type == "bezier"
 
         # Quality gates
-        assert config.min_retention_seedlm == 0.95     # 95% retention
-        assert config.min_retention_vptq == 0.95       # 95% retention
-        assert config.min_retention_final == 0.84      # 84% cumulative
+        assert config.min_retention_seedlm == 0.95  # 95% retention
+        assert config.min_retention_vptq == 0.95  # 95% retention
+        assert config.min_retention_final == 0.84  # 84% cumulative
 
     def test_seedlm_initialization(self, mock_model, temp_output_dir):
         """Test SeedLM compression stage initialization."""
         try:
             from phase8_compression.seedlm import SeedLMCompressor, SeedLMConfig
 
-            config = SeedLMConfig(
-                seed_bits=8,
-                block_size=64
-            )
+            config = SeedLMConfig(seed_bits=8, block_size=64)
 
             compressor = SeedLMCompressor(config=config)
 
@@ -96,10 +94,7 @@ class TestPhase8CompressionE2E:
         try:
             from phase8_compression.vptq import VPTQCompressor, VPTQConfig
 
-            config = VPTQConfig(
-                codebook_size=256,
-                vector_dim=8
-            )
+            config = VPTQConfig(codebook_size=256, vector_dim=8)
 
             compressor = VPTQCompressor(config=config)
 
@@ -136,10 +131,7 @@ class TestPhase8CompressionE2E:
         try:
             from phase8_compression.hypercompression import HyperCompressor, HyperConfig
 
-            config = HyperConfig(
-                num_params=8,
-                curve_type="bezier"
-            )
+            config = HyperConfig(num_params=8, curve_type="bezier")
 
             compressor = HyperCompressor(config=config)
 
@@ -162,7 +154,7 @@ class TestPhase8CompressionE2E:
 
     def test_three_stage_pipeline(self, mock_model, temp_output_dir):
         """Test complete three-stage compression pipeline."""
-        from phase8_compression.compression_engine import CompressionEngine, CompressionConfig
+        from phase8_compression.compression_engine import CompressionConfig, CompressionEngine
 
         config = CompressionConfig()
         engine = CompressionEngine(config=config)
@@ -173,20 +165,17 @@ class TestPhase8CompressionE2E:
         assert config.hyper_enabled is True
 
         # Verify engine has run method
-        assert hasattr(engine, 'run')
+        assert hasattr(engine, "run")
 
         # Verify helper methods exist
-        assert hasattr(engine, '_get_model_size')
-        assert hasattr(engine, '_run_benchmarks')
+        assert hasattr(engine, "_get_model_size")
+        assert hasattr(engine, "_run_benchmarks")
 
     def test_benchmark_testing_integration(self, mock_model, temp_output_dir):
         """Test benchmark testing validates quality at each stage."""
-        from phase8_compression.compression_engine import CompressionEngine, CompressionConfig
+        from phase8_compression.compression_engine import CompressionConfig, CompressionEngine
 
-        config = CompressionConfig(
-            run_benchmarks=True,
-            benchmark_samples=100
-        )
+        config = CompressionConfig(run_benchmarks=True, benchmark_samples=100)
 
         engine = CompressionEngine(config=config)
 
@@ -195,7 +184,7 @@ class TestPhase8CompressionE2E:
         assert config.benchmark_samples == 100
 
         # Verify _run_benchmarks method exists
-        assert hasattr(engine, '_run_benchmarks')
+        assert hasattr(engine, "_run_benchmarks")
 
     def test_quality_gate_rollback_to_vptq(self, mock_model, temp_output_dir):
         """Test rollback to VPTQ (2.5MB) if hypercompression fails quality."""
@@ -225,13 +214,13 @@ class TestPhase8CompressionE2E:
 
     def test_final_model_size_validation(self, mock_model, temp_output_dir):
         """Test final model size meets targets."""
-        from phase8_compression.compression_engine import CompressionEngine, CompressionConfig
+        from phase8_compression.compression_engine import CompressionConfig, CompressionEngine
 
         config = CompressionConfig()
         engine = CompressionEngine(config=config)
 
         # Verify _get_model_size method exists for size validation
-        assert hasattr(engine, '_get_model_size')
+        assert hasattr(engine, "_get_model_size")
 
         # Verify all stages enabled for maximum compression
         assert config.seedlm_enabled is True
@@ -242,10 +231,7 @@ class TestPhase8CompressionE2E:
         """Test 7 core benchmarks + expert-specific benchmarks."""
         from phase8_compression.compression_engine import CompressionConfig
 
-        config = CompressionConfig(
-            run_benchmarks=True,
-            benchmark_samples=100
-        )
+        config = CompressionConfig(run_benchmarks=True, benchmark_samples=100)
 
         # Verify benchmarking is enabled
         assert config.run_benchmarks is True
@@ -284,8 +270,8 @@ class TestPhase8CompressionE2E:
 
         # Verify quality thresholds that determine success
         assert config.min_retention_seedlm == 0.95  # 95%
-        assert config.min_retention_vptq == 0.95    # 95%
-        assert config.min_retention_final == 0.84   # 84% cumulative
+        assert config.min_retention_vptq == 0.95  # 95%
+        assert config.min_retention_final == 0.84  # 84% cumulative
 
         # Cumulative quality is calculated as:
         # seedlm (0.96) * vptq (0.95) * hyper (0.93) = 0.847 > 0.84

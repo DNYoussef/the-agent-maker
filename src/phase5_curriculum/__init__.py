@@ -17,93 +17,83 @@ Research Foundation:
 - "Dreaming Is All You Need"
 """
 
+from .assessment import AssessmentResult, EdgeOfChaosAssessment
 from .curriculum_engine import (
-    CurriculumEngine,
     CurriculumConfig,
-    Phase5Result,
+    CurriculumEngine,
     LevelProgress,
-    SpecializationType
+    Phase5Result,
+    SpecializationType,
 )
-from .assessment import EdgeOfChaosAssessment, AssessmentResult
 from .curriculum_generator import AdaptiveCurriculumGenerator, Question
-from .training_loop import CurriculumTrainingLoop, TrainingMetrics
-from .self_modeling import SelfModelingTrainer, TemperatureRange
-from .dream_consolidation import DreamConsolidator, DreamConfig
+from .docker_sandbox import DockerSandbox, ExecutionResult, Language, SandboxConfig
+from .dream_consolidation import DreamConfig, DreamConsolidator
+from .eudaimonia import (
+    ArchetypeCouncil,
+    ArchetypeType,
+    EudaimoniaRuleSystem,
+    EudaimoniaScore,
+    OODADecision,
+    OODALoop,
+    RuleType,
+)
 
 # New M5 implementations
 from .openrouter_client import (
-    OpenRouterClient,
-    ModelProvider,
     CompletionResponse,
+    ModelProvider,
+    OpenRouterClient,
     get_free_models,
-    get_production_models
+    get_production_models,
 )
-from .docker_sandbox import (
-    DockerSandbox,
-    SandboxConfig,
-    ExecutionResult,
-    Language
-)
-from .wandb_logger import (
-    Phase5WandBLogger,
-    MetricsConfig,
-    EudaimoniaMetrics,
-    create_phase5_logger
-)
-from .eudaimonia import (
-    EudaimoniaRuleSystem,
-    RuleType,
-    EudaimoniaScore,
-    ArchetypeCouncil,
-    ArchetypeType,
-    OODALoop,
-    OODADecision
-)
+from .self_modeling import SelfModelingTrainer, TemperatureRange
+from .training_loop import CurriculumTrainingLoop, TrainingMetrics
+from .wandb_logger import EudaimoniaMetrics, MetricsConfig, Phase5WandBLogger, create_phase5_logger
 
 __all__ = [
     # Main engine
-    'CurriculumEngine',
-    'CurriculumConfig',
-    'Phase5Result',
-    'LevelProgress',
-    'SpecializationType',
+    "CurriculumEngine",
+    "CurriculumConfig",
+    "Phase5Result",
+    "LevelProgress",
+    "SpecializationType",
     # Assessment
-    'EdgeOfChaosAssessment',
-    'AssessmentResult',
+    "EdgeOfChaosAssessment",
+    "AssessmentResult",
     # Curriculum
-    'AdaptiveCurriculumGenerator',
-    'Question',
+    "AdaptiveCurriculumGenerator",
+    "Question",
     # Training
-    'CurriculumTrainingLoop',
-    'TrainingMetrics',
+    "CurriculumTrainingLoop",
+    "TrainingMetrics",
     # Self-modeling
-    'SelfModelingTrainer',
-    'TemperatureRange',
+    "SelfModelingTrainer",
+    "TemperatureRange",
     # Dream consolidation
-    'DreamConsolidator',
-    'DreamConfig',
+    "DreamConsolidator",
+    "DreamConfig",
     # OpenRouter API
-    'OpenRouterClient',
-    'ModelProvider',
-    'CompletionResponse',
-    'get_free_models',
-    'get_production_models',
+    "OpenRouterClient",
+    "ModelProvider",
+    "CompletionResponse",
+    "get_free_models",
+    "get_production_models",
     # Docker Sandbox
-    'DockerSandbox',
-    'SandboxConfig',
-    'ExecutionResult',
-    'Language',
+    "DockerSandbox",
+    "SandboxConfig",
+    "ExecutionResult",
+    "Language",
     # W&B Logger
-    'Phase5WandBLogger',
-    'MetricsConfig',
-    'EudaimoniaMetrics',
-    'create_phase5_logger',
+    "Phase5WandBLogger",
+    "MetricsConfig",
+    "EudaimoniaMetrics",
+    "create_phase5_logger",
     # Eudaimonia System
-    'EudaimoniaRuleSystem',
-    'RuleType',
-    'EudaimoniaScore',
-    'ArchetypeCouncil',
-    'ArchetypeType',
-    'OODALoop',
-    'OODADecision',
+    "EudaimoniaRuleSystem",
+    "RuleType",
+    "EudaimoniaScore",
+    "ArchetypeCouncil",
+    "ArchetypeType",
+    "OODALoop",
+    "OODADecision",
 ]

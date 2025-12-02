@@ -15,8 +15,9 @@ Research:
     - Averaging Weights Leads to Wider Optima (Izmailov et al., 2018)
 """
 
-from typing import List
 import copy
+from typing import List
+
 import torch
 import torch.nn as nn
 

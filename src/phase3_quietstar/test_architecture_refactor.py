@@ -3,6 +3,7 @@ Test script to verify architecture refactoring works correctly.
 Run this to ensure all imports and backward compatibility are maintained.
 """
 
+
 def test_imports():
     """Test all import paths work correctly."""
     print("Testing imports...")
@@ -11,14 +12,15 @@ def test_imports():
     print("\n1. Testing backward compatibility imports...")
     try:
         from architecture import (
-            ThoughtOutput,
-            CoherenceScores,
-            ThoughtGenerator,
             CoherenceScorer,
+            CoherenceScores,
             MixingHead,
-            ThoughtInjector,
             QuietSTaRModel,
+            ThoughtGenerator,
+            ThoughtInjector,
+            ThoughtOutput,
         )
+
         print("   ✓ All backward compatibility imports successful")
     except ImportError as e:
         print(f"   ✗ Import failed: {e}")
@@ -27,12 +29,13 @@ def test_imports():
     # Test 2: Direct module imports
     print("\n2. Testing direct module imports...")
     try:
-        from architecture.dataclasses import ThoughtOutput, CoherenceScores
-        from architecture.thought_generator import ThoughtGenerator
         from architecture.coherence_scorer import CoherenceScorer
+        from architecture.dataclasses import CoherenceScores, ThoughtOutput
         from architecture.mixing_head import MixingHead
-        from architecture.thought_injector import ThoughtInjector
         from architecture.quiet_star_model import QuietSTaRModel
+        from architecture.thought_generator import ThoughtGenerator
+        from architecture.thought_injector import ThoughtInjector
+
         print("   ✓ All direct module imports successful")
     except ImportError as e:
         print(f"   ✗ Import failed: {e}")
@@ -55,9 +58,9 @@ def test_imports():
 
 def print_component_info():
     """Print information about each component."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("ARCHITECTURE COMPONENTS SUMMARY")
-    print("="*60)
+    print("=" * 60)
 
     components = {
         "ThoughtOutput": "Data structure for thought generation output",
@@ -73,20 +76,20 @@ def print_component_info():
         print(f"\n{name}:")
         print(f"  {description}")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("REFACTORING STATISTICS")
-    print("="*60)
+    print("=" * 60)
     print(f"Original: 1 file, 626 lines")
     print(f"Refactored: 7 files, 716 lines total")
     print(f"Average file size: 102 lines")
     print(f"Largest file: 159 lines (QuietSTaRModel)")
     print(f"NASA POT10 Compliant: YES (all files < 200 lines)")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
 
 if __name__ == "__main__":
     print("PHASE 3 QUIET-STAR ARCHITECTURE REFACTORING VERIFICATION")
-    print("="*60)
+    print("=" * 60)
 
     # Run import tests
     success = test_imports()

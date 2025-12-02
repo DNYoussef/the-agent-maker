@@ -5,15 +5,14 @@ This module provides functions for measuring peak VRAM usage during model infere
 which is one component of the composite fitness score (10% weight).
 """
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
-from typing import Optional
 
 
 def measure_memory_usage(
-    model: nn.Module,
-    benchmark_batch: torch.Tensor,
-    device: str = 'cuda'
+    model: nn.Module, benchmark_batch: torch.Tensor, device: str = "cuda"
 ) -> float:
     """
     Measure peak VRAM usage during inference (MB).
@@ -39,10 +38,8 @@ def measure_memory_usage(
         >>> memory_mb = measure_memory_usage(model, batch)
         >>> print(f"Peak memory: {memory_mb:.2f} MB")
     """
-    if device != 'cuda':
-        raise RuntimeError(
-            f"Memory measurement requires CUDA, got device='{device}'"
-        )
+    if device != "cuda":
+        raise RuntimeError(f"Memory measurement requires CUDA, got device='{device}'")
 
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA is not available on this system")
@@ -65,6 +62,6 @@ def measure_memory_usage(
     peak_memory_bytes = torch.cuda.max_memory_allocated(device=device)
 
     # Convert bytes to MB
-    peak_memory_mb = peak_memory_bytes / (1024 ** 2)
+    peak_memory_mb = peak_memory_bytes / (1024**2)
 
     return peak_memory_mb

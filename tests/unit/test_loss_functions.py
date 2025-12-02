@@ -11,21 +11,22 @@ Tests:
 Target: >=90% coverage for loss functions
 """
 
+import math
+import sys
+from pathlib import Path
+
 import pytest
 import torch
 import torch.nn.functional as F
-import math
 
-import sys
-from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from phase6_baking.loss_functions import (
+    KLDivergenceLoss,
+    distillation_loss,
+    jensen_shannon_divergence,
     kl_divergence_loss,
     reverse_kl_divergence_loss,
-    jensen_shannon_divergence,
-    distillation_loss,
-    KLDivergenceLoss,
 )
 
 
@@ -60,9 +61,13 @@ class TestKLDivergenceLoss:
         logits = torch.randn(batch, seq, vocab)
         target = F.softmax(torch.randn(batch, seq, vocab), dim=-1)
 
-        loss = kl_divergence_loss(logits, target, reduction='none')
+        loss = kl_divergence_loss(logits, target, reduction="none")
 
-        assert loss.shape == (batch, seq, vocab), f"Expected {(batch, seq, vocab)}, got {loss.shape}"
+        assert loss.shape == (
+            batch,
+            seq,
+            vocab,
+        ), f"Expected {(batch, seq, vocab)}, got {loss.shape}"
 
     def test_reduction_sum(self):
         """Test sum reduction."""
@@ -70,7 +75,7 @@ class TestKLDivergenceLoss:
         logits = torch.randn(batch, seq, vocab)
         target = F.softmax(torch.randn(batch, seq, vocab), dim=-1)
 
-        loss = kl_divergence_loss(logits, target, reduction='sum')
+        loss = kl_divergence_loss(logits, target, reduction="sum")
 
         assert loss.ndim == 0, "Sum reduction should return scalar"
         assert loss.item() >= 0, "KL divergence must be non-negative"
@@ -81,7 +86,7 @@ class TestKLDivergenceLoss:
         logits = torch.randn(batch, seq, vocab)
         target = F.softmax(torch.randn(batch, seq, vocab), dim=-1)
 
-        loss = kl_divergence_loss(logits, target, reduction='mean')
+        loss = kl_divergence_loss(logits, target, reduction="mean")
 
         assert loss.ndim == 0, "Mean reduction should return scalar"
         assert loss.item() >= 0, "KL divergence must be non-negative"
@@ -92,7 +97,7 @@ class TestKLDivergenceLoss:
         logits = torch.randn(batch, seq, vocab)
         target = F.softmax(torch.randn(batch, seq, vocab), dim=-1)
 
-        loss = kl_divergence_loss(logits, target, reduction='batchmean')
+        loss = kl_divergence_loss(logits, target, reduction="batchmean")
 
         assert loss.ndim == 0, "Batchmean reduction should return scalar"
         assert loss.item() >= 0, "KL divergence must be non-negative"
@@ -154,9 +159,9 @@ class TestReverseKLDivergence:
         logits = torch.randn(batch, seq, vocab)
         target = F.softmax(torch.randn(batch, seq, vocab), dim=-1)
 
-        for reduction in ['none', 'sum', 'mean', 'batchmean']:
+        for reduction in ["none", "sum", "mean", "batchmean"]:
             loss = reverse_kl_divergence_loss(logits, target, reduction=reduction)
-            if reduction == 'none':
+            if reduction == "none":
                 assert loss.shape == (batch, seq, vocab)
             else:
                 assert loss.ndim == 0
@@ -168,7 +173,7 @@ class TestReverseKLDivergence:
         target = F.softmax(torch.randn(batch, seq, vocab), dim=-1)
 
         with pytest.raises(ValueError):
-            reverse_kl_divergence_loss(logits, target, reduction='invalid')
+            reverse_kl_divergence_loss(logits, target, reduction="invalid")
 
 
 class TestJensenShannonDivergence:
@@ -294,19 +299,15 @@ class TestKLDivergenceLossModule:
         """Test module initialization."""
         loss_fn = KLDivergenceLoss()
 
-        assert loss_fn.reduction == 'batchmean'
+        assert loss_fn.reduction == "batchmean"
         assert loss_fn.temperature == 1.0
         assert loss_fn.epsilon == 1e-8
 
     def test_custom_initialization(self):
         """Test custom initialization."""
-        loss_fn = KLDivergenceLoss(
-            reduction='mean',
-            temperature=2.0,
-            epsilon=1e-6
-        )
+        loss_fn = KLDivergenceLoss(reduction="mean", temperature=2.0, epsilon=1e-6)
 
-        assert loss_fn.reduction == 'mean'
+        assert loss_fn.reduction == "mean"
         assert loss_fn.temperature == 2.0
         assert loss_fn.epsilon == 1e-6
 
@@ -387,7 +388,7 @@ class TestEdgeCases:
         target = F.softmax(torch.randn(batch, seq, vocab), dim=-1)
 
         loss = kl_divergence_loss(logits, target)
-        assert loss.device.type == 'cpu', "Should work on CPU"
+        assert loss.device.type == "cpu", "Should work on CPU"
 
 
 if __name__ == "__main__":

@@ -6,18 +6,19 @@ ISS-016: Uses unified get_tokenizer() for all phases
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
 from dataclasses import dataclass
+from typing import Dict, Optional
 
-# ISS-016: Import unified tokenizer utility
-from cross_phase.utils import get_tokenizer, MockTokenizer
 # ISS-015/ISS-022: Import constants and validation thresholds
 from cross_phase.constants import (
-    ValidationThresholds,
+    CURRICULUM_LEVELS,
     EVOMERGE_GENERATIONS,
     MIN_EXPERTS,
-    CURRICULUM_LEVELS
+    ValidationThresholds,
 )
+
+# ISS-016: Import unified tokenizer utility
+from cross_phase.utils import MockTokenizer, get_tokenizer
 
 
 @dataclass
@@ -27,6 +28,7 @@ class PhaseResult:
 
     This is the standardized PhaseResult interface from the GraphViz flows
     """
+
     success: bool
     phase_name: str
     model: object  # torch.nn.Module

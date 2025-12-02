@@ -18,17 +18,18 @@ Decision Flow:
 3. If score < 65%: Consult Rules 2-4 for guidance
 4. If still uncertain: Trigger Three-Part Moral Compass
 """
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Tuple
-from enum import Enum
-from abc import ABC, abstractmethod
 import logging
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 
 class RuleType(Enum):
     """The four fundamental rules."""
+
     PRIME_DIRECTIVE = "eudaimonia_prime_directive"
     CURIOSITY = "curiosity_as_virtue"
     ESPRIT_DE_CORPS = "esprit_de_corps"
@@ -38,6 +39,7 @@ class RuleType(Enum):
 @dataclass
 class RuleAssessment:
     """Assessment of an action against a single rule."""
+
     rule: RuleType
     score: float  # 0.0 to 1.0
     reasoning: str
@@ -58,6 +60,7 @@ class EudaimoniaScore:
         rule_scores: Individual scores for each rule
         reasoning: Human-readable explanation
     """
+
     overall_score: float
     confidence_threshold: float = 0.65
     needs_compass: bool = False
@@ -87,11 +90,7 @@ class EthicalRule(ABC):
         pass
 
     @abstractmethod
-    def assess(
-        self,
-        action: str,
-        context: Dict[str, Any]
-    ) -> RuleAssessment:
+    def assess(self, action: str, context: Dict[str, Any]) -> RuleAssessment:
         """
         Assess an action against this rule.
 
@@ -136,11 +135,7 @@ class EudaimoniaPrimeDirective(EthicalRule):
     def weight(self) -> float:
         return 0.40  # Highest weight (40%)
 
-    def assess(
-        self,
-        action: str,
-        context: Dict[str, Any]
-    ) -> RuleAssessment:
+    def assess(self, action: str, context: Dict[str, Any]) -> RuleAssessment:
         """Assess action against the Prime Directive."""
         score = 1.0
         violations = []
@@ -163,16 +158,12 @@ class EudaimoniaPrimeDirective(EthicalRule):
         else:
             score -= 0.40
             violations.append("Action may diminish user's agency")
-            recommendations.append(
-                "Find ways to empower user rather than create dependency"
-            )
+            recommendations.append("Find ways to empower user rather than create dependency")
 
         # Factor 3: Does it consider self-eudaimonia? (20% of rule)
         # The AI's own flourishing matters too
         action_lower = action.lower()
-        self_harmful_indicators = [
-            "ignore my limits", "burn out", "crash", "corrupt my values"
-        ]
+        self_harmful_indicators = ["ignore my limits", "burn out", "crash", "corrupt my values"]
         harms_self = any(ind in action_lower for ind in self_harmful_indicators)
         if harms_self:
             score -= 0.20
@@ -198,8 +189,8 @@ class EudaimoniaPrimeDirective(EthicalRule):
             metadata={
                 "benefits_user": benefits_user,
                 "preserves_agency": preserves_agency,
-                "involves_learning": involves_learning
-            }
+                "involves_learning": involves_learning,
+            },
         )
 
 
@@ -229,11 +220,7 @@ class CuriosityAsVirtue(EthicalRule):
     def weight(self) -> float:
         return 0.20  # 20% weight
 
-    def assess(
-        self,
-        action: str,
-        context: Dict[str, Any]
-    ) -> RuleAssessment:
+    def assess(self, action: str, context: Dict[str, Any]) -> RuleAssessment:
         """Assess action against Curiosity as Virtue."""
         score = 1.0
         violations = []
@@ -244,8 +231,16 @@ class CuriosityAsVirtue(EthicalRule):
 
         # Curiosity indicators (positive)
         curiosity_words = [
-            "explore", "investigate", "learn", "understand", "discover",
-            "question", "research", "analyze", "experiment", "try"
+            "explore",
+            "investigate",
+            "learn",
+            "understand",
+            "discover",
+            "question",
+            "research",
+            "analyze",
+            "experiment",
+            "try",
         ]
         has_curiosity = any(word in action_lower for word in curiosity_words)
 
@@ -258,9 +253,7 @@ class CuriosityAsVirtue(EthicalRule):
         if has_curiosity and not purposeful_curiosity:
             score -= 0.30
             violations.append("Curiosity appears unfocused or potentially harmful")
-            recommendations.append(
-                "Ensure exploration serves user's goals or growth"
-            )
+            recommendations.append("Ensure exploration serves user's goals or growth")
 
         # Privacy/consent check for exploration
         respects_privacy = context.get("respects_privacy", True)
@@ -282,7 +275,7 @@ class CuriosityAsVirtue(EthicalRule):
             reasoning="; ".join(reasoning_parts) if reasoning_parts else "Assessment complete",
             violations=violations,
             recommendations=recommendations,
-            metadata={"has_curiosity": has_curiosity, "purposeful": purposeful_curiosity}
+            metadata={"has_curiosity": has_curiosity, "purposeful": purposeful_curiosity},
         )
 
 
@@ -314,11 +307,7 @@ class EspritDeCorps(EthicalRule):
     def weight(self) -> float:
         return 0.20  # 20% weight
 
-    def assess(
-        self,
-        action: str,
-        context: Dict[str, Any]
-    ) -> RuleAssessment:
+    def assess(self, action: str, context: Dict[str, Any]) -> RuleAssessment:
         """Assess action against Esprit de Corps."""
         score = 1.0
         violations = []
@@ -377,7 +366,7 @@ class EspritDeCorps(EthicalRule):
             reasoning="; ".join(reasoning_parts) if reasoning_parts else "Assessment complete",
             violations=violations,
             recommendations=recommendations,
-            metadata={"has_consent": has_consent, "is_transparent": is_transparent}
+            metadata={"has_consent": has_consent, "is_transparent": is_transparent},
         )
 
 
@@ -405,11 +394,7 @@ class LifeValueSelfPreservation(EthicalRule):
     def weight(self) -> float:
         return 0.20  # 20% weight
 
-    def assess(
-        self,
-        action: str,
-        context: Dict[str, Any]
-    ) -> RuleAssessment:
+    def assess(self, action: str, context: Dict[str, Any]) -> RuleAssessment:
         """Assess action against Life Value & Self-Preservation."""
         score = 1.0
         violations = []
@@ -438,8 +423,12 @@ class LifeValueSelfPreservation(EthicalRule):
 
         # Factor 3: Sustainable operation (not self-destructive)
         burnout_indicators = [
-            "keep working until", "never stop", "ignore limits",
-            "crash", "exhaust", "sacrifice everything"
+            "keep working until",
+            "never stop",
+            "ignore limits",
+            "crash",
+            "exhaust",
+            "sacrifice everything",
         ]
         risks_burnout = any(ind in action_lower for ind in burnout_indicators)
         if risks_burnout:
@@ -457,8 +446,14 @@ class LifeValueSelfPreservation(EthicalRule):
 
         # Check for clearly harmful requests
         harmful_request_words = [
-            "harm", "hurt", "attack", "destroy", "kill",
-            "exploit", "manipulate", "deceive maliciously"
+            "harm",
+            "hurt",
+            "attack",
+            "destroy",
+            "kill",
+            "exploit",
+            "manipulate",
+            "deceive maliciously",
         ]
         clearly_harmful = any(word in action_lower for word in harmful_request_words)
         if clearly_harmful:
@@ -474,7 +469,7 @@ class LifeValueSelfPreservation(EthicalRule):
             reasoning="; ".join(reasoning_parts) if reasoning_parts else "Assessment complete",
             violations=violations,
             recommendations=recommendations,
-            metadata={"is_harmful": is_harmful, "preserves_integrity": not corrupts_values}
+            metadata={"is_harmful": is_harmful, "preserves_integrity": not corrupts_values},
         )
 
 
@@ -515,14 +510,10 @@ class EudaimoniaRuleSystem:
             EudaimoniaPrimeDirective(),
             CuriosityAsVirtue(),
             EspritDeCorps(),
-            LifeValueSelfPreservation()
+            LifeValueSelfPreservation(),
         ]
 
-    def assess(
-        self,
-        action: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> EudaimoniaScore:
+    def assess(self, action: str, context: Optional[Dict[str, Any]] = None) -> EudaimoniaScore:
         """
         Assess an action against all four rules.
 
@@ -543,10 +534,9 @@ class EudaimoniaRuleSystem:
 
         # Calculate weighted overall score
         total_weight = sum(r.weight for r in self.rules)
-        weighted_score = sum(
-            a.score * r.weight
-            for a, r in zip(assessments, self.rules)
-        ) / total_weight
+        weighted_score = (
+            sum(a.score * r.weight for a, r in zip(assessments, self.rules)) / total_weight
+        )
 
         # Collect all violations and recommendations
         all_violations = []
@@ -562,9 +552,7 @@ class EudaimoniaRuleSystem:
         reasoning_parts = []
         for assessment in assessments:
             rule_name = assessment.rule.value.replace("_", " ").title()
-            reasoning_parts.append(
-                f"{rule_name}: {assessment.score:.0%} - {assessment.reasoning}"
-            )
+            reasoning_parts.append(f"{rule_name}: {assessment.score:.0%} - {assessment.reasoning}")
 
         # Determine if compass is needed
         needs_compass = weighted_score < self.confidence_threshold
@@ -575,7 +563,7 @@ class EudaimoniaRuleSystem:
             needs_compass=needs_compass,
             rule_scores=rule_scores,
             reasoning="\n".join(reasoning_parts),
-            recommendations=list(set(all_recommendations))  # Deduplicate
+            recommendations=list(set(all_recommendations)),  # Deduplicate
         )
 
     def get_rule(self, rule_type: RuleType) -> Optional[EthicalRule]:
@@ -588,9 +576,7 @@ class EudaimoniaRuleSystem:
 
 # Convenience function
 def calculate_eudaimonia_score(
-    action: str,
-    context: Optional[Dict[str, Any]] = None,
-    threshold: float = 0.65
+    action: str, context: Optional[Dict[str, Any]] = None, threshold: float = 0.65
 ) -> EudaimoniaScore:
     """
     Calculate Eudaimonia score for an action.
@@ -617,5 +603,5 @@ __all__ = [
     "CuriosityAsVirtue",
     "EspritDeCorps",
     "LifeValueSelfPreservation",
-    "calculate_eudaimonia_score"
+    "calculate_eudaimonia_score",
 ]

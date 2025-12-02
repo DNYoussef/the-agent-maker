@@ -6,15 +6,16 @@ Tests OpenRouter integration and strategy prompt generation.
 Target: ≥95% coverage
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 from src.phase3_quietstar.data_generator import (
-    ReasoningExample,
     GenerationStats,
     OpenRouterClient,
+    ReasoningExample,
     StrategyPromptGenerator,
 )
 
@@ -116,9 +117,7 @@ class TestOpenRouterClient:
 
     def test_initialization(self):
         """Test OpenRouterClient initialization."""
-        client = OpenRouterClient(
-            api_key="test_key", cost_limit=200.0, batch_size=10
-        )
+        client = OpenRouterClient(api_key="test_key", cost_limit=200.0, batch_size=10)
 
         assert client.api_key == "test_key"
         assert client.cost_limit == 200.0
@@ -146,9 +145,7 @@ class TestOpenRouterClient:
         """Test cost calculation for GPT-4o."""
         client = OpenRouterClient("test_key")
 
-        cost = client._calculate_cost(
-            "openai/gpt-4o", input_tokens=1000, output_tokens=500
-        )
+        cost = client._calculate_cost("openai/gpt-4o", input_tokens=1000, output_tokens=500)
 
         # GPT-4o: $2.5/1M input, $10/1M output
         expected = (1000 / 1_000_000) * 2.5 + (500 / 1_000_000) * 10.0
@@ -175,9 +172,7 @@ class TestOpenRouterClient:
         content = "Step 1: Analyze\nStep 2: Solve\nAnswer: 42"
         prompt = "Question: What is the answer?"
 
-        question, reasoning, answer = client._extract_components(
-            content, prompt
-        )
+        question, reasoning, answer = client._extract_components(content, prompt)
 
         assert "What is the answer?" in question
         assert reasoning == content
@@ -189,11 +184,7 @@ class TestOpenRouterClient:
 
         response = {
             "choices": [
-                {
-                    "message": {
-                        "content": "<think><step>Analyze</step></think>\nAnswer: 42"
-                    }
-                }
+                {"message": {"content": "<think><step>Analyze</step></think>\nAnswer: 42"}}
             ],
             "usage": {"prompt_tokens": 100, "completion_tokens": 50},
         }
@@ -218,18 +209,14 @@ class TestOpenRouterClient:
 
         mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.json = AsyncMock(
-            return_value={"choices": [{"message": {"content": "test"}}]}
-        )
+        mock_response.json = AsyncMock(return_value={"choices": [{"message": {"content": "test"}}]})
 
         mock_session = MagicMock()
         mock_session.post = MagicMock(
             return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
         )
 
-        result = await client._api_call(
-            mock_session, "openai/gpt-4o", "test prompt"
-        )
+        result = await client._api_call(mock_session, "openai/gpt-4o", "test prompt")
 
         assert result is not None
 
@@ -247,9 +234,7 @@ class TestOpenRouterClient:
             return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response))
         )
 
-        result = await client._api_call(
-            mock_session, "openai/gpt-4o", "test prompt"
-        )
+        result = await client._api_call(mock_session, "openai/gpt-4o", "test prompt")
 
         assert result is None
 

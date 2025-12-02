@@ -4,9 +4,10 @@ Template for E2E tests.
 Copy this template for each phase and customize.
 """
 
+from pathlib import Path
+
 import pytest
 import torch
-from pathlib import Path
 
 
 class TestE2ETemplate:

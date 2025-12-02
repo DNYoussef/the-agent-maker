@@ -12,18 +12,19 @@ distribution during B-cycle persona refinement.
 Research: "Prompt Baking" (arXiv:2409.13697v1)
 """
 
+from typing import Literal, Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional, Literal
 
 
 def kl_divergence_loss(
     logits: torch.Tensor,
     target_probs: torch.Tensor,
-    reduction: Literal['none', 'batchmean', 'sum', 'mean'] = 'batchmean',
+    reduction: Literal["none", "batchmean", "sum", "mean"] = "batchmean",
     temperature: float = 1.0,
-    epsilon: float = 1e-8
+    epsilon: float = 1e-8,
 ) -> torch.Tensor:
     """
     Compute KL divergence loss between model predictions and target distribution.
@@ -76,7 +77,7 @@ def kl_divergence_loss(
         log_probs,
         target_probs,
         reduction=reduction,
-        log_target=False  # target_probs is NOT in log space
+        log_target=False,  # target_probs is NOT in log space
     )
 
     return loss
@@ -85,9 +86,9 @@ def kl_divergence_loss(
 def reverse_kl_divergence_loss(
     logits: torch.Tensor,
     target_probs: torch.Tensor,
-    reduction: Literal['none', 'batchmean', 'sum', 'mean'] = 'batchmean',
+    reduction: Literal["none", "batchmean", "sum", "mean"] = "batchmean",
     temperature: float = 1.0,
-    epsilon: float = 1e-8
+    epsilon: float = 1e-8,
 ) -> torch.Tensor:
     """
     Compute reverse KL divergence: KL(pred || target).
@@ -123,13 +124,13 @@ def reverse_kl_divergence_loss(
     kl = pred_probs * (log_pred - log_target)
 
     # Reduce
-    if reduction == 'none':
+    if reduction == "none":
         return kl
-    elif reduction == 'sum':
+    elif reduction == "sum":
         return kl.sum()
-    elif reduction == 'mean':
+    elif reduction == "mean":
         return kl.mean()
-    elif reduction == 'batchmean':
+    elif reduction == "batchmean":
         return kl.sum() / logits.size(0)
     else:
         raise ValueError(f"Invalid reduction: {reduction}")
@@ -139,7 +140,7 @@ def jensen_shannon_divergence(
     logits: torch.Tensor,
     target_probs: torch.Tensor,
     temperature: float = 1.0,
-    epsilon: float = 1e-8
+    epsilon: float = 1e-8,
 ) -> torch.Tensor:
     """
     Compute Jensen-Shannon divergence (symmetric, bounded).
@@ -187,7 +188,7 @@ def distillation_loss(
     labels: Optional[torch.Tensor] = None,
     temperature: float = 2.0,
     alpha: float = 0.5,
-    epsilon: float = 1e-8
+    epsilon: float = 1e-8,
 ) -> torch.Tensor:
     """
     Knowledge distillation loss combining soft and hard targets.
@@ -213,21 +214,16 @@ def distillation_loss(
 
     # KL loss with soft targets
     soft_loss = kl_divergence_loss(
-        student_logits,
-        teacher_probs,
-        temperature=temperature,
-        epsilon=epsilon
+        student_logits, teacher_probs, temperature=temperature, epsilon=epsilon
     )
 
     # Scale by T^2 (Hinton et al. recommendation)
-    soft_loss = soft_loss * (temperature ** 2)
+    soft_loss = soft_loss * (temperature**2)
 
     if labels is not None and alpha < 1.0:
         # Hard target CE loss
         hard_loss = F.cross_entropy(
-            student_logits.view(-1, student_logits.size(-1)),
-            labels.view(-1),
-            ignore_index=-100
+            student_logits.view(-1, student_logits.size(-1)), labels.view(-1), ignore_index=-100
         )
         return alpha * soft_loss + (1 - alpha) * hard_loss
     else:
@@ -242,21 +238,14 @@ class KLDivergenceLoss(nn.Module):
     """
 
     def __init__(
-        self,
-        reduction: str = 'batchmean',
-        temperature: float = 1.0,
-        epsilon: float = 1e-8
+        self, reduction: str = "batchmean", temperature: float = 1.0, epsilon: float = 1e-8
     ):
         super().__init__()
         self.reduction = reduction
         self.temperature = temperature
         self.epsilon = epsilon
 
-    def forward(
-        self,
-        logits: torch.Tensor,
-        target_probs: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, logits: torch.Tensor, target_probs: torch.Tensor) -> torch.Tensor:
         """
         Args:
             logits: Model output logits
@@ -270,14 +259,14 @@ class KLDivergenceLoss(nn.Module):
             target_probs,
             reduction=self.reduction,
             temperature=self.temperature,
-            epsilon=self.epsilon
+            epsilon=self.epsilon,
         )
 
 
 __all__ = [
-    'kl_divergence_loss',
-    'reverse_kl_divergence_loss',
-    'jensen_shannon_divergence',
-    'distillation_loss',
-    'KLDivergenceLoss',
+    "kl_divergence_loss",
+    "reverse_kl_divergence_loss",
+    "jensen_shannon_divergence",
+    "distillation_loss",
+    "KLDivergenceLoss",
 ]

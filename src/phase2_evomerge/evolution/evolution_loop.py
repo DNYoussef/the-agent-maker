@@ -9,16 +9,18 @@ This module implements the complete evolution loop with:
 """
 
 import random
-import torch.nn as nn
-from typing import List, Dict, Any
-import numpy as np
+from typing import Any, Dict, List
 
-from .config import EvolutionConfig
-from .population import initialize_population
-from .mutation import mutate_model
-from .diversity import compute_diversity
+import numpy as np
+import torch.nn as nn
+
 from src.phase2_evomerge.fitness import FitnessEvaluator
 from src.phase2_evomerge.merge import MergeTechniques
+
+from .config import EvolutionConfig
+from .diversity import compute_diversity
+from .mutation import mutate_model
+from .population import initialize_population
 
 
 class EvolutionLoop:
@@ -36,11 +38,7 @@ class EvolutionLoop:
         >>> print(f"Best fitness: {result['fitness']:.4f}")
     """
 
-    def __init__(
-        self,
-        config: EvolutionConfig,
-        fitness_evaluator: FitnessEvaluator
-    ):
+    def __init__(self, config: EvolutionConfig, fitness_evaluator: FitnessEvaluator):
         """
         Initialize evolution loop.
 
@@ -53,10 +51,7 @@ class EvolutionLoop:
         self.evaluator = fitness_evaluator
         self.merger = MergeTechniques()
 
-    def evolve(
-        self,
-        base_models: List[nn.Module]
-    ) -> Dict[str, Any]:
+    def evolve(self, base_models: List[nn.Module]) -> Dict[str, Any]:
         """
         Run complete evolution loop.
 
@@ -85,7 +80,7 @@ class EvolutionLoop:
 
         # Track champion
         champion = None
-        champion_fitness = -float('inf')
+        champion_fitness = -float("inf")
         fitness_history = []
 
         # Evolution loop
@@ -106,15 +101,12 @@ class EvolutionLoop:
             fitness_history.append(champion_fitness)
 
             # Check convergence
-            if (
-                self.config.early_stopping
-                and generation > self.config.convergence_patience
-            ):
+            if self.config.early_stopping and generation > self.config.convergence_patience:
                 if self._check_convergence(fitness_history):
-                    convergence_reason = 'threshold_met'
+                    convergence_reason = "threshold_met"
                     break
             else:
-                convergence_reason = 'max_generations'
+                convergence_reason = "max_generations"
 
             # Elite preservation (top 2 → 6 children)
             elite_children = self._elite_preservation(population)
@@ -127,9 +119,7 @@ class EvolutionLoop:
 
             # Diversity management
             diversity = compute_diversity(population)
-            population = self._reseed_if_needed(
-                population, diversity, base_models
-            )
+            population = self._reseed_if_needed(population, diversity, base_models)
 
         # Final metrics
         final_diversity = compute_diversity(population)
@@ -137,21 +127,18 @@ class EvolutionLoop:
         improvement_pct = improvement / initial_best_fitness if initial_best_fitness > 0 else 0
 
         return {
-            'champion': champion,
-            'fitness': champion_fitness,
-            'initial_fitness': initial_best_fitness,
-            'improvement': improvement,
-            'improvement_pct': improvement_pct,
-            'generations': generation,
-            'convergence_reason': convergence_reason,
-            'final_diversity': final_diversity,
-            'fitness_history': fitness_history
+            "champion": champion,
+            "fitness": champion_fitness,
+            "initial_fitness": initial_best_fitness,
+            "improvement": improvement,
+            "improvement_pct": improvement_pct,
+            "generations": generation,
+            "convergence_reason": convergence_reason,
+            "final_diversity": final_diversity,
+            "fitness_history": fitness_history,
         }
 
-    def _elite_preservation(
-        self,
-        population: List[nn.Module]
-    ) -> List[nn.Module]:
+    def _elite_preservation(self, population: List[nn.Module]) -> List[nn.Module]:
         """
         Create 6 children from top 2 elites via mutation.
 
@@ -170,16 +157,14 @@ class EvolutionLoop:
                     elite,
                     sigma=self.config.mutation_sigma,
                     rate=self.config.mutation_rate,
-                    device=self.config.device
+                    device=self.config.device,
                 )
                 elite_children.append(child)
 
         return elite_children  # 6 children total
 
     def _loser_merging(
-        self,
-        population: List[nn.Module],
-        base_models: List[nn.Module]
+        self, population: List[nn.Module], base_models: List[nn.Module]
     ) -> List[nn.Module]:
         """
         Create 2 children from bottom 6 via combo merging.
@@ -207,10 +192,7 @@ class EvolutionLoop:
 
         return [child1, child2]
 
-    def _check_convergence(
-        self,
-        fitness_history: List[float]
-    ) -> bool:
+    def _check_convergence(self, fitness_history: List[float]) -> bool:
         """
         Check if evolution has converged.
 
@@ -226,7 +208,7 @@ class EvolutionLoop:
             return False
 
         # Recent fitness values
-        recent = fitness_history[-self.config.convergence_patience:]
+        recent = fitness_history[-self.config.convergence_patience :]
 
         # Check improvement
         improvement = max(recent) - min(recent)
@@ -234,10 +216,7 @@ class EvolutionLoop:
         return improvement < self.config.convergence_threshold
 
     def _reseed_if_needed(
-        self,
-        population: List[nn.Module],
-        diversity: float,
-        base_models: List[nn.Module]
+        self, population: List[nn.Module], diversity: float, base_models: List[nn.Module]
     ) -> List[nn.Module]:
         """
         Re-seed bottom 2 models if diversity too low.

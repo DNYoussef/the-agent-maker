@@ -10,11 +10,12 @@ Combines 3 complementary techniques:
 ISS-025: Added QK-Clip implementation for attention score clipping
 """
 
+import logging
+from typing import List, Optional
+
 import torch
 import torch.nn as nn
 from torch.optim import Optimizer
-from typing import List, Optional
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ class MuonGrokfast(Optimizer):
     def __init__(
         self,
         params,
-        config: Optional['MuGrokConfig'] = None,  # ISS-003: Accept config object
+        config: Optional["MuGrokConfig"] = None,  # ISS-003: Accept config object
         muon_lr: float = 0.01,
         fallback_lr: float = 1e-3,
         grokfast_alpha: float = 0.98,
@@ -71,7 +72,7 @@ class MuonGrokfast(Optimizer):
             muon_ste_mode=muon_ste_mode,
             momentum=momentum,
             nesterov=nesterov,
-            ns_steps=ns_steps
+            ns_steps=ns_steps,
         )
         super().__init__(params, defaults)
 
@@ -80,12 +81,12 @@ class MuonGrokfast(Optimizer):
 
         # Initialize state
         for group in self.param_groups:
-            for p in group['params']:
+            for p in group["params"]:
                 state = self.state[p]
-                state['step'] = 0
-                state['ema_grad'] = torch.zeros_like(p.data)
+                state["step"] = 0
+                state["ema_grad"] = torch.zeros_like(p.data)
                 if len(p.shape) >= 2:  # Muon params
-                    state['momentum_buffer'] = torch.zeros_like(p.data)
+                    state["momentum_buffer"] = torch.zeros_like(p.data)
 
     @torch.no_grad()
     def step(self, closure=None):
@@ -96,23 +97,23 @@ class MuonGrokfast(Optimizer):
                 loss = closure()
 
         for group in self.param_groups:
-            for p in group['params']:
+            for p in group["params"]:
                 if p.grad is None:
                     continue
 
                 state = self.state[p]
-                state['step'] += 1
+                state["step"] += 1
 
                 # ===== GROKFAST: EMA Gradient Filtering =====
                 grad = p.grad.data
-                alpha = group['grokfast_alpha']
-                lambda_ = group['grokfast_lambda']
+                alpha = group["grokfast_alpha"]
+                lambda_ = group["grokfast_lambda"]
 
                 # Update EMA
-                state['ema_grad'].mul_(alpha).add_(grad, alpha=1 - alpha)
+                state["ema_grad"].mul_(alpha).add_(grad, alpha=1 - alpha)
 
                 # Filter gradient
-                filtered_grad = grad + lambda_ * (grad - state['ema_grad'])
+                filtered_grad = grad + lambda_ * (grad - state["ema_grad"])
 
                 # ===== PARAMETER ROUTING =====
                 if len(p.shape) >= 2:
@@ -126,11 +127,11 @@ class MuonGrokfast(Optimizer):
 
     def _muon_update(self, param, grad, state, group):
         """Muon update with Newton-Schulz orthogonalization"""
-        lr = group['muon_lr']
-        momentum = group['momentum']
-        nesterov = group['nesterov']
-        ns_steps = group['ns_steps']
-        muon_ste_mode = group['muon_ste_mode']
+        lr = group["muon_lr"]
+        momentum = group["momentum"]
+        nesterov = group["nesterov"]
+        ns_steps = group["ns_steps"]
+        muon_ste_mode = group["muon_ste_mode"]
 
         # Newton-Schulz orthogonalization
         if not muon_ste_mode:
@@ -176,7 +177,7 @@ class MuonGrokfast(Optimizer):
 
         # Momentum
         if momentum > 0:
-            buf = state['momentum_buffer']
+            buf = state["momentum_buffer"]
             buf.mul_(momentum).add_(G)
             if nesterov:
                 G = G + momentum * buf
@@ -188,25 +189,25 @@ class MuonGrokfast(Optimizer):
 
     def _adamw_update(self, param, grad, state, group):
         """AdamW fallback for 1-D params"""
-        lr = group['fallback_lr']
+        lr = group["fallback_lr"]
 
         # Simple SGD for 1-D params (embeddings, layer norms)
         param.add_(grad, alpha=-lr)
 
     def get_muon_lr(self) -> float:
         """Get current Muon learning rate"""
-        return self.param_groups[0]['muon_lr']
+        return self.param_groups[0]["muon_lr"]
 
     def get_mu_norm(self) -> float:
         """Get EMA gradient norm (for logging)"""
         total_norm = 0.0
         for group in self.param_groups:
-            for p in group['params']:
+            for p in group["params"]:
                 if p.grad is None:
                     continue
                 state = self.state[p]
-                total_norm += state['ema_grad'].norm().item() ** 2
-        return total_norm ** 0.5
+                total_norm += state["ema_grad"].norm().item() ** 2
+        return total_norm**0.5
 
     def get_qk_clip_count(self) -> int:
         """Get QK-Clip activation count (for logging) - ISS-025."""
@@ -250,8 +251,8 @@ class QKClipHook:
         Automatically finds modules with 'attention' or 'attn' in name.
         """
         for name, module in model.named_modules():
-            if 'attention' in name.lower() or 'attn' in name.lower():
-                if hasattr(module, 'forward'):
+            if "attention" in name.lower() or "attn" in name.lower():
+                if hasattr(module, "forward"):
                     handle = module.register_forward_hook(self._clip_hook)
                     self._handles.append(handle)
                     logger.debug(f"QK-Clip registered on: {name}")
@@ -287,10 +288,7 @@ class QKClipHook:
         self.clip_count = 0
 
 
-def apply_qk_clip(
-    attention_scores: torch.Tensor,
-    threshold: float = 25.0
-) -> tuple:
+def apply_qk_clip(attention_scores: torch.Tensor, threshold: float = 25.0) -> tuple:
     """
     Apply QK-Clip to attention scores (ISS-025).
 
@@ -316,10 +314,7 @@ def apply_qk_clip(
     return clipped_scores, int(exceeds)
 
 
-def create_optimizer_from_phase(
-    model: nn.Module,
-    phase_num: int
-) -> MuonGrokfast:
+def create_optimizer_from_phase(model: nn.Module, phase_num: int) -> MuonGrokfast:
     """
     Create MuGrokfast optimizer with phase-specific preset
 

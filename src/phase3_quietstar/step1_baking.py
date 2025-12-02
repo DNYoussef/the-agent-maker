@@ -17,23 +17,26 @@ Training Flow:
 Duration: ~5 hours (5 epochs × 1 hour/epoch)
 """
 
-import torch
-import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
-from typing import Dict, List, Optional, Tuple
-from pathlib import Path
-from tqdm import tqdm
 import json
-
-from .config import QuietSTaRConfig, PromptBakingConfig
-from .vocabulary import prepare_model_for_phase3, compute_thinking_token_usage
-from .wandb_logger import WandBLogger
 
 # ISS-004: Secure checkpoint utilities
 import sys
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader, Dataset
+from tqdm import tqdm
+
+from .config import PromptBakingConfig, QuietSTaRConfig
+from .vocabulary import compute_thinking_token_usage, prepare_model_for_phase3
+from .wandb_logger import WandBLogger
+
 sys.path.insert(0, str(Path(__file__).parents[2]))
 from cross_phase.utils.checkpoint_utils import save_checkpoint as secure_save
-from ..cross_phase.mugrokfast import MuonGrokfast, MuGrokConfig
+
+from ..cross_phase.mugrokfast import MuGrokConfig, MuonGrokfast
 from ..cross_phase.prompt_baking import PromptBaker
 
 
@@ -137,9 +140,7 @@ class PromptBakingTrainer:
             weight_decay=self.config.baking.weight_decay,
         )
 
-        self.optimizer = MuonGrokfast(
-            self.model.parameters(), config=optimizer_config
-        )
+        self.optimizer = MuonGrokfast(self.model.parameters(), config=optimizer_config)
 
     def _init_prompt_baker(self):
         """Initialize Prompt Baking system."""
@@ -179,13 +180,9 @@ class PromptBakingTrainer:
 
         print(f"Loaded {len(examples)} reasoning examples")
 
-        return ReasoningDataset(
-            examples, self.tokenizer, max_length=512
-        )
+        return ReasoningDataset(examples, self.tokenizer, max_length=512)
 
-    def train_epoch(
-        self, dataloader: DataLoader, epoch: int
-    ) -> Dict[str, float]:
+    def train_epoch(self, dataloader: DataLoader, epoch: int) -> Dict[str, float]:
         """Train one epoch."""
         self.model.train()
         total_loss = 0.0
@@ -239,8 +236,7 @@ class PromptBakingTrainer:
         # Compute epoch metrics
         avg_loss = total_loss / len(dataloader)
         strategy_accs = {
-            s: strategy_correct[s] / max(strategy_total[s], 1)
-            for s in self._get_strategies()
+            s: strategy_correct[s] / max(strategy_total[s], 1) for s in self._get_strategies()
         }
         overall_acc = sum(strategy_correct.values()) / sum(strategy_total.values())
 
@@ -267,9 +263,7 @@ class PromptBakingTrainer:
 
     def _log_epoch(self, epoch: int, metrics: Dict[str, float]):
         """Log epoch metrics to W&B."""
-        wandb_metrics = {
-            f"baking/{k}": v for k, v in metrics.items()
-        }
+        wandb_metrics = {f"baking/{k}": v for k, v in metrics.items()}
         wandb_metrics["baking/epoch"] = epoch
 
         # Add strategy-specific accuracies
@@ -286,9 +280,7 @@ class PromptBakingTrainer:
 
         self.wandb_logger.log(wandb_metrics)
 
-    def validate(
-        self, dataloader: DataLoader
-    ) -> Tuple[float, Dict[str, float]]:
+    def validate(self, dataloader: DataLoader) -> Tuple[float, Dict[str, float]]:
         """Validate model and compute thinking token usage."""
         self.model.eval()
         total_correct = 0
@@ -329,9 +321,7 @@ class PromptBakingTrainer:
 
                 # Decode for token usage analysis
                 for i in range(input_ids.size(0)):
-                    output_text = self.tokenizer.decode(
-                        predictions[i], skip_special_tokens=False
-                    )
+                    output_text = self.tokenizer.decode(predictions[i], skip_special_tokens=False)
                     all_outputs.append(output_text)
 
         # Overall accuracy
@@ -339,20 +329,15 @@ class PromptBakingTrainer:
 
         # Strategy accuracies
         strategy_accs = {
-            s: strategy_correct[s] / max(strategy_total[s], 1)
-            for s in self._get_strategies()
+            s: strategy_correct[s] / max(strategy_total[s], 1) for s in self._get_strategies()
         }
 
         # Thinking token usage
-        token_usage = compute_thinking_token_usage(
-            all_outputs, self.vocab
-        )
+        token_usage = compute_thinking_token_usage(all_outputs, self.vocab)
 
         return overall_acc, strategy_accs, token_usage
 
-    def check_convergence(
-        self, overall_acc: float, strategy_accs: Dict[str, float]
-    ) -> bool:
+    def check_convergence(self, overall_acc: float, strategy_accs: Dict[str, float]) -> bool:
         """Check if model has converged (≥85% threshold)."""
         threshold = self.config.baking.convergence_threshold
 
@@ -397,9 +382,7 @@ class PromptBakingTrainer:
             print(f"Train Accuracy: {train_metrics['overall_accuracy']:.4f}")
 
             # Validate
-            val_acc, strategy_accs, token_usage = self.validate(
-                val_dataloader
-            )
+            val_acc, strategy_accs, token_usage = self.validate(val_dataloader)
 
             print(f"Val Accuracy: {val_acc:.4f}")
             print("\nStrategy Accuracies:")
@@ -427,7 +410,9 @@ class PromptBakingTrainer:
             # Check convergence
             if self.check_convergence(val_acc, strategy_accs):
                 print(f"\n✅ Convergence achieved at epoch {epoch + 1}!")
-                print(f"Overall accuracy: {val_acc:.4f} (≥{self.config.baking.convergence_threshold})")
+                print(
+                    f"Overall accuracy: {val_acc:.4f} (≥{self.config.baking.convergence_threshold})"
+                )
                 break
 
         # Restore best model
@@ -438,9 +423,7 @@ class PromptBakingTrainer:
         print("\n" + "=" * 60)
         print("FINAL VALIDATION")
         print("=" * 60)
-        final_acc, final_strategy_accs, final_token_usage = self.validate(
-            val_dataloader
-        )
+        final_acc, final_strategy_accs, final_token_usage = self.validate(val_dataloader)
 
         print(f"Final Accuracy: {final_acc:.4f}")
         print("\nFinal Strategy Accuracies:")
@@ -452,9 +435,7 @@ class PromptBakingTrainer:
             print(f"  {token_type}: {usage:.2%}")
 
         # Check if convergence met
-        converged = self.check_convergence(
-            final_acc, final_strategy_accs
-        )
+        converged = self.check_convergence(final_acc, final_strategy_accs)
 
         if not converged:
             print(
@@ -472,7 +453,7 @@ class PromptBakingTrainer:
     def save_baked_model(self, output_path: Path):
         """Save baked model for Step 2 using secure SafeTensors format (ISS-004)."""
         # Remove extension if present
-        base_path = output_path.with_suffix('') if output_path.suffix else output_path
+        base_path = output_path.with_suffix("") if output_path.suffix else output_path
 
         # Metadata (JSON-serializable)
         baking_metadata = {
@@ -536,9 +517,7 @@ def run_step1_baking(
     train_size = int(0.9 * len(dataset))
     val_size = len(dataset) - train_size
 
-    train_dataset, val_dataset = torch.utils.data.random_split(
-        dataset, [train_size, val_size]
-    )
+    train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, val_size])
 
     # Create dataloaders
     train_dataloader = DataLoader(

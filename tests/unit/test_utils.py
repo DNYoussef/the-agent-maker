@@ -3,25 +3,23 @@ Unit tests for cross-phase utilities
 Tests model size detection, batch sizing, and diversity metrics
 """
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from cross_phase.utils import (
-    get_model_size,
     calculate_safe_batch_size,
-    validate_model_diversity,
+    compute_population_diversity,
     detect_training_divergence,
-    compute_population_diversity
+    get_model_size,
+    validate_model_diversity,
 )
 
 
-@pytest.mark.skipif(
-    'torch' not in sys.modules,
-    reason="PyTorch not available"
-)
+@pytest.mark.skipif("torch" not in sys.modules, reason="PyTorch not available")
 class TestModelSizeUtils:
     """Test model size utilities"""
 
@@ -52,10 +50,7 @@ class TestModelSizeUtils:
 
     def test_calculate_safe_batch_size(self):
         """Test safe batch size calculation"""
-        batch_size = calculate_safe_batch_size(
-            model_size_mb=95.4,
-            device_vram_gb=6.0
-        )
+        batch_size = calculate_safe_batch_size(model_size_mb=95.4, device_vram_gb=6.0)
 
         assert batch_size > 0
         assert isinstance(batch_size, int)

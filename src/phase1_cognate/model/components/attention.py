@@ -6,10 +6,11 @@ Each token attends to +-window/2 tokens around it.
 """
 
 import math
+from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional
 
 
 class SlidingWindowAttention(nn.Module):
@@ -20,13 +21,7 @@ class SlidingWindowAttention(nn.Module):
     Complexity: O(n*w) instead of O(n^2)
     """
 
-    def __init__(
-        self,
-        d_model: int,
-        n_heads: int,
-        window: int,
-        dropout: float = 0.1
-    ):
+    def __init__(self, d_model: int, n_heads: int, window: int, dropout: float = 0.1):
         """
         Initialize Sliding Window Attention.
 
@@ -52,11 +47,7 @@ class SlidingWindowAttention(nn.Module):
 
         self.dropout = nn.Dropout(dropout)
 
-    def forward(
-        self,
-        x: torch.Tensor,
-        mask: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Apply sliding window attention.
 
@@ -89,11 +80,7 @@ class SlidingWindowAttention(nn.Module):
         return self.w_o(attn_output)
 
     def _sliding_window_attn(
-        self,
-        q: torch.Tensor,
-        k: torch.Tensor,
-        v: torch.Tensor,
-        mask: Optional[torch.Tensor]
+        self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: Optional[torch.Tensor]
     ) -> torch.Tensor:
         """
         Efficient Sliding Window Attention (ISS-026).
@@ -124,11 +111,11 @@ class SlidingWindowAttention(nn.Module):
         # Apply sliding window mask (expand for batch and heads)
         # window_mask shape: [1, 1, seq_len, seq_len]
         window_mask = window_mask.unsqueeze(0).unsqueeze(0)
-        scores = scores.masked_fill(~window_mask, float('-inf'))
+        scores = scores.masked_fill(~window_mask, float("-inf"))
 
         # Apply additional mask if provided
         if mask is not None:
-            scores = scores.masked_fill(mask == 0, float('-inf'))
+            scores = scores.masked_fill(mask == 0, float("-inf"))
 
         # Softmax and dropout
         attn_weights = F.softmax(scores, dim=-1)
@@ -139,10 +126,7 @@ class SlidingWindowAttention(nn.Module):
         return torch.matmul(attn_weights, v)
 
     def _create_sliding_window_mask(
-        self,
-        seq_len: int,
-        window_half: int,
-        device: torch.device
+        self, seq_len: int, window_half: int, device: torch.device
     ) -> torch.Tensor:
         """
         Create sliding window mask (ISS-026).

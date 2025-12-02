@@ -12,12 +12,13 @@ Three Critical Tests:
 All 3 tests must pass or Phase 3 fails.
 """
 
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Dict, List, Optional, Tuple
 from scipy.stats import pearsonr
-import numpy as np
 
 from .config import AntiTheaterConfig
 
@@ -42,9 +43,7 @@ class AntiTheaterValidator:
         self.config = config
         self.device = device
 
-    def divergence_test(
-        self, input_ids: torch.Tensor, num_samples: int = 100
-    ) -> float:
+    def divergence_test(self, input_ids: torch.Tensor, num_samples: int = 100) -> float:
         """
         Test 1: Divergence from Direct Continuation
 
@@ -73,9 +72,7 @@ class AntiTheaterValidator:
                 )
 
                 # Generate with thoughts (sampled)
-                thought_output = self.model(
-                    sample, use_thoughts=True
-                )
+                thought_output = self.model(sample, use_thoughts=True)
 
                 # Extract generated tokens
                 direct_tokens = direct_output[0, sample.size(1) :]
@@ -83,9 +80,9 @@ class AntiTheaterValidator:
                 thought_tokens = thought_logits.argmax(dim=-1)
 
                 # Compute edit distance
-                divergence = self._edit_distance(
-                    direct_tokens, thought_tokens
-                ) / max(len(direct_tokens), len(thought_tokens))
+                divergence = self._edit_distance(direct_tokens, thought_tokens) / max(
+                    len(direct_tokens), len(thought_tokens)
+                )
 
                 total_divergence += divergence
 
@@ -93,9 +90,7 @@ class AntiTheaterValidator:
 
         return avg_divergence
 
-    def ablation_test(
-        self, dataloader, max_batches: int = 50
-    ) -> float:
+    def ablation_test(self, dataloader, max_batches: int = 50) -> float:
         """
         Test 2: Ablation Study
 
@@ -123,20 +118,14 @@ class AntiTheaterValidator:
                 labels = batch["labels"].to(self.device)
 
                 # WITH thoughts
-                outputs_with = self.model(
-                    input_ids, labels=labels, use_thoughts=True
-                )
+                outputs_with = self.model(input_ids, labels=labels, use_thoughts=True)
                 predictions_with = outputs_with["logits"].argmax(dim=-1)
                 correct_with = (predictions_with == labels).float().mean()
 
                 # WITHOUT thoughts
-                outputs_without = self.model(
-                    input_ids, labels=labels, use_thoughts=False
-                )
+                outputs_without = self.model(input_ids, labels=labels, use_thoughts=False)
                 predictions_without = outputs_without["logits"].argmax(dim=-1)
-                correct_without = (
-                    (predictions_without == labels).float().mean()
-                )
+                correct_without = (predictions_without == labels).float().mean()
 
                 acc_with_thoughts += correct_with.item()
                 acc_without_thoughts += correct_without.item()
@@ -149,9 +138,7 @@ class AntiTheaterValidator:
 
         return improvement
 
-    def correlation_test(
-        self, dataloader, max_batches: int = 50
-    ) -> float:
+    def correlation_test(self, dataloader, max_batches: int = 50) -> float:
         """
         Test 3: Coherence-Utility Correlation
 
@@ -179,9 +166,7 @@ class AntiTheaterValidator:
                 labels = batch["labels"].to(self.device)
 
                 # Forward with thoughts
-                outputs = self.model(
-                    input_ids, labels=labels, use_thoughts=True
-                )
+                outputs = self.model(input_ids, labels=labels, use_thoughts=True)
 
                 # Coherence score (from model output)
                 coherence = outputs.get("avg_coherence", 0.0)
@@ -256,9 +241,7 @@ class AntiTheaterValidator:
             "all_passed": all_passed,
         }
 
-    def _edit_distance(
-        self, seq1: torch.Tensor, seq2: torch.Tensor
-    ) -> int:
+    def _edit_distance(self, seq1: torch.Tensor, seq2: torch.Tensor) -> int:
         """
         Compute Levenshtein edit distance between two sequences.
 

@@ -8,12 +8,13 @@ Tests the complete reasoning enhancement pipeline including:
 - RL training step (with mocks)
 """
 
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
 import torch
 import torch.nn as nn
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
@@ -30,7 +31,7 @@ class TestPhase3QuietSTaRE2E:
 
         # Generate thoughts (sample from model)
         with torch.no_grad():
-            outputs = mock_model(inputs['input_ids'])
+            outputs = mock_model(inputs["input_ids"])
             logits = outputs.logits
 
             # Sample thoughts from distribution
@@ -49,7 +50,7 @@ class TestPhase3QuietSTaRE2E:
         thoughts = []
 
         with torch.no_grad():
-            outputs = mock_model(inputs['input_ids'])
+            outputs = mock_model(inputs["input_ids"])
             logits = outputs.logits
 
             # Sample multiple thoughts in parallel
@@ -71,19 +72,15 @@ class TestPhase3QuietSTaRE2E:
         context_inputs = mock_tokenizer(context_text)
 
         with torch.no_grad():
-            thought_outputs = mock_model(thought_inputs['input_ids'])
-            context_outputs = mock_model(context_inputs['input_ids'])
+            thought_outputs = mock_model(thought_inputs["input_ids"])
+            context_outputs = mock_model(context_inputs["input_ids"])
 
             # Get hidden states
             thought_embedding = thought_outputs.hidden_states.mean(dim=1)
             context_embedding = context_outputs.hidden_states.mean(dim=1)
 
             # Cosine similarity as coherence score
-            coherence = torch.cosine_similarity(
-                thought_embedding,
-                context_embedding,
-                dim=-1
-            )
+            coherence = torch.cosine_similarity(thought_embedding, context_embedding, dim=-1)
 
         assert coherence.shape == (1,)
         assert -1.0 <= coherence.item() <= 1.0
@@ -97,21 +94,15 @@ class TestPhase3QuietSTaRE2E:
         correct_inputs = mock_tokenizer(correct_text)
 
         with torch.no_grad():
-            thought_logits = mock_model(thought_inputs['input_ids']).logits
-            correct_logits = mock_model(correct_inputs['input_ids']).logits
+            thought_logits = mock_model(thought_inputs["input_ids"]).logits
+            correct_logits = mock_model(correct_inputs["input_ids"]).logits
 
             # Perplexity-based syntactic score
             thought_perplexity = torch.exp(
-                nn.CrossEntropyLoss()(
-                    thought_logits[0, :-1],
-                    thought_inputs['input_ids'][0, 1:]
-                )
+                nn.CrossEntropyLoss()(thought_logits[0, :-1], thought_inputs["input_ids"][0, 1:])
             )
             correct_perplexity = torch.exp(
-                nn.CrossEntropyLoss()(
-                    correct_logits[0, :-1],
-                    correct_inputs['input_ids'][0, 1:]
-                )
+                nn.CrossEntropyLoss()(correct_logits[0, :-1], correct_inputs["input_ids"][0, 1:])
             )
 
         assert thought_perplexity > 0
@@ -125,11 +116,11 @@ class TestPhase3QuietSTaRE2E:
         context_inputs = mock_tokenizer(context_text)
 
         with torch.no_grad():
-            outputs = mock_model(context_inputs['input_ids'])
+            outputs = mock_model(context_inputs["input_ids"])
             next_token_logits = outputs.logits[:, -1, :]
 
             # Get probability of thought token
-            thought_token = mock_tokenizer(thought_text)['input_ids'][0, 0]
+            thought_token = mock_tokenizer(thought_text)["input_ids"][0, 0]
             predictive_score = torch.softmax(next_token_logits, dim=-1)[0, thought_token]
 
         assert 0.0 <= predictive_score.item() <= 1.0
@@ -144,13 +135,13 @@ class TestPhase3QuietSTaRE2E:
         context_inputs = mock_tokenizer(context_text)
 
         with torch.no_grad():
-            thought_outputs = mock_model(thought_inputs['input_ids'])
-            context_outputs = mock_model(context_inputs['input_ids'])
+            thought_outputs = mock_model(thought_inputs["input_ids"])
+            context_outputs = mock_model(context_inputs["input_ids"])
 
             semantic = torch.cosine_similarity(
                 thought_outputs.hidden_states.mean(dim=1),
                 context_outputs.hidden_states.mean(dim=1),
-                dim=-1
+                dim=-1,
             ).item()
 
             # Syntactic coherence (simplified)
@@ -158,7 +149,7 @@ class TestPhase3QuietSTaRE2E:
 
             # Predictive coherence
             next_token_logits = context_outputs.logits[:, -1, :]
-            thought_token = thought_inputs['input_ids'][0, 0]
+            thought_token = thought_inputs["input_ids"][0, 0]
             predictive = torch.softmax(next_token_logits, dim=-1)[0, thought_token].item()
 
             # Combined score (weighted average)
@@ -168,36 +159,29 @@ class TestPhase3QuietSTaRE2E:
 
     def test_thought_ranking(self, mock_model, mock_tokenizer):
         """Test ranking thoughts by coherence score."""
-        thoughts = [
-            "Paris",
-            "London",
-            "Berlin",
-            "Rome"
-        ]
+        thoughts = ["Paris", "London", "Berlin", "Rome"]
         context_text = "The capital of France is"
 
         scores = []
         context_inputs = mock_tokenizer(context_text)
 
         with torch.no_grad():
-            context_outputs = mock_model(context_inputs['input_ids'])
+            context_outputs = mock_model(context_inputs["input_ids"])
             context_embedding = context_outputs.hidden_states.mean(dim=1)
             next_token_logits = context_outputs.logits[:, -1, :]
 
             for thought in thoughts:
                 thought_inputs = mock_tokenizer(thought)
-                thought_outputs = mock_model(thought_inputs['input_ids'])
+                thought_outputs = mock_model(thought_inputs["input_ids"])
                 thought_embedding = thought_outputs.hidden_states.mean(dim=1)
 
                 # Semantic similarity
                 semantic = torch.cosine_similarity(
-                    thought_embedding,
-                    context_embedding,
-                    dim=-1
+                    thought_embedding, context_embedding, dim=-1
                 ).item()
 
                 # Predictive score
-                thought_token = thought_inputs['input_ids'][0, 0]
+                thought_token = thought_inputs["input_ids"][0, 0]
                 predictive = torch.softmax(next_token_logits, dim=-1)[0, thought_token].item()
 
                 # Combined score
@@ -210,7 +194,7 @@ class TestPhase3QuietSTaRE2E:
 
         assert len(ranked_thoughts) == len(thoughts)
 
-    @patch('torch.optim.Adam')
+    @patch("torch.optim.Adam")
     def test_baking_step(self, mock_optimizer, mock_model, mock_tokenizer):
         """Test prompt baking step (LoRA-based)."""
         # Prompt to bake
@@ -230,7 +214,7 @@ class TestPhase3QuietSTaRE2E:
             optimizer.zero_grad()
 
             # Simulate baking loss with LoRA integration
-            outputs = mock_model(prompt_inputs['input_ids'])
+            outputs = mock_model(prompt_inputs["input_ids"])
             # Create a loss that depends on lora_params to ensure gradients flow
             logits_contribution = outputs.logits.mean()
             lora_contribution = lora_params.sum() * 0.001  # Small regularization term
@@ -260,14 +244,14 @@ class TestPhase3QuietSTaRE2E:
 
         # Forward pass
         with torch.no_grad():
-            outputs = mock_model(prompt_inputs['input_ids'])
+            outputs = mock_model(prompt_inputs["input_ids"])
 
         # Verify weights unchanged
         for key, original_value in original_weights.items():
             current_value = mock_model.state_dict()[key]
             assert torch.allclose(original_value, current_value)
 
-    @patch('torch.distributions.Categorical')
+    @patch("torch.distributions.Categorical")
     def test_rl_training_step(self, mock_categorical, mock_model, mock_tokenizer):
         """Test RL training step with REINFORCE."""
         # Mock RL setup
@@ -279,7 +263,7 @@ class TestPhase3QuietSTaRE2E:
         thought_inputs = mock_tokenizer(thought_text)
 
         # Forward pass
-        outputs = mock_model(context_inputs['input_ids'])
+        outputs = mock_model(context_inputs["input_ids"])
         logits = outputs.logits
 
         # Mock policy distribution
@@ -288,7 +272,7 @@ class TestPhase3QuietSTaRE2E:
         mock_categorical.return_value = mock_dist
 
         # REINFORCE loss: -log_prob * reward
-        log_prob = mock_dist.log_prob(thought_inputs['input_ids'][0, 0])
+        log_prob = mock_dist.log_prob(thought_inputs["input_ids"][0, 0])
         rl_loss = -log_prob * reward
 
         assert rl_loss.requires_grad or isinstance(rl_loss, torch.Tensor)
@@ -300,7 +284,7 @@ class TestPhase3QuietSTaRE2E:
         inputs = mock_tokenizer(novel_problem)
 
         with torch.no_grad():
-            outputs = mock_model(inputs['input_ids'])
+            outputs = mock_model(inputs["input_ids"])
             logits = outputs.logits
 
             # Check if model shows uncertainty (entropy)
@@ -320,7 +304,7 @@ class TestPhase3QuietSTaRE2E:
         reasoning_steps = []
         with torch.no_grad():
             for step in range(3):  # 3 reasoning steps
-                outputs = mock_model(inputs['input_ids'])
+                outputs = mock_model(inputs["input_ids"])
                 logits = outputs.logits
 
                 # Sample next token
@@ -336,7 +320,7 @@ class TestPhase3QuietSTaRE2E:
         text_with_thought = "The answer is <|thought|> Let me think <|/thought|> 42"
 
         inputs = mock_tokenizer(text_with_thought)
-        outputs = mock_model(inputs['input_ids'])
+        outputs = mock_model(inputs["input_ids"])
 
         assert outputs.logits is not None
         assert outputs.hidden_states is not None
@@ -351,18 +335,16 @@ class TestPhase3QuietSTaRE2E:
 
         filtered_thoughts = []
         with torch.no_grad():
-            context_outputs = mock_model(context_inputs['input_ids'])
+            context_outputs = mock_model(context_inputs["input_ids"])
             context_embedding = context_outputs.hidden_states.mean(dim=1)
 
             for thought in thoughts:
                 thought_inputs = mock_tokenizer(thought)
-                thought_outputs = mock_model(thought_inputs['input_ids'])
+                thought_outputs = mock_model(thought_inputs["input_ids"])
                 thought_embedding = thought_outputs.hidden_states.mean(dim=1)
 
                 coherence = torch.cosine_similarity(
-                    thought_embedding,
-                    context_embedding,
-                    dim=-1
+                    thought_embedding, context_embedding, dim=-1
                 ).item()
 
                 if coherence >= threshold:

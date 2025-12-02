@@ -11,6 +11,7 @@ from typing import List
 
 class SpecializationType(Enum):
     """Types of agent specialization."""
+
     CODING = "coding"
     RESEARCH = "research"
     WRITING = "writing"
@@ -21,6 +22,7 @@ class SpecializationType(Enum):
 @dataclass
 class CurriculumConfig:
     """Configuration for curriculum learning."""
+
     # Assessment
     edge_of_chaos_threshold: float = 0.75  # 75% accuracy target
     assessment_questions: int = 2000
@@ -28,9 +30,9 @@ class CurriculumConfig:
     # Curriculum
     num_levels: int = 10
     questions_per_level: int = 2000
-    frontier_models: List[str] = field(default_factory=lambda: [
-        "gpt-4", "claude-3.5", "gemini", "llama-3"
-    ])
+    frontier_models: List[str] = field(
+        default_factory=lambda: ["gpt-4", "claude-3.5", "gemini", "llama-3"]
+    )
 
     # Training
     consecutive_successes_for_mastery: int = 3
