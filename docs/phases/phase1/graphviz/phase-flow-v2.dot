@@ -1,0 +1,159 @@
+// Phase 1: Cognate - Create 3× 25M Parameter TRM × Titans-MAG Models
+// CORRECTED V2: Shows TRM wrapper, Titans-MAG backbone, Muon × Grokfast optimizer
+// Render with: dot -Tpng phase-flow-v2.dot -o phase1-flow-v2.png
+
+digraph Phase1_TRM_Titans_MAG {
+    rankdir=TB;
+    node [fontname="Arial", fontsize=9, style=filled];
+    edge [fontname="Arial", fontsize=8];
+    graph [bgcolor=white, splines=ortho];
+
+    // Title
+    label="Phase 1: Cognate - Create 3× 25M Parameter TRM × Titans-MAG Models";
+    labelloc=t;
+    fontsize=13;
+
+    // START
+    start [label="Start Phase 1", shape=doublecircle, fillcolor="#81c784"];
+
+    // ARCHITECTURE INITIALIZATION
+    arch_title [label="ARCHITECTURE\nINITIALIZATION", shape=box, fillcolor="#fff9c4", style="filled,bold"];
+
+    init_titans [label="Initialize Titans-MAG Backbone\n\n• 8 layers (not 12)\n• hidden_dim = 512\n• Sliding window attention\n• MAG gate (memory gating)\n• LTM: 2048-8192 slots", fillcolor="#b3e5fc"];
+
+    add_trm [label="Add TRM Wrapper\n(Test-time Reasoning)\n\n• Multi-pass: 2-5 iterations\n• Recursive refinement\n• Think → Refine → Answer", fillcolor="#b3e5fc"];
+
+    add_act [label="Add ACT Head\n(Adaptive Computation)\n\n• Learned halting\n• Token-level compute\n• ACT loss regularization", fillcolor="#b3e5fc"];
+
+    verify_arch [label="Verify\nArchitecture?", shape=diamond, fillcolor="#fff9c4"];
+
+    count_params [label="Count Parameters\n\ntotal = Σ p.numel()\nTarget: 25M ±10%", fillcolor="#ffecb3"];
+
+    params_ok [label="25M\n±10%?", shape=diamond, fillcolor="#fff9c4"];
+
+    adjust_arch [label="Adjust\nArchitecture\n\nhidden_dim:\n512 → 480/544", fillcolor="#ffab91"];
+
+    // MODEL SPECIALIZATION
+    spec_title [label="MODEL\nSPECIALIZATION", shape=box, fillcolor="#fff9c4", style="filled,bold"];
+
+    model1 [label="Model 1: REASONING\n\n• ACT: 0.95 (think longer)\n• LTM: 4096\n• Surprise: 0.7\n• TRM passes: 3-5", fillcolor="#c5e1a5"];
+
+    model2 [label="Model 2: MEMORY\n\n• ACT: 0.90\n• LTM: 8192 (large)\n• Surprise: 0.5\n• TRM passes: 2-4", fillcolor="#c5e1a5"];
+
+    model3 [label="Model 3: SPEED\n\n• ACT: 0.99 (halt fast)\n• LTM: 2048 (small)\n• Surprise: 0.3\n• TRM passes: 1-3", fillcolor="#c5e1a5"];
+
+    // OPTIMIZER SETUP
+    opt_title [label="MUON × GROKFAST\nOPTIMIZER", shape=box, fillcolor="#fff9c4", style="filled,bold"];
+
+    init_mugrok [label="Initialize Muon × Grokfast\nPHASE 1 CONFIG:\n\n• muon_lr = 1e-3\n• grokfast_lambda = 0.3\n• qk_clip = 30.0\n• kl_coef = 0.0\n\nWhy: Pretraining from scratch", fillcolor="#e1bee7"];
+
+    load_data [label="Load GSM8K\n\n1K-10K samples\nMath problems", fillcolor="#ffecb3"];
+
+    // TRAINING
+    train_title [label="TRAINING\n(Parallel)", shape=box, fillcolor="#fff9c4", style="filled,bold"];
+
+    train1 [label="Train Model 1\n\n3-5 epochs\nMuon × Grokfast\n3-8 hours", fillcolor="#ef9a9a"];
+    train2 [label="Train Model 2\n\nSame config\nDiff hyperparams", fillcolor="#ef9a9a"];
+    train3 [label="Train Model 3\n\nSame config\nDiff hyperparams", fillcolor="#ef9a9a"];
+
+    // VALIDATION
+    val_title [label="VALIDATION", shape=box, fillcolor="#fff9c4", style="filled,bold"];
+
+    val_vram [label="VRAM\n<6GB?", shape=diamond, fillcolor="#fff9c4"];
+    fix_vram [label="Gradient\nCheckpoint", fillcolor="#ffab91"];
+
+    val_act [label="ACT\nDiverse?", shape=diamond, fillcolor="#fff9c4"];
+    fix_act [label="Tune\nThresholds", fillcolor="#ffab91"];
+
+    val_ltm [label="LTM\nWorks?", shape=diamond, fillcolor="#fff9c4"];
+    fix_ltm [label="Debug\nGating", fillcolor="#ffab91"];
+
+    val_infer [label="Latency\n<100ms?", shape=diamond, fillcolor="#fff9c4"];
+    fix_infer [label="Optimize\nInference", fillcolor="#ffab91"];
+
+    val_div [label="Models\nDiverse?", shape=diamond, fillcolor="#fff9c4"];
+    fix_div [label="Increase\nDiversity", fillcolor="#ffab91"];
+
+    // SAVE & TEST
+    save_title [label="SAVE & TEST", shape=box, fillcolor="#fff9c4", style="filled,bold"];
+
+    save_models [label="Save 3 Models\n\n+ configs\n+ logs", fillcolor="#a5d6a7"];
+
+    run_tests [label="Unit Tests\n\n≥90% coverage", fillcolor="#ffecb3"];
+
+    tests_ok [label="Tests\nPass?", shape=diamond, fillcolor="#fff9c4"];
+    fix_tests [label="Fix Tests", fillcolor="#ffab91"];
+
+    // END
+    end [label="Phase 1 Complete\n3 Models → Phase 2", shape=doublecircle, fillcolor="#81c784"];
+
+    // FLOW
+    start -> arch_title;
+    arch_title -> init_titans;
+    init_titans -> add_trm;
+    add_trm -> add_act;
+    add_act -> verify_arch;
+    verify_arch -> count_params [label="✓"];
+    verify_arch -> init_titans [label="✗", color=red];
+    count_params -> params_ok;
+    params_ok -> adjust_arch [label="✗"];
+    adjust_arch -> count_params;
+    params_ok -> spec_title [label="✓"];
+
+    spec_title -> model1;
+    spec_title -> model2;
+    spec_title -> model3;
+
+    model1 -> opt_title;
+    model2 -> opt_title;
+    model3 -> opt_title;
+    opt_title -> init_mugrok;
+    init_mugrok -> load_data;
+
+    load_data -> train_title;
+    train_title -> train1;
+    train_title -> train2;
+    train_title -> train3;
+
+    train1 -> val_title;
+    train2 -> val_title;
+    train3 -> val_title;
+
+    val_title -> val_vram;
+    val_vram -> fix_vram [label="✗"];
+    fix_vram -> train1;
+    val_vram -> val_act [label="✓"];
+
+    val_act -> fix_act [label="✗"];
+    fix_act -> train1;
+    val_act -> val_ltm [label="✓"];
+
+    val_ltm -> fix_ltm [label="✗"];
+    fix_ltm -> train1;
+    val_ltm -> val_infer [label="✓"];
+
+    val_infer -> fix_infer [label="✗"];
+    fix_infer -> val_infer;
+    val_infer -> val_div [label="✓"];
+
+    val_div -> fix_div [label="✗"];
+    fix_div -> train1;
+    val_div -> save_title [label="✓"];
+
+    save_title -> save_models;
+    save_models -> run_tests;
+    run_tests -> tests_ok;
+    tests_ok -> fix_tests [label="✗"];
+    fix_tests -> run_tests;
+    tests_ok -> end [label="✓"];
+
+    // INFO BOXES
+    success [label="SUCCESS CRITERIA\n━━━━━━━━━━━━━━━━━━━\n✅ 3 models created\n✅ Each ~25M params\n✅ TRM × Titans-MAG working\n✅ Muon × Grokfast used\n✅ Fits 6GB VRAM\n✅ ACT diverse (>2 step diff)\n✅ LTM stores memories\n✅ Latency <100ms\n✅ Models different\n✅ ≥90% test coverage", shape=note, fillcolor="#c8e6c9"];
+
+    arch_details [label="ARCHITECTURE DETAILS\n━━━━━━━━━━━━━━━━━━━━━━━━━\nTRM (Test-time Reasoning):\n• Multi-pass reasoning\n• 2-5 iterations adaptive\n\nTitans-MAG:\n• 8-layer backbone\n• Sliding window (2048)\n• MAG gate: memory control\n• LTM: 2048-8192 slots\n• Surprise gating\n\nACT:\n• Adaptive computation\n• Token-level halting\n\nMuon × Grokfast:\n• Momentum + orthogonal\n• Gradient filtering\n• Phase 1: lr=1e-3, λ=0.3", shape=note, fillcolor="#e1f5fe"];
+
+    commands [label="COMMANDS\n━━━━━━━━━━━━━━━━━━\npython phase1_train.py --model 1\npython phase1_train.py --model 2\npython phase1_train.py --model 3\n\npython validate_all.py\npytest tests/phase1/ --cov\nwandb sync", shape=plaintext, fillcolor="white"];
+
+    {rank=same; success; arch_details;}
+    {rank=same; end; commands;}
+}

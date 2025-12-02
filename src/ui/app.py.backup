@@ -1,0 +1,91 @@
+"""
+Agent Forge V2 - Streamlit Dashboard
+Main entry point for the web UI
+"""
+import streamlit as st
+import sys
+from pathlib import Path
+
+# Add src to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# Page configuration
+st.set_page_config(
+    page_title="Agent Forge V2",
+    page_icon="🤖",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Custom CSS for better styling
+st.markdown("""
+<style>
+    .main-header {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #1f77b4;
+        margin-bottom: 1rem;
+    }
+    .metric-card {
+        background-color: #f0f2f6;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin: 0.5rem 0;
+    }
+    .status-success {
+        color: #28a745;
+        font-weight: bold;
+    }
+    .status-running {
+        color: #ffc107;
+        font-weight: bold;
+    }
+    .status-failed {
+        color: #dc3545;
+        font-weight: bold;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Sidebar navigation
+st.sidebar.title("Agent Forge V2")
+st.sidebar.markdown("---")
+
+page = st.sidebar.radio(
+    "Navigation",
+    [
+        "Pipeline Overview",
+        "Phase Details",
+        "Phase 4: BitNet Compression",
+        "Model Browser",
+        "System Monitor",
+        "Configuration Editor"
+    ]
+)
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### About")
+st.sidebar.info(
+    "Agent Forge V2: 8-phase AI agent creation pipeline. "
+    "Local-first architecture with 25M parameter models."
+)
+
+# Load selected page
+if page == "Pipeline Overview":
+    from pages import pipeline_overview
+    pipeline_overview.render()
+elif page == "Phase Details":
+    from pages import phase_details
+    phase_details.render()
+elif page == "Phase 4: BitNet Compression":
+    from pages import phase4_bitnet
+    phase4_bitnet.render_phase4_dashboard()
+elif page == "Model Browser":
+    from pages import model_browser
+    model_browser.render()
+elif page == "System Monitor":
+    from pages import system_monitor
+    system_monitor.render()
+elif page == "Configuration Editor":
+    from pages import config_editor
+    config_editor.render()

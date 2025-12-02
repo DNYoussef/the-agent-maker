@@ -1,0 +1,39 @@
+# Phase 2: EvoMerge - Evolutionary Optimization Configuration
+# Evolves 3 Phase 1 models into 1 champion model
+
+evolution:
+  num_generations: 50
+  population_size: 10
+  elite_count: 2
+  mutation_rate: 0.1
+  crossover_rate: 0.7
+  target_fitness_gain: 0.20  # 20% minimum improvement
+
+merge_techniques:
+  - slerp         # Spherical linear interpolation
+  - ties          # TIES-Merging (magnitude pruning + sign election)
+  - dare          # Drop and REscale
+  - linear        # Simple weighted average
+  - frankenmerge  # Layer-wise mixing
+  - dfs           # Depth-first merge search
+
+fitness_weights:
+  perplexity: 0.4   # 40% - Language modeling quality
+  accuracy: 0.3     # 30% - Task performance
+  speed: 0.2        # 20% - Inference efficiency
+  memory: 0.1       # 10% - Resource usage
+
+expected_values:
+  perplexity: 15.0    # Typical for 25M param model
+  speed: 1200.0       # tokens/sec on GTX 1660
+  memory: 500.0       # MB (25M params x 4 bytes x 2)
+
+wandb:
+  project: "agent-forge-phase2"
+  entity: null
+  mode: "offline"
+
+checkpoints:
+  save_every_generation: 10
+  save_champion: true
+  dir: "checkpoints/phase2"

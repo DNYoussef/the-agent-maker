@@ -1,0 +1,211 @@
+// Phase 5 V2: Complete Curriculum Learning System Flow
+// Render: dot -Tpng phase5-master-curriculum-flow.dot -o phase5-master-flow.png
+
+digraph Phase5CurriculumLearningFlow {
+    // Graph configuration
+    rankdir=TB;
+    node [fontname="Arial", fontsize=10, style=filled];
+    edge [fontname="Arial", fontsize=9];
+    graph [bgcolor=white, compound=true];
+
+    // ===== PHASE INPUTS =====
+    subgraph cluster_input {
+        label="INPUT: From Phase 4";
+        style=filled;
+        fillcolor="#e8f5e9";
+
+        "phase4_model" [label="BitNet 1.58-bit\nQuantized Model", shape=box3d, fillcolor="#c8e6c9"];
+    }
+
+    // ===== STAGE 1: ASSESSMENT =====
+    subgraph cluster_assessment {
+        label="STAGE 1: ASSESSMENT (Edge of Chaos)";
+        style=filled;
+        fillcolor="#fff9c4";
+
+        "frontier_gen_scale" [label="Frontier Models:\nGenerate 1-100\nDifficulty Scale", shape=box, fillcolor="#fff59d"];
+        "test_student" [label="Test Student Model:\nPresent ~2,000\nQuestions", shape=box, fillcolor="#fff59d"];
+        "find_edge" [label="Find 75%\nCorrectness\nThreshold", shape=diamond, fillcolor="#ffeb3b"];
+        "baseline_level" [label="Baseline Level\n(e.g., 40)", shape=box, fillcolor="#fff59d"];
+    }
+
+    "phase4_model" -> "frontier_gen_scale";
+    "frontier_gen_scale" -> "test_student";
+    "test_student" -> "find_edge";
+    "find_edge" -> "baseline_level" [label="Found"];
+
+    // ===== STAGE 2: CURRICULUM GENERATION =====
+    subgraph cluster_curriculum_gen {
+        label="STAGE 2: CURRICULUM GENERATION";
+        style=filled;
+        fillcolor="#e1f5fe";
+
+        "rescale" [label="Rescale:\nBaseline → 1\nOriginal 100 → 10", shape=box, fillcolor="#b3e5fc"];
+        "gen_questions" [label="Frontier Models:\n500Q × 10 Levels", shape=box, fillcolor="#b3e5fc"];
+        "shuffle_by_level" [label="Shuffle by Level:\n~2,000Q per level", shape=box, fillcolor="#b3e5fc"];
+        "curriculum_ready" [label="Curriculum Ready:\n20,000 Total Questions", shape=box, fillcolor="#4fc3f7"];
+    }
+
+    "baseline_level" -> "rescale";
+    "rescale" -> "gen_questions";
+    "gen_questions" -> "shuffle_by_level";
+    "shuffle_by_level" -> "curriculum_ready";
+
+    // ===== LEVEL LOOP =====
+    "level_start" [label="Level N\n(1 to 10)", shape=doublecircle, fillcolor="#ffccbc"];
+    "curriculum_ready" -> "level_start";
+
+    // ===== STAGE 3: TRAINING LOOP =====
+    subgraph cluster_training {
+        label="STAGE 3: TRAINING LOOP (Per Level)";
+        style=filled;
+        fillcolor="#d1c4e9";
+
+        "sample_q" [label="Sample Question\nfrom Dataset", shape=box, fillcolor="#b39ddb"];
+        "trm_reasoning" [label="TRM Recursive\nThinking", shape=box, fillcolor="#b39ddb"];
+        "use_tool" [label="Use Coding Tool:\nGenerate Program", shape=box, fillcolor="#b39ddb"];
+        "validate" [label="Validate:\nDoes it Work?", shape=diamond, fillcolor="#9575cd"];
+
+        "success_path" [label="SUCCESS PATH", shape=plaintext, fontsize=8];
+        "create_variant" [label="Frontier Model:\nCreate Variant", shape=box, fillcolor="#a5d6a7"];
+        "check_consec" [label="3 Consecutive\nSuccesses?", shape=diamond, fillcolor="#66bb6a"];
+        "remove_q" [label="REMOVE\nfrom Dataset", shape=box, fillcolor="#43a047"];
+        "replace_variant" [label="Replace with\nVariant", shape=box, fillcolor="#a5d6a7"];
+
+        "failure_path" [label="FAILURE PATH", shape=plaintext, fontsize=8];
+        "root_cause" [label="Frontier Model:\nRoot Cause Analysis", shape=box, fillcolor="#ef9a9a"];
+        "gen_hint" [label="Generate Hint", shape=box, fillcolor="#ef9a9a"];
+        "add_hint" [label="Append Hint\nto Question", shape=box, fillcolor="#ef9a9a"];
+        "reshuffle" [label="Re-shuffle\ninto Dataset", shape=box, fillcolor="#ef9a9a"];
+    }
+
+    "level_start" -> "sample_q";
+    "sample_q" -> "trm_reasoning";
+    "trm_reasoning" -> "use_tool";
+    "use_tool" -> "validate";
+
+    // Success path
+    "validate" -> "create_variant" [label="Success", color=green];
+    "create_variant" -> "check_consec";
+    "check_consec" -> "remove_q" [label="Yes", color=green];
+    "check_consec" -> "replace_variant" [label="No", color=orange];
+
+    // Failure path
+    "validate" -> "root_cause" [label="Failure", color=red];
+    "root_cause" -> "gen_hint";
+    "gen_hint" -> "add_hint";
+    "add_hint" -> "reshuffle";
+
+    // Loop back
+    "replace_variant" -> "check_complete";
+    "reshuffle" -> "check_complete";
+    "remove_q" -> "check_complete";
+
+    "check_complete" [label="Level\nComplete?\n(95% mastery)", shape=diamond, fillcolor="#fff59d"];
+    "check_complete" -> "sample_q" [label="No", color=orange];
+
+    // ===== STAGE 4: PROMPT BAKING =====
+    subgraph cluster_baking {
+        label="STAGE 4: PROMPT BAKING";
+        style=filled;
+        fillcolor="#f8bbd0";
+
+        "bake_eudaimonia" [label="Bake Eudaimonia\n4 Rules\n(5 min)", shape=box, fillcolor="#f48fb1"];
+        "bake_ooda" [label="Bake OODA Loop\n3 Parts\n(5 min)", shape=box, fillcolor="#f48fb1"];
+        "bake_identity" [label="Bake Identity/\nPurpose\n(5 min)", shape=box, fillcolor="#f48fb1"];
+        "baking_done" [label="Moral Compass +\nIdentity Baked", shape=box, fillcolor="#ec407a"];
+    }
+
+    "check_complete" -> "bake_eudaimonia" [label="Yes", color=green];
+    "bake_eudaimonia" -> "bake_ooda";
+    "bake_ooda" -> "bake_identity";
+    "bake_identity" -> "baking_done";
+
+    // ===== STAGE 5: SELF-MODELING =====
+    subgraph cluster_self_modeling {
+        label="STAGE 5: SELF-MODELING";
+        style=filled;
+        fillcolor="#c5cae9";
+
+        "calc_temp_ranges" [label="Calculate Temp Ranges\n(Expanding per Level)", shape=box, fillcolor="#9fa8da"];
+        "gen_at_temps" [label="Generate Text/Code\nat All Temps", shape=box, fillcolor="#9fa8da"];
+        "mask_tokens" [label="Mask 15-30%\nof Tokens", shape=box, fillcolor="#9fa8da"];
+        "predict_self" [label="Predict Own Text\nat Midpoint Temps", shape=box, fillcolor="#9fa8da"];
+        "self_loss" [label="Self-Modeling Loss:\nReward Correct", shape=box, fillcolor="#9fa8da"];
+        "check_grok" [label="Grokking?\n(95% self-acc)", shape=diamond, fillcolor="#7986cb"];
+        "self_done" [label="Self-Modeling\nComplete", shape=box, fillcolor="#5c6bc0"];
+    }
+
+    "baking_done" -> "calc_temp_ranges";
+    "calc_temp_ranges" -> "gen_at_temps";
+    "gen_at_temps" -> "mask_tokens";
+    "mask_tokens" -> "predict_self";
+    "predict_self" -> "self_loss";
+    "self_loss" -> "check_grok";
+    "check_grok" -> "gen_at_temps" [label="No", color=orange];
+    "check_grok" -> "self_done" [label="Yes", color=green];
+
+    // ===== STAGE 6: SLEEP & DREAM =====
+    subgraph cluster_dream {
+        label="STAGE 6: SLEEP & DREAM";
+        style=filled;
+        fillcolor="#dce775";
+
+        "sample_outputs" [label="Sample Training\nOutputs", shape=box, fillcolor="#d4e157"];
+        "gen_dreams" [label="Generate Dreams\nat Temp 1.5", shape=box, fillcolor="#d4e157"];
+        "train_dreams" [label="Train on Dreams\n(1 Epoch)", shape=box, fillcolor="#d4e157"];
+        "consolidate" [label="Memory\nConsolidated", shape=box, fillcolor="#cddc39"];
+    }
+
+    "self_done" -> "sample_outputs";
+    "sample_outputs" -> "gen_dreams";
+    "gen_dreams" -> "train_dreams";
+    "train_dreams" -> "consolidate";
+
+    // ===== STAGE 7: LEVEL PROGRESSION =====
+    "next_level" [label="Next Level?", shape=diamond, fillcolor="#fff59d"];
+    "consolidate" -> "next_level";
+    "next_level" -> "level_start" [label="Yes\n(Level++)", color=green];
+
+    // ===== HARD WALL =====
+    "hard_wall" [label="Hard Wall Detected:\nCan't Progress", shape=octagon, fillcolor="#ffab91"];
+    "next_level" -> "hard_wall" [label="Accuracy < 50%", color=red];
+
+    // ===== PHASE OUTPUTS =====
+    subgraph cluster_output {
+        label="OUTPUT: To Phase 6";
+        style=filled;
+        fillcolor="#c8e6c9";
+
+        "specialized_model" [label="Specialized Model:\nCoding/Research/Writing", shape=box3d, fillcolor="#a5d6a7"];
+        "metrics_out" [label="Metrics:\n- 95%+ mastery\n- 96%+ self-accuracy\n- 90%+ tool success", shape=box, fillcolor="#a5d6a7"];
+    }
+
+    "next_level" -> "specialized_model" [label="All Levels\nComplete", color=blue];
+    "hard_wall" -> "specialized_model" [label="Stop Early", color=orange];
+    "specialized_model" -> "metrics_out";
+
+    // ===== ANNOTATIONS =====
+    subgraph cluster_notes {
+        label="Key Innovations";
+        style=filled;
+        fillcolor="#f5f5f5";
+
+        "note1" [label="Dataset Shrinks:\n2,000 → 0-50\n(Mastery Proof)", shape=plaintext];
+        "note2" [label="Frontier Models:\n3 Roles\n(Gen, Variant, Hint)", shape=plaintext];
+        "note3" [label="Self-Modeling:\nPredict Own Outputs\n(Meta-Cognition)", shape=plaintext];
+        "note4" [label="Dream Consolidation:\nPrevents Forgetting", shape=plaintext];
+    }
+
+    // ===== FORMULAS =====
+    "formula1" [label="new_difficulty = 1 + (orig - B) × 9 / (100 - B)", shape=plaintext, fillcolor="#fce4ec"];
+    "formula2" [label="D(t) = D₀ × (1 - M(t))\nM(t) = 1/(1 + e^(-k(t - t₀)))", shape=plaintext, fillcolor="#fce4ec"];
+    "formula3" [label="temp_width(L) = 0.2 + (L-1) × 0.1\nnum_ranges(L) = 10 + L - 1", shape=plaintext, fillcolor="#fce4ec"];
+
+    "rescale" -> "formula1" [style=dashed, color=gray];
+    "check_complete" -> "formula2" [style=dashed, color=gray];
+    "calc_temp_ranges" -> "formula3" [style=dashed, color=gray];
+
+    // ===== TIMING ESTIMATES =====
+    "timing" [label="Timeline:\n- Per Level: 12-24 hrs\n- Total (10 levels): 120-240 hrs\n- Consumer GPU: 5-10 days", shape=note, fillcolor="#fffde7"];
+}

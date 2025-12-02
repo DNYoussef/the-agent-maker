@@ -1,0 +1,132 @@
+// Complete 8-Phase Pipeline Architecture
+// End-to-end AI agent creation process
+
+digraph eight_phase_pipeline {
+    rankdir=TB;
+    node [shape=box, style=filled, fontname="Arial"];
+
+    // Input
+    start [label="Start:\nRaw Training Data", fillcolor=lightblue, shape=ellipse];
+
+    // Phase 1: Cognate
+    subgraph cluster_phase1 {
+        label="Phase 1: Cognate (TRM × Titans-MAG)\n~6 hours";
+        style=filled;
+        color=lavender;
+
+        p1_train [label="Train 3 Models\n(25M params each)\n• Reasoning\n• Memory\n• General", fillcolor=lightcyan];
+        p1_output [label="Output:\n3 × 95.4 MB\n= 286.2 MB", fillcolor=lightgreen];
+    }
+
+    // Phase 2: EvoMerge
+    subgraph cluster_phase2 {
+        label="Phase 2: EvoMerge\n~90 minutes";
+        style=filled;
+        color=mistyrose;
+
+        p2_evolve [label="50 Generations\n6 Merge Techniques\nPopulation: 8", fillcolor=lightcyan];
+        p2_output [label="Output:\nChampion Model\n95.4 MB", fillcolor=lightgreen];
+    }
+
+    // Phase 3: Quiet-STaR
+    subgraph cluster_phase3 {
+        label="Phase 3: Quiet-STaR\n~8 hours";
+        style=filled;
+        color=lightyellow;
+
+        p3_bake [label="Step 1:\nPrompt Baking\n(5 min CoT)", fillcolor=lightcyan];
+        p3_rl [label="Step 2:\nRL Training\nCoherence Scoring", fillcolor=lightcyan];
+        p3_output [label="Output:\nReasoning Model\n95.4 MB", fillcolor=lightgreen];
+    }
+
+    // Phase 4: BitNet
+    subgraph cluster_phase4 {
+        label="Phase 4: BitNet\n~4 hours";
+        style=filled;
+        color=lightsteelblue;
+
+        p4_quant [label="1.58-bit Quantization\nSTE Training\n8.2× compression", fillcolor=lightcyan];
+        p4_output [label="Output:\nCompressed Model\n11.8 MB", fillcolor=lightgreen];
+    }
+
+    // Phase 5: Curriculum Learning
+    subgraph cluster_phase5 {
+        label="Phase 5: Curriculum Learning\n~200 hours";
+        style=filled;
+        color=honeydew;
+
+        p5_curr [label="7-Stage Curriculum\n20K questions\n10 difficulty levels", fillcolor=lightcyan];
+        p5_dream [label="Dream Consolidation\n3 epochs × 10 levels", fillcolor=lightcyan];
+        p5_output [label="Output:\nTrained Agent\n11.8 MB", fillcolor=lightgreen];
+    }
+
+    // Phase 6: Tool & Persona
+    subgraph cluster_phase6 {
+        label="Phase 6: Tool & Persona Baking\n~20 hours";
+        style=filled;
+        color=seashell;
+
+        p6_ab [label="A/B Optimization\nA: Tool Use (SWE-Bench)\nB: 9 Personas", fillcolor=lightcyan];
+        p6_output [label="Output:\nSpecialized Agent\n11.8 MB", fillcolor=lightgreen];
+    }
+
+    // Phase 7: Self-Guided Experts
+    subgraph cluster_phase7 {
+        label="Phase 7: Self-Guided Experts\n~78 hours";
+        style=filled;
+        color=aliceblue;
+
+        p7_svf [label="Transformer² SVF\nNSGA-II ADAS\n5000 evaluations", fillcolor=lightcyan];
+        p7_output [label="Output:\nExpert System\n11.8 MB", fillcolor=lightgreen];
+    }
+
+    // Phase 8: Final Compression
+    subgraph cluster_phase8 {
+        label="Phase 8: Final Compression\n~45 hours";
+        style=filled;
+        color=linen;
+
+        p8_seed [label="SeedLM:\n2× compression", fillcolor=lightcyan];
+        p8_vptq [label="VPTQ:\n20× compression", fillcolor=lightcyan];
+        p8_hyper [label="Hypercompression:\n6.25× compression", fillcolor=lightcyan];
+        p8_output [label="Output:\nFinal Agent\n0.4 MB\n(280× total)", fillcolor=gold];
+    }
+
+    // End
+    end [label="Production-Ready\nAI Agent", fillcolor=gold, shape=ellipse];
+
+    // Flow connections
+    start -> p1_train;
+    p1_train -> p1_output;
+
+    p1_output -> p2_evolve;
+    p2_evolve -> p2_output;
+
+    p2_output -> p3_bake;
+    p3_bake -> p3_rl;
+    p3_rl -> p3_output;
+
+    p3_output -> p4_quant;
+    p4_quant -> p4_output;
+
+    p4_output -> p5_curr;
+    p5_curr -> p5_dream;
+    p5_dream -> p5_output;
+
+    p5_output -> p6_ab;
+    p6_ab -> p6_output;
+
+    p6_output -> p7_svf;
+    p7_svf -> p7_output;
+
+    p7_output -> p8_seed;
+    p8_seed -> p8_vptq;
+    p8_vptq -> p8_hyper;
+    p8_hyper -> p8_output;
+
+    p8_output -> end;
+
+    // Total time annotation
+    total_time [label="Total Pipeline Time:\n~362 hours (~15 days)", fillcolor=white, shape=note];
+    total_time -> end [style=dotted];
+}

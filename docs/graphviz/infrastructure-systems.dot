@@ -1,0 +1,86 @@
+// Core Infrastructure Systems Architecture
+// Shows how all 6 systems interact
+
+digraph infrastructure_systems {
+    rankdir=TB;
+    node [shape=box, style=filled, fontname="Arial"];
+
+    // User Entry Points
+    user [label="Developer/User", fillcolor=lightblue, shape=ellipse];
+    cli [label="CLI Interface", fillcolor=lightcyan];
+    ui [label="Streamlit\nDashboard", fillcolor=lightcyan];
+
+    // Core Systems
+    subgraph cluster_core {
+        label="Core Infrastructure Systems (6)";
+        style=filled;
+        color=lightgrey;
+
+        // 1. Pipeline Orchestrator
+        orchestrator [label="Pipeline Orchestrator\n• Phase sequencing\n• Validation\n• Rollback", fillcolor=lightyellow];
+
+        // 2. Model Registry
+        registry [label="Model Registry\n• SQLite WAL\n• Session tracking\n• Metadata", fillcolor=lightyellow];
+
+        // 3. MuGrokfast Optimizer
+        optimizer [label="MuGrokfast Optimizer\n• Grokfast + Muon\n• 5 phase presets\n• QK-Clip", fillcolor=lightyellow];
+
+        // 4. Prompt Baking
+        baking [label="Prompt Baking\n• KL divergence\n• Half-baking\n• 13 prompts", fillcolor=lightyellow];
+
+        // 5. W&B Integration
+        wandb [label="W&B Integration\n• 676 metrics\n• Offline mode\n• Continuity", fillcolor=lightyellow];
+
+        // 6. Size-Agnostic Utils
+        utils [label="Size-Agnostic Utils\n• Runtime detection\n• Adaptive batching\n• Diversity", fillcolor=lightyellow];
+    }
+
+    // Storage
+    subgraph cluster_storage {
+        label="Storage Layer";
+        style=filled;
+        color=lightsteelblue;
+
+        db [label="SQLite DB\n(WAL mode)", fillcolor=lightcyan];
+        models [label="Model Files\n(.pt, .safetensors)", fillcolor=lightcyan];
+        wandb_logs [label="W&B Logs\n(offline)", fillcolor=lightcyan];
+    }
+
+    // Configuration
+    config [label="YAML Configuration\n8 phases", fillcolor=lightgreen];
+
+    // Monitoring
+    monitoring [label="Real-Time Monitoring\n• GPU/RAM/disk\n• Progress\n• Metrics", fillcolor=orange];
+
+    // Flow: User Input
+    user -> cli;
+    user -> ui;
+
+    cli -> orchestrator;
+    ui -> orchestrator;
+    ui -> registry [label="browse"];
+    ui -> monitoring [label="view"];
+
+    // Flow: Orchestrator coordinates all
+    orchestrator -> registry [label="track session"];
+    orchestrator -> optimizer [label="use"];
+    orchestrator -> baking [label="use"];
+    orchestrator -> wandb [label="log"];
+    orchestrator -> utils [label="use"];
+
+    config -> orchestrator [label="configure"];
+
+    // Flow: Systems to Storage
+    registry -> db [label="read/write"];
+    orchestrator -> models [label="save/load"];
+    wandb -> wandb_logs [label="write"];
+
+    // Flow: Monitoring
+    registry -> monitoring [label="progress"];
+    wandb -> monitoring [label="metrics"];
+    utils -> monitoring [label="system stats"];
+
+    // Outputs
+    output [label="Trained Models\n+ Metrics\n+ Reports", fillcolor=gold, shape=ellipse];
+    orchestrator -> output;
+}

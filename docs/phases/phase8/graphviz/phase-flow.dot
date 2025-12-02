@@ -1,0 +1,183 @@
+// Phase 8: Final Compression - Triple Compression Pipeline Flow
+// This diagram shows SeedLM + VPTQ + Hypercompression
+// Render with: dot -Tpng phase-flow.dot -o phase8-flow.png
+
+digraph Phase8FinalCompressionFlow {
+    // Graph configuration
+    rankdir=TB;
+    node [fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=9];
+    graph [bgcolor=white];
+    node [style=filled];
+
+    // ===== TRIGGER =====
+    "trigger" [label="TRIGGER:\nPhase 8 invoked with\nPhase 7 optimized model", shape=note, fillcolor="#fffde7"];
+    "start" [label="Phase 8 Start:\nFinal Compression", shape=doublecircle, fillcolor="#e8f5e9"];
+
+    "trigger" -> "start";
+
+    // ===== INITIALIZATION =====
+    "load_config" [label="Load Compression\nConfiguration", shape=box, fillcolor="#ffcc80"];
+    "load_model" [label="Load Optimized Model\nfrom Phase 7", shape=box, fillcolor="#ffcc80"];
+    "measure_baseline" [label="Measure Baseline:\nSize, Accuracy", shape=box, fillcolor="#ffcc80"];
+    "init_wandb" [label="Initialize W&B\nRun: phase8", shape=box, fillcolor="#ffcc80"];
+
+    "start" -> "load_config";
+    "load_config" -> "load_model";
+    "load_model" -> "measure_baseline";
+    "measure_baseline" -> "init_wandb";
+
+    // ===== COMPRESSION STAGE 1: SEEDLM =====
+    "stage1_start" [label="Stage 1:\nSeedLM Compression", shape=box, fillcolor="#ffe082"];
+    "seedlm_extract" [label="Extract Seeds:\nIdentify weight\nsubspaces", shape=box, fillcolor="#ffe082"];
+    "seedlm_project" [label="Project to Seeds:\nReduce dimensions", shape=box, fillcolor="#ffe082"];
+    "seedlm_store" [label="Store:\nSeeds + projections", shape=box, fillcolor="#ffe082"];
+    "seedlm_validate" [label="Validate:\nReconstruction\nerror <5%?", shape=diamond, fillcolor="#fff9c4"];
+    "seedlm_fail" [label="ERROR:\nSeedLM failed", shape=octagon, fillcolor="#ffcdd2"];
+    "seedlm_measure" [label="Measure:\nCompression ratio", shape=box, fillcolor="#ffe082"];
+
+    "init_wandb" -> "stage1_start";
+    "stage1_start" -> "seedlm_extract";
+    "seedlm_extract" -> "seedlm_project";
+    "seedlm_project" -> "seedlm_store";
+    "seedlm_store" -> "seedlm_validate";
+    "seedlm_validate" -> "seedlm_fail" [label="No", color=red];
+    "seedlm_validate" -> "seedlm_measure" [label="Yes", color=green];
+
+    "seedlm_log" [label="Log SeedLM:\ncompression, error", shape=parallelogram, fillcolor="#e1bee7"];
+    "seedlm_measure" -> "seedlm_log";
+
+    // ===== COMPRESSION STAGE 2: VPTQ =====
+    "stage2_start" [label="Stage 2:\nVPTQ (Vector Quant)", shape=box, fillcolor="#ffb74d"];
+    "vptq_build_codebook" [label="Build Codebook:\nK-means clustering", shape=box, fillcolor="#ffb74d"];
+    "vptq_quantize" [label="Quantize Vectors:\nAssign to clusters", shape=box, fillcolor="#ffb74d"];
+    "vptq_store" [label="Store:\nCodebook + indices", shape=box, fillcolor="#ffb74d"];
+    "vptq_validate" [label="Validate:\nAccuracy drop\n<10%?", shape=diamond, fillcolor="#fff9c4"];
+    "vptq_fail" [label="ERROR:\nVPTQ failed", shape=octagon, fillcolor="#ffcdd2"];
+    "vptq_measure" [label="Measure:\nCumulative compression", shape=box, fillcolor="#ffb74d"];
+
+    "seedlm_log" -> "stage2_start";
+    "stage2_start" -> "vptq_build_codebook";
+    "vptq_build_codebook" -> "vptq_quantize";
+    "vptq_quantize" -> "vptq_store";
+    "vptq_store" -> "vptq_validate";
+    "vptq_validate" -> "vptq_fail" [label="No", color=red];
+    "vptq_validate" -> "vptq_measure" [label="Yes", color=green];
+
+    "vptq_log" [label="Log VPTQ:\ncompression, accuracy", shape=parallelogram, fillcolor="#e1bee7"];
+    "vptq_measure" -> "vptq_log";
+
+    // ===== COMPRESSION STAGE 3: HYPERCOMPRESSION =====
+    "stage3_start" [label="Stage 3:\nHypercompression", shape=box, fillcolor="#ff9800"];
+    "hyper_init_net" [label="Initialize\nHypernetwork", shape=box, fillcolor="#ff9800"];
+    "hyper_learn_trajectory" [label="Learn Parametric\nTrajectories", shape=box, fillcolor="#ff9800"];
+    "hyper_compress" [label="Compress Weights:\nΔt·trajectory", shape=box, fillcolor="#ff9800"];
+    "hyper_validate" [label="Validate:\nFinal accuracy\n≥baseline - 15%?", shape=diamond, fillcolor="#fff9c4"];
+    "hyper_fail" [label="ERROR:\nHyper failed", shape=octagon, fillcolor="#ffcdd2"];
+    "hyper_measure" [label="Measure:\nFinal size", shape=box, fillcolor="#ff9800"];
+
+    "vptq_log" -> "stage3_start";
+    "stage3_start" -> "hyper_init_net";
+    "hyper_init_net" -> "hyper_learn_trajectory";
+    "hyper_learn_trajectory" -> "hyper_compress";
+    "hyper_compress" -> "hyper_validate";
+    "hyper_validate" -> "hyper_fail" [label="No", color=red];
+    "hyper_validate" -> "hyper_measure" [label="Yes", color=green];
+
+    "hyper_log" [label="Log Hyper:\nfinal size, accuracy", shape=parallelogram, fillcolor="#e1bee7"];
+    "hyper_measure" -> "hyper_log";
+
+    // ===== FINAL VALIDATION =====
+    "final_validation" [label="Final Validation\nSuite", shape=box, fillcolor="#ffcc80"];
+    "check_size" [label="Model size\n<500MB?", shape=diamond, fillcolor="#fff9c4"];
+    "fail_size" [label="ERROR:\nCompression\ninsufficient", shape=octagon, fillcolor="#ffcdd2"];
+    "check_accuracy" [label="Accuracy\nwithin 15% of\noriginal?", shape=diamond, fillcolor="#fff9c4"];
+    "fail_accuracy" [label="ERROR:\nAccuracy too low", shape=octagon, fillcolor="#ffcdd2"];
+    "check_inference" [label="Inference\nstill <100ms?", shape=diamond, fillcolor="#fff9c4"];
+    "warn_inference" [label="WARNING:\nSlow inference", shape=octagon, fillcolor="#ffe0b2"];
+
+    "hyper_log" -> "final_validation";
+    "final_validation" -> "check_size";
+    "check_size" -> "fail_size" [label="No", color=red];
+    "check_size" -> "check_accuracy" [label="Yes", color=green];
+    "check_accuracy" -> "fail_accuracy" [label="No", color=red];
+    "check_accuracy" -> "check_inference" [label="Yes", color=green];
+    "check_inference" -> "warn_inference" [label="No", color=orange];
+    "warn_inference" -> "export_final";
+    "check_inference" -> "export_final" [label="Yes", color=green];
+
+    // ===== EXPORT =====
+    "export_final" [label="Export Final\nCompressed Model", shape=box, fillcolor="#ffcc80"];
+    "save_compressed" [label="Save Compressed\nModel (<500MB)", shape=box, fillcolor="#ffcc80"];
+    "save_decoder" [label="Save Decompression\nRoutines", shape=box, fillcolor="#ffcc80"];
+    "save_metadata" [label="Save Metadata:\ncompression stats", shape=box, fillcolor="#ffcc80"];
+    "create_package" [label="Create Deployment\nPackage", shape=box, fillcolor="#ffcc80"];
+
+    "export_final" -> "save_compressed";
+    "save_compressed" -> "save_decoder";
+    "save_decoder" -> "save_metadata";
+    "save_metadata" -> "create_package";
+
+    // ===== COMPREHENSIVE TESTING =====
+    "comprehensive_test" [label="Comprehensive\nTest Suite", shape=box, fillcolor="#ffcc80"];
+    "test_load" [label="Test: Load model\nin <2s", shape=box, fillcolor="#e1bee7"];
+    "test_inference" [label="Test: Inference\n<100ms", shape=box, fillcolor="#e1bee7"];
+    "test_accuracy" [label="Test: Accuracy\nvalidation", shape=box, fillcolor="#e1bee7"];
+    "test_memory" [label="Test: Memory\n<2GB VRAM", shape=box, fillcolor="#e1bee7"];
+    "all_tests_pass" [label="All Tests\nPass?", shape=diamond, fillcolor="#fff9c4"];
+    "test_fail" [label="ERROR:\nTest failures", shape=octagon, fillcolor="#ffcdd2"];
+
+    "create_package" -> "comprehensive_test";
+    "comprehensive_test" -> "test_load";
+    "test_load" -> "test_inference";
+    "test_inference" -> "test_accuracy";
+    "test_accuracy" -> "test_memory";
+    "test_memory" -> "all_tests_pass";
+    "all_tests_pass" -> "test_fail" [label="No", color=red];
+
+    // ===== FINALIZATION =====
+    "log_final" [label="Log Final Metrics:\ncompression ratio,\naccuracy, size", shape=parallelogram, fillcolor="#e1bee7"];
+    "save_artifacts" [label="Save Artifacts:\ndeployment package,\nbenchmark results", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "all_tests_pass" -> "log_final" [label="Yes", color=green];
+    "log_final" -> "save_artifacts";
+
+    // ===== PHASE RESULT =====
+    "create_result" [label="Create PhaseResult:\nsuccess=True\nmodel=compressed\nmetrics={final}", shape=box, fillcolor="#ffcc80"];
+    "return_result" [label="Return PhaseResult\nto Orchestrator", shape=box, fillcolor="#ffcc80"];
+    "end" [label="Phase 8 Complete:\nAgent Forge V2\nDeployment Ready", shape=doublecircle, fillcolor="#c8e6c9"];
+
+    "save_artifacts" -> "create_result";
+    "create_result" -> "return_result";
+    "return_result" -> "end";
+
+    // ===== ERROR HANDLING =====
+    "abort" [label="ABORT:\nCompression Failed", shape=octagon, fillcolor="#ffcdd2"];
+    "seedlm_fail" -> "abort" [style=dashed];
+    "vptq_fail" -> "abort" [style=dashed];
+    "hyper_fail" -> "abort" [style=dashed];
+    "fail_size" -> "abort" [style=dashed];
+    "fail_accuracy" -> "abort" [style=dashed];
+    "test_fail" -> "abort" [style=dashed];
+
+    // ===== COMMANDS =====
+    "cmd_seedlm" [label="python compress_seedlm.py\n--model phase7_optimized\n--error-threshold 0.05", shape=plaintext, fillcolor="#f0f0f0"];
+    "cmd_vptq" [label="python compress_vptq.py\n--model seedlm_output\n--codebook-size 256", shape=plaintext, fillcolor="#f0f0f0"];
+    "cmd_hyper" [label="python compress_hyper.py\n--model vptq_output\n--trajectory-steps 100", shape=plaintext, fillcolor="#f0f0f0"];
+
+    "stage1_start" -> "cmd_seedlm" [style=dashed, color=gray];
+    "stage2_start" -> "cmd_vptq" [style=dashed, color=gray];
+    "stage3_start" -> "cmd_hyper" [style=dashed, color=gray];
+
+    // ===== COMPRESSION GOALS =====
+    subgraph cluster_goals {
+        label="Compression Goals (V2)";
+        style=filled;
+        fillcolor="#f5f5f5";
+
+        "goal1" [label="Size: <500MB", shape=plaintext];
+        "goal2" [label="Accuracy: -15% max", shape=plaintext];
+        "goal3" [label="Inference: <100ms", shape=plaintext];
+        "goal4" [label="VRAM: <2GB", shape=plaintext];
+    }
+}

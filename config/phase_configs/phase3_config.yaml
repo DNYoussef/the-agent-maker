@@ -1,0 +1,39 @@
+# Phase 3: Quiet-STaR - Reasoning Enhancement Configuration
+# Adds reasoning capabilities via prompt baking + RL
+
+prompt_baking:
+  lora_r: 16
+  lora_alpha: 32
+  num_epochs: 3
+  batch_size: 8
+  learning_rate: 1.0e-4
+  half_baking: false
+  half_baking_factor: 0.5
+
+reasoning:
+  thought_tokens: 8            # Number of thought tokens to generate
+  num_thoughts: 5              # Parallel thought samples
+  temperature: 0.7
+  top_p: 0.9
+
+training:
+  num_rl_steps: 5000
+  batch_size: 4
+  learning_rate: 5.0e-5
+  kl_coef: 0.1                 # KL penalty coefficient
+  entropy_coef: 0.01           # Entropy bonus
+
+anti_theater:
+  enabled: true
+  min_variance: 1.0e-6         # Minimum output variance
+  max_variance: 1.0e6          # Maximum output variance
+  repetition_threshold: 0.8    # Max repetition ratio
+
+wandb:
+  project: "agent-forge-phase3"
+  entity: null
+  mode: "offline"
+
+checkpoints:
+  save_every: 500
+  dir: "checkpoints/phase3"

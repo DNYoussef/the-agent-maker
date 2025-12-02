@@ -1,0 +1,207 @@
+// Phase 2: EvoMerge - Binary Pairing Strategy + 50-Generation Evolution
+// This diagram shows Generation 0 binary pairing (2³ = 8 models) + evolution loop
+// Render with: dot -Tpng phase-flow.dot -o phase2-flow.png
+
+digraph Phase2EvoMergeFlow {
+    // Graph configuration
+    rankdir=TB;
+    node [fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=9];
+    graph [bgcolor=white];
+    node [style=filled];
+
+    // ===== TRIGGER =====
+    "trigger" [label="TRIGGER:\nPhase 2 invoked with\n3 models from Phase 1", shape=note, fillcolor="#fffde7"];
+    "start" [label="Phase 2 Start:\nEvoMerge", shape=doublecircle, fillcolor="#e8f5e9"];
+
+    "trigger" -> "start";
+
+    // ===== INITIALIZATION =====
+    "load_config" [label="Load EvoMerge\nConfiguration", shape=box, fillcolor="#80deea"];
+    "load_models" [label="Load 3 Base Models\nfrom Phase 1\n\n• Model 1 (reasoning)\n• Model 2 (memory)\n• Model 3 (speed)", shape=box, fillcolor="#80deea"];
+    "init_wandb" [label="Initialize W&B\nRun: phase2-evomerge", shape=box, fillcolor="#80deea"];
+
+    "start" -> "load_config";
+    "load_config" -> "load_models";
+    "load_models" -> "init_wandb";
+
+    // ===== GENERATION 0: BINARY PAIRING STRATEGY =====
+    "gen0_title" [label="GENERATION 0:\nBinary Pairing Strategy\n━━━━━━━━━━━━━━━━━━━━━━━\n2³ = 8 unique combinations", shape=note, fillcolor="#fff59d", fontsize=12];
+
+    "pair_definition" [label="Define 3 Mutually Exclusive Pairs:\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nPair 1: Interpolation\n  • Linear (0) vs SLERP (1)\n\nPair 2: Task Arithmetic\n  • DARE (0) vs TIES (1)\n\nPair 3: Selection\n  • FrankenMerge (0) vs DFS (1)", shape=box, fillcolor="#fff9c4"];
+
+    "init_wandb" -> "gen0_title" [style=bold];
+    "gen0_title" -> "pair_definition";
+
+    // ===== SEQUENTIAL PIPELINE =====
+    "pipeline_title" [label="Sequential Application Pipeline\n(3 stages for each model)", shape=note, fillcolor="#e1bee7"];
+
+    "stage1" [label="Stage 1: Interpolation\n━━━━━━━━━━━━━━━━━━━━━\nLinear (0): Equal weights [1/3, 1/3, 1/3]\nOR\nSLERP (1): Spherical interp at t=0.5\n\nInput: 3 base models\nOutput: Intermediate model", shape=box, fillcolor="#b3e5fc"];
+
+    "stage2" [label="Stage 2: Task Arithmetic\n━━━━━━━━━━━━━━━━━━━━━━━━\nDARE (0): Drop 90% of deltas, rescale\nOR\nTIES (1): Trim top 20%, sign voting\n\nInput: Stage 1 model + 3 base models\nOutput: Intermediate model", shape=box, fillcolor="#b3e5fc"];
+
+    "stage3" [label="Stage 3: Selection\n━━━━━━━━━━━━━━━━━━━━━\nFrankenMerge (0): Layer-wise stacking\nOR\nDFS (1): Parameter-level weighting\n\nInput: Stage 2 model + base models\nOutput: Final model", shape=box, fillcolor="#b3e5fc"];
+
+    "pair_definition" -> "pipeline_title";
+    "pipeline_title" -> "stage1";
+    "stage1" -> "stage2" [label="produces\nintermediate", fontsize=8];
+    "stage2" -> "stage3" [label="produces\nintermediate", fontsize=8];
+
+    // ===== 8 BINARY COMBINATIONS =====
+    "combinations_title" [label="8 Binary Combinations\n━━━━━━━━━━━━━━━━━━━━━━", shape=note, fillcolor="#c5cae9"];
+
+    "model000" [label="Model 0 (000)\nLinear → DARE → FrankenMerge\n(Conservative baseline)", shape=box, fillcolor="#e3f2fd"];
+    "model001" [label="Model 1 (001)\nLinear → DARE → DFS\n(Flat + sparse + fine)", shape=box, fillcolor="#e3f2fd"];
+    "model010" [label="Model 2 (010)\nLinear → TIES → FrankenMerge\n(Flat + magnitude + layer)", shape=box, fillcolor="#e3f2fd"];
+    "model011" [label="Model 3 (011)\nLinear → TIES → DFS\n(All parameter-level)", shape=box, fillcolor="#e3f2fd"];
+    "model100" [label="Model 4 (100)\nSLERP → DARE → FrankenMerge\n(Spherical + sparse + layer)", shape=box, fillcolor="#e3f2fd"];
+    "model101" [label="Model 5 (101)\nSLERP → DARE → DFS\n(Spherical + sparse + fine)", shape=box, fillcolor="#e3f2fd"];
+    "model110" [label="Model 6 (110)\nSLERP → TIES → FrankenMerge\n(Spherical + magnitude + layer)", shape=box, fillcolor="#e3f2fd"];
+    "model111" [label="Model 7 (111)\nSLERP → TIES → DFS\n(Maximum geometric + fine)", shape=box, fillcolor="#e3f2fd"];
+
+    "stage3" -> "combinations_title" [label="apply to all\n8 combinations", fontsize=8];
+    "combinations_title" -> "model000";
+    "combinations_title" -> "model001";
+    "combinations_title" -> "model010";
+    "combinations_title" -> "model011";
+    "combinations_title" -> "model100";
+    "combinations_title" -> "model101";
+    "combinations_title" -> "model110";
+    "combinations_title" -> "model111";
+
+    // ===== EVALUATE GENERATION 0 =====
+    "eval_gen0" [label="Evaluate All 8 Models\n━━━━━━━━━━━━━━━━━━━━━━━━\nMetrics:\n• Perplexity\n• Accuracy\n• Inference speed\n• Memory usage\n\nComposite fitness:\nF = 0.6·acc + 0.2·(1/latency)\n    + 0.1·(1/memory) + 0.1·(1/perplexity)", shape=box, fillcolor="#80deea"];
+
+    "population_gen0" [label="Generation 0 Population\n━━━━━━━━━━━━━━━━━━━━━━━━\n8 unique models\nDiverse starting point\nReady for evolution", shape=box, fillcolor="#a5d6a7"];
+
+    "model000" -> "eval_gen0";
+    "model001" -> "eval_gen0";
+    "model010" -> "eval_gen0";
+    "model011" -> "eval_gen0";
+    "model100" -> "eval_gen0";
+    "model101" -> "eval_gen0";
+    "model110" -> "eval_gen0";
+    "model111" -> "eval_gen0";
+
+    "eval_gen0" -> "population_gen0";
+
+    // ===== EVOLUTION LOOP (GENERATIONS 1-50) =====
+    "evolution_title" [label="GENERATIONS 1-50:\nEvolutionary Optimization", shape=note, fillcolor="#fff59d", fontsize=12];
+    "generation_counter" [label="Generation = 1", shape=box, fillcolor="#80deea"];
+
+    "population_gen0" -> "evolution_title" [style=bold];
+    "evolution_title" -> "generation_counter";
+
+    "gen_loop" [label="Generation ≤ 50?", shape=diamond, fillcolor="#fff9c4"];
+    "generation_counter" -> "gen_loop";
+
+    // ===== TOURNAMENT SELECTION =====
+    "tournament_select" [label="Tournament Selection\n━━━━━━━━━━━━━━━━━━━━━━\nk=3 (pick 3 random, choose best)\nSelect 2 parents\n\nElitism: Keep top 2", shape=box, fillcolor="#80deea"];
+
+    "gen_loop" -> "tournament_select" [label="Yes\n(continue)", color=green];
+
+    // ===== CROSSOVER (BINARY TECHNIQUE SWAP) =====
+    "crossover_title" [label="Crossover via Binary Swap", shape=note, fillcolor="#e1bee7"];
+    "crossover" [label="Binary Crossover\n━━━━━━━━━━━━━━━━━━━\nParent 1: 010 (Linear-TIES-Franken)\nParent 2: 101 (SLERP-DARE-DFS)\n\nCrossover point: bit 1\n↓\nChild 1: 000 (Linear-DARE-Franken)\nChild 2: 111 (SLERP-TIES-DFS)\n\nEach bit flip swaps techniques", shape=box, fillcolor="#b3e5fc"];
+
+    "tournament_select" -> "crossover_title";
+    "crossover_title" -> "crossover";
+
+    // ===== MUTATION =====
+    "mutate_title" [label="Mutation", shape=note, fillcolor="#e1bee7"];
+    "mutate_binary" [label="Binary Bit Flip Mutation\n━━━━━━━━━━━━━━━━━━━━━━━━━━\nMutation rate: 10% per bit\n\nExample:\n010 → flip bit 2 → 011\n(Linear-TIES-Franken)\n  → (Linear-TIES-DFS)\n\nSwaps one technique category", shape=box, fillcolor="#b3e5fc"];
+
+    "mutate_weights" [label="Weight Perturbation\n━━━━━━━━━━━━━━━━━━━━\nσ = 0.01 (1% of weights)\nSmall random noise\n\nθ' = θ + ε, ε ~ N(0, 0.01)", shape=box, fillcolor="#b3e5fc"];
+
+    "crossover" -> "mutate_title";
+    "mutate_title" -> "mutate_binary";
+    "mutate_title" -> "mutate_weights";
+
+    // ===== CHILD CREATION =====
+    "create_child" [label="Create Child Model\n━━━━━━━━━━━━━━━━━━━━━━\nApply new binary code:\n\nStage 1: Interpolation (bit 0)\nStage 2: Task Arithmetic (bit 1)\nStage 3: Selection (bit 2)\n\n→ New merged model", shape=box, fillcolor="#80deea"];
+
+    "mutate_binary" -> "create_child";
+    "mutate_weights" -> "create_child";
+
+    // ===== EVALUATE CHILD =====
+    "evaluate_child" [label="Evaluate Fitness\n━━━━━━━━━━━━━━━━━━\nSame metrics as Gen 0:\n• Accuracy\n• Speed\n• Memory\n• Perplexity", shape=box, fillcolor="#80deea"];
+
+    "create_child" -> "evaluate_child";
+
+    // ===== SELECTION & REPLACEMENT =====
+    "replacement" [label="Replacement Strategy\n━━━━━━━━━━━━━━━━━━━━━━━\nIf child fitness > weakest:\n  Replace weakest\nElse:\n  Discard child\n\nALWAYS preserve top 2 elites", shape=box, fillcolor="#80deea"];
+
+    "evaluate_child" -> "replacement";
+
+    // ===== DIVERSITY CHECK =====
+    "diversity_check" [label="Check Diversity\n━━━━━━━━━━━━━━━━━━\nPairwise distance > 0.3?\n\nIf too similar:\n  Inject 2 random models", shape=diamond, fillcolor="#fff9c4"];
+
+    "inject_diversity" [label="Diversity Injection\n━━━━━━━━━━━━━━━━━━━━\nReplace bottom 2 with:\n• Random binary codes\n• Chaos models\n• Extreme mutations", shape=box, fillcolor="#ffe0b2"];
+
+    "replacement" -> "diversity_check";
+    "diversity_check" -> "inject_diversity" [label="No\n(converged)", color=orange];
+    "inject_diversity" -> "log_generation";
+    "diversity_check" -> "log_generation" [label="Yes\n(diverse)", color=green];
+
+    // ===== LOGGING =====
+    "log_generation" [label="Log to W&B\n━━━━━━━━━━━━━━━━\n• Best fitness\n• Average fitness\n• Population diversity\n• Best binary code\n• Technique usage stats", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "increment" [label="Generation++", shape=box, fillcolor="#80deea"];
+
+    "log_generation" -> "increment";
+    "increment" -> "gen_loop";
+
+    // ===== CONVERGENCE CHECK =====
+    "check_convergence" [label="Early Convergence?", shape=diamond, fillcolor="#fff9c4"];
+    "early_stop" [label="Early Stop:\nFitness plateau\nfor 10 generations", shape=octagon, fillcolor="#ffe0b2"];
+
+    "increment" -> "check_convergence" [style=dashed, label="check"];
+    "check_convergence" -> "early_stop" [label="Yes\n(plateau)", color=orange];
+    "early_stop" -> "select_best" [style=dashed];
+    "check_convergence" -> "gen_loop" [label="No\n(improving)", color=green, style=dashed];
+
+    // ===== FINALIZATION =====
+    "select_best" [label="Select Best Model\n━━━━━━━━━━━━━━━━━━━\nHighest fitness from\nfinal population\n\nRecord binary code\n(which techniques won)", shape=box, fillcolor="#80deea"];
+
+    "gen_loop" -> "select_best" [label="No\n(50 gens done)", color=blue];
+
+    "validate_gain" [label="Fitness gain\n≥20%?", shape=diamond, fillcolor="#fff9c4"];
+    "warn_low_gain" [label="WARNING:\nLow fitness gain\n(<20%)\n\nExpected: 23.5%", shape=octagon, fillcolor="#ffe0b2"];
+
+    "select_best" -> "validate_gain";
+    "validate_gain" -> "warn_low_gain" [label="No", color=orange];
+    "warn_low_gain" -> "log_final";
+    "validate_gain" -> "log_final" [label="Yes", color=green];
+
+    "log_final" [label="Log Final Results\n━━━━━━━━━━━━━━━━━━━\n• Best fitness\n• Fitness improvement %\n• Best binary code\n• Technique statistics\n• Evolution curves\n• Diversity curves", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "save_artifacts" [label="Save Artifacts\n━━━━━━━━━━━━━━━━\n• Best model (.pt)\n• Evolution history\n• Population snapshots\n• Merge technique stats", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "log_final" -> "save_artifacts";
+
+    // ===== PHASE RESULT =====
+    "create_result" [label="Create PhaseResult\n━━━━━━━━━━━━━━━━━━━\nsuccess=True\nmodel=best_evolved_model\nmetrics={\n  fitness: 0.185,\n  improvement: 23.5%,\n  best_code: '110',\n  generations: 50\n}", shape=box, fillcolor="#80deea"];
+
+    "return_result" [label="Return to\nOrchestrator", shape=box, fillcolor="#80deea"];
+    "end" [label="Phase 2 Complete\n1 Evolved Model\n→ Phase 3", shape=doublecircle, fillcolor="#c8e6c9"];
+
+    "save_artifacts" -> "create_result";
+    "create_result" -> "return_result";
+    "return_result" -> "end";
+
+    // ===== SUCCESS CRITERIA =====
+    "success_criteria" [label="Success Criteria\n━━━━━━━━━━━━━━━━━━━\n✅ Generation 0: 8 unique models\n✅ Binary pairing validated\n✅ 50 generations complete\n✅ Fitness gain ≥20% (target 23.5%)\n✅ Diversity maintained >0.3\n✅ All 6 techniques used\n✅ Evolution time <90 min GPU\n✅ W&B logs complete\n✅ Best binary code recorded", shape=note, fillcolor="#c8e6c9"];
+
+    // ===== KEY INSIGHTS =====
+    "insights" [label="Key Phase 2 Insights\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n• Binary pairing: 2³ = 8 systematic combinations\n• 3 mutually exclusive pairs prevent conflicts\n• Sequential pipeline allows composition\n• Tournament selection (k=3) balances exploration\n• Elitism (top 2) prevents regression\n• Binary crossover creates meaningful variants\n• Diversity injection prevents premature convergence\n• Fitness = composite metric (not just accuracy)\n• Expected gain: 23.5% (validated in V1)\n• Runtime: ~90 min on local GPU", shape=note, fillcolor="#fff9c4"];
+
+    // ===== TECHNIQUE DETAILS =====
+    "technique_details" [label="6 Merge Techniques\n━━━━━━━━━━━━━━━━━━━━━━━━\nPair 1 (Interpolation):\n  • Linear: α·θ1 + (1-α)·θ2\n  • SLERP: Spherical interpolation\n\nPair 2 (Task Arithmetic):\n  • DARE: Drop 90%, rescale 10x\n  • TIES: Trim 80%, sign voting\n\nPair 3 (Selection):\n  • FrankenMerge: Layer-wise stacking\n  • DFS: Inverse-variance weighting", shape=note, fillcolor="#e1bee7"];
+
+    // ===== COMMANDS =====
+    "commands" [label="Key Commands\n━━━━━━━━━━━━━━━━━━━\npython evomerge.py \\\n  --generations 50 \\\n  --pop-size 8 \\\n  --strategy binary_pairing\n\npython validate_gen0.py\n  # Verify 8 unique models\n\npython plot_evolution.py \\\n  --run phase2 \\\n  --plot fitness_curve\n\nwandb sync", shape=plaintext, fillcolor="#f0f0f0"];
+
+    // Position helper nodes
+    {rank=same; success_criteria; insights;}
+    {rank=same; technique_details; commands;}
+}

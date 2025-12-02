@@ -1,0 +1,148 @@
+// Phase 3: Quiet-STaR - Reasoning Enhancement Flow
+// This diagram shows thought generation and anti-theater validation
+// Render with: dot -Tpng phase-flow.dot -o phase3-flow.png
+
+digraph Phase3QuietSTaRFlow {
+    // Graph configuration
+    rankdir=TB;
+    node [fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=9];
+    graph [bgcolor=white];
+    node [style=filled];
+
+    // ===== TRIGGER =====
+    "trigger" [label="TRIGGER:\nPhase 3 invoked with\nPhase 2 best model", shape=note, fillcolor="#fffde7"];
+    "start" [label="Phase 3 Start:\nQuiet-STaR", shape=doublecircle, fillcolor="#e8f5e9"];
+
+    "trigger" -> "start";
+
+    // ===== INITIALIZATION =====
+    "load_config" [label="Load Quiet-STaR\nConfiguration", shape=box, fillcolor="#ce93d8"];
+    "load_model" [label="Load Best Model\nfrom Phase 2", shape=box, fillcolor="#ce93d8"];
+    "init_wandb" [label="Initialize W&B\nRun: phase3", shape=box, fillcolor="#ce93d8"];
+
+    "start" -> "load_config";
+    "load_config" -> "load_model";
+    "load_model" -> "init_wandb";
+
+    // ===== ARCHITECTURE ENHANCEMENT =====
+    "add_think_heads" [label="Add Thought\nGeneration Heads", shape=box, fillcolor="#ce93d8"];
+    "add_talk_heads" [label="Add Talk\nContinuation Heads", shape=box, fillcolor="#ce93d8"];
+    "add_mixing" [label="Add Mixing\nWeights (αₜ)", shape=box, fillcolor="#ce93d8"];
+
+    "init_wandb" -> "add_think_heads";
+    "add_think_heads" -> "add_talk_heads";
+    "add_talk_heads" -> "add_mixing";
+
+    // ===== TRAINING LOOP =====
+    "train_loop" [label="Training Loop:\nEpoch ≤ Max?", shape=diamond, fillcolor="#fff9c4"];
+    "sample_batch" [label="Sample Training\nBatch", shape=box, fillcolor="#ce93d8"];
+    "forward_pass" [label="Forward Pass:\nGenerate Thoughts", shape=box, fillcolor="#ce93d8"];
+
+    "add_mixing" -> "train_loop";
+    "train_loop" -> "sample_batch" [label="Yes", color=green];
+    "sample_batch" -> "forward_pass";
+
+    // ===== THOUGHT GENERATION =====
+    "tokenwise_gen" [label="For Each Token:\nGenerate N thoughts", shape=box, fillcolor="#ce93d8"];
+    "parallel_sample" [label="Parallel Sample:\nN=16 thoughts", shape=box, fillcolor="#ce93d8"];
+    "compute_logprobs" [label="Compute Thought\nLog-Probabilities", shape=box, fillcolor="#ce93d8"];
+
+    "forward_pass" -> "tokenwise_gen";
+    "tokenwise_gen" -> "parallel_sample";
+    "parallel_sample" -> "compute_logprobs";
+
+    // ===== COHERENCE SCORING =====
+    "coherence_check" [label="Coherence Scoring", shape=box, fillcolor="#ce93d8"];
+    "semantic_score" [label="Semantic:\nBERT similarity", shape=box, fillcolor="#e1bee7"];
+    "syntactic_score" [label="Syntactic:\nGrammar check", shape=box, fillcolor="#e1bee7"];
+    "predictive_score" [label="Predictive:\nNext token acc", shape=box, fillcolor="#e1bee7"];
+    "aggregate_scores" [label="Aggregate Scores:\nC = 0.4·Sem +\n0.3·Syn + 0.3·Pred", shape=box, fillcolor="#ce93d8"];
+
+    "compute_logprobs" -> "coherence_check";
+    "coherence_check" -> "semantic_score";
+    "semantic_score" -> "syntactic_score";
+    "syntactic_score" -> "predictive_score";
+    "predictive_score" -> "aggregate_scores";
+
+    // ===== LOSS COMPUTATION =====
+    "compute_loss" [label="Compute Loss:\nNLL + Coherence", shape=box, fillcolor="#ce93d8"];
+    "backward" [label="Backward Pass:\nUpdate Weights", shape=box, fillcolor="#ce93d8"];
+    "log_step" [label="Log Step Metrics", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "aggregate_scores" -> "compute_loss";
+    "compute_loss" -> "backward";
+    "backward" -> "log_step";
+    "log_step" -> "train_loop";
+
+    // ===== ANTI-THEATER VALIDATION =====
+    "train_done" [label="Training\nComplete", shape=box, fillcolor="#ce93d8"];
+    "antitheater_suite" [label="Run Anti-Theater\nValidation Suite", shape=box, fillcolor="#ffab91"];
+
+    "train_loop" -> "train_done" [label="No (Done)", color=blue];
+    "train_done" -> "antitheater_suite";
+
+    // ===== TEST 1: DIVERGENCE =====
+    "test1_divergence" [label="Test 1:\nThoughts Diverge?", shape=diamond, fillcolor="#fff9c4"];
+    "test1_compute" [label="Compute Edit Distance:\nthoughts vs direct", shape=box, fillcolor="#ffab91"];
+    "test1_check" [label="Divergence\n>0.3?", shape=diamond, fillcolor="#fff9c4"];
+    "test1_fail" [label="FAIL:\nThoughts are\ntheater", shape=octagon, fillcolor="#ffcdd2"];
+
+    "antitheater_suite" -> "test1_divergence";
+    "test1_divergence" -> "test1_compute";
+    "test1_compute" -> "test1_check";
+    "test1_check" -> "test1_fail" [label="No", color=red];
+
+    // ===== TEST 2: UTILITY =====
+    "test2_utility" [label="Test 2:\nThoughts Improve\nPerformance?", shape=diamond, fillcolor="#fff9c4"];
+    "test2_ablate" [label="Ablate Thoughts:\nCompare accuracy", shape=box, fillcolor="#ffab91"];
+    "test2_check" [label="Acc(with) >\nAcc(without)?", shape=diamond, fillcolor="#fff9c4"];
+    "test2_fail" [label="FAIL:\nThoughts don't\nhelp", shape=octagon, fillcolor="#ffcdd2"];
+
+    "test1_check" -> "test2_utility" [label="Yes", color=green];
+    "test2_utility" -> "test2_ablate";
+    "test2_ablate" -> "test2_check";
+    "test2_check" -> "test2_fail" [label="No", color=red];
+
+    // ===== TEST 3: CORRELATION =====
+    "test3_correlation" [label="Test 3:\nCoherence Predicts\nUtility?", shape=diamond, fillcolor="#fff9c4"];
+    "test3_compute" [label="Compute Pearson\nCorrelation", shape=box, fillcolor="#ffab91"];
+    "test3_check" [label="Correlation\n>0.5?", shape=diamond, fillcolor="#fff9c4"];
+    "test3_fail" [label="FAIL:\nCoherence is\nmeaningless", shape=octagon, fillcolor="#ffcdd2"];
+
+    "test2_check" -> "test3_correlation" [label="Yes", color=green];
+    "test3_correlation" -> "test3_compute";
+    "test3_compute" -> "test3_check";
+    "test3_check" -> "test3_fail" [label="No", color=red];
+
+    // ===== SUCCESS PATH =====
+    "all_pass" [label="All Anti-Theater\nTests Passed", shape=box, fillcolor="#a5d6a7"];
+    "log_validation" [label="Log Validation\nResults", shape=parallelogram, fillcolor="#e1bee7"];
+    "save_artifacts" [label="Save Artifacts:\nmodel + test results", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "test3_check" -> "all_pass" [label="Yes", color=green];
+    "all_pass" -> "log_validation";
+    "log_validation" -> "save_artifacts";
+
+    // ===== PHASE RESULT =====
+    "create_result" [label="Create PhaseResult:\nsuccess=True\nmodel=enhanced\nmetrics={coherence}", shape=box, fillcolor="#ce93d8"];
+    "return_result" [label="Return PhaseResult\nto Orchestrator", shape=box, fillcolor="#ce93d8"];
+    "end" [label="Phase 3 Complete", shape=doublecircle, fillcolor="#c8e6c9"];
+
+    "save_artifacts" -> "create_result";
+    "create_result" -> "return_result";
+    "return_result" -> "end";
+
+    // ===== ERROR HANDLING =====
+    "abort" [label="ABORT:\nPhase 3 Failed", shape=octagon, fillcolor="#ffcdd2"];
+    "test1_fail" -> "abort" [style=dashed];
+    "test2_fail" -> "abort" [style=dashed];
+    "test3_fail" -> "abort" [style=dashed];
+
+    // ===== COMMANDS =====
+    "cmd_train" [label="python train_star.py\n--model phase2_best\n--thoughts 16\n--epochs 10", shape=plaintext, fillcolor="#f0f0f0"];
+    "cmd_validate" [label="python validate_star.py\n--antitheater\n--divergence-threshold 0.3", shape=plaintext, fillcolor="#f0f0f0"];
+
+    "load_config" -> "cmd_train" [style=dashed, color=gray];
+    "antitheater_suite" -> "cmd_validate" [style=dashed, color=gray];
+}

@@ -1,0 +1,190 @@
+// Agent Forge V2: Master 8-Phase Pipeline Flow
+// This diagram shows the complete end-to-end flow from initialization to final deployment
+// Render with: dot -Tpng agent-forge-master-flow.dot -o agent-forge-master-flow.png
+
+digraph AgentForgeMasterFlow {
+    // Graph configuration
+    rankdir=TB;
+    node [fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=9];
+
+    // Define color scheme
+    graph [bgcolor=white];
+    node [style=filled];
+
+    // ===== PIPELINE INITIALIZATION =====
+    "start" [label="Agent Forge V2\nPipeline Start", shape=doublecircle, fillcolor="#e8f5e9"];
+    "init_config" [label="Load Pipeline\nConfiguration", shape=box, fillcolor="#bbdefb"];
+    "setup_wandb" [label="Initialize W&B\nProject", shape=box, fillcolor="#bbdefb"];
+    "check_gpu" [label="GTX 1660\n(6GB VRAM)\nAvailable?", shape=diamond, fillcolor="#fff9c4"];
+
+    "start" -> "init_config";
+    "init_config" -> "setup_wandb";
+    "setup_wandb" -> "check_gpu";
+
+    "gpu_fail" [label="ABORT:\nInsufficient GPU", shape=octagon, fillcolor="#ffcdd2"];
+    "check_gpu" -> "gpu_fail" [label="No", color=red];
+    "check_gpu" -> "phase1_entry" [label="Yes", color=green];
+
+    // ===== PHASE 1: COGNATE (TinyTitans) =====
+    "phase1_entry" [label="Phase 1: Cognate\n(TinyTitans)", shape=box, fillcolor="#c5e1a5"];
+    "phase1_create_models" [label="Create 3x 25M\nParameter Models", shape=box, fillcolor="#c5e1a5"];
+    "phase1_validate" [label="Models fit\nin 6GB VRAM?", shape=diamond, fillcolor="#fff9c4"];
+    "phase1_fail" [label="ERROR:\nModel too large", shape=octagon, fillcolor="#ffcdd2"];
+    "phase1_log" [label="Log to W&B:\nphase1/metrics", shape=parallelogram, fillcolor="#e1bee7"];
+    "phase1_save" [label="Save Phase 1\nPhaseResult", shape=box, fillcolor="#c5e1a5"];
+
+    "phase1_entry" -> "phase1_create_models";
+    "phase1_create_models" -> "phase1_validate";
+    "phase1_validate" -> "phase1_fail" [label="No", color=red];
+    "phase1_validate" -> "phase1_log" [label="Yes", color=green];
+    "phase1_log" -> "phase1_save";
+
+    // ===== PHASE 2: EVOMERGE =====
+    "phase2_entry" [label="Phase 2: EvoMerge\n(Evolutionary Opt)", shape=box, fillcolor="#80deea"];
+    "phase2_load" [label="Load Phase 1\nModels", shape=box, fillcolor="#80deea"];
+    "phase2_evolve" [label="50 Generations\n6 Merge Techniques", shape=box, fillcolor="#80deea"];
+    "phase2_validate" [label="Fitness gain\n>20%?", shape=diamond, fillcolor="#fff9c4"];
+    "phase2_warn" [label="WARNING:\nLow fitness gain", shape=octagon, fillcolor="#ffe0b2"];
+    "phase2_log" [label="Log to W&B:\nphase2/fitness", shape=parallelogram, fillcolor="#e1bee7"];
+    "phase2_save" [label="Save Phase 2\nPhaseResult", shape=box, fillcolor="#80deea"];
+
+    "phase1_save" -> "phase2_entry";
+    "phase2_entry" -> "phase2_load";
+    "phase2_load" -> "phase2_evolve";
+    "phase2_evolve" -> "phase2_validate";
+    "phase2_validate" -> "phase2_warn" [label="No", color=orange];
+    "phase2_warn" -> "phase2_log";
+    "phase2_validate" -> "phase2_log" [label="Yes", color=green];
+    "phase2_log" -> "phase2_save";
+
+    // ===== PHASE 3: QUIET-STAR =====
+    "phase3_entry" [label="Phase 3: Quiet-STaR\n(Reasoning)", shape=box, fillcolor="#ce93d8"];
+    "phase3_load" [label="Load Phase 2\nBest Model", shape=box, fillcolor="#ce93d8"];
+    "phase3_enhance" [label="Add Thought\nGeneration", shape=box, fillcolor="#ce93d8"];
+    "phase3_validate" [label="Pass anti-\ntheater tests?", shape=diamond, fillcolor="#fff9c4"];
+    "phase3_fail" [label="ERROR:\nTheater detected", shape=octagon, fillcolor="#ffcdd2"];
+    "phase3_log" [label="Log to W&B:\nphase3/reasoning", shape=parallelogram, fillcolor="#e1bee7"];
+    "phase3_save" [label="Save Phase 3\nPhaseResult", shape=box, fillcolor="#ce93d8"];
+
+    "phase2_save" -> "phase3_entry";
+    "phase3_entry" -> "phase3_load";
+    "phase3_load" -> "phase3_enhance";
+    "phase3_enhance" -> "phase3_validate";
+    "phase3_validate" -> "phase3_fail" [label="No", color=red];
+    "phase3_validate" -> "phase3_log" [label="Yes", color=green];
+    "phase3_log" -> "phase3_save";
+
+    // ===== PHASE 4: BITNET =====
+    "phase4_entry" [label="Phase 4: BitNet\n(1.58-bit Quant)", shape=box, fillcolor="#ffab91"];
+    "phase4_load" [label="Load Phase 3\nModel", shape=box, fillcolor="#ffab91"];
+    "phase4_quantize" [label="Quantize to\n{-1, 0, +1}", shape=box, fillcolor="#ffab91"];
+    "phase4_validate" [label="Compression\n>8x?", shape=diamond, fillcolor="#fff9c4"];
+    "phase4_warn" [label="WARNING:\nLow compression", shape=octagon, fillcolor="#ffe0b2"];
+    "phase4_log" [label="Log to W&B:\nphase4/compression", shape=parallelogram, fillcolor="#e1bee7"];
+    "phase4_save" [label="Save Phase 4\nPhaseResult", shape=box, fillcolor="#ffab91"];
+
+    "phase3_save" -> "phase4_entry";
+    "phase4_entry" -> "phase4_load";
+    "phase4_load" -> "phase4_quantize";
+    "phase4_quantize" -> "phase4_validate";
+    "phase4_validate" -> "phase4_warn" [label="No", color=orange];
+    "phase4_warn" -> "phase4_log";
+    "phase4_validate" -> "phase4_log" [label="Yes", color=green];
+    "phase4_log" -> "phase4_save";
+
+    // ===== PHASE 5: FORGE TRAINING =====
+    "phase5_entry" [label="Phase 5: Forge\n(Grokfast Training)", shape=box, fillcolor="#a5d6a7"];
+    "phase5_load" [label="Load Phase 4\nQuantized Model", shape=box, fillcolor="#a5d6a7"];
+    "phase5_train" [label="Train with\nGrokfast", shape=box, fillcolor="#a5d6a7"];
+    "phase5_validate" [label="Validate speedup\nclaim", shape=diamond, fillcolor="#fff9c4"];
+    "phase5_log" [label="Log to W&B:\nphase5/training", shape=parallelogram, fillcolor="#e1bee7"];
+    "phase5_save" [label="Save Phase 5\nPhaseResult", shape=box, fillcolor="#a5d6a7"];
+
+    "phase4_save" -> "phase5_entry";
+    "phase5_entry" -> "phase5_load";
+    "phase5_load" -> "phase5_train";
+    "phase5_train" -> "phase5_validate";
+    "phase5_validate" -> "phase5_log";
+    "phase5_log" -> "phase5_save";
+
+    // ===== PHASE 6: TOOL & PERSONA BAKING =====
+    "phase6_entry" [label="Phase 6: Baking\n(9 Personas)", shape=box, fillcolor="#90caf9"];
+    "phase6_load" [label="Load Phase 5\nTrained Model", shape=box, fillcolor="#90caf9"];
+    "phase6_bake" [label="Bake 9 Personas\ninto Weights", shape=box, fillcolor="#90caf9"];
+    "phase6_log" [label="Log to W&B:\nphase6/baking", shape=parallelogram, fillcolor="#e1bee7"];
+    "phase6_save" [label="Save Phase 6\nPhaseResult", shape=box, fillcolor="#90caf9"];
+
+    "phase5_save" -> "phase6_entry";
+    "phase6_entry" -> "phase6_load";
+    "phase6_load" -> "phase6_bake";
+    "phase6_bake" -> "phase6_log";
+    "phase6_log" -> "phase6_save";
+
+    // ===== PHASE 7: GENERIC EDGE DEPLOYMENT =====
+    "phase7_entry" [label="Phase 7: Edge\n(Generic Deploy)", shape=box, fillcolor="#f48fb1"];
+    "phase7_load" [label="Load Phase 6\nBaked Model", shape=box, fillcolor="#f48fb1"];
+    "phase7_optimize" [label="Optimize for\nLocal GPU", shape=box, fillcolor="#f48fb1"];
+    "phase7_validate" [label="Inference\n<100ms?", shape=diamond, fillcolor="#fff9c4"];
+    "phase7_warn" [label="WARNING:\nSlow inference", shape=octagon, fillcolor="#ffe0b2"];
+    "phase7_log" [label="Log to W&B:\nphase7/deployment", shape=parallelogram, fillcolor="#e1bee7"];
+    "phase7_save" [label="Save Phase 7\nPhaseResult", shape=box, fillcolor="#f48fb1"];
+
+    "phase6_save" -> "phase7_entry";
+    "phase7_entry" -> "phase7_load";
+    "phase7_load" -> "phase7_optimize";
+    "phase7_optimize" -> "phase7_validate";
+    "phase7_validate" -> "phase7_warn" [label="No", color=orange];
+    "phase7_warn" -> "phase7_log";
+    "phase7_validate" -> "phase7_log" [label="Yes", color=green];
+    "phase7_log" -> "phase7_save";
+
+    // ===== PHASE 8: FINAL COMPRESSION =====
+    "phase8_entry" [label="Phase 8: Compression\n(SeedLM+VPTQ+Hyper)", shape=box, fillcolor="#ffcc80"];
+    "phase8_load" [label="Load Phase 7\nOptimized Model", shape=box, fillcolor="#ffcc80"];
+    "phase8_compress" [label="Triple Compression\nPipeline", shape=box, fillcolor="#ffcc80"];
+    "phase8_validate" [label="Model size\n<500MB?", shape=diamond, fillcolor="#fff9c4"];
+    "phase8_fail" [label="ERROR:\nCompression failed", shape=octagon, fillcolor="#ffcdd2"];
+    "phase8_log" [label="Log to W&B:\nphase8/compression", shape=parallelogram, fillcolor="#e1bee7"];
+    "phase8_save" [label="Save Phase 8\nPhaseResult", shape=box, fillcolor="#ffcc80"];
+
+    "phase7_save" -> "phase8_entry";
+    "phase8_entry" -> "phase8_load";
+    "phase8_load" -> "phase8_compress";
+    "phase8_compress" -> "phase8_validate";
+    "phase8_validate" -> "phase8_fail" [label="No", color=red];
+    "phase8_validate" -> "phase8_log" [label="Yes", color=green];
+    "phase8_log" -> "phase8_save";
+
+    // ===== PIPELINE COMPLETION =====
+    "finalize" [label="Generate Final\nReport", shape=box, fillcolor="#bbdefb"];
+    "benchmark" [label="Run Performance\nBenchmarks", shape=box, fillcolor="#bbdefb"];
+    "export" [label="Export Final Model\n(<500MB)", shape=box, fillcolor="#bbdefb"];
+    "end" [label="Agent Forge V2\nPipeline Complete", shape=doublecircle, fillcolor="#c8e6c9"];
+
+    "phase8_save" -> "finalize";
+    "finalize" -> "benchmark";
+    "benchmark" -> "export";
+    "export" -> "end";
+
+    // ===== ERROR HANDLING =====
+    "rollback" [label="Rollback to\nLast Valid Phase", shape=box, fillcolor="#ef9a9a"];
+    "gpu_fail" -> "rollback" [style=dashed];
+    "phase1_fail" -> "rollback" [style=dashed];
+    "phase3_fail" -> "rollback" [style=dashed];
+    "phase8_fail" -> "rollback" [style=dashed];
+
+    // Legend
+    subgraph cluster_legend {
+        label="Legend";
+        style=filled;
+        fillcolor="#f5f5f5";
+
+        "legend_start" [label="Start/End", shape=doublecircle, fillcolor="#e8f5e9"];
+        "legend_action" [label="Action", shape=box, fillcolor="#bbdefb"];
+        "legend_decision" [label="Decision", shape=diamond, fillcolor="#fff9c4"];
+        "legend_warning" [label="Warning", shape=octagon, fillcolor="#ffe0b2"];
+        "legend_error" [label="Error", shape=octagon, fillcolor="#ffcdd2"];
+        "legend_log" [label="W&B Logging", shape=parallelogram, fillcolor="#e1bee7"];
+    }
+}

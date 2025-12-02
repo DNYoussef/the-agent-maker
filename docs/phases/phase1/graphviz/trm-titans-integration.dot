@@ -1,0 +1,133 @@
+digraph TRM_Titans_Integration {
+    rankdir=TB;
+    node [shape=box, style=rounded];
+
+    // Input
+    input [label="Input Tokens\n[batch, seq_len]", shape=ellipse, style=filled, fillcolor=lightblue];
+
+    // Titans-MAG Backbone
+    subgraph cluster_titans {
+        label="Titans-MAG Backbone (Time-Based Memory)";
+        style=filled;
+        fillcolor=lightgray;
+
+        token_emb [label="Token Embeddings\n32768 × 320"];
+        pos_emb [label="Position Embeddings\n2048 × 320"];
+        embeddings [label="x = token_emb + pos_emb", shape=diamond, style=filled, fillcolor=yellow];
+
+        layer1 [label="Layer 1\nSW-Attn + MLP"];
+        layer2 [label="Layer 2\nSW-Attn + MLP"];
+        dots1 [label="...", shape=plaintext];
+        layer8 [label="Layer 8\nSW-Attn + MLP"];
+
+        norm [label="RMSNorm"];
+
+        ltm [label="Long-Term Memory (LTM)\n━━━━━━━━━━━━━━━━━\nTIME-BASED PROCESSING\n━━━━━━━━━━━━━━━━━\nfor t in 0..seq_len:\n  m[t] = decay·m[t-1] + (1-decay)·x[t]\n  .detach() ← CRITICAL FIX\n━━━━━━━━━━━━━━━━━\nFactorized: 320→160→320", shape=box, style="filled,bold", fillcolor=lightyellow];
+
+        mag_gate [label="MAG Gate\n━━━━━━━━━━━━━━━━━\ng = σ(MLP([y, m]))\noutput = g·y + (1-g)·m\n━━━━━━━━━━━━━━━━━", shape=box, style=filled, fillcolor=lightgreen];
+
+        features [label="Features\n[batch, seq_len, 320]", shape=ellipse, style=filled, fillcolor=lightblue];
+    }
+
+    // TRM Recursive Loop
+    subgraph cluster_trm {
+        label="TRM Recursive Loop (3 Iterations)";
+        style=filled;
+        fillcolor=lightcoral;
+
+        z0_proj [label="z0 = proj(features)"];
+        y0_proj [label="y0 = proj(z0)"];
+
+        init [label="Initialize\ny_history = [y0]\nz_history = [z0]", shape=diamond, style=filled, fillcolor=yellow];
+
+        loop_start [label="for t in [0, 1, 2]", shape=hexagon, style=filled, fillcolor=orange];
+
+        refiner [label="Latent Refiner (g_φ)\n━━━━━━━━━━━━━━━━━\nMicro-steps = 2\n━━━━━━━━━━━━━━━━━\nCross-attn to features\nCross-attn to answer\nMLP refinement\n━━━━━━━━━━━━━━━━━\nz_refined ← Refiner(z, features, y)", shape=box, style="filled,bold", fillcolor=lightcyan];
+
+        updater [label="Answer Updater (h_ψ)\n━━━━━━━━━━━━━━━━━\ny_new = MLP([y, z_refined])", shape=box, style=filled, fillcolor=lightcyan];
+
+        append [label="Append to history\ny_history.append(y_new)\nz_history.append(z_refined)", shape=diamond, style=filled, fillcolor=yellow];
+
+        detach [label="Detach for next iteration\ny = y_new.detach()\nz = z_refined.detach()", shape=diamond, style=filled, fillcolor=yellow];
+
+        loop_end [label="End loop", shape=hexagon, style=filled, fillcolor=orange];
+
+        y_history [label="y_history\n[y0, y1, y2, y3]\n4 answer states", shape=ellipse, style=filled, fillcolor=lightblue];
+        z_history [label="z_history\n[z0, z1, z2, z3]\n4 latent states", shape=ellipse, style=filled, fillcolor=lightblue];
+    }
+
+    // ACT + LM Head
+    subgraph cluster_output {
+        label="Output Processing";
+        style=filled;
+        fillcolor=lightgray;
+
+        act_head [label="ACT Head\n━━━━━━━━━━━━━━━━━\nfor each (y_t, z_t):\n  halt_prob[t] = ACT(z_t)\n━━━━━━━━━━━━━━━━━\nDetermine halting steps", shape=box, style=filled, fillcolor=lightyellow];
+
+        lm_head [label="LM Head\n━━━━━━━━━━━━━━━━━\nlogits = proj(y3)\n[batch, seq, 32768]\n━━━━━━━━━━━━━━━━━\nUse final answer (y3)", shape=box, style=filled, fillcolor=lightgreen];
+
+        loss [label="Loss Computation\n━━━━━━━━━━━━━━━━━\nloss_ce = CrossEntropy(logits, labels)\nloss_act = ACT penalty\nloss_gate = MAG entropy\n━━━━━━━━━━━━━━━━━\nloss_total = loss_ce + loss_act + loss_gate", shape=box, style="filled,bold", fillcolor=pink];
+    }
+
+    output [label="Output Logits\n[batch, seq_len, vocab_size]", shape=ellipse, style=filled, fillcolor=lightblue];
+
+    // MuGrokfast Optimizer
+    optimizer [label="MuGrokfast Optimizer\n━━━━━━━━━━━━━━━━━\nGrokfast: EMA gradient filtering\nMuon: Newton-Schulz orthogonalization\n━━━━━━━━━━━━━━━━━\nParameter Routing:\n• 2-D params → Muon (with dimension-aware fix)\n• 1-D params → AdamW fallback\n━━━━━━━━━━━━━━━━━\nPhase 1 Preset:\nmuon_lr = 1e-3\ngrokfast_lambda = 0.3", shape=box, style="filled,bold,dashed", fillcolor=lightsteelblue];
+
+    // Connections - Titans-MAG
+    input -> token_emb;
+    input -> pos_emb;
+    token_emb -> embeddings;
+    pos_emb -> embeddings;
+    embeddings -> layer1;
+    layer1 -> layer2;
+    layer2 -> dots1;
+    dots1 -> layer8;
+    layer8 -> norm;
+    norm -> ltm [label="sequential\nt=0..seq_len"];
+    norm -> mag_gate [label="y"];
+    ltm -> mag_gate [label="m\n(memory)"];
+    mag_gate -> features;
+
+    // Connections - TRM
+    features -> z0_proj;
+    z0_proj -> y0_proj;
+    y0_proj -> init;
+    init -> loop_start;
+    loop_start -> refiner;
+    features -> refiner [label="features\n(detached after t=0)", style=dashed];
+    refiner -> updater;
+    updater -> append;
+    append -> detach [label="if t < T_max-1"];
+    detach -> loop_start [label="next iteration", style=dashed];
+    append -> loop_end [label="if t == T_max-1"];
+    loop_end -> y_history;
+    loop_end -> z_history;
+
+    // Connections - Output
+    y_history -> lm_head;
+    z_history -> act_head;
+    y_history -> act_head;
+    z_history -> act_head;
+
+    lm_head -> output;
+    act_head -> loss [label="halting_steps"];
+    lm_head -> loss [label="logits"];
+    mag_gate -> loss [label="loss_gate"];
+
+    loss -> optimizer [label="backward()", style=bold, color=red];
+    optimizer -> token_emb [label="update params", style=dashed, color=blue];
+    optimizer -> layer1 [label="update params", style=dashed, color=blue];
+
+    // Legend
+    subgraph cluster_legend {
+        label="Legend";
+        style=filled;
+        fillcolor=white;
+
+        legend1 [label="Time-Based Processing", shape=box, style="filled,bold", fillcolor=lightyellow];
+        legend2 [label="Recursive Loop", shape=box, style="filled,bold", fillcolor=lightcyan];
+        legend3 [label="Critical Fix", shape=box, style="filled,bold", fillcolor=pink];
+        legend4 [label="MuGrokfast Optimizer", shape=box, style="filled,bold,dashed", fillcolor=lightsteelblue];
+    }
+}

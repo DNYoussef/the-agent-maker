@@ -1,0 +1,87 @@
+// Testing Infrastructure Flow - Week 9-10
+// Visualizes the complete testing and quality assurance setup
+
+digraph testing_infrastructure {
+    rankdir=TB;
+    node [shape=box, style=filled, fontname="Arial"];
+
+    // Development Start
+    dev_start [label="Developer\nMakes Changes", fillcolor=lightblue, shape=ellipse];
+
+    // Pre-commit Stage
+    subgraph cluster_precommit {
+        label="Pre-Commit Hooks (10 hooks)";
+        style=filled;
+        color=lightgrey;
+
+        pc1 [label="1. NASA POT10\n≤60 LOC/func", fillcolor=lightyellow];
+        pc2 [label="2. Black\nAuto-format", fillcolor=lightyellow];
+        pc3 [label="3. isort\nImport sort", fillcolor=lightyellow];
+        pc4 [label="4. flake8\nLinting", fillcolor=lightyellow];
+        pc5 [label="5. mypy\nType check", fillcolor=lightyellow];
+        pc6 [label="6. pylint\nAdvanced lint", fillcolor=lightyellow];
+        pc7 [label="7-10. File checks\nYAML/TOML/JSON\nSecurity", fillcolor=lightyellow];
+    }
+
+    // Git Commit
+    git_commit [label="git commit", fillcolor=lightcyan, shape=diamond];
+
+    // Test Execution
+    subgraph cluster_tests {
+        label="Test Suite (47 tests)";
+        style=filled;
+        color=lavender;
+
+        unit_tests [label="Unit Tests (33)\n• Model Registry\n• MuGrokfast\n• Utils\n• Prompt Baking\n• W&B", fillcolor=lightgreen];
+        integration_tests [label="Integration Tests (14)\n• Pipeline\n• Phase Handoff", fillcolor=lightgreen];
+    }
+
+    // Coverage Analysis
+    coverage [label="Coverage Report\n≥90% threshold", fillcolor=lightcyan];
+    coverage_pass [label="Coverage ≥90%?", fillcolor=orange, shape=diamond];
+
+    // Quality Tools
+    subgraph cluster_quality {
+        label="Code Quality Tools";
+        style=filled;
+        color=mistyrose;
+
+        black_check [label="Black\nFormatting", fillcolor=lightcyan];
+        mypy_check [label="mypy\nType Hints", fillcolor=lightcyan];
+        lint_check [label="Linters\nflake8 + pylint", fillcolor=lightcyan];
+    }
+
+    // Outcomes
+    success [label="✓ Commit Accepted\nPush to Remote", fillcolor=lightgreen, shape=ellipse];
+    fix_required [label="✗ Fix Required\nBlocked", fillcolor=red, shape=ellipse];
+
+    // Flow
+    dev_start -> pc1;
+    pc1 -> pc2;
+    pc2 -> pc3;
+    pc3 -> pc4;
+    pc4 -> pc5;
+    pc5 -> pc6;
+    pc6 -> pc7;
+
+    pc7 -> git_commit;
+
+    git_commit -> unit_tests [label="All hooks pass"];
+    git_commit -> fix_required [label="Any hook fails"];
+
+    unit_tests -> integration_tests;
+    integration_tests -> coverage;
+
+    coverage -> coverage_pass;
+    coverage_pass -> black_check [label="Pass"];
+    coverage_pass -> fix_required [label="Fail"];
+
+    black_check -> mypy_check;
+    mypy_check -> lint_check;
+
+    lint_check -> success [label="All pass"];
+    lint_check -> fix_required [label="Any fail"];
+
+    // Feedback loop
+    fix_required -> dev_start [label="Fix issues", style=dashed];
+}

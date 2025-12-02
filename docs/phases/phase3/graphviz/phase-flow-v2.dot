@@ -1,0 +1,203 @@
+// Phase 3: Quiet-STaR with Prompt Baking - Two-Step Process
+// CORRECTED V2: Shows STEP 1 (Prompt Baking) → STEP 2 (Quiet-STaR RL)
+// Special tokens: [thinking], [/endthinking] + 10 reasoning strategies inside
+// Render with: dot -Tpng phase-flow-v2.dot -o phase3-flow-v2.png
+
+digraph Phase3_PromptBaking_QuietSTaR {
+    rankdir=TB;
+    node [fontname="Arial", fontsize=8, style=filled];
+    edge [fontname="Arial", fontsize=7];
+    graph [bgcolor=white];
+
+    // Title
+    label="Phase 3: Quiet-STaR with Prompt Baking - Two-Step Process\n[thinking] + 10 Reasoning Strategies";
+    labelloc=t;
+    fontsize=12;
+
+    // START
+    start [label="Phase 3 Start\nQuiet-STaR", shape=doublecircle, fillcolor="#81c784"];
+    load [label="Load Champion\nfrom Phase 2", fillcolor="#ce93d8"];
+
+    // ============================================================
+    // STEP 1: PROMPT BAKING (Foundation)
+    // ============================================================
+    step1_title [label="STEP 1: PROMPT BAKING\n(Embed Reasoning Patterns First!)", shape=box, fillcolor="#ffeb3b", style="filled,bold", fontsize=10];
+
+    // Data Generation
+    data_title [label="DATA GENERATION\nFrontier Models (OpenRouter)", shape=box, fillcolor="#fff9c4", style="filled,bold"];
+
+    frontier_models [label="5 Frontier Models:\n\n• GPT-4o (OpenAI)\n• Claude 3.5 Sonnet\n• Gemini Pro 1.5\n• Grok Beta (xAI)\n• Qwen 2.5 72B\n\nEach: 500 examples/strategy", fillcolor="#ce93d8"];
+
+    strategies [label="10 REASONING STRATEGIES\n(Inside [thinking] bubble):\n\n1. Chain-of-Thought\n2. MECE Decomposition\n3. Falsification Testing\n4. Expert Perspective\n5. Orthogonal Wisdom\n6. Self-Doubt\n7. Bayesian Rationalist\n8. Multidomain Consultant\n9. Self-Correction\n10. Uncertainty Expression\n\nCan COMBINE in single thought!", fillcolor="#e1bee7", fontsize=9];
+
+    generate_data [label="Generate 20,000 Examples\n\n5 models × 10 strategies × 400 examples\n= 20,000 total\n\nBatch: 100 examples/API call\n= 200 API calls\nCost: ~$100-200", fillcolor="#ce93d8"];
+
+    output_format [label="Training-Ready Format:\n\n{\n  prompt: str,\n  reasoning: str,  # [thinking]...[/endthinking]\n  answer: str,\n  strategy: str,  # can be combined\n  model_source: str\n}\n\nSaved to:\ndata/phase3_reasoning_training_data.json", fillcolor="#ffecb3"];
+
+    // Special Tokens
+    tokens_title [label="SPECIAL TOKENS", shape=box, fillcolor="#fff9c4", style="filled,bold"];
+
+    add_tokens [label="Add Special Tokens:\n\nOUTER (2 tokens):\n• [thinking]\n• [/endthinking]\n\nINNER (10+ strategy-specific):\n• <step>, <reason>, <mece>\n• <falsify>, <expert>, <orthogonal>\n• <doubt>, <bayesian>, <multidomain>\n• <correct>, <uncertain>\n• etc.\n\nTotal: ~12-15 tokens", fillcolor="#ce93d8"];
+
+    resize_embed [label="Resize Embeddings\n\nvocab: 50257 → 50272\n(+15 tokens)\n\nmodel.resize_token_embeddings()", fillcolor="#ffecb3"];
+
+    // Prompt Baking Training
+    baking_title [label="PROMPT BAKING TRAINING\n(Supervised Learning)", shape=box, fillcolor="#fff9c4", style="filled,bold"];
+
+    load_examples [label="Load 20,000\nTraining Examples", fillcolor="#ffecb3"];
+
+    mugrok_baking [label="Muon × Grokfast (Supervised)\n\nPHASE 3a CONFIG:\n• muon_lr = 1e-4 (fine-tuning)\n• grokfast_lambda = 0.2\n• qk_clip = 30.0\n• kl_coef = 0.0 (no baseline)\n\nWhy: Supervised learning,\nfine-tuning on reasoning data", fillcolor="#e1bee7"];
+
+    bake_train [label="Fine-Tune Model\n\nMethod: KL divergence minimization\nEpochs: 5\nLoss: Cross-entropy\n\nModel learns to naturally use:\n[thinking]...[/endthinking]\nand reasoning strategies", fillcolor="#ce93d8"];
+
+    validate_baking [label="Validate\nBaking", shape=diamond, fillcolor="#fff9c4"];
+
+    baking_metrics [label="Check Convergence:\n\n• Thinking token usage >80%\n• Strategy usage >60%\n• Combined patterns working\n• Overall accuracy ≥85%\n\nIf fail: adjust LR, more epochs", fillcolor=white];
+
+    baking_fail [label="Baking Failed\n(<85%)", fillcolor="#ffab91"];
+
+    baked_model [label="REASONING-BAKED MODEL\n✓ Knows [thinking] structure\n✓ Uses 10 strategies\n✓ Can combine patterns", fillcolor="#a5d6a7"];
+
+    // ============================================================
+    // STEP 2: QUIET-STAR (RL on Baked Foundation)
+    // ============================================================
+    step2_title [label="STEP 2: QUIET-STAR\n(RL Training on Baked Foundation)", shape=box, fillcolor="#ffeb3b", style="filled,bold", fontsize=10];
+
+    // Thought Generation
+    thought_title [label="THOUGHT GENERATION\n(Now Structured!)", shape=box, fillcolor="#fff9c4", style="filled,bold"];
+
+    generate_thoughts [label="Generate 4-8 Parallel Thoughts\n\nPer difficult token position:\n• Sample 4-8 continuations\n• Temperature = 1.0 (diversity)\n• Max length = 20 tokens\n\nNOW outputs:\n[thinking]\n  <step>Analyze...</step>\n  <mece>Categories...</mece>\n[/endthinking]\n\nvs. without baking: 'and then 5'", fillcolor="#ce93d8"];
+
+    coherence_title [label="COHERENCE SCORING", shape=box, fillcolor="#fff9c4", style="filled,bold"];
+
+    score_thoughts [label="Score Each Thought:\n\n• Semantic: 40%\n  (embedding similarity)\n• Syntactic: 30%\n  (grammar valid?)\n• Predictive: 30%\n  (helps next token?)\n\nComposite = weighted sum", fillcolor="#ce93d8"];
+
+    mixing_title [label="MIXING HEAD", shape=box, fillcolor="#fff9c4", style="filled,bold"];
+
+    mix_thoughts [label="Integrate Thoughts:\n\n• Attention over thoughts\n• Weight by coherence scores\n• Fuse with hidden state\n\nenhanced = hidden + Σ(attn × thought)", fillcolor="#ce93d8"];
+
+    // RL Training
+    rl_title [label="REINFORCE RL TRAINING", shape=box, fillcolor="#fff9c4", style="filled,bold"];
+
+    mugrok_rl [label="Muon × Grokfast (RL)\n\nPHASE 3b CONFIG:\n• muon_lr = 5e-4 (RL higher)\n• grokfast_lambda = 0.1 (more filtering)\n• qk_clip = 25.0 (TIGHTER)\n• kl_coef = 0.1 (prevent drift)\n\nWhy: RL is noisy,\nneeds tighter clip & KL reg", fillcolor="#e1bee7"];
+
+    rl_train [label="Train with REINFORCE:\n\nReward = correct prediction\nLoss = -reward × log(coherence)\n\n+ KL regularization vs baked baseline\n(prevent catastrophic forgetting)\n\nEpochs: 10", fillcolor="#ce93d8"];
+
+    // Anti-Theater Validation
+    antitheater_title [label="ANTI-THEATER VALIDATION\n(Prevent Empty Reasoning)", shape=box, fillcolor="#fff9c4", style="filled,bold"];
+
+    test1 [label="Test 1:\nDivergence\n>0.3?", shape=diamond, fillcolor="#fff9c4"];
+
+    test1_check [label="Thoughts differ from\ndirect continuations?\n\nedit_distance(thought, direct) > 0.3", fillcolor=white];
+
+    test1_fail [label="FAIL:\nTheater", fillcolor="#ffab91"];
+
+    test2 [label="Test 2:\nAblation\nHelps?", shape=diamond, fillcolor="#fff9c4"];
+
+    test2_check [label="Acc(with thoughts) >\nAcc(without thoughts)?", fillcolor=white];
+
+    test2_fail [label="FAIL:\nNo benefit", fillcolor="#ffab91"];
+
+    test3 [label="Test 3:\nCorrelation\n>0.5?", shape=diamond, fillcolor="#fff9c4"];
+
+    test3_check [label="Coherence scores\ncorrelate with utility?", fillcolor=white];
+
+    test3_fail [label="FAIL:\nScores meaningless", fillcolor="#ffab91"];
+
+    // Success
+    all_pass [label="All Anti-Theater\nTests Passed ✓", fillcolor="#a5d6a7"];
+
+    save_final [label="Save Final Model\n+ metrics\n+ validation results", fillcolor="#a5d6a7"];
+
+    // END
+    end [label="Phase 3 Complete\nReasoning Model → Phase 4", shape=doublecircle, fillcolor="#81c784"];
+
+    // ============================================================
+    // FLOW CONNECTIONS
+    // ============================================================
+
+    // Initialization
+    start -> load;
+    load -> step1_title;
+
+    // STEP 1: Data Generation
+    step1_title -> data_title;
+    data_title -> frontier_models;
+    frontier_models -> strategies;
+    strategies -> generate_data;
+    generate_data -> output_format;
+
+    // STEP 1: Special Tokens
+    output_format -> tokens_title;
+    tokens_title -> add_tokens;
+    add_tokens -> resize_embed;
+
+    // STEP 1: Prompt Baking
+    resize_embed -> baking_title;
+    baking_title -> load_examples;
+    load_examples -> mugrok_baking;
+    mugrok_baking -> bake_train;
+    bake_train -> validate_baking;
+    validate_baking -> baking_metrics;
+    baking_metrics -> baking_fail [label="<85%"];
+    baking_fail -> bake_train;
+    baking_metrics -> baked_model [label="≥85%"];
+
+    // Transition to STEP 2
+    baked_model -> step2_title;
+
+    // STEP 2: Thought Generation
+    step2_title -> thought_title;
+    thought_title -> generate_thoughts;
+
+    // STEP 2: Coherence
+    generate_thoughts -> coherence_title;
+    coherence_title -> score_thoughts;
+
+    // STEP 2: Mixing
+    score_thoughts -> mixing_title;
+    mixing_title -> mix_thoughts;
+
+    // STEP 2: RL Training
+    mix_thoughts -> rl_title;
+    rl_title -> mugrok_rl;
+    mugrok_rl -> rl_train;
+
+    // STEP 2: Anti-Theater
+    rl_train -> antitheater_title;
+    antitheater_title -> test1;
+    test1 -> test1_check;
+    test1_check -> test1_fail [label="≤0.3"];
+    test1_check -> test2 [label=">0.3"];
+
+    test2 -> test2_check;
+    test2_check -> test2_fail [label="No"];
+    test2_check -> test3 [label="Yes"];
+
+    test3 -> test3_check;
+    test3_check -> test3_fail [label="≤0.5"];
+    test3_check -> all_pass [label=">0.5"];
+
+    // Failures abort
+    test1_fail -> end [label="Abort", style=dashed, color=red];
+    test2_fail -> end [label="Abort", style=dashed, color=red];
+    test3_fail -> end [label="Abort", style=dashed, color=red];
+
+    // Success path
+    all_pass -> save_final;
+    save_final -> end;
+
+    // ============================================================
+    // INFO BOXES
+    // ============================================================
+    success [label="SUCCESS CRITERIA\n━━━━━━━━━━━━━━━━━━━\nSTEP 1 (Prompt Baking):\n✅ 20K examples generated\n✅ 15 special tokens added\n✅ Baking convergence ≥85%\n✅ Thinking token usage >80%\n✅ Strategy usage >60%\n\nSTEP 2 (Quiet-STaR):\n✅ Structured thoughts generated\n✅ Coherence scoring works\n✅ Mixing head integrates\n✅ REINFORCE training converges\n✅ Accuracy +5-10% (vs baked)\n✅ Latency <200ms\n✅ Anti-theater tests pass\n\nOVERALL:\n✅ Two-step process validated\n✅ Muon × Grokfast (2 configs)\n✅ Jumpstart effect confirmed", shape=note, fillcolor="#c8e6c9"];
+
+    token_structure [label="TOKEN STRUCTURE\n━━━━━━━━━━━━━━━━━━━━━━━\nOUTER WRAPPER (2 tokens):\n[thinking] ... [/endthinking]\n\nINSIDE THINKING (10 strategies):\n• Chain-of-thought: <step>\n• MECE: <mece>\n• Falsification: <falsify>\n• Expert: <expert>\n• Orthogonal: <orthogonal>\n• Self-doubt: <doubt>\n• Bayesian: <bayesian>\n• Multidomain: <multidomain>\n• Self-correction: <correct>\n• Uncertainty: <uncertain>\n\nEXAMPLE:\n[thinking]\n  <step>Break it down...</step>\n  <mece>Categories: A, B, C</mece>\n  <doubt>Could I be wrong?</doubt>\n[/endthinking]", shape=note, fillcolor="#fff9c4"];
+
+    mugrok_configs [label="MUON × GROKFAST CONFIGS\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nPhase 3a (Prompt Baking):\n• muon_lr = 1e-4\n• grokfast_lambda = 0.2\n• qk_clip = 30.0\n• kl_coef = 0.0\n→ Supervised fine-tuning\n\nPhase 3b (Quiet-STaR RL):\n• muon_lr = 5e-4 (higher)\n• grokfast_lambda = 0.1 (lower, more filter)\n• qk_clip = 25.0 (tighter)\n• kl_coef = 0.1 (NEW: prevent drift)\n→ RL training (noisy, needs safety)\n\nWhy Different?\nRL is noisier, needs:\n• Higher LR (exploration)\n• More filtering (noise reduction)\n• Tighter clip (prevent attention spikes)\n• KL regularization (prevent forgetting)", shape=note, fillcolor="#e1bee7"];
+
+    commands [label="COMMANDS\n━━━━━━━━━━━━━━━━━━\n# Step 1: Generate data\npython phase3_data_generator.py\n\n# Step 1: Prompt baking\npython prompt_baking.py \\\n  --model phase2_champion \\\n  --data phase3_training_data.json \\\n  --epochs 5\n\n# Step 2: Quiet-STaR\npython quietstar_train.py \\\n  --model baked_model \\\n  --thoughts 4 \\\n  --epochs 10\n\n# Validate\npython anti_theater_tests.py\nwandb sync", shape=plaintext, fillcolor="white"];
+
+    {rank=same; success; token_structure;}
+    {rank=same; mugrok_configs; commands;}
+}

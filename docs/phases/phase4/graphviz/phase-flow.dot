@@ -1,0 +1,135 @@
+// Phase 4: BitNet - 1.58-bit Quantization Flow
+// This diagram shows ternary quantization process
+// Render with: dot -Tpng phase-flow.dot -o phase4-flow.png
+
+digraph Phase4BitNetFlow {
+    // Graph configuration
+    rankdir=TB;
+    node [fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=9];
+    graph [bgcolor=white];
+    node [style=filled];
+
+    // ===== TRIGGER =====
+    "trigger" [label="TRIGGER:\nPhase 4 invoked with\nPhase 3 model", shape=note, fillcolor="#fffde7"];
+    "start" [label="Phase 4 Start:\nBitNet Quantization", shape=doublecircle, fillcolor="#e8f5e9"];
+
+    "trigger" -> "start";
+
+    // ===== INITIALIZATION =====
+    "load_config" [label="Load BitNet\nConfiguration", shape=box, fillcolor="#ffab91"];
+    "load_model" [label="Load Enhanced Model\nfrom Phase 3", shape=box, fillcolor="#ffab91"];
+    "measure_baseline" [label="Measure Baseline:\nSize, Speed, Accuracy", shape=box, fillcolor="#ffab91"];
+    "init_wandb" [label="Initialize W&B\nRun: phase4", shape=box, fillcolor="#ffab91"];
+
+    "start" -> "load_config";
+    "load_config" -> "load_model";
+    "load_model" -> "measure_baseline";
+    "measure_baseline" -> "init_wandb";
+
+    // ===== QUANTIZATION PREPARATION =====
+    "identify_layers" [label="Identify Layers\nto Quantize", shape=box, fillcolor="#ffab91"];
+    "layer_decision" [label="Quantize\nLayer?", shape=diamond, fillcolor="#fff9c4"];
+    "skip_layer" [label="Skip:\nKeep FP16", shape=box, fillcolor="#ffe0b2"];
+
+    "init_wandb" -> "identify_layers";
+    "identify_layers" -> "layer_decision";
+    "layer_decision" -> "skip_layer" [label="No\n(embedding/output)", color=orange];
+
+    // ===== TERNARY QUANTIZATION =====
+    "quantize_layer" [label="Quantize Layer\nto Ternary", shape=box, fillcolor="#ffab91"];
+    "compute_threshold" [label="Compute Threshold:\nτ = mean(|W|)", shape=box, fillcolor="#ffab91"];
+    "apply_quantization" [label="Apply Quantization:\nW → {-1, 0, +1}", shape=box, fillcolor="#ffab91"];
+    "store_scale" [label="Store Scale Factor:\ns = mean(|W|)", shape=box, fillcolor="#ffab91"];
+
+    "layer_decision" -> "quantize_layer" [label="Yes\n(linear/conv)", color=green];
+    "quantize_layer" -> "compute_threshold";
+    "compute_threshold" -> "apply_quantization";
+    "apply_quantization" -> "store_scale";
+
+    // ===== VALIDATION =====
+    "more_layers" [label="More Layers\nto Process?", shape=diamond, fillcolor="#fff9c4"];
+    "store_scale" -> "more_layers";
+    "skip_layer" -> "more_layers";
+    "more_layers" -> "layer_decision" [label="Yes", color=green];
+
+    "all_quantized" [label="All Layers\nQuantized", shape=box, fillcolor="#ffab91"];
+    "more_layers" -> "all_quantized" [label="No", color=blue];
+
+    // ===== POST-QUANTIZATION VALIDATION =====
+    "measure_compressed" [label="Measure Compressed:\nSize, Speed, Accuracy", shape=box, fillcolor="#ffab91"];
+    "compute_metrics" [label="Compute Metrics:\nCompression ratio\nSpeedup\nAccuracy loss", shape=box, fillcolor="#ffab91"];
+
+    "all_quantized" -> "measure_compressed";
+    "measure_compressed" -> "compute_metrics";
+
+    // ===== METRIC VALIDATION =====
+    "check_compression" [label="Compression\n>8x?", shape=diamond, fillcolor="#fff9c4"];
+    "warn_compression" [label="WARNING:\nLow compression", shape=octagon, fillcolor="#ffe0b2"];
+    "check_speedup" [label="Speedup\n>2x?", shape=diamond, fillcolor="#fff9c4"];
+    "warn_speedup" [label="WARNING:\nLow speedup", shape=octagon, fillcolor="#ffe0b2"];
+    "check_accuracy" [label="Accuracy loss\n<10%?", shape=diamond, fillcolor="#fff9c4"];
+    "fail_accuracy" [label="ERROR:\nAccuracy too low", shape=octagon, fillcolor="#ffcdd2"];
+
+    "compute_metrics" -> "check_compression";
+    "check_compression" -> "warn_compression" [label="No", color=orange];
+    "warn_compression" -> "check_speedup";
+    "check_compression" -> "check_speedup" [label="Yes", color=green];
+
+    "check_speedup" -> "warn_speedup" [label="No", color=orange];
+    "warn_speedup" -> "check_accuracy";
+    "check_speedup" -> "check_accuracy" [label="Yes", color=green];
+
+    "check_accuracy" -> "fail_accuracy" [label="No", color=red];
+
+    // ===== FINE-TUNING (OPTIONAL) =====
+    "needs_finetuning" [label="Accuracy loss\n>5%?", shape=diamond, fillcolor="#fff9c4"];
+    "finetune" [label="Fine-tune\nQuantized Model", shape=box, fillcolor="#ffab91"];
+    "finetune_epochs" [label="Train for\n3 epochs", shape=box, fillcolor="#ffab91"];
+    "remeasure" [label="Re-measure\nAccuracy", shape=box, fillcolor="#ffab91"];
+
+    "check_accuracy" -> "needs_finetuning" [label="Yes", color=green];
+    "needs_finetuning" -> "finetune" [label="Yes", color=orange];
+    "finetune" -> "finetune_epochs";
+    "finetune_epochs" -> "remeasure";
+    "remeasure" -> "log_final";
+    "needs_finetuning" -> "log_final" [label="No", color=green];
+
+    // ===== FINALIZATION =====
+    "log_final" [label="Log Final Metrics:\ncompression, speedup,\naccuracy", shape=parallelogram, fillcolor="#e1bee7"];
+    "save_artifacts" [label="Save Artifacts:\nquantized model,\nscale factors", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "log_final" -> "save_artifacts";
+
+    // ===== PHASE RESULT =====
+    "create_result" [label="Create PhaseResult:\nsuccess=True\nmodel=quantized\nmetrics={compression}", shape=box, fillcolor="#ffab91"];
+    "return_result" [label="Return PhaseResult\nto Orchestrator", shape=box, fillcolor="#ffab91"];
+    "end" [label="Phase 4 Complete", shape=doublecircle, fillcolor="#c8e6c9"];
+
+    "save_artifacts" -> "create_result";
+    "create_result" -> "return_result";
+    "return_result" -> "end";
+
+    // ===== ERROR HANDLING =====
+    "abort" [label="ABORT:\nQuantization Failed", shape=octagon, fillcolor="#ffcdd2"];
+    "fail_accuracy" -> "abort" [style=dashed];
+
+    // ===== COMMANDS =====
+    "cmd_quantize" [label="python bitnet_quantize.py\n--model phase3_enhanced\n--threshold auto\n--finetune", shape=plaintext, fillcolor="#f0f0f0"];
+    "cmd_benchmark" [label="python benchmark.py\n--model quantized\n--compare baseline", shape=plaintext, fillcolor="#f0f0f0"];
+
+    "load_config" -> "cmd_quantize" [style=dashed, color=gray];
+    "measure_compressed" -> "cmd_benchmark" [style=dashed, color=gray];
+
+    // ===== STATISTICS =====
+    subgraph cluster_stats {
+        label="Expected Results";
+        style=filled;
+        fillcolor="#f5f5f5";
+
+        "stat1" [label="Compression: 8.2x", shape=plaintext];
+        "stat2" [label="Speedup: 2-4x", shape=plaintext];
+        "stat3" [label="Accuracy loss: <10%", shape=plaintext];
+        "stat4" [label="Model size: ~300MB", shape=plaintext];
+    }
+}

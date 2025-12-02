@@ -1,0 +1,33 @@
+# Phase 1: Cognate - Foundation Model Training Configuration
+# Creates 3 TRM x Titans-MAG models (reasoning, memory, speed)
+
+training:
+  epochs: 10
+  batch_size: 8
+  learning_rate: 1.0e-4
+  warmup_steps: 500
+  gradient_accumulation: 4
+  max_grad_norm: 1.0
+
+model:
+  hidden_dim: 512
+  num_layers: 6
+  num_heads: 8
+  vocab_size: 50257
+  max_seq_length: 512
+  dropout: 0.1
+
+specializations:
+  - reasoning   # Optimized for logical reasoning
+  - memory      # Optimized for long-term memory
+  - speed       # Optimized for inference speed
+
+wandb:
+  project: "agent-forge-phase1"
+  entity: null
+  mode: "offline"
+
+checkpoints:
+  save_every: 1000
+  keep_last: 3
+  dir: "checkpoints/phase1"

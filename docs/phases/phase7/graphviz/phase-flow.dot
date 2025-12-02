@@ -1,0 +1,165 @@
+// Phase 7: Generic Edge Deployment - Local Optimization Flow
+// This diagram shows optimization for consumer hardware deployment
+// Render with: dot -Tpng phase-flow.dot -o phase7-flow.png
+
+digraph Phase7EdgeDeploymentFlow {
+    // Graph configuration
+    rankdir=TB;
+    node [fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=9];
+    graph [bgcolor=white];
+    node [style=filled];
+
+    // ===== TRIGGER =====
+    "trigger" [label="TRIGGER:\nPhase 7 invoked with\nPhase 6 baked model", shape=note, fillcolor="#fffde7"];
+    "start" [label="Phase 7 Start:\nGeneric Edge Deployment", shape=doublecircle, fillcolor="#e8f5e9"];
+
+    "trigger" -> "start";
+
+    // ===== INITIALIZATION =====
+    "load_config" [label="Load Deployment\nConfiguration", shape=box, fillcolor="#f48fb1"];
+    "load_model" [label="Load Baked Model\nfrom Phase 6", shape=box, fillcolor="#f48fb1"];
+    "detect_hardware" [label="Detect Hardware:\nGPU, VRAM, RAM", shape=box, fillcolor="#f48fb1"];
+    "init_wandb" [label="Initialize W&B\nRun: phase7", shape=box, fillcolor="#f48fb1"];
+
+    "start" -> "load_config";
+    "load_config" -> "load_model";
+    "load_model" -> "detect_hardware";
+    "detect_hardware" -> "init_wandb";
+
+    // ===== HARDWARE VALIDATION =====
+    "check_vram" [label="VRAM\n≥2GB?", shape=diamond, fillcolor="#fff9c4"];
+    "warn_vram" [label="WARNING:\nLow VRAM", shape=octagon, fillcolor="#ffe0b2"];
+    "check_ram" [label="RAM\n≥8GB?", shape=diamond, fillcolor="#fff9c4"];
+    "warn_ram" [label="WARNING:\nLow RAM", shape=octagon, fillcolor="#ffe0b2"];
+
+    "init_wandb" -> "check_vram";
+    "check_vram" -> "warn_vram" [label="No", color=orange];
+    "warn_vram" -> "check_ram";
+    "check_vram" -> "check_ram" [label="Yes", color=green];
+    "check_ram" -> "warn_ram" [label="No", color=orange];
+    "warn_ram" -> "measure_baseline";
+    "check_ram" -> "measure_baseline" [label="Yes", color=green];
+
+    // ===== BASELINE MEASUREMENT =====
+    "measure_baseline" [label="Measure Baseline:\nInference time,\nMemory usage", shape=box, fillcolor="#f48fb1"];
+    "run_benchmark" [label="Run 100 Inferences:\nMean, P50, P95, P99", shape=box, fillcolor="#f48fb1"];
+    "log_baseline" [label="Log Baseline\nMetrics", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "measure_baseline" -> "run_benchmark";
+    "run_benchmark" -> "log_baseline";
+
+    // ===== OPTIMIZATION PIPELINE =====
+    "opt_torchscript" [label="Optimization 1:\nTorchScript JIT", shape=box, fillcolor="#f48fb1"];
+    "compile_torchscript" [label="Compile Model:\ntorch.jit.script()", shape=box, fillcolor="#f48fb1"];
+    "validate_torchscript" [label="Validate:\nOutputs match?", shape=diamond, fillcolor="#fff9c4"];
+    "fail_torchscript" [label="ERROR:\nTorchScript failed", shape=octagon, fillcolor="#ffcdd2"];
+    "measure_torchscript" [label="Measure:\nSpeedup vs baseline", shape=box, fillcolor="#f48fb1"];
+
+    "log_baseline" -> "opt_torchscript";
+    "opt_torchscript" -> "compile_torchscript";
+    "compile_torchscript" -> "validate_torchscript";
+    "validate_torchscript" -> "fail_torchscript" [label="No", color=red];
+    "validate_torchscript" -> "measure_torchscript" [label="Yes", color=green];
+
+    // ===== DYNAMIC QUANTIZATION =====
+    "opt_dynamic_quant" [label="Optimization 2:\nDynamic Quantization", shape=box, fillcolor="#f48fb1"];
+    "apply_dynamic_quant" [label="Apply Int8 Quant:\ntorch.quantization", shape=box, fillcolor="#f48fb1"];
+    "validate_dynamic" [label="Validate:\nAccuracy OK?", shape=diamond, fillcolor="#fff9c4"];
+    "warn_dynamic" [label="WARNING:\nAccuracy drop", shape=octagon, fillcolor="#ffe0b2"];
+    "measure_dynamic" [label="Measure:\nMemory reduction", shape=box, fillcolor="#f48fb1"];
+
+    "measure_torchscript" -> "opt_dynamic_quant";
+    "opt_dynamic_quant" -> "apply_dynamic_quant";
+    "apply_dynamic_quant" -> "validate_dynamic";
+    "validate_dynamic" -> "warn_dynamic" [label="No", color=orange];
+    "warn_dynamic" -> "measure_dynamic";
+    "validate_dynamic" -> "measure_dynamic" [label="Yes", color=green];
+
+    // ===== CUDA OPTIMIZATIONS =====
+    "opt_cuda" [label="Optimization 3:\nCUDA Optimizations", shape=box, fillcolor="#f48fb1"];
+    "enable_cudnn" [label="Enable cuDNN\nAutotuner", shape=box, fillcolor="#f48fb1"];
+    "enable_tf32" [label="Enable TF32\n(Ampere+)", shape=box, fillcolor="#f48fb1"];
+    "pin_memory" [label="Pin Memory:\nFaster transfers", shape=box, fillcolor="#f48fb1"];
+    "measure_cuda" [label="Measure:\nGPU utilization", shape=box, fillcolor="#f48fb1"];
+
+    "measure_dynamic" -> "opt_cuda";
+    "opt_cuda" -> "enable_cudnn";
+    "enable_cudnn" -> "enable_tf32";
+    "enable_tf32" -> "pin_memory";
+    "pin_memory" -> "measure_cuda";
+
+    // ===== OPERATOR FUSION =====
+    "opt_fusion" [label="Optimization 4:\nOperator Fusion", shape=box, fillcolor="#f48fb1"];
+    "fuse_ops" [label="Fuse Operations:\nConv-BN-ReLU", shape=box, fillcolor="#f48fb1"];
+    "measure_fusion" [label="Measure:\nLatency reduction", shape=box, fillcolor="#f48fb1"];
+
+    "measure_cuda" -> "opt_fusion";
+    "opt_fusion" -> "fuse_ops";
+    "fuse_ops" -> "measure_fusion";
+
+    // ===== FINAL VALIDATION =====
+    "final_benchmark" [label="Run Final\nBenchmark Suite", shape=box, fillcolor="#f48fb1"];
+    "check_inference" [label="Inference\n<100ms?", shape=diamond, fillcolor="#fff9c4"];
+    "warn_slow" [label="WARNING:\nSlow inference", shape=octagon, fillcolor="#ffe0b2"];
+    "check_memory" [label="Memory\n<2GB VRAM?", shape=diamond, fillcolor="#fff9c4"];
+    "fail_memory" [label="ERROR:\nExcessive memory", shape=octagon, fillcolor="#ffcdd2"];
+
+    "measure_fusion" -> "final_benchmark";
+    "final_benchmark" -> "check_inference";
+    "check_inference" -> "warn_slow" [label="No", color=orange];
+    "warn_slow" -> "check_memory";
+    "check_inference" -> "check_memory" [label="Yes", color=green];
+    "check_memory" -> "fail_memory" [label="No", color=red];
+
+    // ===== EXPORT =====
+    "export_model" [label="Export Optimized\nModel", shape=box, fillcolor="#f48fb1"];
+    "save_torchscript" [label="Save TorchScript\n.pt file", shape=box, fillcolor="#f48fb1"];
+    "save_onnx" [label="Save ONNX\n.onnx file", shape=box, fillcolor="#f48fb1"];
+    "save_metadata" [label="Save Metadata:\nperformance profile", shape=box, fillcolor="#f48fb1"];
+
+    "check_memory" -> "export_model" [label="Yes", color=green];
+    "export_model" -> "save_torchscript";
+    "save_torchscript" -> "save_onnx";
+    "save_onnx" -> "save_metadata";
+
+    // ===== LOGGING =====
+    "log_final" [label="Log Final Metrics:\ninference time,\nmemory, speedup", shape=parallelogram, fillcolor="#e1bee7"];
+    "save_artifacts" [label="Save Artifacts:\noptimized models,\nbenchmark results", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "save_metadata" -> "log_final";
+    "log_final" -> "save_artifacts";
+
+    // ===== PHASE RESULT =====
+    "create_result" [label="Create PhaseResult:\nsuccess=True\nmodel=optimized\nmetrics={inference}", shape=box, fillcolor="#f48fb1"];
+    "return_result" [label="Return PhaseResult\nto Orchestrator", shape=box, fillcolor="#f48fb1"];
+    "end" [label="Phase 7 Complete", shape=doublecircle, fillcolor="#c8e6c9"];
+
+    "save_artifacts" -> "create_result";
+    "create_result" -> "return_result";
+    "return_result" -> "end";
+
+    // ===== ERROR HANDLING =====
+    "abort" [label="ABORT:\nOptimization Failed", shape=octagon, fillcolor="#ffcdd2"];
+    "fail_torchscript" -> "abort" [style=dashed];
+    "fail_memory" -> "abort" [style=dashed];
+
+    // ===== COMMANDS =====
+    "cmd_benchmark" [label="python benchmark.py\n--model phase6_baked\n--iterations 100", shape=plaintext, fillcolor="#f0f0f0"];
+    "cmd_optimize" [label="python optimize_edge.py\n--model phase6_baked\n--target gtx1660\n--export all", shape=plaintext, fillcolor="#f0f0f0"];
+
+    "measure_baseline" -> "cmd_benchmark" [style=dashed, color=gray];
+    "opt_torchscript" -> "cmd_optimize" [style=dashed, color=gray];
+
+    // ===== TARGET HARDWARE =====
+    subgraph cluster_hardware {
+        label="Target Hardware (V2)";
+        style=filled;
+        fillcolor="#f5f5f5";
+
+        "hw1" [label="GPU: GTX 1660 (6GB)", shape=plaintext];
+        "hw2" [label="RAM: 16GB", shape=plaintext];
+        "hw3" [label="Inference: <100ms", shape=plaintext];
+        "hw4" [label="VRAM: <2GB", shape=plaintext];
+    }
+}

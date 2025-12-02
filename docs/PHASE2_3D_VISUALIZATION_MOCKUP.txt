@@ -1,0 +1,349 @@
+================================================================================
+    PHASE 2: 3D EVOLUTIONARY MERGE TREE VISUALIZATION - VISUAL MOCKUP
+================================================================================
+
+[BROWSER WINDOW: http://localhost:8501]
+
++-----------------------------------------------------------------------------+
+| Agent Forge V2                                         [Dark Mode] [User]  |
++-----------------------------------------------------------------------------+
+| [Home] [Pipeline] [Phase Details] [Config] [Monitor]                      |
++-----------------------------------------------------------------------------+
+
+  PHASE DETAILS
+
+  Select Phase: [Phase 2: EvoMerge (50 generations)          [v]]
+
+  -------------------------------------------------------------------------
+
+  Phase 2: EvoMerge (50 generations)
+  Evolutionary optimization with 6 merge techniques
+
+  +------------------+  +------------------+  +------------------+  +------------------+
+  | Current Gen      |  | Best Fitness     |  | Population Size  |  | Fitness Gain     |
+  | 25/50            |  | 0.847            |  | 16               |  | +18.2%           |
+  +------------------+  +------------------+  +------------------+  +------------------+
+
+  [==================================================                        ] 50%
+
+  -------------------------------------------------------------------------
+
+  Merge Techniques
+
+  [BAR CHART showing technique usage]
+
+  -------------------------------------------------------------------------
+
+  3D Merge Tree Visualization
+
+  Highlight Lineage:     [None                              [v]]
+  Generation Range:      [|--------------------------------|]  0 - 50
+  [Regenerate Tree]
+
+  +-------------------------------------------------------------------------+
+  |                                                                         |
+  |          3D Evolutionary Merge Tree (Phase 2: EvoMerge)                |
+  |                                                                         |
+  |                                    Z (Diversity)                        |
+  |                                         ^                               |
+  |                                         |                               |
+  |                                   Gen 50|    *  *  *                   |
+  |                                         | *  *  *  *  *                 |
+  |                                   Gen 40| *  *  *  *                    |
+  |                                         |*  *  *  *  *                  |
+  |                                   Gen 30|*  *  *  *                     |
+  |                                         | *  *  *  *                    |
+  |                                   Gen 20|  *  *  *  *                   |
+  |                                         |   *  *  *                     |
+  |                                   Gen 10|    *  *  *                    |
+  |                           Y (Fitness)   |     *  *                      |
+  |                                         |      * *                      |
+  |                                   Gen 0 |       ***                     |
+  |                                         |     (Phase 1)                 |
+  |                                         +------------> X (Generation)   |
+  |                                                                         |
+  |   LEGEND:                                                               |
+  |   [o] Linear (Blue)        [*] TIES (Orange)      [+] FrankenMerge (Red)|
+  |   [<>] SLERP (Green)       [x] DARE (Purple)      [*] DFS (Cyan)       |
+  |   [<>] Phase 1 (Magenta)                                                |
+  |                                                                         |
+  |   [Hover over nodes to see details]                                     |
+  |   [Drag to rotate | Scroll to zoom | Shift+drag to pan]                |
+  |                                                                         |
+  +-------------------------------------------------------------------------+
+
+  -------------------------------------------------------------------------
+
+  Evolution Statistics
+
+  +------------------+  +------------------+  +------------------+  +------------------+
+  | Initial Avg      |  | Final Avg        |  | Best Fitness     |  | Total            |
+  | Fitness          |  | Fitness          |  |                  |  | Improvement      |
+  | 0.687            |  | 0.851            |  | 0.892            |  | 23.8%            |
+  |                  |  | +0.164           |  | Gen 48           |  | 50 generations   |
+  +------------------+  +------------------+  +------------------+  +------------------+
+
+  [v] View Merge Technique Breakdown
+
+  +-------------------------------------------------------------------------+
+  | Technique      | Count | Avg Fitness | Max Fitness |                    |
+  +----------------+-------+-------------+-------------+--------------------+
+  | Linear         |   45  |    0.720    |    0.812    |                    |
+  | SLERP          |   38  |    0.750    |    0.835    |                    |
+  | TIES           |   52  |    0.810    |    0.892    | <- Best technique  |
+  | DARE           |   41  |    0.780    |    0.854    |                    |
+  | FrankenMerge   |   29  |    0.680    |    0.763    |                    |
+  | DFS            |   35  |    0.740    |    0.821    |                    |
+  +-------------------------------------------------------------------------+
+
+
+================================================================================
+                        DETAILED NODE HOVER EXAMPLE
+================================================================================
+
+[When hovering over a node at Generation 25, Model 3]
+
++--------------------------------------------------+
+| gen25_model3                                     |
+|--------------------------------------------------|
+| Generation: 25                                   |
+| Fitness: 0.834                                   |
+| Diversity: 0.612                                 |
+| Technique: TIES                                  |
+| Parents: gen24_model1, gen24_model5              |
+| Size: 24,375,000 params                          |
++--------------------------------------------------+
+
+
+================================================================================
+                       LINEAGE HIGHLIGHTING EXAMPLE
+================================================================================
+
+[When "gen25_model3" is selected from dropdown]
+
+Highlight Lineage:     [gen25_model3                   [v]]
+
+[3D visualization now highlights:]
+- gen25_model3 (amber/yellow highlight)
+- gen24_model1 (amber/yellow highlight) <- parent 1
+- gen24_model5 (amber/yellow highlight) <- parent 2
+- gen23_model2 (amber/yellow highlight) <- grandparent
+- gen23_model7 (amber/yellow highlight) <- grandparent
+- ... all the way back to Phase 1 models
+
+[All highlighted nodes have white borders and increased opacity]
+
+
+================================================================================
+                     GENERATION RANGE FILTERING EXAMPLE
+================================================================================
+
+[Slider set to 20-35]
+
+Generation Range:      [         |---------------|       ]  20 - 35
+
+[3D visualization now only shows:]
+- Generations 20-35
+- Edges connecting nodes within this range
+- Statistics updated for this range only
+
+
+================================================================================
+                         STATISTICS PANEL EXAMPLE
+================================================================================
+
+Evolution Statistics
+
++---------------------------+  +---------------------------+
+| Initial Avg Fitness       |  | Final Avg Fitness         |
+|                           |  |                           |
+|         0.687             |  |         0.851             |
+|                           |  |      +0.164 (cyan)        |
++---------------------------+  +---------------------------+
+
++---------------------------+  +---------------------------+
+| Best Fitness              |  | Total Improvement         |
+|                           |  |                           |
+|         0.892             |  |         23.8%             |
+|      Gen 48 (gray)        |  |   50 generations (gray)   |
++---------------------------+  +---------------------------+
+
+
+================================================================================
+                        COLOR SCHEME (DARK THEME)
+================================================================================
+
+Background:         #0D1B2A (deep navy)
+Grid lines:         #2D3748 (subtle gray)
+Text:               #E0E1DD (off-white)
+Accent (title):     #00F5D4 (electric cyan)
+
+Merge Technique Colors:
+- Linear:           #4287f5 (blue)
+- SLERP:            #39FF14 (neon green)
+- TIES:             #FFB703 (amber/orange)
+- DARE:             #B565D8 (purple)
+- FrankenMerge:     #FF006E (hot pink/red)
+- DFS:              #00F5D4 (cyan)
+- Phase 1:          #F72585 (magenta)
+
+Status Colors:
+- Success/Completed: #39FF14 (neon green)
+- Warning/Running:   #FFB703 (amber)
+- Error/Failed:      #FF006E (hot pink)
+- Info/Pending:      #778DA9 (muted blue-gray)
+
+
+================================================================================
+                      3D VISUALIZATION DETAILS
+================================================================================
+
+Node Representation:
+- Size: 5-15px (proportional to fitness)
+- Color: Merge technique (see color scheme above)
+- Symbol: Unique per technique
+  * Circle: Linear
+  * Diamond: SLERP
+  * Square: TIES
+  * Cross: DARE
+  * Triangle: FrankenMerge
+  * Star: DFS
+- Border: 1px white outline
+- Phase 1: Larger (20px) magenta diamonds
+
+Edge Representation:
+- Lines connecting parent -> child
+- Color: Matches merge technique
+- Opacity: 30% (to avoid clutter)
+- Width: 2px
+
+Camera View:
+- Eye position: (1.5, 1.5, 1.3) from center
+- Allows viewing full tree at once
+- User can rotate/zoom/pan freely
+
+
+================================================================================
+                            SAMPLE DATA FLOW
+================================================================================
+
+Generation 0 (Phase 1):
++-------------+      +-------------+      +-------------+
+| gen0_model0 |      | gen0_model1 |      | gen0_model2 |
+| Fitness:0.68|      | Fitness:0.71|      | Fitness:0.65|
+| 25M params  |      | 25M params  |      | 25M params  |
++-------------+      +-------------+      +-------------+
+       |                   |                   |
+       +-------------------+-------------------+
+                           |
+                      (Merge with TIES)
+                           |
+                           v
+                    +-------------+
+                    | gen1_model0 |
+                    | Fitness:0.75|
+                    | 24.9M params|
+                    +-------------+
+                           |
+                    (50 generations)
+                           |
+                           v
+                    +-------------+
+                    | gen50_model3|
+                    | Fitness:0.89|
+                    | 23.8M params|
+                    | <- Champion |
+                    +-------------+
+
+
+================================================================================
+                          INTERACTION EXAMPLES
+================================================================================
+
+1. ROTATE VIEW:
+   - Click and drag anywhere on the 3D plot
+   - Camera rotates around center of tree
+   - Can view tree from any angle (top, side, isometric)
+
+2. ZOOM:
+   - Scroll wheel up = zoom in
+   - Scroll wheel down = zoom out
+   - Useful for examining specific generations
+
+3. PAN:
+   - Hold Shift + drag
+   - Moves camera position
+   - Useful for centering specific regions
+
+4. HOVER:
+   - Move mouse over any node
+   - Tooltip appears with model details
+   - Shows: ID, generation, fitness, diversity, technique, parents, size
+
+5. SELECT LINEAGE:
+   - Choose model from dropdown above visualization
+   - All ancestor nodes highlighted in amber
+   - White borders added to lineage nodes
+   - Other nodes dimmed for clarity
+
+6. FILTER GENERATIONS:
+   - Adjust slider below dropdown
+   - Only selected generation range shown
+   - Statistics update to reflect filtered data
+
+7. REGENERATE:
+   - Click "Regenerate Tree" button
+   - New random evolutionary tree generated
+   - Different techniques, fitness trajectories
+   - Useful for demonstrating variability
+
+
+================================================================================
+                        MOBILE/TABLET RESPONSIVE
+================================================================================
+
+Desktop (1920x1080):
+- Full 800px height visualization
+- All controls visible
+- Statistics in 4 columns
+
+Tablet (768x1024):
+- 600px height visualization
+- Controls stack vertically
+- Statistics in 2 columns
+
+Mobile (375x667):
+- 400px height visualization
+- Controls full-width
+- Statistics single column
+- Touch gestures for rotate/zoom
+
+
+================================================================================
+                         PERFORMANCE METRICS
+================================================================================
+
+Data Size:
+- 50 generations x 8 models = 400 nodes
+- Binary pairing: ~800 edges
+- Total data points: ~1200
+
+Render Time:
+- Initial generation: <1 second
+- Plotly rendering: <1 second
+- Total page load: ~2 seconds
+
+Memory Usage:
+- Session state cache: ~5MB
+- Plotly figure: ~3MB
+- Total: ~8MB
+
+Interactivity:
+- Camera controls: 60 FPS
+- Hover tooltips: Instant (<10ms)
+- Filter/regenerate: <500ms
+
+
+================================================================================
+                            END OF MOCKUP
+================================================================================

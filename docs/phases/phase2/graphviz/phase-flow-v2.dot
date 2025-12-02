@@ -1,0 +1,120 @@
+// Phase 2: EvoMerge - Binary Pairing + 50-Generation Evolution
+// V2: Added note about no optimizer usage (merging only, no gradients)
+// Render with: dot -Tpng phase-flow-v2.dot -o phase2-flow-v2.png
+
+digraph Phase2_EvoMerge_Binary {
+    rankdir=TB;
+    node [fontname="Arial", fontsize=9, style=filled];
+    edge [fontname="Arial", fontsize=8];
+    graph [bgcolor=white];
+
+    // Title
+    label="Phase 2: EvoMerge - Binary Pairing Strategy + 50-Generation Evolution";
+    labelloc=t;
+    fontsize=12;
+
+    // START
+    start [label="Phase 2 Start\nEvoMerge", shape=doublecircle, fillcolor="#81c784"];
+    load [label="Load 3 Models\nfrom Phase 1", fillcolor="#b3e5fc"];
+
+    // GENERATION 0: BINARY PAIRING
+    gen0_title [label="GENERATION 0\nBinary Pairing (2³=8)", shape=box, fillcolor="#fff9c4", style="filled,bold"];
+
+    pairs [label="3 Mutually Exclusive Pairs:\n\nPair 1: Linear (0) vs SLERP (1)\nPair 2: DARE (0) vs TIES (1)\nPair 3: Franken (0) vs DFS (1)", fillcolor="#fff9c4"];
+
+    pipeline [label="Sequential Pipeline:\n\nStage 1: Interpolation\nStage 2: Task Arithmetic\nStage 3: Selection\n\n3 models → 1 model", fillcolor="#b3e5fc"];
+
+    combos [label="8 Binary Combinations:\n\n000, 001, 010, 011\n100, 101, 110, 111\n\nEach = unique merge path", fillcolor="#e1bee7"];
+
+    eval0 [label="Evaluate 8 Models\n\nFitness = 0.4×(1/perp) + 0.3×acc\n        + 0.2×(1/latency) + 0.1×(1/mem)", fillcolor="#ffecb3"];
+
+    pop0 [label="Population 0:\n8 diverse models", fillcolor="#a5d6a7"];
+
+    // EVOLUTION LOOP
+    evo_title [label="GENERATIONS 1-50\nEvolutionary Optimization", shape=box, fillcolor="#fff9c4", style="filled,bold"];
+
+    gen_loop [label="Gen\n≤50?", shape=diamond, fillcolor="#fff9c4"];
+
+    tournament [label="Tournament\nSelection (k=3)\n\nSelect 2 parents\nKeep top 2 elites", fillcolor="#b3e5fc"];
+
+    crossover [label="Binary Crossover\n\nSwap technique bits\nCreate 2 children", fillcolor="#b3e5fc"];
+
+    mutate [label="Mutation\n\nBit flip: 10% per bit\nWeight perturb: σ=0.01", fillcolor="#b3e5fc"];
+
+    create_child [label="Create Child\nvia Merge Combo", fillcolor="#b3e5fc"];
+
+    eval_child [label="Evaluate\nChild Fitness", fillcolor="#ffecb3"];
+
+    replace [label="Replacement\n\nChild > weakest?\nReplace : Discard\n\nPreserve top 2", fillcolor="#b3e5fc"];
+
+    diversity [label="Diversity\n>0.3?", shape=diamond, fillcolor="#fff9c4"];
+
+    inject [label="Inject\nRandom Models", fillcolor="#ffab91"];
+
+    log_gen [label="Log to W&B", fillcolor="#e1bee7"];
+    increment [label="Gen++", fillcolor="#b3e5fc"];
+
+    converge [label="Early\nConverge?", shape=diamond, fillcolor="#fff9c4"];
+    early_stop [label="Early Stop\n(plateau)", fillcolor="#ffab91"];
+
+    // FINALIZATION
+    final_title [label="FINALIZATION", shape=box, fillcolor="#fff9c4", style="filled,bold"];
+
+    select_best [label="Select Best Model\n(highest fitness)", fillcolor="#b3e5fc"];
+
+    validate [label="Fitness\n≥20%?", shape=diamond, fillcolor="#fff9c4"];
+    warn [label="Warning:\nLow gain", fillcolor="#ffab91"];
+
+    save [label="Save Champion\n+ evolution history", fillcolor="#a5d6a7"];
+
+    // END
+    end [label="Phase 2 Complete\n1 Model → Phase 3", shape=doublecircle, fillcolor="#81c784"];
+
+    // FLOW
+    start -> load;
+    load -> gen0_title;
+    gen0_title -> pairs;
+    pairs -> pipeline;
+    pipeline -> combos;
+    combos -> eval0;
+    eval0 -> pop0;
+
+    pop0 -> evo_title;
+    evo_title -> gen_loop;
+
+    gen_loop -> tournament [label="Yes"];
+    tournament -> crossover;
+    crossover -> mutate;
+    mutate -> create_child;
+    create_child -> eval_child;
+    eval_child -> replace;
+    replace -> diversity;
+    diversity -> inject [label="No"];
+    inject -> log_gen;
+    diversity -> log_gen [label="Yes"];
+    log_gen -> increment;
+    increment -> converge;
+    converge -> early_stop [label="Yes"];
+    early_stop -> select_best;
+    converge -> gen_loop [label="No"];
+
+    gen_loop -> final_title [label="No (50)"];
+    final_title -> select_best;
+    select_best -> validate;
+    validate -> warn [label="No"];
+    warn -> save;
+    validate -> save [label="Yes"];
+    save -> end;
+
+    // INFO BOXES
+    success [label="SUCCESS CRITERIA\n━━━━━━━━━━━━━━━━━━━\n✅ Gen 0: 8 unique models\n✅ Binary pairing validated\n✅ 50 generations complete\n✅ Fitness gain ≥20% (target 23.5%)\n✅ Diversity >0.3 maintained\n✅ All 6 techniques used\n✅ Time <90min (GTX 1660)\n✅ W&B logs complete\n✅ Best combo recorded", shape=note, fillcolor="#c8e6c9"];
+
+    no_optimizer [label="NO OPTIMIZER USED\n━━━━━━━━━━━━━━━━━━━━━━━\nPhase 2 = Pure model merging\n(no gradient updates)\n\nMuon × Grokfast NOT used here.\n\nEvolution via:\n• Merge technique combos\n• Tournament selection\n• Weight perturbation\n  (random noise, not gradients)\n\nPhases 1 & 3 use Muon × Grokfast.\nPhase 2 does not.", shape=note, fillcolor="#fff9c4"];
+
+    techniques [label="6 MERGE TECHNIQUES\n━━━━━━━━━━━━━━━━━━━━━━━━━\nPair 1 (Interpolation):\n• Linear: Equal weights\n• SLERP: Spherical interp\n\nPair 2 (Task Arithmetic):\n• DARE: Drop 90%, rescale\n• TIES: Trim 80%, sign vote\n\nPair 3 (Selection):\n• Franken: Layer-wise\n• DFS: Inverse-variance weight", shape=note, fillcolor="#e1bee7"];
+
+    commands [label="COMMANDS\n━━━━━━━━━━━━━━━━━━\npython evomerge.py \\\n  --gens 50 \\\n  --pop 8 \\\n  --strategy binary\n\npython validate_gen0.py\npython plot_evolution.py\nwandb sync", shape=plaintext, fillcolor="white"];
+
+    {rank=same; success; no_optimizer;}
+    {rank=same; techniques; commands;}
+}

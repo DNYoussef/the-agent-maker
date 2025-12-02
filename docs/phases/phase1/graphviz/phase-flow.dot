@@ -1,0 +1,160 @@
+digraph Phase1_Cognate_Flow {
+    // Graph styling
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fillcolor=lightblue, fontname="Arial"];
+    edge [fontname="Arial", fontsize=10];
+
+    // Title
+    label="Phase 1: Cognate - Create 3x 25M Parameter TinyTitan Models";
+    labelloc=t;
+    fontsize=16;
+    fontname="Arial Bold";
+
+    // Start/End nodes
+    start [label="Start Phase 1\nCognate", shape=doublecircle, fillcolor=lightgreen];
+    end [label="Phase 1 Complete\n3 Models → Phase 2", shape=doublecircle, fillcolor=lightgreen];
+
+    // Main process nodes
+    init_arch [label="Initialize TinyTitanModel\nArchitecture\n\n• vocab_size=50257 (GPT-2)\n• hidden_dim=512\n• num_layers=12\n• num_heads=8", fillcolor=lightyellow];
+
+    add_act [label="Add ACT Module\n(Adaptive Computation Time)\n\n• Halting head: Linear(512→1)\n• Learned threshold\n• Dynamic layer usage", fillcolor=lightyellow];
+
+    add_ltm [label="Add LTM Module\n(Long-Term Memory)\n\n• Memory slots: 2048-8192\n• Surprise-based gating\n• Cross-attention retrieval", fillcolor=lightyellow];
+
+    verify_params [label="Verify Parameter Count", shape=diamond, fillcolor=lightyellow];
+    params_ok [label="Count Parameters\ntotal = Σ p.numel()\n\nTarget: ~25,069,534\n(25M ±10%)", fillcolor=white];
+
+    adjust_arch [label="Adjust Architecture\n\nReduce hidden_dim:\n512 → 480\n\nOR reduce layers:\n12 → 11", fillcolor=orange];
+
+    create_model1 [label="Create Model 1\n(Reasoning-Focused)\n\n• ACT threshold = 0.95\n• LTM size = 4096\n• Surprise threshold = 0.7\n• Think longer on hard tokens", fillcolor=lightcyan];
+
+    create_model2 [label="Create Model 2\n(Memory-Focused)\n\n• ACT threshold = 0.90\n• LTM size = 8192\n• Surprise threshold = 0.5\n• Large memory capacity", fillcolor=lightcyan];
+
+    create_model3 [label="Create Model 3\n(Speed-Focused)\n\n• ACT threshold = 0.99\n• LTM size = 2048\n• Surprise threshold = 0.3\n• Fast halting", fillcolor=lightcyan];
+
+    load_dataset [label="Load GSM8K Dataset\n\n1,000-10,000 samples\nGrade school math problems\nFormat: (question, answer)", fillcolor=lightgray];
+
+    train_model1 [label="Train Model 1\n\n• Dataset: GSM8K\n• Epochs: 3\n• Loss: CE + 0.01*ACT\n• No intermediate supervision\n• Optional: Use Grokfast\n• Time: 3-8 hours", fillcolor=lightcoral];
+
+    train_model2 [label="Train Model 2\n\nSame training config\nDifferent hyperparameters\n• Optional: Use Grokfast\nTime: 3-8 hours", fillcolor=lightcoral];
+
+    train_model3 [label="Train Model 3\n\nSame training config\nDifferent hyperparameters\n• Optional: Use Grokfast\nTime: 3-8 hours", fillcolor=lightcoral];
+
+    test_vram [label="Test VRAM Usage", shape=diamond, fillcolor=lightyellow];
+    vram_check [label="Check GPU Memory\npeak_mem = max_memory_allocated()\n\nRequirement: <6GB\n(GTX 1660 constraint)", fillcolor=white];
+
+    enable_grad_checkpoint [label="Enable Gradient\nCheckpointing\n\nTrade compute for memory\nmodel.gradient_checkpointing_enable()", fillcolor=orange];
+
+    validate_act [label="Validate ACT Works", shape=diamond, fillcolor=lightyellow];
+    act_check [label="Compute Halting Steps\navg_steps = mean(halting_probs)\n\nModel 1: ~8.2 steps\nModel 2: ~9.5 steps\nModel 3: ~6.1 steps\n\nDiversity: max-min > 2.0", fillcolor=white];
+
+    tune_thresholds [label="Tune ACT Thresholds\n\nAdjust to increase diversity:\n• Widen threshold range\n• Different random seeds\n• Train on different subsets", fillcolor=orange];
+
+    validate_ltm [label="Validate LTM Works", shape=diamond, fillcolor=lightyellow];
+    ltm_check [label="Check Memory Usage\nlen(model.ltm.memories) > 0\n\nSurprise gating functional?\nOnly novel info stored?", fillcolor=white];
+
+    test_inference [label="Test Inference Speed", shape=diamond, fillcolor=lightyellow];
+    inference_check [label="Measure Latency\nforward_time = time(model(input))\n\nTarget: <100ms per pass", fillcolor=white];
+
+    optimize_inference [label="Optimize Inference\n\n• Mixed precision (fp16)\n• Reduce batch size\n• ONNX export", fillcolor=orange];
+
+    save_models [label="Save All 3 Models\n\nmodel1_reasoning.pt\nmodel2_memory.pt\nmodel3_speed.pt\n\n+ configs\n+ training logs", fillcolor=lightgreen];
+
+    log_wandb [label="Log to W&B", shape=parallelogram, fillcolor=lightyellow];
+    wandb_metrics [label="Upload Metrics:\n• Parameter counts\n• VRAM usage\n• Training curves\n• GSM8K accuracy\n• Inference latency\n• ACT statistics\n• LTM statistics", fillcolor=white];
+
+    validate_diversity [label="Validate Diversity", shape=diamond, fillcolor=lightyellow];
+    diversity_check [label="Check Model Differences:\n• Different halting steps?\n• Different accuracies?\n• Different memory usage?\n\nDiversity critical for Phase 2!", fillcolor=white];
+
+    increase_diversity [label="Increase Diversity\n\n• Widen hyperparameter ranges\n• Train on different data subsets\n• Use different initializations", fillcolor=orange];
+
+    unit_tests [label="Run Unit Tests\n\n≥90% coverage required\n• ACT halting\n• LTM gating\n• Forward pass\n• Parameter counting", fillcolor=lightgray];
+
+    tests_pass [label="Tests Pass?", shape=diamond, fillcolor=lightyellow];
+
+    fix_tests [label="Fix Failing Tests", fillcolor=orange];
+
+    create_docs [label="Create Documentation\n\ndocs/phase1-architecture.md\n• Model specs\n• Training procedure\n• Hyperparameters\n• Results", fillcolor=lightgray];
+
+    // Flow connections - Architecture Setup
+    start -> init_arch;
+    init_arch -> add_act;
+    add_act -> add_ltm;
+    add_ltm -> verify_params;
+
+    // Parameter verification
+    verify_params -> params_ok;
+    params_ok -> adjust_arch [label="  >27M or <23M"];
+    adjust_arch -> verify_params;
+    params_ok -> load_dataset [label="  25M ±10%"];
+
+    // Model creation
+    load_dataset -> create_model1;
+    load_dataset -> create_model2 [style=dashed];
+    load_dataset -> create_model3 [style=dashed];
+
+    // Training
+    create_model1 -> train_model1;
+    create_model2 -> train_model2;
+    create_model3 -> train_model3;
+
+    // VRAM validation
+    train_model1 -> test_vram;
+    train_model2 -> test_vram [style=dashed];
+    train_model3 -> test_vram [style=dashed];
+
+    test_vram -> vram_check;
+    vram_check -> enable_grad_checkpoint [label="  ≥6GB"];
+    enable_grad_checkpoint -> train_model1 [label="  Retry"];
+    vram_check -> validate_act [label="  <6GB"];
+
+    // ACT validation
+    validate_act -> act_check;
+    act_check -> tune_thresholds [label="  No diversity"];
+    tune_thresholds -> train_model1 [label="  Retrain"];
+    act_check -> validate_ltm [label="  Diverse"];
+
+    // LTM validation
+    validate_ltm -> ltm_check;
+    ltm_check -> train_model1 [label="  Not working\n  (debug)"];
+    ltm_check -> test_inference [label="  Working"];
+
+    // Inference speed test
+    test_inference -> inference_check;
+    inference_check -> optimize_inference [label="  ≥100ms"];
+    optimize_inference -> test_inference;
+    inference_check -> validate_diversity [label="  <100ms"];
+
+    // Diversity validation
+    validate_diversity -> diversity_check;
+    diversity_check -> increase_diversity [label="  Models too similar"];
+    increase_diversity -> train_model1 [label="  Retrain"];
+    diversity_check -> save_models [label="  Diverse enough"];
+
+    // Save and log
+    save_models -> log_wandb;
+    log_wandb -> wandb_metrics;
+    wandb_metrics -> unit_tests;
+
+    // Testing
+    unit_tests -> tests_pass;
+    tests_pass -> fix_tests [label="  No"];
+    fix_tests -> unit_tests;
+    tests_pass -> create_docs [label="  Yes (≥90%)"];
+
+    // Documentation and completion
+    create_docs -> end;
+
+    // Success criteria box
+    success_criteria [label="Success Criteria\n━━━━━━━━━━━━━━━━━━━\n✅ 3 models created\n✅ Each ~25M params\n✅ Each fits in 6GB VRAM\n✅ ACT halting diverse\n✅ LTM stores memories\n✅ Inference <100ms\n✅ Models behaviorally different\n✅ ≥90% test coverage\n✅ W&B logs complete\n✅ Documentation written", shape=note, fillcolor=lightgreen];
+
+    // Key insights box
+    insights [label="Key Phase 1 Insights\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n• 25M params = Local-first design\n• 3 models = Diversity for Phase 2\n• ACT = Adaptive computation (HRM)\n• LTM = Surprise-based memory (TinyTitans)\n• HRM approach = No supervision needed\n• TinyTitans = Memory scaling\n• GTX 1660 = Target hardware\n• Grokfast = Optional 50x speedup", shape=note, fillcolor=lightyellow];
+
+    // Commands box
+    commands [label="Key Commands\n━━━━━━━━━━━━━━━━━━━\npython phase1_train.py --model 1\npython phase1_train.py --model 2\npython phase1_train.py --model 3\n\npython validate_vram.py\npython validate_diversity.py\n\npytest tests/phase1/ --cov\n\nwandb sync", shape=plaintext, fillcolor=white];
+
+    // Position helper nodes
+    {rank=same; success_criteria; insights;}
+    {rank=same; end; commands;}
+}

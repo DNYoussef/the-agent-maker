@@ -1,0 +1,179 @@
+// Muon × GrokFast Optimizer System Flow
+// Visualizes time-spectrum (Grokfast) + space-geometry (Muon) synergy
+
+digraph MuonGrokfast {
+    // Graph settings
+    rankdir=TB;
+    node [shape=box, style=filled, fontname="Arial"];
+    edge [fontname="Arial", fontsize=10];
+
+    // Color scheme
+    bgcolor="#ffffff";
+
+    // Title
+    label="Muon × GrokFast Optimizer: Time-Spectrum + Space-Geometry Synergy";
+    labelloc="t";
+    fontsize=18;
+    fontname="Arial Bold";
+
+    // ===== INPUT STAGE =====
+    subgraph cluster_input {
+        label="Input Stage";
+        style=filled;
+        color="#e3f2fd";
+
+        model [label="Model Parameters\n(2-D matrices + 1-D vectors)",
+               fillcolor="#bbdefb", shape=folder];
+        gradients [label="Raw Gradients ∇L",
+                   fillcolor="#90caf9"];
+    }
+
+    // ===== GROKFAST PREFILTER (Time-Spectrum) =====
+    subgraph cluster_grokfast {
+        label="Stage 1: GROKFAST PREFILTER\n(Time-Spectrum Filtering)";
+        style=filled;
+        color="#fff3e0";
+
+        ema_state [label="EMA State\nμ_t = α·μ_{t-1} + (1-α)·g_t",
+                   fillcolor="#ffe0b2"];
+        filter [label="Temporal Filter\nĝ_t = g_t + λ·μ_t\n\n(Emphasizes slow components)",
+                fillcolor="#ffcc80", shape=parallelogram];
+    }
+
+    // ===== PARAMETER ROUTING =====
+    subgraph cluster_routing {
+        label="Stage 2: PARAMETER ROUTING\n(Dimension-Based Dispatch)";
+        style=filled;
+        color="#f3e5f5";
+
+        router [label="Router\nif ndim >= 2 → Muon\nelse → Fallback",
+                fillcolor="#e1bee7", shape=diamond];
+    }
+
+    // ===== MUON PATH (Space-Geometry) =====
+    subgraph cluster_muon {
+        label="Path A: MUON (Space-Geometry)";
+        style=filled;
+        color="#e8f5e9";
+
+        momentum [label="Momentum Accumulation\nm_t = β·m_{t-1} + (1-β)·ĝ_t",
+                  fillcolor="#c8e6c9"];
+        svd_check [label="Check: Use SVD or NS?\n(ns_steps > 0 → NS)",
+                   fillcolor="#a5d6a7", shape=diamond];
+        ns_ortho [label="Newton-Schulz\nOrthogonalization\n(k=5 iterations)\n\nW_i+1 = 1/2·(3I - W_i·W_i^T)·W_i",
+                  fillcolor="#81c784"];
+        svd_ortho [label="SVD Orthogonalization\nW = U·V^T\n(Exact, slower)",
+                   fillcolor="#66bb6a"];
+        muon_update [label="Muon Update\nΔW = η·(orthogonalized momentum)\n\n(Spreads across rare directions)",
+                     fillcolor="#4caf50", shape=parallelogram];
+    }
+
+    // ===== FALLBACK PATH =====
+    subgraph cluster_fallback {
+        label="Path B: FALLBACK (1-D Parameters)";
+        style=filled;
+        color="#fce4ec";
+
+        adamw [label="AdamW / Lion\nStandard optimizer\n(bias, LayerNorm)",
+               fillcolor="#f8bbd0"];
+        fallback_update [label="Fallback Update\nΔθ = fallback_step(ĝ_t)",
+                         fillcolor="#f48fb1", shape=parallelogram];
+    }
+
+    // ===== ATTENTION SAFETY RAILS =====
+    subgraph cluster_safety {
+        label="Stage 3: ATTENTION SAFETY RAILS\n(QK-Clip / MuonClip)";
+        style=filled;
+        color="#fff9c4";
+
+        qk_check [label="Is Q/K projection?\n& QK-clip enabled?",
+                  fillcolor="#fff59d", shape=diamond];
+        norm_check [label="Check Per-Head Norms\n||W_h|| > τ?",
+                    fillcolor="#fff176"];
+        rescale [label="Rescale Update\nΔW_h ← (τ/||W_h||)·ΔW_h\n\n(Enforces bounded logits)",
+                 fillcolor="#ffee58", shape=parallelogram];
+    }
+
+    // ===== OUTPUT STAGE =====
+    subgraph cluster_output {
+        label="Output Stage";
+        style=filled;
+        color="#e0f2f1";
+
+        apply_update [label="Apply Update\nW_t+1 = W_t - lr·ΔW",
+                      fillcolor="#b2dfdb"];
+        result [label="Updated Parameters\n(Optimized)",
+                fillcolor="#80cbc4", shape=folder];
+    }
+
+    // ===== CONCEPTUAL ANNOTATIONS =====
+    subgraph cluster_concepts {
+        label="Conceptual Framework";
+        style=filled;
+        color="#f5f5f5";
+
+        time_concept [label="TIME-SPECTRUM\n(Grokfast)\n\nFilters gradient history\n→ Emphasizes slow components\n→ Prevents noisy updates",
+                      fillcolor="#e0e0e0", shape=note];
+        space_concept [label="SPACE-GEOMETRY\n(Muon)\n\nOrthogonalizes updates\n→ Spreads across rank space\n→ Prevents low-rank collapse",
+                       fillcolor="#e0e0e0", shape=note];
+        synergy [label="SYNERGY\n\nTemporal stability\n+ Spatial diversity\n= Faster generalization\n  + Smoother trajectories",
+                 fillcolor="#bdbdbd", shape=note];
+    }
+
+    // ===== FLOW EDGES =====
+
+    // Input → Grokfast
+    gradients -> ema_state [label="All gradients"];
+    ema_state -> filter [label="μ_t"];
+    gradients -> filter [label="g_t"];
+
+    // Grokfast → Router
+    filter -> router [label="ĝ_t (filtered)"];
+
+    // Router → Paths
+    router -> momentum [label="2-D params\n(W_Q, W_K, W_V, W_MLP)", color="#4caf50", penwidth=2];
+    router -> adamw [label="1-D params\n(bias, LayerNorm)", color="#e91e63", penwidth=2];
+
+    // Muon Path
+    momentum -> svd_check;
+    svd_check -> ns_ortho [label="ns_steps > 0"];
+    svd_check -> svd_ortho [label="ns_steps = 0"];
+    ns_ortho -> muon_update [label="Semi-orthogonal\nW @ W^T ≈ I"];
+    svd_ortho -> muon_update [label="Exact orthogonal"];
+
+    // Fallback Path
+    adamw -> fallback_update;
+
+    // Paths → Safety Check
+    muon_update -> qk_check [label="ΔW"];
+    fallback_update -> qk_check [label="Δθ"];
+
+    // Safety Rails
+    qk_check -> norm_check [label="Yes"];
+    qk_check -> apply_update [label="No"];
+    norm_check -> rescale [label="Yes"];
+    norm_check -> apply_update [label="No"];
+    rescale -> apply_update;
+
+    // Output
+    apply_update -> result;
+    model -> apply_update [label="W_t"];
+
+    // Conceptual connections (dashed, no arrows)
+    filter -> time_concept [style=dashed, arrowhead=none, color="#9e9e9e"];
+    muon_update -> space_concept [style=dashed, arrowhead=none, color="#9e9e9e"];
+    time_concept -> synergy [style=dashed, arrowhead=none, color="#757575"];
+    space_concept -> synergy [style=dashed, arrowhead=none, color="#757575"];
+
+    // ===== LEGEND =====
+    subgraph cluster_legend {
+        label="Legend";
+        style=filled;
+        color="#fafafa";
+
+        legend_temporal [label="Temporal Filtering (Grokfast)", fillcolor="#ffcc80"];
+        legend_spatial [label="Spatial Orthogonalization (Muon)", fillcolor="#81c784"];
+        legend_safety [label="Safety Rails (QK-Clip)", fillcolor="#fff59d"];
+        legend_fallback [label="Fallback Path (1-D)", fillcolor="#f8bbd0"];
+    }
+}

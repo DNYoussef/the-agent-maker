@@ -1,0 +1,92 @@
+// CI/CD Pipeline Flow - Week 11-12
+// Visualizes the complete CI/CD automation workflow
+
+digraph cicd_pipeline {
+    rankdir=TB;
+    node [shape=box, style=filled, fontname="Arial"];
+
+    // Triggers
+    subgraph cluster_triggers {
+        label="Triggers";
+        style=filled;
+        color=lightgrey;
+
+        push [label="Push to\nmain/develop", fillcolor=lightblue];
+        pr [label="Pull Request", fillcolor=lightblue];
+        release [label="Release\nPublished", fillcolor=lightblue];
+        manual [label="Manual\nDispatch", fillcolor=lightblue];
+    }
+
+    // CI Workflow Jobs (parallel)
+    subgraph cluster_ci {
+        label="CI Workflow";
+        style=filled;
+        color=lightcyan;
+
+        lint [label="Lint Job\n• Black\n• isort\n• flake8\n• pylint\n• NASA POT10", fillcolor=lightyellow];
+        typecheck [label="Type Check\n• mypy strict", fillcolor=lightyellow];
+        test [label="Test Job\n(Matrix: 3.10, 3.11)\n• Unit tests\n• Integration\n• Coverage ≥90%", fillcolor=lightyellow];
+        security [label="Security\n• Bandit scan", fillcolor=lightyellow];
+    }
+
+    // Build and Quality Gate
+    build [label="Build Job\n• Package build\n• Twine check\n• Upload artifacts", fillcolor=lightgreen];
+    quality_gate [label="Quality Gate\n• Verify all passed\n• Block if failed", fillcolor=orange, shape=diamond];
+
+    // Documentation Workflow
+    subgraph cluster_docs {
+        label="Documentation Workflow";
+        style=filled;
+        color=lavender;
+
+        build_docs [label="Build Docs\n• Sphinx build\n• Upload artifacts", fillcolor=lightcyan];
+        deploy_docs [label="Deploy Docs\n(main only)\n• GitHub Pages", fillcolor=lightgreen];
+    }
+
+    // Release Workflow
+    subgraph cluster_release {
+        label="Release Workflow";
+        style=filled;
+        color=mistyrose;
+
+        build_pkg [label="Build Package\n• Build dist\n• Check quality", fillcolor=lightcyan];
+        test_pypi [label="Publish to\nTest PyPI", fillcolor=lightyellow];
+        pypi [label="Publish to\nPyPI\n(tagged only)", fillcolor=lightgreen];
+    }
+
+    // Outcomes
+    success [label="✓ Merge Allowed\nDocs Deployed", fillcolor=lightgreen, shape=ellipse];
+    failure [label="✗ Merge Blocked", fillcolor=red, shape=ellipse];
+
+    // Flow connections
+    push -> lint;
+    push -> typecheck;
+    push -> test;
+    push -> security;
+    pr -> lint;
+    pr -> typecheck;
+    pr -> test;
+    pr -> security;
+
+    lint -> build;
+    typecheck -> build;
+    test -> build;
+    security -> build;
+
+    build -> quality_gate;
+    quality_gate -> success [label="All Pass"];
+    quality_gate -> failure [label="Any Fail"];
+
+    // Docs flow
+    push -> build_docs [label="main branch"];
+    pr -> build_docs;
+    build_docs -> deploy_docs [label="main only"];
+    deploy_docs -> success;
+
+    // Release flow
+    release -> build_pkg;
+    manual -> build_pkg;
+    build_pkg -> test_pypi;
+    test_pypi -> pypi [label="if tagged"];
+    pypi -> success;
+}

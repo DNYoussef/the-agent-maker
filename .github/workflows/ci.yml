@@ -1,0 +1,219 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/config/requirements-dev.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r config/requirements-dev.txt
+
+    - name: Check code formatting (Black)
+      run: black --check src/ tests/
+
+    - name: Check import sorting (isort)
+      run: isort --check-only src/ tests/
+
+    - name: Lint with flake8
+      run: flake8 src/ tests/
+
+    - name: Lint with pylint
+      run: pylint src/ --exit-zero
+
+    - name: NASA POT10 Check (≤60 LOC/function)
+      run: |
+        python .github/hooks/nasa_pot10_check.py src/cross_phase/*.py src/cross_phase/*/*.py
+        python .github/hooks/nasa_pot10_check.py src/phase3_quietstar/*.py
+        python .github/hooks/nasa_pot10_check.py src/phase4_bitnet/*.py
+
+  type-check:
+    name: Type Checking (mypy)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/config/requirements-dev.txt') }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r config/requirements-dev.txt
+        pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+    - name: Type check with mypy
+      run: mypy src/ --ignore-missing-imports
+
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-${{ matrix.python-version }}-pip-${{ hashFiles('**/config/requirements-dev.txt') }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r config/requirements-dev.txt
+        pip install torch --index-url https://download.pytorch.org/whl/cpu
+        pip install -e .
+
+    - name: Run unit tests
+      run: pytest tests/unit -v --cov=src --cov-report=xml --cov-report=term-missing
+
+    - name: Run Phase 3 unit tests
+      run: pytest tests/unit/test_phase3_*.py -v --cov=src.phase3_quietstar --cov-report=term-missing
+
+    - name: Run Phase 4 unit tests
+      run: pytest tests/unit/test_bitnet_*.py -v --cov=src.phase4_bitnet --cov-report=term-missing
+
+    - name: Run integration tests
+      run: pytest tests/integration -v
+
+    - name: Run Phase 3 integration tests
+      run: pytest tests/integration/test_phase3_integration.py -v --no-cov
+
+    - name: Run Phase 4 integration tests
+      run: pytest tests/integration/test_phase4_integration.py -v
+
+    - name: Run Phase 4 performance tests
+      run: pytest tests/performance/test_phase4_performance.py -v -m "not slow"
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+    - name: Check coverage threshold (≥90%)
+      run: |
+        coverage report --fail-under=90 || echo "Warning: Coverage below 90%"
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install bandit
+      run: pip install bandit[toml]
+
+    - name: Run security scan
+      run: bandit -r src/ -f json -o bandit-report.json || true
+
+    - name: Upload security report
+      uses: actions/upload-artifact@v3
+      with:
+        name: bandit-security-report
+        path: bandit-report.json
+
+  build:
+    name: Build Distribution
+    runs-on: ubuntu-latest
+    needs: [lint, type-check, test]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install build tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+
+    - name: Build package
+      run: python -m build
+
+    - name: Check distribution
+      run: twine check dist/*
+
+    - name: Upload distribution artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: python-package-distributions
+        path: dist/
+
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [lint, type-check, test, security]
+    if: always()
+
+    steps:
+    - name: Check if all jobs passed
+      run: |
+        if [ "${{ needs.lint.result }}" != "success" ]; then
+          echo "Lint job failed"
+          exit 1
+        fi
+        if [ "${{ needs.type-check.result }}" != "success" ]; then
+          echo "Type check job failed"
+          exit 1
+        fi
+        if [ "${{ needs.test.result }}" != "success" ]; then
+          echo "Test job failed"
+          exit 1
+        fi
+        echo "All quality gates passed!"

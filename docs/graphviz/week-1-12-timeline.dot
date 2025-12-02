@@ -1,0 +1,92 @@
+// Agent Forge V2 Timeline - Weeks 1-12
+// Complete implementation progress visualization
+
+digraph project_timeline {
+    rankdir=LR;
+    node [shape=box, style=filled, fontname="Arial"];
+
+    // Start
+    start [label="Project\nStart", fillcolor=lightblue, shape=ellipse];
+
+    // Weeks 1-6: Core Infrastructure
+    subgraph cluster_weeks1_6 {
+        label="Weeks 1-6: Core Infrastructure ✓";
+        style=filled;
+        color=lightgreen;
+
+        w1_6 [label="6 Core Systems\n• SQLite Registry (WAL)\n• Pipeline Orchestrator\n• MuGrokfast Optimizer\n• Prompt Baking\n• W&B Integration\n• Size-Agnostic Utils\n\n2,260 lines\n31 tests pass", fillcolor=palegreen];
+    }
+
+    // Weeks 7-8: Streamlit UI
+    subgraph cluster_weeks7_8 {
+        label="Weeks 7-8: Streamlit UI ✓";
+        style=filled;
+        color=lightgreen;
+
+        w7_8 [label="5 Complete Pages\n• Pipeline Overview\n• Phase Details\n• Model Browser\n• System Monitor\n• Config Editor\n\n1,600 lines\n12 tests pass", fillcolor=palegreen];
+    }
+
+    // Weeks 9-10: Testing
+    subgraph cluster_weeks9_10 {
+        label="Weeks 9-10: Testing Infrastructure ✓";
+        style=filled;
+        color=lightgreen;
+
+        w9_10 [label="Quality Assurance\n• NASA POT10 hook\n• 47 tests (33 unit + 14 int)\n• 10 pre-commit hooks\n• Black, mypy, flake8, pylint\n\n1,300 lines\n100% NASA POT10", fillcolor=palegreen];
+    }
+
+    // Weeks 11-12: CI/CD
+    subgraph cluster_weeks11_12 {
+        label="Weeks 11-12: CI/CD ✓";
+        style=filled;
+        color=lightgreen;
+
+        w11_12 [label="Automation\n• GitHub Actions (3 workflows)\n• Quality gates (≥90% cov)\n• Matrix testing (3.10, 3.11)\n• Sphinx docs\n• GitHub Pages\n• Dependabot\n\n1,000+ lines\n7 badges", fillcolor=palegreen];
+    }
+
+    // Weeks 13-16: Phase Implementation
+    subgraph cluster_weeks13_16 {
+        label="Weeks 13-16: Phase Implementation ⏳";
+        style=filled;
+        color=lightyellow;
+
+        w13_14 [label="Weeks 13-14\n• Phase 1: Cognate\n• Phase 2: EvoMerge", fillcolor=lightgoldenrodyellow];
+        w15 [label="Week 15\n• Phase 3: Quiet-STaR\n• Phase 4: BitNet", fillcolor=lightgoldenrodyellow];
+        w16 [label="Week 16\n• Phase 5: Curriculum\n• Phase 6: Tool/Persona\n• Phase 7: Experts\n• Phase 8: Compression", fillcolor=lightgoldenrodyellow];
+    }
+
+    // Milestones
+    m1 [label="Milestone 1\nInfrastructure\nComplete", fillcolor=lightcyan, shape=diamond];
+    m2 [label="Milestone 2\nUI Complete", fillcolor=lightcyan, shape=diamond];
+    m3 [label="Milestone 3\nQuality Complete", fillcolor=lightcyan, shape=diamond];
+    m4 [label="Milestone 4\nCI/CD Complete\n75% Project", fillcolor=lightcyan, shape=diamond];
+    m5 [label="Milestone 5\nFull Pipeline\n100% Complete", fillcolor=orange, shape=diamond];
+
+    // End
+    end [label="Agent Forge V2\nProduction Ready", fillcolor=gold, shape=ellipse];
+
+    // Flow
+    start -> w1_6;
+    w1_6 -> m1;
+    m1 -> w7_8;
+    w7_8 -> m2;
+    m2 -> w9_10;
+    w9_10 -> m3;
+    m3 -> w11_12;
+    w11_12 -> m4;
+
+    m4 -> w13_14 [style=dashed];
+    w13_14 -> w15 [style=dashed];
+    w15 -> w16 [style=dashed];
+    w16 -> m5 [style=dashed];
+    m5 -> end [style=dashed];
+
+    // Progress indicators
+    {rank=same; start; w1_6;}
+    {rank=same; m1; w7_8;}
+    {rank=same; m2; w9_10;}
+    {rank=same; m3; w11_12;}
+    {rank=same; m4; w13_14;}
+    {rank=same; w15; w16;}
+    {rank=same; m5; end;}
+}

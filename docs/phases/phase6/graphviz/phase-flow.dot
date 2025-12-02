@@ -1,0 +1,150 @@
+// Phase 6: Tool & Persona Baking - Prompt Baking Flow
+// This diagram shows baking 9 specialized personas into model weights
+// Render with: dot -Tpng phase-flow.dot -o phase6-flow.png
+
+digraph Phase6BakingFlow {
+    // Graph configuration
+    rankdir=TB;
+    node [fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=9];
+    graph [bgcolor=white];
+    node [style=filled];
+
+    // ===== TRIGGER =====
+    "trigger" [label="TRIGGER:\nPhase 6 invoked with\nPhase 5 trained model", shape=note, fillcolor="#fffde7"];
+    "start" [label="Phase 6 Start:\nTool & Persona Baking", shape=doublecircle, fillcolor="#e8f5e9"];
+
+    "trigger" -> "start";
+
+    // ===== INITIALIZATION =====
+    "load_config" [label="Load Baking\nConfiguration", shape=box, fillcolor="#90caf9"];
+    "load_model" [label="Load Trained Model\nfrom Phase 5", shape=box, fillcolor="#90caf9"];
+    "define_personas" [label="Define 9 Personas:\nReasoning, Memory,\nMath, Code, etc.", shape=box, fillcolor="#90caf9"];
+    "init_wandb" [label="Initialize W&B\nRun: phase6", shape=box, fillcolor="#90caf9"];
+
+    "start" -> "load_config";
+    "load_config" -> "load_model";
+    "load_model" -> "define_personas";
+    "define_personas" -> "init_wandb";
+
+    // ===== PERSONA DEFINITIONS =====
+    "personas" [label="9 Personas Defined", shape=box, fillcolor="#90caf9"];
+    "p1" [label="1. Reasoning Expert", shape=plaintext];
+    "p2" [label="2. Memory Manager", shape=plaintext];
+    "p3" [label="3. Math Specialist", shape=plaintext];
+    "p4" [label="4. Code Generator", shape=plaintext];
+    "p5" [label="5. Tool Executor", shape=plaintext];
+    "p6" [label="6. Context Synthesizer", shape=plaintext];
+    "p7" [label="7. Error Handler", shape=plaintext];
+    "p8" [label="8. Planning Agent", shape=plaintext];
+    "p9" [label="9. General Assistant", shape=plaintext];
+
+    "init_wandb" -> "personas";
+    "personas" -> "p1" [style=dashed];
+    "personas" -> "p2" [style=dashed];
+    "personas" -> "p3" [style=dashed];
+    "personas" -> "p4" [style=dashed];
+    "personas" -> "p5" [style=dashed];
+    "personas" -> "p6" [style=dashed];
+    "personas" -> "p7" [style=dashed];
+    "personas" -> "p8" [style=dashed];
+    "personas" -> "p9" [style=dashed];
+
+    // ===== BAKING LOOP =====
+    "baking_loop" [label="Next Persona\nto Bake?", shape=diamond, fillcolor="#fff9c4"];
+    "personas" -> "baking_loop";
+
+    "select_persona" [label="Select Persona\n(e.g., Reasoning)", shape=box, fillcolor="#90caf9"];
+    "define_prompt" [label="Define Persona\nPrompt Template", shape=box, fillcolor="#90caf9"];
+    "create_dataset" [label="Create Training\nDataset for Persona", shape=box, fillcolor="#90caf9"];
+
+    "baking_loop" -> "select_persona" [label="Yes", color=green];
+    "select_persona" -> "define_prompt";
+    "define_prompt" -> "create_dataset";
+
+    // ===== PROMPT TUNING =====
+    "init_soft_prompt" [label="Initialize Soft\nPrompt Embeddings", shape=box, fillcolor="#90caf9"];
+    "tune_loop" [label="Tuning Epoch\n≤Max?", shape=diamond, fillcolor="#fff9c4"];
+    "forward_with_prompt" [label="Forward Pass:\nConcat prompt + input", shape=box, fillcolor="#90caf9"];
+    "compute_loss" [label="Compute Loss:\nTask performance", shape=box, fillcolor="#90caf9"];
+    "update_prompt" [label="Update Prompt\nEmbeddings Only", shape=box, fillcolor="#90caf9"];
+
+    "create_dataset" -> "init_soft_prompt";
+    "init_soft_prompt" -> "tune_loop";
+    "tune_loop" -> "forward_with_prompt" [label="Yes", color=green];
+    "forward_with_prompt" -> "compute_loss";
+    "compute_loss" -> "update_prompt";
+    "update_prompt" -> "tune_loop";
+
+    // ===== BAKING INTO WEIGHTS =====
+    "extract_embedding" [label="Extract Optimized\nPrompt Embedding", shape=box, fillcolor="#90caf9"];
+    "compute_delta" [label="Compute Δ:\noptimized - initial", shape=box, fillcolor="#90caf9"];
+    "merge_into_weights" [label="Merge into Weights:\nW_emb += α·Δ", shape=box, fillcolor="#90caf9"];
+    "alpha_param" [label="α = 0.1\n(merge strength)", shape=plaintext];
+
+    "tune_loop" -> "extract_embedding" [label="No (Done)", color=blue];
+    "extract_embedding" -> "compute_delta";
+    "compute_delta" -> "merge_into_weights";
+    "merge_into_weights" -> "alpha_param" [style=dashed];
+
+    // ===== VALIDATION =====
+    "validate_persona" [label="Validate Persona:\nTask performance", shape=box, fillcolor="#90caf9"];
+    "performance_check" [label="Performance\nimproved?", shape=diamond, fillcolor="#fff9c4"];
+    "warn_no_gain" [label="WARNING:\nNo performance gain", shape=octagon, fillcolor="#ffe0b2"];
+    "log_persona" [label="Log Persona\nMetrics", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "alpha_param" -> "validate_persona" [style=dashed];
+    "validate_persona" -> "performance_check";
+    "performance_check" -> "warn_no_gain" [label="No", color=orange];
+    "warn_no_gain" -> "log_persona";
+    "performance_check" -> "log_persona" [label="Yes", color=green];
+
+    // ===== LOOP CONTINUATION =====
+    "log_persona" -> "baking_loop";
+
+    // ===== FINALIZATION =====
+    "all_baked" [label="All 9 Personas\nBaked", shape=box, fillcolor="#90caf9"];
+    "final_validation" [label="Run Final\nValidation Suite", shape=box, fillcolor="#90caf9"];
+    "test_reasoning" [label="Test Reasoning\nPersona", shape=box, fillcolor="#e1bee7"];
+    "test_memory" [label="Test Memory\nPersona", shape=box, fillcolor="#e1bee7"];
+    "test_code" [label="Test Code\nPersona", shape=box, fillcolor="#e1bee7"];
+    "test_all" [label="Test All\nPersonas", shape=box, fillcolor="#e1bee7"];
+    "all_pass" [label="All Personas\nFunctional?", shape=diamond, fillcolor="#fff9c4"];
+    "fail_validation" [label="ERROR:\nPersona validation\nfailed", shape=octagon, fillcolor="#ffcdd2"];
+
+    "baking_loop" -> "all_baked" [label="No (Done)", color=blue];
+    "all_baked" -> "final_validation";
+    "final_validation" -> "test_reasoning";
+    "test_reasoning" -> "test_memory";
+    "test_memory" -> "test_code";
+    "test_code" -> "test_all";
+    "test_all" -> "all_pass";
+    "all_pass" -> "fail_validation" [label="No", color=red];
+
+    // ===== LOGGING & ARTIFACTS =====
+    "log_final" [label="Log Final Metrics:\npersona performance", shape=parallelogram, fillcolor="#e1bee7"];
+    "save_artifacts" [label="Save Artifacts:\nbaked model,\npersona embeddings", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "all_pass" -> "log_final" [label="Yes", color=green];
+    "log_final" -> "save_artifacts";
+
+    // ===== PHASE RESULT =====
+    "create_result" [label="Create PhaseResult:\nsuccess=True\nmodel=baked\nmetrics={personas}", shape=box, fillcolor="#90caf9"];
+    "return_result" [label="Return PhaseResult\nto Orchestrator", shape=box, fillcolor="#90caf9"];
+    "end" [label="Phase 6 Complete", shape=doublecircle, fillcolor="#c8e6c9"];
+
+    "save_artifacts" -> "create_result";
+    "create_result" -> "return_result";
+    "return_result" -> "end";
+
+    // ===== ERROR HANDLING =====
+    "abort" [label="ABORT:\nBaking Failed", shape=octagon, fillcolor="#ffcdd2"];
+    "fail_validation" -> "abort" [style=dashed];
+
+    // ===== COMMANDS =====
+    "cmd_bake" [label="python bake_persona.py\n--model phase5_trained\n--persona reasoning\n--epochs 5", shape=plaintext, fillcolor="#f0f0f0"];
+    "cmd_validate" [label="python validate_personas.py\n--model baked\n--all-personas", shape=plaintext, fillcolor="#f0f0f0"];
+
+    "define_prompt" -> "cmd_bake" [style=dashed, color=gray];
+    "final_validation" -> "cmd_validate" [style=dashed, color=gray];
+}

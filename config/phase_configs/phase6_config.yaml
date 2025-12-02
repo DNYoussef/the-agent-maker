@@ -1,0 +1,60 @@
+# Phase 6: Tool & Persona Baking Configuration
+# A/B cycle optimization with half-baking
+
+# A-Cycle (Tool) Settings
+a_cycle:
+  iterations: 5
+  tool_prompts:
+    - "You are an expert at using tools systematically."
+    - "Always verify tool outputs before proceeding."
+    - "Break complex tasks into tool-executable steps."
+    - "Use the appropriate tool for each subtask."
+    - "Chain tools together for complex operations."
+
+# B-Cycle (Persona) Settings
+b_cycle:
+  iterations: 5
+  persona_prompts:
+    - "You are a careful and thorough assistant."
+    - "Think step by step before responding."
+    - "Verify your answers before providing them."
+    - "Be precise and accurate in your responses."
+    - "Consider multiple perspectives before concluding."
+
+# Half-Baking Settings
+half_baking:
+  strength: 0.5  # 50% baking strength per iteration
+  layer_wise: false  # Apply same strength to all layers
+  preserve_embeddings: true
+  preserve_layer_norms: true
+
+# Baking Training Settings
+baking:
+  epochs: 3
+  learning_rate: 1e-4
+  lora_r: 16
+  lora_alpha: 32
+
+# Convergence Settings
+convergence:
+  plateau_window: 3  # Iterations to detect plateau
+  plateau_threshold: 0.01  # Minimum improvement
+  max_total_iterations: 20  # Hard stop
+
+# Resource Estimates
+resources:
+  estimated_duration_hours: 2  # Per A/B cycle pair
+  gpu_memory_gb: 6
+
+# W&B Integration
+wandb:
+  project: "agent-forge-phase6"
+  entity: null
+  mode: "offline"
+  metrics_count: 25
+
+# Checkpoints
+checkpoints:
+  save_per_cycle: true
+  keep_last: 3
+  dir: "checkpoints/phase6"

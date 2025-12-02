@@ -1,0 +1,101 @@
+// Quality Assurance and Testing Flow
+// Complete QA process from code to deployment
+
+digraph quality_assurance {
+    rankdir=TB;
+    node [shape=box, style=filled, fontname="Arial"];
+
+    // Code Development
+    dev [label="Developer\nWrites Code", fillcolor=lightblue, shape=ellipse];
+
+    // Local Pre-Commit
+    subgraph cluster_local {
+        label="Local Development (Pre-Commit)";
+        style=filled;
+        color=lightgrey;
+
+        nasa [label="NASA POT10\n≤60 LOC/func", fillcolor=lightyellow, shape=diamond];
+        format [label="Black\nAuto-format", fillcolor=lightyellow, shape=diamond];
+        imports [label="isort\nSort imports", fillcolor=lightyellow, shape=diamond];
+        lint1 [label="flake8\nLint", fillcolor=lightyellow, shape=diamond];
+        lint2 [label="pylint\nAdvanced lint", fillcolor=lightyellow, shape=diamond];
+        types [label="mypy\nType check", fillcolor=lightyellow, shape=diamond];
+        files [label="File Checks\nYAML/Security", fillcolor=lightyellow, shape=diamond];
+    }
+
+    commit_local [label="git commit", fillcolor=lightcyan];
+
+    // CI Pipeline (GitHub Actions)
+    subgraph cluster_ci {
+        label="CI Pipeline (GitHub Actions)";
+        style=filled;
+        color=lavender;
+
+        ci_lint [label="Lint Job\n• All formatters\n• All linters", fillcolor=lightgreen];
+        ci_type [label="Type Check\n• mypy strict", fillcolor=lightgreen];
+        ci_test [label="Test Job\n• Unit (33 tests)\n• Integration (14)\n• Coverage ≥90%", fillcolor=lightgreen];
+        ci_security [label="Security\n• Bandit scan", fillcolor=lightgreen];
+        ci_build [label="Build\n• Package\n• Twine check", fillcolor=lightgreen];
+    }
+
+    quality_gate [label="Quality Gate\nAll Pass?", fillcolor=orange, shape=diamond];
+
+    // Documentation
+    docs_build [label="Build Docs\nSphinx", fillcolor=lightcyan];
+    docs_deploy [label="Deploy\nGitHub Pages", fillcolor=lightgreen];
+
+    // Outcomes
+    merge_ok [label="✓ Merge to main", fillcolor=lightgreen, shape=ellipse];
+    merge_block [label="✗ Blocked\nFix Required", fillcolor=red, shape=ellipse];
+
+    // Production
+    release [label="Create Release\n(tag)", fillcolor=lightcyan];
+    pypi [label="Publish to PyPI", fillcolor=gold];
+    production [label="Production\nDeployment", fillcolor=gold, shape=ellipse];
+
+    // Flow: Local Development
+    dev -> nasa;
+    nasa -> format [label="pass"];
+    nasa -> merge_block [label="fail"];
+    format -> imports [label="pass"];
+    format -> merge_block [label="fail"];
+    imports -> lint1;
+    lint1 -> lint2;
+    lint2 -> types;
+    types -> files;
+    files -> commit_local [label="all pass"];
+    files -> merge_block [label="any fail"];
+
+    // Flow: CI Pipeline
+    commit_local -> ci_lint;
+    commit_local -> ci_type;
+    commit_local -> ci_test;
+    commit_local -> ci_security;
+
+    ci_lint -> ci_build;
+    ci_type -> ci_build;
+    ci_test -> ci_build;
+    ci_security -> ci_build;
+
+    ci_build -> quality_gate;
+
+    quality_gate -> merge_ok [label="All Pass"];
+    quality_gate -> merge_block [label="Any Fail"];
+
+    // Flow: Documentation
+    commit_local -> docs_build;
+    docs_build -> docs_deploy [label="main branch"];
+
+    // Flow: Production
+    merge_ok -> release;
+    release -> pypi;
+    pypi -> production;
+
+    // Feedback Loop
+    merge_block -> dev [label="fix & retry", style=dashed, color=red];
+
+    // Metrics
+    metrics [label="Continuous Monitoring:\n• Coverage trends\n• Code quality\n• Performance", fillcolor=white, shape=note];
+    ci_test -> metrics [style=dotted];
+    production -> metrics [style=dotted];
+}

@@ -1,0 +1,78 @@
+# Phase 8: Final Compression Configuration
+# Triple compression: SeedLM (2x) + VPTQ (20x) + Hypercompression (6.25x)
+# Target: ~280x total compression (100MB -> 0.4MB)
+
+# Pipeline Control
+pipeline:
+  seedlm_enabled: true
+  vptq_enabled: true
+  hyper_enabled: true
+
+# SeedLM Settings (Stage 1: 2x compression)
+seedlm:
+  seed_bits: 8
+  block_size: 64
+  num_iterations: 100
+  target_retention: 0.95
+  preserve_layers:
+    - "embed"
+    - "norm"
+    - "ln_"
+    - "layernorm"
+    - "bias"
+
+# VPTQ Settings (Stage 2: 20x compression)
+vptq:
+  codebook_size: 256
+  vector_dim: 8
+  num_codebooks: 4
+  num_iterations: 50
+  target_retention: 0.95
+
+# Hypercompression Settings (Stage 3: 6.25x compression)
+hypercompression:
+  num_params: 8  # Parameters per curve
+  curve_type: "bezier"  # bezier, polynomial, spline
+  num_segments: 16
+  optimization_steps: 100
+  target_retention: 0.90
+
+# Quality Gates
+quality_gates:
+  min_retention_seedlm: 0.95
+  min_retention_vptq: 0.95
+  min_retention_final: 0.84  # Cumulative after all 3 stages
+  rollback_enabled: true
+
+# Benchmark Testing
+benchmarks:
+  enabled: true
+  num_samples: 100
+  tests:
+    - "accuracy"
+    - "perplexity"
+    - "latency"
+
+# Resource Estimates
+resources:
+  estimated_duration_hours: 40  # Including retries
+  gpu_memory_gb: 6
+
+# W&B Integration
+wandb:
+  project: "agent-forge-phase8"
+  entity: null
+  mode: "offline"
+  metrics_count: 25
+
+# Checkpoints
+checkpoints:
+  save_per_stage: true
+  keep_last: 3
+  dir: "checkpoints/phase8"
+
+# Output Settings
+output:
+  save_compressed_model: true
+  save_decompression_keys: true
+  output_dir: "models/compressed"

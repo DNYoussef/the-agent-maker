@@ -1,0 +1,13 @@
+    # 3D Merge Tree Visualization (INTEGRATED)
+    try:
+        from ui.components.merge_tree_3d import render_phase2_3d_visualization
+        render_phase2_3d_visualization(
+            generations=50,
+            models_per_gen=8,
+            height=800,
+            show_controls=True
+        )
+    except ImportError as e:
+        st.warning(f"3D visualization unavailable: {e}")
+        with st.expander("View Binary Pairing Tree"):
+            st.info("Install plotly to enable 3D merge visualization: pip install plotly")

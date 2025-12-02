@@ -1,0 +1,26 @@
+# Agent Forge V2 - Streamlit UI Requirements
+
+# Core UI Framework
+streamlit>=1.28.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Configuration
+pyyaml>=6.0
+
+# System Monitoring
+psutil>=5.9.0
+
+# Visualization
+plotly>=5.17.0  # Optional: Enhanced charts
+
+# Optional: GPU Monitoring
+# torch>=2.0.0  # Uncomment if GPU monitoring needed
+
+# Core Infrastructure (from main requirements)
+# These should be installed from main requirements.txt
+# torch>=2.0.0
+# peft>=0.7.0
+# transformers>=4.35.0

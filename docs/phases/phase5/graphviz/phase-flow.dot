@@ -1,0 +1,135 @@
+// Phase 5: Forge Training - Grokfast Acceleration Flow
+// This diagram shows combined BitNet + Grokfast training
+// Render with: dot -Tpng phase-flow.dot -o phase5-flow.png
+
+digraph Phase5ForgeTrainingFlow {
+    // Graph configuration
+    rankdir=TB;
+    node [fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=9];
+    graph [bgcolor=white];
+    node [style=filled];
+
+    // ===== TRIGGER =====
+    "trigger" [label="TRIGGER:\nPhase 5 invoked with\nPhase 4 quantized model", shape=note, fillcolor="#fffde7"];
+    "start" [label="Phase 5 Start:\nForge Training", shape=doublecircle, fillcolor="#e8f5e9"];
+
+    "trigger" -> "start";
+
+    // ===== INITIALIZATION =====
+    "load_config" [label="Load Forge Training\nConfiguration", shape=box, fillcolor="#a5d6a7"];
+    "load_model" [label="Load Quantized Model\nfrom Phase 4", shape=box, fillcolor="#a5d6a7"];
+    "load_dataset" [label="Load Training\nDataset", shape=box, fillcolor="#a5d6a7"];
+    "init_wandb" [label="Initialize W&B\nRun: phase5", shape=box, fillcolor="#a5d6a7"];
+
+    "start" -> "load_config";
+    "load_config" -> "load_model";
+    "load_model" -> "load_dataset";
+    "load_dataset" -> "init_wandb";
+
+    // ===== BASELINE TRAINING (FOR COMPARISON) =====
+    "run_baseline" [label="Run Baseline?\n(for validation)", shape=diamond, fillcolor="#fff9c4"];
+    "baseline_train" [label="Train with Adam:\nRecord steps to 90% acc", shape=box, fillcolor="#ffe0b2"];
+    "baseline_steps" [label="Store Baseline\nSteps Count", shape=box, fillcolor="#ffe0b2"];
+
+    "init_wandb" -> "run_baseline";
+    "run_baseline" -> "baseline_train" [label="Yes\n(Week 9)", color=green];
+    "baseline_train" -> "baseline_steps";
+
+    // ===== GROKFAST OPTIMIZER SETUP =====
+    "setup_grokfast" [label="Initialize Grokfast\nOptimizer", shape=box, fillcolor="#a5d6a7"];
+    "grokfast_params" [label="Set Parameters:\nλ=0.1 (amplification)\nα=0.98 (EMA decay)", shape=plaintext];
+    "init_ema" [label="Initialize EMA\nGradient Buffer", shape=box, fillcolor="#a5d6a7"];
+
+    "run_baseline" -> "setup_grokfast" [label="No\n(skip)", color=orange];
+    "baseline_steps" -> "setup_grokfast";
+    "setup_grokfast" -> "grokfast_params" [style=dashed];
+    "grokfast_params" -> "init_ema" [style=dashed];
+    "init_ema" -> "training_loop";
+
+    // ===== TRAINING LOOP =====
+    "training_loop" [label="Epoch ≤ Max?", shape=diamond, fillcolor="#fff9c4"];
+    "sample_batch" [label="Sample Training\nBatch", shape=box, fillcolor="#a5d6a7"];
+    "forward_pass" [label="Forward Pass:\nCompute Loss", shape=box, fillcolor="#a5d6a7"];
+    "backward_pass" [label="Backward Pass:\nCompute Gradients", shape=box, fillcolor="#a5d6a7"];
+
+    "training_loop" -> "sample_batch" [label="Yes", color=green];
+    "sample_batch" -> "forward_pass";
+    "forward_pass" -> "backward_pass";
+
+    // ===== GROKFAST GRADIENT PROCESSING =====
+    "update_ema" [label="Update EMA:\ng_ema = α·g_ema +\n(1-α)·g", shape=box, fillcolor="#a5d6a7"];
+    "amplify_gradients" [label="Amplify Gradients:\ng_amplified = g +\nλ·(g - g_ema)", shape=box, fillcolor="#a5d6a7"];
+    "apply_gradients" [label="Apply Amplified\nGradients", shape=box, fillcolor="#a5d6a7"];
+
+    "backward_pass" -> "update_ema";
+    "update_ema" -> "amplify_gradients";
+    "amplify_gradients" -> "apply_gradients";
+
+    // ===== VALIDATION =====
+    "validate_step" [label="Validation Step?", shape=diamond, fillcolor="#fff9c4"];
+    "run_validation" [label="Run Validation:\nCompute Accuracy", shape=box, fillcolor="#a5d6a7"];
+    "check_target" [label="Accuracy\n≥90%?", shape=diamond, fillcolor="#fff9c4"];
+    "record_steps" [label="Record Steps\nto Target", shape=box, fillcolor="#a5d6a7"];
+
+    "apply_gradients" -> "validate_step";
+    "validate_step" -> "run_validation" [label="Yes\n(every 100)", color=green];
+    "run_validation" -> "check_target";
+    "check_target" -> "record_steps" [label="Yes", color=green];
+
+    // ===== LOGGING =====
+    "log_step" [label="Log Step Metrics:\nloss, acc, gradients", shape=parallelogram, fillcolor="#e1bee7"];
+    "validate_step" -> "log_step" [label="No", color=orange];
+    "check_target" -> "log_step" [label="No", color=orange];
+    "record_steps" -> "training_done";
+    "log_step" -> "training_loop";
+
+    // ===== SPEEDUP VALIDATION =====
+    "training_done" [label="Training\nComplete", shape=box, fillcolor="#a5d6a7"];
+    "compute_speedup" [label="Compute Speedup:\nspeedup = baseline_steps /\ngrokfast_steps", shape=box, fillcolor="#a5d6a7"];
+    "validate_claim" [label="Speedup\n≥5x?", shape=diamond, fillcolor="#fff9c4"];
+    "honest_log" [label="Log HONEST Speedup:\nDocument actual value", shape=parallelogram, fillcolor="#e1bee7"];
+    "warn_claim" [label="WARNING:\nClaim validation failed\n(expected 50x)", shape=octagon, fillcolor="#ffe0b2"];
+
+    "training_loop" -> "training_done" [label="No (Done)", color=blue];
+    "training_done" -> "compute_speedup";
+    "compute_speedup" -> "validate_claim";
+    "validate_claim" -> "honest_log" [label="Yes", color=green];
+    "validate_claim" -> "warn_claim" [label="No", color=orange];
+    "warn_claim" -> "honest_log";
+
+    // ===== FINALIZATION =====
+    "final_validation" [label="Run Final\nValidation Suite", shape=box, fillcolor="#a5d6a7"];
+    "save_artifacts" [label="Save Artifacts:\nmodel checkpoint,\ntraining curves", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "honest_log" -> "final_validation";
+    "final_validation" -> "save_artifacts";
+
+    // ===== PHASE RESULT =====
+    "create_result" [label="Create PhaseResult:\nsuccess=True\nmodel=trained\nmetrics={speedup}", shape=box, fillcolor="#a5d6a7"];
+    "return_result" [label="Return PhaseResult\nto Orchestrator", shape=box, fillcolor="#a5d6a7"];
+    "end" [label="Phase 5 Complete", shape=doublecircle, fillcolor="#c8e6c9"];
+
+    "save_artifacts" -> "create_result";
+    "create_result" -> "return_result";
+    "return_result" -> "end";
+
+    // ===== COMMANDS =====
+    "cmd_baseline" [label="python train_baseline.py\n--model phase4_quantized\n--optimizer adam\n--target-acc 0.90", shape=plaintext, fillcolor="#f0f0f0"];
+    "cmd_grokfast" [label="python train_grokfast.py\n--model phase4_quantized\n--lambda 0.1 --alpha 0.98\n--target-acc 0.90", shape=plaintext, fillcolor="#f0f0f0"];
+
+    "baseline_train" -> "cmd_baseline" [style=dashed, color=gray];
+    "setup_grokfast" -> "cmd_grokfast" [style=dashed, color=gray];
+
+    // ===== HONEST VALIDATION NOTE =====
+    subgraph cluster_honest {
+        label="Honest Validation (V2 Principle)";
+        style=filled;
+        fillcolor="#fff3e0";
+
+        "note1" [label="V1 Claim: 50x speedup", shape=plaintext];
+        "note2" [label="V2 Validation: Measure actual", shape=plaintext];
+        "note3" [label="Expected: 5-10x (realistic)", shape=plaintext];
+        "note4" [label="Document honestly", shape=plaintext];
+    }
+}

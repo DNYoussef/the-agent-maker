@@ -1,0 +1,224 @@
+// Agent Forge V2: Phase Integration Flow
+// This diagram shows how PhaseResult objects flow between phases
+// Render with: dot -Tpng phase-integration-flow.dot -o phase-integration-flow.png
+
+digraph PhaseIntegrationFlow {
+    // Graph configuration
+    rankdir=TB;
+    node [fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=9];
+    graph [bgcolor=white];
+    node [style=filled];
+
+    // ===== PIPELINE ORCHESTRATOR =====
+    "orchestrator" [label="Pipeline Orchestrator\n(Main Controller)", shape=doubleoctagon, fillcolor="#e3f2fd"];
+    "init_pipeline" [label="Initialize Pipeline:\nLoad config,\nsetup W&B project", shape=box, fillcolor="#bbdefb"];
+
+    "orchestrator" -> "init_pipeline";
+
+    // ===== PHASE 1 INTEGRATION =====
+    "invoke_phase1" [label="Invoke Phase 1:\nCognate", shape=box, fillcolor="#c5e1a5"];
+    "phase1_execute" [label="Phase 1 Executes:\nCreate 3x 25M models", shape=box, fillcolor="#c5e1a5"];
+    "phase1_result" [label="PhaseResult:\nsuccess=True\nmodels=[m1,m2,m3]\nmetrics={params}", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "init_pipeline" -> "invoke_phase1";
+    "invoke_phase1" -> "phase1_execute";
+    "phase1_execute" -> "phase1_result";
+
+    // ===== PHASE 1 → PHASE 2 HANDOFF =====
+    "validate_p1" [label="Validate Phase 1:\nCheck success flag", shape=diamond, fillcolor="#fff9c4"];
+    "p1_fail" [label="ABORT:\nPhase 1 failed", shape=octagon, fillcolor="#ffcdd2"];
+    "extract_p1_models" [label="Extract Models:\nmodels = result.model", shape=box, fillcolor="#bbdefb"];
+    "save_p1_checkpoint" [label="Save Checkpoint:\nP1 complete", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "phase1_result" -> "validate_p1";
+    "validate_p1" -> "p1_fail" [label="No", color=red];
+    "validate_p1" -> "extract_p1_models" [label="Yes", color=green];
+    "extract_p1_models" -> "save_p1_checkpoint";
+
+    // ===== PHASE 2 INTEGRATION =====
+    "invoke_phase2" [label="Invoke Phase 2:\nEvoMerge(models)", shape=box, fillcolor="#80deea"];
+    "phase2_execute" [label="Phase 2 Executes:\n50 generations", shape=box, fillcolor="#80deea"];
+    "phase2_result" [label="PhaseResult:\nsuccess=True\nmodel=best_merged\nmetrics={fitness}", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "save_p1_checkpoint" -> "invoke_phase2";
+    "invoke_phase2" -> "phase2_execute";
+    "phase2_execute" -> "phase2_result";
+
+    // ===== PHASE 2 → PHASE 3 HANDOFF =====
+    "validate_p2" [label="Validate Phase 2:\nCheck fitness gain", shape=diamond, fillcolor="#fff9c4"];
+    "p2_warn" [label="WARNING:\nLow fitness gain", shape=octagon, fillcolor="#ffe0b2"];
+    "extract_p2_model" [label="Extract Best Model:\nmodel = result.model", shape=box, fillcolor="#bbdefb"];
+    "save_p2_checkpoint" [label="Save Checkpoint:\nP2 complete", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "phase2_result" -> "validate_p2";
+    "validate_p2" -> "p2_warn" [label="Low gain", color=orange];
+    "p2_warn" -> "extract_p2_model";
+    "validate_p2" -> "extract_p2_model" [label="OK", color=green];
+    "extract_p2_model" -> "save_p2_checkpoint";
+
+    // ===== PHASE 3 INTEGRATION =====
+    "invoke_phase3" [label="Invoke Phase 3:\nQuiet-STaR(model)", shape=box, fillcolor="#ce93d8"];
+    "phase3_execute" [label="Phase 3 Executes:\nAdd reasoning", shape=box, fillcolor="#ce93d8"];
+    "phase3_result" [label="PhaseResult:\nsuccess=True\nmodel=enhanced\nmetrics={coherence}", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "save_p2_checkpoint" -> "invoke_phase3";
+    "invoke_phase3" -> "phase3_execute";
+    "phase3_execute" -> "phase3_result";
+
+    // ===== PHASE 3 → PHASE 4 HANDOFF =====
+    "validate_p3" [label="Validate Phase 3:\nAnti-theater tests", shape=diamond, fillcolor="#fff9c4"];
+    "p3_fail" [label="ABORT:\nTheater detected", shape=octagon, fillcolor="#ffcdd2"];
+    "extract_p3_model" [label="Extract Enhanced:\nmodel = result.model", shape=box, fillcolor="#bbdefb"];
+    "save_p3_checkpoint" [label="Save Checkpoint:\nP3 complete", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "phase3_result" -> "validate_p3";
+    "validate_p3" -> "p3_fail" [label="Failed", color=red];
+    "validate_p3" -> "extract_p3_model" [label="Passed", color=green];
+    "extract_p3_model" -> "save_p3_checkpoint";
+
+    // ===== PHASE 4 INTEGRATION =====
+    "invoke_phase4" [label="Invoke Phase 4:\nBitNet(model)", shape=box, fillcolor="#ffab91"];
+    "phase4_execute" [label="Phase 4 Executes:\n1.58-bit quantization", shape=box, fillcolor="#ffab91"];
+    "phase4_result" [label="PhaseResult:\nsuccess=True\nmodel=quantized\nmetrics={compression}", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "save_p3_checkpoint" -> "invoke_phase4";
+    "invoke_phase4" -> "phase4_execute";
+    "phase4_execute" -> "phase4_result";
+
+    // ===== PHASE 4 → PHASE 5 HANDOFF =====
+    "validate_p4" [label="Validate Phase 4:\nCompression ratio", shape=diamond, fillcolor="#fff9c4"];
+    "p4_warn" [label="WARNING:\nLow compression", shape=octagon, fillcolor="#ffe0b2"];
+    "extract_p4_model" [label="Extract Quantized:\nmodel = result.model", shape=box, fillcolor="#bbdefb"];
+    "save_p4_checkpoint" [label="Save Checkpoint:\nP4 complete", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "phase4_result" -> "validate_p4";
+    "validate_p4" -> "p4_warn" [label="<8x", color=orange];
+    "p4_warn" -> "extract_p4_model";
+    "validate_p4" -> "extract_p4_model" [label="≥8x", color=green];
+    "extract_p4_model" -> "save_p4_checkpoint";
+
+    // ===== PHASE 5 INTEGRATION =====
+    "invoke_phase5" [label="Invoke Phase 5:\nForge(model)", shape=box, fillcolor="#a5d6a7"];
+    "phase5_execute" [label="Phase 5 Executes:\nGrokfast training", shape=box, fillcolor="#a5d6a7"];
+    "phase5_result" [label="PhaseResult:\nsuccess=True\nmodel=trained\nmetrics={speedup}", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "save_p4_checkpoint" -> "invoke_phase5";
+    "invoke_phase5" -> "phase5_execute";
+    "phase5_execute" -> "phase5_result";
+
+    // ===== PHASE 5 → PHASE 6 HANDOFF =====
+    "validate_p5" [label="Validate Phase 5:\nTraining converged", shape=diamond, fillcolor="#fff9c4"];
+    "extract_p5_model" [label="Extract Trained:\nmodel = result.model", shape=box, fillcolor="#bbdefb"];
+    "save_p5_checkpoint" [label="Save Checkpoint:\nP5 complete", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "phase5_result" -> "validate_p5";
+    "validate_p5" -> "extract_p5_model" [label="OK", color=green];
+    "extract_p5_model" -> "save_p5_checkpoint";
+
+    // ===== PHASE 6 INTEGRATION =====
+    "invoke_phase6" [label="Invoke Phase 6:\nBaking(model)", shape=box, fillcolor="#90caf9"];
+    "phase6_execute" [label="Phase 6 Executes:\nBake 9 personas", shape=box, fillcolor="#90caf9"];
+    "phase6_result" [label="PhaseResult:\nsuccess=True\nmodel=baked\nmetrics={personas}", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "save_p5_checkpoint" -> "invoke_phase6";
+    "invoke_phase6" -> "phase6_execute";
+    "phase6_execute" -> "phase6_result";
+
+    // ===== PHASE 6 → PHASE 7 HANDOFF =====
+    "validate_p6" [label="Validate Phase 6:\nPersonas functional", shape=diamond, fillcolor="#fff9c4"];
+    "p6_fail" [label="ABORT:\nPersona validation\nfailed", shape=octagon, fillcolor="#ffcdd2"];
+    "extract_p6_model" [label="Extract Baked:\nmodel = result.model", shape=box, fillcolor="#bbdefb"];
+    "save_p6_checkpoint" [label="Save Checkpoint:\nP6 complete", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "phase6_result" -> "validate_p6";
+    "validate_p6" -> "p6_fail" [label="Failed", color=red];
+    "validate_p6" -> "extract_p6_model" [label="Passed", color=green];
+    "extract_p6_model" -> "save_p6_checkpoint";
+
+    // ===== PHASE 7 INTEGRATION =====
+    "invoke_phase7" [label="Invoke Phase 7:\nEdge(model)", shape=box, fillcolor="#f48fb1"];
+    "phase7_execute" [label="Phase 7 Executes:\nLocal optimization", shape=box, fillcolor="#f48fb1"];
+    "phase7_result" [label="PhaseResult:\nsuccess=True\nmodel=optimized\nmetrics={inference}", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "save_p6_checkpoint" -> "invoke_phase7";
+    "invoke_phase7" -> "phase7_execute";
+    "phase7_execute" -> "phase7_result";
+
+    // ===== PHASE 7 → PHASE 8 HANDOFF =====
+    "validate_p7" [label="Validate Phase 7:\nInference <100ms", shape=diamond, fillcolor="#fff9c4"];
+    "p7_warn" [label="WARNING:\nSlow inference", shape=octagon, fillcolor="#ffe0b2"];
+    "extract_p7_model" [label="Extract Optimized:\nmodel = result.model", shape=box, fillcolor="#bbdefb"];
+    "save_p7_checkpoint" [label="Save Checkpoint:\nP7 complete", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "phase7_result" -> "validate_p7";
+    "validate_p7" -> "p7_warn" [label="Slow", color=orange];
+    "p7_warn" -> "extract_p7_model";
+    "validate_p7" -> "extract_p7_model" [label="Fast", color=green];
+    "extract_p7_model" -> "save_p7_checkpoint";
+
+    // ===== PHASE 8 INTEGRATION =====
+    "invoke_phase8" [label="Invoke Phase 8:\nCompression(model)", shape=box, fillcolor="#ffcc80"];
+    "phase8_execute" [label="Phase 8 Executes:\nTriple compression", shape=box, fillcolor="#ffcc80"];
+    "phase8_result" [label="PhaseResult:\nsuccess=True\nmodel=compressed\nmetrics={final}", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "save_p7_checkpoint" -> "invoke_phase8";
+    "invoke_phase8" -> "phase8_execute";
+    "phase8_execute" -> "phase8_result";
+
+    // ===== FINAL VALIDATION =====
+    "validate_p8" [label="Validate Phase 8:\nSize <500MB", shape=diamond, fillcolor="#fff9c4"];
+    "p8_fail" [label="ABORT:\nCompression failed", shape=octagon, fillcolor="#ffcdd2"];
+    "extract_p8_model" [label="Extract Final:\nmodel = result.model", shape=box, fillcolor="#bbdefb"];
+    "save_p8_checkpoint" [label="Save Checkpoint:\nP8 complete", shape=parallelogram, fillcolor="#e1bee7"];
+
+    "phase8_result" -> "validate_p8";
+    "validate_p8" -> "p8_fail" [label="Failed", color=red];
+    "validate_p8" -> "extract_p8_model" [label="Passed", color=green];
+    "extract_p8_model" -> "save_p8_checkpoint";
+
+    // ===== PIPELINE COMPLETION =====
+    "generate_report" [label="Generate Pipeline\nReport", shape=box, fillcolor="#bbdefb"];
+    "aggregate_metrics" [label="Aggregate Metrics:\nAll phases", shape=box, fillcolor="#bbdefb"];
+    "export_deployment" [label="Export Deployment\nPackage", shape=box, fillcolor="#bbdefb"];
+    "pipeline_complete" [label="Agent Forge V2\nPipeline Complete", shape=doubleoctagon, fillcolor="#c8e6c9"];
+
+    "save_p8_checkpoint" -> "generate_report";
+    "generate_report" -> "aggregate_metrics";
+    "aggregate_metrics" -> "export_deployment";
+    "export_deployment" -> "pipeline_complete";
+
+    // ===== ERROR RECOVERY =====
+    "error_handler" [label="Error Handler:\nRollback to last\nvalid checkpoint", shape=box, fillcolor="#ef9a9a"];
+    "p1_fail" -> "error_handler" [style=dashed];
+    "p3_fail" -> "error_handler" [style=dashed];
+    "p6_fail" -> "error_handler" [style=dashed];
+    "p8_fail" -> "error_handler" [style=dashed];
+
+    // ===== PHASERESULT INTERFACE =====
+    subgraph cluster_interface {
+        label="PhaseResult Interface (Standardized)";
+        style=filled;
+        fillcolor="#f5f5f5";
+
+        "field1" [label="success: bool", shape=plaintext];
+        "field2" [label="model: torch.nn.Module", shape=plaintext];
+        "field3" [label="phase_name: str", shape=plaintext];
+        "field4" [label="metrics: dict", shape=plaintext];
+        "field5" [label="duration: float", shape=plaintext];
+        "field6" [label="artifacts: dict", shape=plaintext];
+        "field7" [label="config: dict", shape=plaintext];
+        "field8" [label="error: Optional[str]", shape=plaintext];
+    }
+
+    // ===== W&B INTEGRATION =====
+    "wandb_project" [label="W&B Project:\nagent-forge-v2", shape=cylinder, fillcolor="#e1bee7"];
+    "phase1_result" -> "wandb_project" [label="log", style=dashed, color=purple];
+    "phase2_result" -> "wandb_project" [label="log", style=dashed, color=purple];
+    "phase3_result" -> "wandb_project" [label="log", style=dashed, color=purple];
+    "phase4_result" -> "wandb_project" [label="log", style=dashed, color=purple];
+    "phase5_result" -> "wandb_project" [label="log", style=dashed, color=purple];
+    "phase6_result" -> "wandb_project" [label="log", style=dashed, color=purple];
+    "phase7_result" -> "wandb_project" [label="log", style=dashed, color=purple];
+    "phase8_result" -> "wandb_project" [label="log", style=dashed, color=purple];
+}

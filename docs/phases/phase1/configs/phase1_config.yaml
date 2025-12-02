@@ -1,0 +1,403 @@
+# Phase 1 Configuration - TRM × Titans × MuonGrokfast
+# Agent Forge V2 - Complete Training Configuration
+# Version: 2.0
+# Target: 25M±1M parameters, GTX 1660 (6GB VRAM)
+
+# ============================================================================
+# MODEL ARCHITECTURE (TitansMAG Backbone)
+# ============================================================================
+model:
+  # Core transformer settings
+  d_model: 512                    # Hidden dimension
+  n_layers: 8                     # Transformer layers
+  n_heads: 8                      # Attention heads
+  head_dim: 64                    # d_model / n_heads
+  vocab_size: 32768               # BPE tokenizer vocab
+  max_seq_len: 2048               # Maximum sequence length
+
+  # Sliding Window Attention
+  attention:
+    type: "sliding_window"
+    sw_window: 1024               # Window size (±512 tokens)
+    # Optional: hybrid mode (commented out for baseline)
+    # type: "sliding_window_with_global"
+    # global_tokens: 64           # Every 16th token attends globally
+
+  # MLP architecture
+  mlp:
+    type: "swiglu"
+    expansion_factor: 4.0         # Hidden size = 4 × d_model
+
+  # Normalization
+  norm:
+    type: "rmsnorm"
+    eps: 1.0e-6
+
+  # LMM (Long-Range Memory Module)
+  memory:
+    type: "factorized"            # Factorized projection
+    d_mem: 256                    # Memory dimension (half of d_model)
+    decay: 0.99                   # Exponential decay for temporal weighting
+    init: "zeros"                 # Initialize memory state
+
+  # Embeddings
+  embedding:
+    tie_weights: true             # Tie input/output embeddings
+    dropout: 0.1
+
+# ============================================================================
+# MAG GATE (Memory-Augmented Gate)
+# ============================================================================
+gate:
+  hidden: 256                     # Hidden layer for gating network
+  entropy_reg: 0.001              # Entropy regularization coefficient
+  # Prevents saturation: loss_gate = -λ * mean(g*log(g) + (1-g)*log(1-g))
+
+# ============================================================================
+# TRM WRAPPER (Transformer Recursive Memory)
+# ============================================================================
+trm:
+  T_max: 3                        # Maximum recursion depth (start)
+  micro_steps: 2                  # Refinement steps per iteration (g_φ)
+  deep_supervision: true          # Loss at each recursion step
+  detach_between_steps: true      # Detach y, z between steps (memory efficiency)
+
+  # Step weighting for deep supervision
+  step_weights: [0.5, 0.75, 1.0]  # Earlier steps weighted lower
+
+  # Curriculum (increase T_max after plateau)
+  curriculum:
+    enabled: true
+    plateau_steps: 20000          # Increase T_max after 20K steps
+    T_max_final: 6                # Final recursion depth
+
+  # Stateless mode (for Phase 2 mergeability)
+  stateless_mode: false           # Disable for Phase 1 training
+
+# ============================================================================
+# ACT HEAD (Adaptive Computation Time)
+# ============================================================================
+act:
+  halt_thresh: 0.5                # Halt probability threshold
+  ema_teacher: 0.98               # EMA decay for step accuracy tracking
+  entropy_reg: 0.001              # Prevent q → 0.5 saturation
+  warmup_steps: 5000              # Don't enforce targets early
+
+  # Target halting strategy
+  # - Step 0: acc ≈ 0.6 → target_halt = False (continue)
+  # - Step 2: acc ≈ 0.85 → target_halt = True (halt)
+
+# ============================================================================
+# OPTIMIZER (MuonGrokfast)
+# ============================================================================
+optim:
+  kind: "muon_grokfast"
+
+  # Grokfast settings (time-spectrum filtering)
+  grokfast:
+    enable: true
+    alpha: 0.98                   # EMA decay
+    lam: 0.3                      # Amplification factor (aggressive)
+
+  # Muon settings (space-geometry orthogonalization)
+  muon:
+    enable: true
+    k: 3                          # Newton-Schulz iterations
+    beta: 0.9                     # Momentum coefficient
+    # use_svd: false              # Set true for exact orthogonalization (slower)
+
+  # QK-Clip / MuonClip (attention stability)
+  qkclip:
+    enable: true
+    tau: 30.0                     # Threshold for Q/K norm
+    per_head: true                # Per-head scaling (MLA/RoPE compatible)
+    mlarope_shared_k_protected: true  # CRITICAL: Don't rescale rotary-K
+
+  # Learning rate
+  lr: 0.001                       # Base learning rate (1e-3)
+  weight_decay: 0.05              # Decoupled weight decay
+
+  # Fallback optimizer (1-D parameters)
+  fallback:
+    type: "adamw"
+    lr: 0.001                     # Same as base LR
+    betas: [0.9, 0.999]
+    weight_decay: 0.01
+
+  # Gradient clipping
+  grad_clip:
+    enable: true
+    max_norm: 1.0                 # Clip gradient norm
+
+  # Parameter-specific learning rates (optional)
+  param_groups:
+    # - params: ["W_Q", "W_K"]
+    #   lr: 0.0005                # Half LR for attention projections
+    # - params: ["gate"]
+    #   lr: 0.001                 # Standard LR for gate
+
+# ============================================================================
+# TRAINING CONFIGURATION
+# ============================================================================
+train:
+  # Batch sizes
+  batch_size: 32                  # Micro-batch size
+  gradient_accumulation_steps: 4  # Effective batch = 32 × 4 = 128
+  max_steps: 100000               # Total training steps
+
+  # Sequence length curriculum
+  seq_len_schedule:
+    - start_step: 0
+      end_step: 10000
+      seq_len: 512                # First 10K steps
+    - start_step: 10000
+      end_step: 50000
+      seq_len: 1024               # Next 40K steps
+    - start_step: 50000
+      end_step: null
+      seq_len: 2048               # Final stage
+
+  # Learning rate schedule
+  lr_schedule:
+    type: "cosine_with_warmup"
+    warmup_steps: 2000            # Linear warmup
+    min_lr: 0.0001                # Final LR (10% of base)
+
+  # Mixed precision
+  mixed_precision:
+    enable: true
+    dtype: "bfloat16"             # Use bfloat16 on Ampere+ GPUs
+    # dtype: "float16"            # Use float16 on older GPUs
+
+  # Gradient checkpointing (if OOM)
+  gradient_checkpointing: false   # Enable if VRAM < 6GB
+
+# ============================================================================
+# DATA CONFIGURATION
+# ============================================================================
+data:
+  # Dataset mixture (reasoning-rich datasets)
+  datasets:
+    - name: "tinystories"
+      weight: 0.3                 # 30% TinyStories (narrative coherence)
+      path: "roneneldan/TinyStories"
+      split: "train"
+
+    - name: "gsm8k"
+      weight: 0.2                 # 20% GSM8K (math reasoning)
+      path: "gsm8k"
+      split: "train[:5000]"       # Subset for efficiency
+
+    - name: "code_simple"
+      weight: 0.2                 # 20% Code (structured logic)
+      path: "bigcode/the-stack-smol"
+      split: "train[:10000]"
+      languages: ["python", "javascript"]
+
+    - name: "wikipedia"
+      weight: 0.3                 # 30% Wikipedia (factual recall)
+      path: "wikipedia"
+      split: "train[:50000]"
+      language: "en"
+
+  # Data filtering
+  filters:
+    min_length: 128               # Minimum tokens (ensure multi-step context)
+    max_length: 2048              # Maximum tokens
+    quality_score: 0.7            # Perplexity-based quality filter
+
+  # Data preprocessing
+  preprocessing:
+    tokenizer: "gpt2"             # BPE tokenizer
+    add_bos: true
+    add_eos: true
+
+  # DataLoader settings
+  dataloader:
+    num_workers: 4
+    prefetch_factor: 2
+    pin_memory: true
+
+# ============================================================================
+# EVALUATION CONFIGURATION
+# ============================================================================
+eval:
+  # Evaluation frequency
+  eval_every_n_steps: 1000        # Eval every 1000 steps
+
+  # Evaluation datasets
+  datasets:
+    - name: "tinystories_val"
+      path: "roneneldan/TinyStories"
+      split: "validation"
+      max_samples: 1000
+
+    - name: "gsm8k_val"
+      path: "gsm8k"
+      split: "test[:500]"
+      max_samples: 500
+
+  # Evaluation metrics
+  metrics:
+    - "perplexity"                # Primary metric
+    - "next_token_accuracy"
+    - "reasoning_accuracy"        # Simple QA probes
+    - "long_range_accuracy"       # 2048-token sequences
+
+  # Phase 2 merge preview (every 10K steps)
+  merge_preview:
+    enable: true
+    frequency: 10000              # Every 10K steps
+    merge_method: "slerp"         # Spherical linear interpolation
+    num_generations: 10           # Quick 10-gen EvoMerge
+
+# ============================================================================
+# LOGGING & CHECKPOINTING
+# ============================================================================
+logging:
+  # Weights & Biases
+  wandb:
+    enable: true
+    project: "agent-forge-v2"
+    name: "phase1_cognate"
+    entity: null                  # Set your W&B username/team
+
+  # Logging frequency
+  log_every_n_steps: 100          # Log every 100 steps
+  log_histograms: false           # Disable expensive histograms (enable for debugging)
+  log_gradients: false            # Disable gradient logging (enable for debugging)
+
+  # Metrics to log
+  metrics:
+    # Loss breakdown
+    - "loss/total"
+    - "loss/step_0"
+    - "loss/step_1"
+    - "loss/step_2"
+    - "loss/act"
+    - "loss/gate_entropy"
+
+    # ACT metrics
+    - "act/avg_steps"
+    - "act/halt_prob_step0"
+    - "act/halt_prob_step1"
+    - "act/halt_prob_step2"
+    - "act/ema_acc_step0"
+    - "act/ema_acc_step1"
+
+    # Gate metrics
+    - "gate/entropy"
+    - "gate/avg_g"
+    - "gate/y_usage"
+    - "gate/m_usage"
+
+    # Optimizer metrics
+    - "optim/ns_time_ms"
+    - "optim/update_norm"
+    - "optim/qk_clip_count"
+    - "optim/grad_ema_norm"
+    - "optim/grad_raw_norm"
+    - "optim/ortho_error"
+
+    # Learning curves
+    - "train/loss_vs_tokens"
+    - "train/perplexity"
+    - "valid/loss"
+    - "valid/accuracy"
+
+# Checkpointing
+checkpointing:
+  checkpoint_dir: "checkpoints/phase1"
+  save_every_n_steps: 5000        # Save every 5000 steps
+  keep_last_n: 3                  # Keep 3 most recent checkpoints
+  save_optimizer_state: true      # Save optimizer state (for resume)
+
+  # Atomic saving (prevent corruption)
+  atomic_save: true
+  use_tempfile: true
+
+# ============================================================================
+# HARDWARE & PERFORMANCE
+# ============================================================================
+hardware:
+  # Device
+  device: "cuda"                  # Use "cuda" or "cpu"
+  # cuda_device: 0                # Specific GPU (if multi-GPU)
+
+  # Memory management
+  empty_cache_every_n_steps: 1000  # Clear CUDA cache
+  max_memory_allocated_gb: 6.0     # Alert if > 6GB VRAM
+
+  # Performance profiling
+  profile:
+    enable: false                 # Enable for debugging
+    wait: 1
+    warmup: 1
+    active: 3
+    repeat: 2
+
+# ============================================================================
+# DEBUGGING & VALIDATION
+# ============================================================================
+debug:
+  # Parameter budget check
+  check_param_budget:
+    enable: true
+    target: 25.0e6                # 25M params
+    tolerance: 1.0e6              # ±1M tolerance
+
+  # Sanity checks (before training)
+  sanity_checks:
+    - "param_budget"              # Verify 25±1M params
+    - "forward_pass"              # Test forward pass
+    - "backward_pass"             # Test backward pass
+    - "checkpoint_save_load"      # Test checkpoint I/O
+    - "data_loading"              # Test dataloader
+
+  # Assertions (during training)
+  assertions:
+    check_nan: true               # Check for NaN in loss/grads
+    check_grad_norm: true         # Alert if grad_norm > 100
+    check_vram: true              # Alert if VRAM > max_memory_allocated_gb
+
+  # Visualization (expensive, disable for production)
+  visualize:
+    attention_heatmaps: false     # Save attention heatmaps
+    gate_distributions: false     # Save gate value distributions
+    act_histograms: false         # Save ACT step histograms
+
+# ============================================================================
+# REPRODUCIBILITY
+# ============================================================================
+seed: 42                          # Random seed
+deterministic: true               # Enable deterministic mode (slower)
+
+# ============================================================================
+# PHASE-SPECIFIC SETTINGS
+# ============================================================================
+phase:
+  phase_id: 1
+  phase_name: "cognate"
+  description: "TRM × Titans-MAG with MuonGrokfast optimizer"
+
+  # Success criteria
+  success_criteria:
+    param_budget: [24.0e6, 26.0e6]  # 25±1M params
+    train_loss_smooth: true           # No spikes
+    act_avg_steps: [1.5, 4.0]         # 2-4 steps (not 0 or T_max)
+    gate_entropy: [0.5, null]         # > 0.5
+    gate_y_usage: [0.3, 0.7]          # 30-70%
+    qk_clip_count: [null, 100]        # < 100/step
+    valid_perplexity: [null, 20.0]    # < 20 on TinyStories
+    train_speed_tps: [5000, null]     # > 5000 tokens/sec
+    vram_usage_gb: [null, 6.0]        # < 6GB
+    merge_fitness: "≥ parent_avg"     # Phase 2 preview
+
+  # Next phase handoff
+  next_phase:
+    phase_id: 2
+    phase_name: "evomerge"
+    required_outputs:
+      - "checkpoints/phase1/final.pt"
+      - "checkpoints/phase1/ema.pt"
+      - "wandb_metrics.json"

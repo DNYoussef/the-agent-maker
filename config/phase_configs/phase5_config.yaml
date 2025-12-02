@@ -1,0 +1,74 @@
+# Phase 5: Curriculum Learning Configuration
+# 7-stage pipeline for specialized agent training
+
+specialization: "coding"  # Options: coding, research, writing, reasoning, general
+
+# Assessment Stage
+assessment:
+  edge_of_chaos_threshold: 0.75  # 75% accuracy target
+  num_questions: 2000
+  tolerance: 0.05
+
+# Curriculum Generation
+curriculum:
+  num_levels: 10
+  questions_per_level: 2000
+  frontier_models:
+    - "gpt-4"
+    - "claude-3.5"
+    - "gemini"
+    - "llama-3"
+
+# Training Loop
+training:
+  consecutive_for_mastery: 3     # Successes needed to master
+  max_hints_per_question: 5
+  enable_variants: true
+  max_epochs: 50
+  convergence_threshold: 50      # Stop when this many questions remain
+
+# Prompt Baking
+prompt_baking:
+  bake_after_each_level: true
+  baking_time_minutes: 5.0
+  eudaimonia_rules:
+    - "Seek to understand before acting"
+    - "Consider consequences for all affected parties"
+    - "Be truthful and transparent in your reasoning"
+    - "Continuously learn and improve"
+
+# Self-Modeling
+self_modeling:
+  base_temperature_width: 0.2
+  temperature_width_growth: 0.1
+  base_num_ranges: 10
+  mask_rate: 0.2
+  target_accuracy: 0.95
+  max_epochs: 5
+  samples_per_range: 100
+
+# Dream Consolidation
+dream_consolidation:
+  dream_temperature: 1.5
+  training_temperature: 0.8
+  num_samples: 1000
+  num_epochs: 1
+
+# Resource Estimates
+resources:
+  estimated_duration_hours: 120  # 5 days on consumer GPU
+  openrouter_cost_usd: 600       # API costs for frontier models
+  gpu_memory_gb: 6               # Minimum VRAM
+
+# W&B Integration
+wandb:
+  project: "agent-forge-phase5"
+  entity: null
+  mode: "offline"
+  metrics_count: 7200  # Expected metrics
+
+# Checkpoints
+checkpoints:
+  save_per_level: true
+  keep_last: 3
+  dir: "checkpoints/phase5"

@@ -1,0 +1,60 @@
+# Phase 7: Self-Guided Experts Configuration
+# Model-driven expert discovery + SVF training + ADAS optimization
+
+# Expert Discovery Settings (Stage 1)
+discovery:
+  min_experts: 3
+  max_experts: 10
+  discovery_samples: 100
+  clustering_threshold: 0.7
+  capability_categories:
+    - "reasoning"
+    - "coding"
+    - "math"
+    - "writing"
+    - "analysis"
+    - "creativity"
+    - "instruction_following"
+
+# SVF Training Settings (Stage 2)
+svf:
+  num_singular_values: 32
+  learning_rate: 1e-4
+  num_epochs: 5
+  batch_size: 4
+  reinforce_baseline: true
+  kl_coefficient: 0.1
+  gradient_clip: 1.0
+
+# ADAS Settings (Stage 3)
+adas:
+  population_size: 50
+  num_generations: 100
+  mutation_rate: 0.1
+  crossover_rate: 0.7
+  tournament_size: 3
+  elite_ratio: 0.1
+  objectives:
+    - "accuracy"
+    - "latency"
+    - "diversity"
+
+# Resource Estimates
+resources:
+  estimated_duration_hours: 78  # 42h ADAS + 36h SVF
+  openrouter_cost_usd: 200  # API costs for frontier models
+  gpu_memory_gb: 8
+
+# W&B Integration
+wandb:
+  project: "agent-forge-phase7"
+  entity: null
+  mode: "offline"
+  metrics_count: 100
+
+# Checkpoints
+checkpoints:
+  save_per_expert: true
+  save_pareto_front: true
+  keep_last: 3
+  dir: "checkpoints/phase7"

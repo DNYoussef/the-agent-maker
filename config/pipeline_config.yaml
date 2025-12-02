@@ -1,0 +1,331 @@
+# Agent Forge V2 - Pipeline Configuration
+# Master configuration for all 8 phases
+
+# ===== WEIGHTS & BIASES =====
+wandb:
+  enabled: true
+  mode: offline  # Options: "online", "offline", "disabled"
+  project: "agent-forge-v2"
+  entity: null  # Your W&B username (optional)
+
+  # Artifact storage
+  artifact_dir: "./storage/wandb"
+
+  # Logging settings
+  log_frequency: 100  # Log every N steps
+  save_code: true
+  save_config: true
+
+# ===== MODEL REGISTRY =====
+registry:
+  db_path: "./storage/registry/model_registry.db"
+  wal_enabled: true  # WAL mode for concurrent access
+
+  # Cleanup policy
+  max_session_age_days: 30
+  max_sessions_total: 100
+  auto_cleanup: true
+
+# ===== HARDWARE =====
+hardware:
+  device: "cuda"  # Options: "cuda", "cpu"
+  vram_gb: 6  # GPU VRAM (for adaptive batch sizing)
+  system_ram_gb: 16
+  num_workers: 4  # DataLoader workers
+
+# ===== PHASE 1: COGNATE =====
+phases:
+  phase1:
+    # Model architecture
+    num_models: 3
+    num_layers: 8
+    hidden_dim: 512
+    num_heads: 8
+    vocab_size: 50257  # GPT-2 vocab
+
+    # ACT thresholds (for diversity)
+    act_thresholds: [0.95, 0.85, 0.99]  # Model 1, 2, 3
+
+    # LTM slots (for diversity)
+    ltm_slots: [2048, 8192, 2048]  # Model 1, 2, 3
+
+    # Training
+    epochs: 10
+    batch_size: auto  # Adaptive based on VRAM
+    learning_rate: 1e-3
+
+    # Dataset mixing (for diversity)
+    dataset_weights:
+      model1:  # Reasoning-focused
+        math: 0.4
+        qa: 0.3
+        code: 0.1
+        commonsense: 0.1
+        language: 0.1
+      model2:  # Memory-focused
+        language: 0.4
+        qa: 0.3
+        math: 0.1
+        code: 0.1
+        commonsense: 0.1
+      model3:  # Speed-focused
+        commonsense: 0.4
+        math: 0.3
+        code: 0.1
+        qa: 0.1
+        language: 0.1
+
+    # Curriculum stages
+    curriculum:
+      stage1:  # Epochs 1-3: Foundation
+        datasets: ["GSM8K", "SVAMP", "Mini-MBPP"]
+      stage2:  # Epochs 4-6: Reasoning
+        datasets: ["ARC-Easy", "ARC-Challenge", "PIQA", "WikiText"]
+      stage3:  # Epochs 7-10: Advanced
+        datasets: ["HotpotQA", "DROP", "HellaSwag", "FineWeb-Edu"]
+
+    # Optimizer (MuGrokfast)
+    optimizer:
+      type: "mugrokfast"
+      muon_lr: 1e-3
+      grokfast_lambda: 0.3
+      qk_clip_threshold: 30.0
+      kl_coefficient: 0.0
+
+    # W&B metrics
+    wandb_metrics: 37  # Total metrics for Phase 1
+
+# ===== PHASE 2: EVOMERGE =====
+  phase2:
+    # Evolution
+    num_generations: 50
+    population_size: 8
+    num_binary_combos: 8
+
+    # Fitness weights
+    fitness:
+      perplexity_weight: 0.4
+      accuracy_weight: 0.3
+      speed_weight: 0.2
+      memory_weight: 0.1
+
+    # Elite mutation
+    elite_count: 2
+    mutations_per_elite: 3
+    mutation_sigma: 0.01
+    mutation_rate: 0.01
+
+    # Diversity threshold
+    min_diversity: 0.25  # Trigger intervention if below
+
+    # Merge techniques (6 total)
+    merge_techniques:
+      pair1: ["linear", "slerp"]  # Interpolation
+      pair2: ["dare", "ties"]     # Task arithmetic
+      pair3: ["frankenmerg", "dfs"]  # Selection
+
+    # W&B metrics
+    wandb_metrics: 370  # ~7 metrics × 50 generations + combos
+
+# ===== PHASE 3: QUIET-STAR =====
+  phase3:
+    # Special tokens
+    num_special_tokens: 12  # 2 outer + 10 inner strategies
+
+    # Step 1: Prompt Baking
+    baking:
+      epochs: 5
+      batch_size: auto
+      learning_rate: 1e-4
+      convergence_threshold: 0.85  # 85% accuracy
+
+    # Step 2: Quiet-STaR (RL)
+    rl:
+      num_episodes: 10000
+      num_thoughts: 4  # Adaptive (size-dependent)
+      thought_length: 12
+      learning_rate: 5e-4
+
+    # Anti-theater thresholds
+    anti_theater:
+      min_divergence: 0.3
+      min_ablation_drop: 0.02
+      min_correlation: 0.5
+
+    # Optimizer (MuGrokfast - RL config)
+    optimizer:
+      type: "mugrokfast"
+      muon_lr: 5e-4
+      grokfast_lambda: 0.1
+      qk_clip_threshold: 25.0
+      kl_coefficient: 0.1  # Prevent drift
+
+    # Data generation (OpenRouter)
+    data_generation:
+      total_examples: 25000
+      cost_limit_usd: 200
+      frontier_models:
+        - "gpt-4o-mini"
+        - "claude-3.5-haiku"
+        - "gemini-2.0-flash"
+        - "qwen-2.5"
+      strategies: 10
+
+    # W&B metrics
+    wandb_metrics: 17
+
+# ===== PHASE 4: BITNET =====
+  phase4:
+    # Compression targets (adaptive by size)
+    compression:
+      tiny_target: 6.0   # <50M params
+      small_target: 8.0  # <500M params
+      medium_target: 10.0  # <2B params
+      large_target: 12.0  # >2B params
+
+    # Sparsity thresholds (adaptive)
+    sparsity:
+      tiny: 0.05
+      small: 0.10
+      medium: 0.15
+      large: 0.20
+
+    # Preserved layers
+    preserve_layers:
+      - "embeddings"
+      - "lm_head"
+      - "layer_norm"
+
+    # Calibration
+    calibration_samples: 1000
+
+    # Quality gates
+    max_accuracy_drop: 0.10  # 10%
+    fine_tune_threshold: 0.05  # Fine-tune if drop >5%
+
+    # W&B metrics
+    wandb_metrics: 19
+
+# ===== PHASE 5: CURRICULUM LEARNING =====
+  phase5:
+    # 7-stage curriculum
+    num_levels: 10
+    questions_per_level: 2000
+
+    # Edge-of-Chaos assessment
+    target_accuracy: 0.75  # 75% threshold
+
+    # Dream consolidation
+    dream:
+      epochs_per_level: 3
+      temperature: 1.2
+
+    # Frontier models (same as Phase 3)
+    frontier_models:
+      - "gpt-4o-mini"
+      - "claude-3.5-haiku"
+      - "gemini-2.0-flash"
+      - "qwen-2.5"
+
+    # Cost
+    estimated_cost_usd: 700
+
+    # W&B metrics
+    wandb_metrics: 78
+
+# ===== PHASE 6: TOOL & PERSONA BAKING =====
+  phase6:
+    # A/B cycles
+    max_cycles: 10
+    plateau_threshold: 0.02  # 2% improvement required
+
+    # A-Cycle: Tool use
+    a_cycle:
+      benchmark: "SWE-Bench"
+      target_score: 0.70  # 70%
+
+    # B-Cycle: Persona discovery
+    b_cycle:
+      model_driven: true  # Self-guided
+
+    # Half-baking
+    baking_strength: 0.5
+
+    # W&B metrics
+    wandb_metrics: 32
+
+# ===== PHASE 7: SELF-GUIDED EXPERTS =====
+  phase7:
+    # Stage 1: Model analyzes itself
+    min_experts: 3
+    max_experts: 10
+
+    # Stage 2: Transformer² SVF
+    svf:
+      training_hours: 36
+
+    # Stage 3: NSGA-II ADAS
+    adas:
+      num_generations: 100
+      population_size: 50
+      total_evaluations: 5000
+
+    # Frontier models (same as Phase 3, 5)
+    frontier_models:
+      - "gpt-4o-mini"
+      - "claude-3.5-haiku"
+      - "gemini-2.0-flash"
+      - "qwen-2.5"
+
+    # Cost
+    estimated_cost_usd: 200
+
+    # W&B metrics
+    wandb_metrics: 28
+
+# ===== PHASE 8: FINAL COMPRESSION =====
+  phase8:
+    # Three-stage pipeline
+    stages:
+      - name: "SeedLM"
+        compression: 2.0
+        quality_threshold: 0.95  # ≥95% retention
+      - name: "VPTQ"
+        compression: 20.0
+        quality_threshold: 0.95
+      - name: "Hypercompression"
+        compression: 6.25
+        quality_threshold: 0.84  # ≥84% final
+
+    # Total target compression
+    target_compression: 280.0  # 280×
+
+    # Benchmark suite (7 core + expert-specific)
+    benchmarks:
+      - "MMLU"
+      - "GSM8K"
+      - "HumanEval"
+      - "HellaSwag"
+      - "ARC"
+      - "TruthfulQA"
+      - "WinoGrande"
+
+    # Quality gates
+    rollback_to_vptq_threshold: 0.80  # <80% → rollback to VPTQ (2.5MB)
+    rollback_to_seedlm_threshold: 0.70  # <70% → rollback to SeedLM (50MB)
+
+    # W&B metrics
+    wandb_metrics: 95
+
+# ===== CLEANUP POLICY =====
+cleanup:
+  # Session retention
+  max_session_age_days: 30
+  max_sessions_total: 100
+
+  # Model retention
+  keep_checkpoints: 5  # Keep last N checkpoints
+  keep_phase_outputs: true  # Keep final output of each phase
+
+  # Auto-cleanup intervals
+  cleanup_interval_hours: 24
