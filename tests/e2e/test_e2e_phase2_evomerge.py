@@ -17,7 +17,6 @@ import torch
 import torch.nn as nn
 
 
-
 class TestPhase2EvoMergeE2E:
     """E2E tests for Phase 2 EvoMerge pipeline."""
 

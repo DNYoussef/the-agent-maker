@@ -17,7 +17,6 @@ import torch
 import torch.nn as nn
 
 
-
 class TestPhase3QuietSTaRE2E:
     """E2E tests for Phase 3 Quiet-STaR pipeline."""
 

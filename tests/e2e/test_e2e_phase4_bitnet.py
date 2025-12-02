@@ -17,7 +17,6 @@ import torch
 import torch.nn as nn
 
 
-
 class TestPhase4BitNetE2E:
     """E2E tests for Phase 4 BitNet pipeline."""
 

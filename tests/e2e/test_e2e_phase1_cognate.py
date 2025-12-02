@@ -20,7 +20,6 @@ from safetensors.torch import load_file as safe_load_file
 from safetensors.torch import save_file as safe_save_file
 
 
-
 class TestPhase1CognateE2E:
     """E2E tests for Phase 1 Cognate pipeline."""
 

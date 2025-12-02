@@ -15,7 +15,6 @@ from safetensors.torch import load_file as safe_load_file
 from safetensors.torch import save_file as safe_save_file
 
 
-
 class TestPipelineHandoffs:
     """Test phase-to-phase handoffs."""
 

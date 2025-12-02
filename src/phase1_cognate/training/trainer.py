@@ -10,6 +10,7 @@ Complete training pipeline with:
 """
 
 from __future__ import annotations
+
 # Cross-phase imports
 import sys
 import time
@@ -202,6 +203,7 @@ class Phase1Trainer:
         # Curriculum loader (lazy import)
         if config.use_curriculum:
             from phase1_cognate.data.curriculum_loader import CurriculumLoader
+
             self.curriculum = CurriculumLoader()
         else:
             self.curriculum = None
