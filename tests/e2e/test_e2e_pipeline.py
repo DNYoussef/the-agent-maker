@@ -14,7 +14,6 @@ import torch
 from safetensors.torch import load_file as safe_load_file
 from safetensors.torch import save_file as safe_save_file
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 
 class TestPipelineHandoffs:

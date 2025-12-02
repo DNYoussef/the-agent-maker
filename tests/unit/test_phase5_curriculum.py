@@ -21,7 +21,6 @@ import pytest
 import torch
 import torch.nn as nn
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from phase5_curriculum.curriculum_engine import (
     CurriculumConfig,

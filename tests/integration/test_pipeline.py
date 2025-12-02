@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from cross_phase.orchestrator.phase_controller import PhaseResult
 from cross_phase.orchestrator.pipeline import PipelineOrchestrator

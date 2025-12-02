@@ -13,7 +13,6 @@ import torch
 import torch.nn as nn
 
 # Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from cross_phase.monitoring.wandb_integration import WandBIntegration
 from cross_phase.utils import MockTokenizer
