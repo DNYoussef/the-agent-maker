@@ -28,6 +28,8 @@ class Phase7Controller(PhaseController):
         try:
             # Validate input
             self.validate_input(input_models)
+            if not input_models:
+                raise ValueError("input_models cannot be None")
             baked_model = input_models[0]
 
             # Get tokenizer
@@ -79,7 +81,7 @@ class Phase7Controller(PhaseController):
                 error=str(e),
             )
 
-    def _get_tokenizer(self) -> None:
+    def _get_tokenizer(self) -> Any:
         """Get tokenizer using unified utility (ISS-016)."""
         return get_tokenizer("gpt2")
 
@@ -95,5 +97,5 @@ class Phase7Controller(PhaseController):
         """Validate Phase 7 output (experts discovered)."""
         if result.metrics:
             num_experts = result.metrics.get("num_experts", 0)
-            return num_experts >= 1
+            return bool(num_experts >= 1)
         return True

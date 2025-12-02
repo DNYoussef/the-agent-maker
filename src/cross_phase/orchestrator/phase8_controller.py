@@ -28,6 +28,8 @@ class Phase8Controller(PhaseController):
         try:
             # Validate input
             self.validate_input(input_models)
+            if not input_models:
+                raise ValueError("input_models cannot be None")
             expert_model = input_models[0]
 
             # Get tokenizer
@@ -82,7 +84,7 @@ class Phase8Controller(PhaseController):
                 error=str(e),
             )
 
-    def _get_tokenizer(self) -> None:
+    def _get_tokenizer(self) -> Any:
         """Get tokenizer using unified utility (ISS-016)."""
         return get_tokenizer("gpt2")
 
@@ -99,5 +101,5 @@ class Phase8Controller(PhaseController):
         if result.metrics:
             compression = result.metrics.get("total_compression", 0)
             retention = result.metrics.get("retention_score", 0)
-            return compression >= 1.0 and retention >= 0.5
+            return bool(compression >= 1.0 and retention >= 0.5)
         return True

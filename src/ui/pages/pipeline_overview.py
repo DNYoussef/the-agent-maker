@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
+from typing import Any, Dict, Optional, cast
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -432,7 +433,7 @@ def inject_custom_css() -> None:
     st.markdown(css, unsafe_allow_html=True)
 
 
-def render_hero_section(session_id, session_info) -> None:
+def render_hero_section(session_id: Optional[str], session_info: Optional[Dict[str, Any]]) -> None:
     """Render enhanced hero section with gradient and status"""
     status = session_info.get("status", "unknown").upper() if session_info else "NO SESSION"
     current_phase = session_info.get("current_phase", "N/A") if session_info else "N/A"
@@ -449,13 +450,13 @@ def render_hero_section(session_id, session_info) -> None:
     )
 
 
-def render_enhanced_metrics(session_info, models_count) -> None:
+def render_enhanced_metrics(session_info: Optional[Dict[str, Any]], models_count: int) -> None:
     """Render enhanced metric cards with icons and animations"""
     col1, col2, col3, col4 = st.columns(4)
 
-    status = session_info.get("status", "unknown").upper()
-    current_phase = session_info.get("current_phase", "N/A")
-    progress = session_info.get("progress_percent", 0.0)
+    status = session_info.get("status", "unknown").upper() if session_info else "UNKNOWN"
+    current_phase = session_info.get("current_phase", "N/A") if session_info else "N/A"
+    progress = session_info.get("progress_percent", 0.0) if session_info else 0.0
 
     with col1:
         st.markdown(
@@ -518,7 +519,7 @@ def render_enhanced_metrics(session_info, models_count) -> None:
     )
 
 
-def render_phase_timeline(current_phase) -> None:
+def render_phase_timeline(current_phase: str) -> None:
     """Render visual 8-phase timeline with status indicators"""
     phases = [
         {
@@ -592,12 +593,12 @@ def render_phase_timeline(current_phase) -> None:
 
     for phase in phases:
         # Determine status
-        if cast(int, phase["key"]) < current_phase:
+        if cast(int, phase["key"]) < int(current_phase) if current_phase and current_phase != "N/A" else 999:
             status_class = "complete"
             badge_class = "status-badge-complete"
             badge_text = "Complete"
             badge_icon = "✓"
-        elif cast(str, phase["key"]) == current_phase:
+        elif str(phase["key"]) == current_phase:
             status_class = "running"
             badge_class = "status-badge-running"
             badge_text = "Running"

@@ -328,7 +328,7 @@ class SVFTrainer:
     - Expert-specific modifications
     """
 
-    def __init__(self, config: SVFConfig = None):
+    def __init__(self, config: Optional[SVFConfig] = None):
         """
         Initialize SVF trainer.
 

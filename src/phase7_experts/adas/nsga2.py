@@ -5,7 +5,7 @@ Implements Pareto ranking and crowding distance calculation
 for multi-objective optimization.
 """
 
-from typing import List
+from typing import Dict, List, Optional
 
 from .config import ADASConfig, Individual
 
@@ -80,7 +80,7 @@ def calculate_crowding_distance(population: List[Individual], config: ADASConfig
         config: ADAS configuration with objectives
     """
     # Group by rank
-    ranks = {}
+    ranks: Dict[int, List[Individual]] = {}
     for ind in population:
         if ind.rank not in ranks:
             ranks[ind.rank] = []
@@ -119,7 +119,7 @@ def calculate_crowding_distance(population: List[Individual], config: ADASConfig
 
 
 def tournament_selection(
-    population: List[Individual], config: ADASConfig, num_parents: int = None
+    population: List[Individual], config: ADASConfig, num_parents: Optional[int] = None
 ) -> List[Individual]:
     """
     Tournament selection based on rank and crowding distance.

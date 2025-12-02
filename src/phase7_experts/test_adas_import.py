@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-def test_imports():
+def test_imports() -> bool:
     """Test all module imports."""
     print("Testing ADAS module imports...")
 
@@ -55,7 +55,7 @@ def test_imports():
         return False
 
 
-def test_module_structure():
+def test_module_structure() -> bool:
     """Verify module structure."""
     print("\nVerifying module structure...")
 

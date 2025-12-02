@@ -4,7 +4,7 @@ Run this to ensure all imports and backward compatibility are maintained.
 """
 
 
-def test_imports():
+def test_imports() -> bool:
     """Test all import paths work correctly."""
     print("Testing imports...")
 

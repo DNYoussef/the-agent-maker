@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from cross_phase.storage.model_registry import ModelRegistry
 
 
-def render():
+def render() -> None:
     """Render model browser page"""
     st.markdown('<h1 class="main-header">Model Browser</h1>', unsafe_allow_html=True)
 
@@ -135,7 +135,7 @@ def render():
     registry.close()
 
 
-def _get_example_models():
+def _get_example_models() -> list:
     """Get example model data (placeholder)"""
     return [
         {

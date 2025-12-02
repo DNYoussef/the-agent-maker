@@ -28,6 +28,8 @@ class Phase6Controller(PhaseController):
         try:
             # Validate input
             self.validate_input(input_models)
+            if not input_models:
+                raise ValueError("input_models cannot be None")
             specialized_model = input_models[0]
 
             # Get tokenizer
@@ -82,7 +84,7 @@ class Phase6Controller(PhaseController):
                 error=str(e),
             )
 
-    def _get_tokenizer(self) -> None:
+    def _get_tokenizer(self) -> Any:
         """Get tokenizer using unified utility (ISS-016)."""
         return get_tokenizer("gpt2")
 
@@ -98,5 +100,5 @@ class Phase6Controller(PhaseController):
         """Validate Phase 6 output (baking iterations completed)."""
         if result.metrics:
             iterations = result.metrics.get("total_iterations", 0)
-            return iterations >= 1
+            return bool(iterations >= 1)
         return True

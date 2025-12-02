@@ -400,7 +400,7 @@ class ArchetypeCouncil:
         moral_direction = council.synthesize(guidances)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the council with all three archetypes."""
         self.archetypes: List[PhilosophicalArchetype] = [
             ChristArchetype(),

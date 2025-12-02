@@ -9,7 +9,7 @@ Key insight: Plateaus indicate diminishing returns, time to switch cycles.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -55,13 +55,13 @@ class PlateauDetector:
         self.patience = patience
 
         # Track scores for each cycle
-        self.history = {"a_cycle": [], "b_cycle": []}
+        self.history: Dict[str, List[float]] = {"a_cycle": [], "b_cycle": []}
 
         # Track plateau counts
         self.plateau_counts = {"a_cycle": 0, "b_cycle": 0}
 
         # Track plateau events
-        self.plateau_events: List[Tuple[str, int]] = []
+        self.plateau_events: List[Dict[str, Any]] = []
 
     def check(self, score: float, cycle: str) -> bool:
         """
@@ -149,7 +149,7 @@ class PlateauDetector:
             # Equal plateaus, prefer A-cycle (tool use typically more important)
             return "a_cycle"
 
-    def reset_cycle(self, cycle: str):
+    def reset_cycle(self, cycle: str) -> None:
         """
         Reset plateau count for a cycle (e.g., after significant improvement).
 
@@ -201,7 +201,7 @@ class AdaptivePlateauDetector(PlateauDetector):
         initial_threshold: float = 0.02,
         min_threshold: float = 0.005,
         decay_rate: float = 0.9,
-        **kwargs,
+        **kwargs: Any,
     ):
         """
         Initialize adaptive detector.
@@ -238,7 +238,7 @@ class AdaptivePlateauDetector(PlateauDetector):
         # Use minimum of variance-based and decayed threshold
         adaptive_threshold = max(self.min_threshold, min(variance_threshold, decayed_threshold))
 
-        return adaptive_threshold
+        return float(adaptive_threshold)
 
     def check(self, score: float, cycle: str) -> bool:
         """Check with adaptive threshold."""

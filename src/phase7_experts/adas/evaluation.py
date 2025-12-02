@@ -6,7 +6,7 @@ Implements fitness evaluation for individuals in the ADAS population.
 
 import math
 import random
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 import torch.nn as nn
 

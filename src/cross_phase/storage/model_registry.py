@@ -8,7 +8,7 @@ import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class ModelRegistry:
@@ -137,7 +137,7 @@ class ModelRegistry:
                 WHERE session_id = ? AND phase_name = ?
                 ORDER BY created_at DESC LIMIT 1
             """
-            params = (session_id, phase_name)
+            params = (session_id, phase_name)  # type: ignore[assignment]
         else:
             raise ValueError("Must provide model_id or (session_id, phase_name)")
 
@@ -173,7 +173,7 @@ class ModelRegistry:
         session_id: str,
         current_phase: str,
         progress_percent: float
-    ):
+    ) -> None:
         """Update session progress"""
         self.conn.execute("""
             UPDATE sessions
@@ -209,7 +209,7 @@ class ModelRegistry:
             List of model dictionaries
         """
         query = "SELECT * FROM models WHERE 1=1"
-        params = []
+        params: list[Any] = []
 
         if phase_filter:
             placeholders = ','.join('?' * len(phase_filter))

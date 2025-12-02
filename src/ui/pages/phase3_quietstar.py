@@ -834,7 +834,7 @@ def render_reasoning_trace_tab() -> None:
 
         st.markdown("#### Generated Thoughts")
         for i, (thought, rating) in enumerate(
-            zip(list(trace["thoughts"]), list(trace["quality_ratings"]))
+            zip(trace["thoughts"] if isinstance(trace["thoughts"], list) else [], trace["quality_ratings"] if isinstance(trace["quality_ratings"], list) else [])
         ):
             quality_color = get_quality_color(rating)
             with st.expander(f"💭 Thought {i+1} - Quality: {rating:.2%}", expanded=(i == 0)):
@@ -849,13 +849,13 @@ def render_reasoning_trace_tab() -> None:
     with col2:
         st.markdown("#### Thought Quality")
 
-        avg_quality = np.mean(list(trace["quality_ratings"]))
+        avg_quality = np.mean(trace["quality_ratings"]) if isinstance(trace["quality_ratings"], (list, np.ndarray)) and len(trace["quality_ratings"]) > 0 else 0.0
         st.metric("Average Quality", f"{avg_quality:.2%}")
 
         # Quality distribution
         fig = go.Figure(
             go.Bar(
-                x=[f"T{i+1}" for i in range(len(trace["quality_ratings"]))],
+                x=[f"T{i+1}" for i in range(len(trace.get("quality_ratings", []) if isinstance(trace.get("quality_ratings"), list) else []))],
                 y=trace["quality_ratings"],
                 marker=dict(
                     color=trace["quality_ratings"],

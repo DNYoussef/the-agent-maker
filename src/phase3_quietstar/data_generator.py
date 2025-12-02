@@ -113,7 +113,7 @@ class OpenRouterClient:
         num_examples: int,
     ) -> List[ReasoningExample]:
         """Generate examples for a specific model and strategy."""
-        examples = []
+        examples: List[ReasoningExample] = []
 
         async with aiohttp.ClientSession() as session:
             for strategy, prompts in strategy_prompts.items():

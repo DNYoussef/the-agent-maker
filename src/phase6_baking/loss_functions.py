@@ -238,7 +238,7 @@ class KLDivergenceLoss(nn.Module):
     """
 
     def __init__(
-        self, reduction: str = "batchmean"  # type: ignore[arg-type], temperature: float = 1.0, epsilon: float = 1e-8
+        self, reduction: str = "batchmean", temperature: float = 1.0, epsilon: float = 1e-8
     ):
         super().__init__()
         self.reduction = reduction

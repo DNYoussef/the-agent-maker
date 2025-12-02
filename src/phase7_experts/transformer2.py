@@ -191,7 +191,7 @@ class Transformer2(nn.Module):
     - Interpretable routing decisions
     """
 
-    def __init__(self, base_model: nn.Module, config: Transformer2Config = None):
+    def __init__(self, base_model: nn.Module, config: Optional[Transformer2Config] = None):
         """
         Initialize Transformer2.
 

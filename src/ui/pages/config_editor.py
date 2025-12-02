@@ -12,7 +12,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
-def render():
+def render() -> None:
     """Render configuration editor page"""
     st.markdown('<h1 class="main-header">Configuration Editor</h1>', unsafe_allow_html=True)
 
@@ -194,7 +194,7 @@ def render():
         st.code(yaml.dump(config, default_flow_style=False, sort_keys=False), language="yaml")
 
 
-def _render_phase1_config(phase_config):
+def _render_phase1_config(phase_config: dict) -> None:
     """Render Phase 1 configuration"""
     st.markdown("### Phase 1: Cognate (TRM × Titans-MAG)")
 
@@ -231,7 +231,7 @@ def _render_phase1_config(phase_config):
         )
 
 
-def _render_phase2_config(phase_config):
+def _render_phase2_config(phase_config: dict) -> None:
     """Render Phase 2 configuration"""
     st.markdown("### Phase 2: EvoMerge (50 generations)")
 
@@ -259,7 +259,7 @@ def _render_phase2_config(phase_config):
     )
 
 
-def _render_phase3_config(phase_config):
+def _render_phase3_config(phase_config: dict) -> None:
     """Render Phase 3 configuration"""
     st.markdown("### Phase 3: Quiet-STaR (Reasoning)")
 
@@ -288,7 +288,7 @@ def _render_phase3_config(phase_config):
         )
 
 
-def _render_phase4_config(phase_config):
+def _render_phase4_config(phase_config: dict) -> None:
     """Render Phase 4 configuration"""
     st.markdown("### Phase 4: BitNet (1.58-bit Quantization)")
 

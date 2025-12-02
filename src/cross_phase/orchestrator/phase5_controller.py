@@ -38,6 +38,8 @@ class Phase5Controller(PhaseController):
         try:
             # Validate input
             self.validate_input(input_models)
+            if not input_models:
+                raise ValueError("input_models cannot be None")
             quantized_model = input_models[0]
 
             # Get tokenizer
@@ -99,7 +101,7 @@ class Phase5Controller(PhaseController):
                 error=str(e),
             )
 
-    def _get_tokenizer(self) -> None:
+    def _get_tokenizer(self) -> Any:
         """Get tokenizer using unified utility (ISS-016)."""
         return get_tokenizer("gpt2")
 
@@ -115,5 +117,5 @@ class Phase5Controller(PhaseController):
         """Validate Phase 5 output (specialization achieved)."""
         if result.metrics:
             levels = result.metrics.get("levels_completed", 0)
-            return levels >= 1  # At least one level completed
+            return bool(levels >= 1)# At least one level completed
         return True

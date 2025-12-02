@@ -65,7 +65,7 @@ class WandBIntegration:
         self.project_name = project if project else project_name
         self.mode = mode
         self.entity = entity
-        self.current_run = None
+        self.current_run: Any = None
 
     @property
     def project(self) -> str:
@@ -136,7 +136,7 @@ class WandBIntegration:
         muon_lr: float,
         grokfast_mu_norm: float,
         step: int,
-    ):
+    ) -> None:
         """Phase 1 (Cognate) - 37 total metrics"""
         metrics = {
             f"model{model_id}/train/loss": loss,
@@ -156,7 +156,7 @@ class WandBIntegration:
         diversity: float,
         combo_usage: Dict,
         step: int,
-    ):
+    ) -> None:
         """Phase 2 (EvoMerge) - 370+ total metrics"""
         metrics = {
             "generation/number": generation,
@@ -181,7 +181,7 @@ class WandBIntegration:
         token_usage: Optional[Dict[str, float]] = None,
         convergence_progress: Optional[float] = None,
         step: int = 0,
-    ):
+    ) -> None:
         """
         Phase 3 Step 1 (Prompt Baking) - 17 total metrics
 
@@ -234,7 +234,7 @@ class WandBIntegration:
         anti_theater_divergence: Optional[float] = None,
         anti_theater_ablation: Optional[float] = None,
         step: int = 0,
-    ):
+    ) -> None:
         """
         Phase 3 Step 2 (Quiet-STaR RL) - 17 total metrics
 
@@ -442,14 +442,14 @@ class MetricContinuityTracker:
     ISS-002: Added history attribute and add_phase_metrics method for test compatibility
     """
 
-    def __init__(self):
-        self.metrics = {
+    def __init__(self) -> None:
+        self.metrics: dict[str, list[Any]] = {
             "accuracy": [],
             "perplexity": [],
             "model_size_mb": [],
             "inference_latency_ms": [],
         }
-        self.phase_names = []
+        self.phase_names: list[str] = []
         # ISS-002: History dict for test compatibility
         self.history: Dict[str, Dict] = {}
 
@@ -513,7 +513,7 @@ class MetricContinuityTracker:
             return False
 
         drop = (max_val - latest) / max_val
-        return drop > threshold
+        return bool(drop > threshold)
 
     def record_phase(self, phase_name: str, metrics: Dict) -> None:
         """

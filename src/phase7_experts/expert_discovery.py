@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from torch import Tensor
 
 @dataclass
 class ExpertProfile:
@@ -62,7 +62,7 @@ class ExpertDiscovery:
     This is the key V2 innovation: model determines its own experts.
     """
 
-    def __init__(self, config: DiscoveryConfig = None):
+    def __init__(self, config: Optional[DiscoveryConfig] = None):
         """
         Initialize expert discovery system.
 
@@ -169,7 +169,7 @@ class ExpertDiscovery:
         self, model: nn.Module, tokenizer: Any, prompts: Dict[str, List[str]]
     ) -> Dict[str, List[Dict]]:
         """Collect activation patterns for each prompt."""
-        activations = {}
+        activations: Dict[str, List[torch.Tensor]] = {}
         model.eval()
 
         # Hook to capture activations
@@ -257,7 +257,7 @@ class ExpertDiscovery:
         # Simple clustering based on activation similarity
         # (In production, would use k-means or hierarchical clustering)
 
-        clusters = {}
+        clusters: Dict[int, List[int]] = {}
         cluster_id = 0
 
         for pattern in all_patterns:

@@ -204,9 +204,9 @@ def render_overview_tab() -> None:
         cols = st.columns([0.5, 3, 1, 1])
 
         with cols[0]:
-            if cast(str, step["status"]) == "complete":
+            if step["status"] == "complete":
                 st.markdown("✅")
-            elif cast(str, step["status"]) == "in_progress":
+            elif step["status"] == "in_progress":
                 st.markdown("⏳")
             else:
                 st.markdown("⏸️")
@@ -218,7 +218,7 @@ def render_overview_tab() -> None:
             st.markdown(f"`{step['time']}`")
 
         with cols[3]:
-            if cast(str, step["status"]) == "in_progress":
+            if step["status"] == "in_progress":
                 st.progress(0.6)
 
     # Key features
