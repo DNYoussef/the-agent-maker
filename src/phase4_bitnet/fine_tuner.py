@@ -165,7 +165,7 @@ class FineTuner:
             epoch_stats = self._train_epoch(train_dataloader, log_callback)
 
             # Evaluate if dataloader provided
-            if eval_dataloader is not None:
+            if eval_dataloader is not None and self.training_history:
                 eval_stats = self._evaluate(eval_dataloader)
                 epoch_stats.update(eval_stats)
 
@@ -204,12 +204,12 @@ class FineTuner:
         # Prepare results
         results = {
             "epochs_completed": self.config.fine_tune_epochs,
-            "final_loss": self.training_history[-1]["loss"],
+            "final_loss": self.training_history[-1]["loss"] if self.training_history else None,
             "best_perplexity": self.best_perplexity,
             "training_history": self.training_history,
         }
 
-        if eval_dataloader is not None:
+        if eval_dataloader is not None and self.training_history:
             results["final_perplexity"] = self.training_history[-1]["perplexity"]
 
         return results
@@ -467,7 +467,7 @@ class FineTuner:
         return {
             "trained": True,
             "epochs": len(self.training_history),
-            "final_loss": self.training_history[-1]["loss"],
+            "final_loss": self.training_history[-1]["loss"] if self.training_history else None,
             "best_perplexity": self.best_perplexity,
             "initial_loss": self.training_history[0]["loss"],
             "improvement": (self.training_history[0]["loss"] - self.training_history[-1]["loss"]),
