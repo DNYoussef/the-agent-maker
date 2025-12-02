@@ -49,21 +49,27 @@ class ThoughtGenerator(nn.Module):
         batch_size = input_ids.size(0)
         device = input_ids.device
 
+        # Generate thought length ONCE for all thoughts (ensures stackable tensors)
+        thought_length = torch.randint(self.min_length, self.max_length + 1, (1,)).item()
+
         # Initialize storage
         all_thoughts = []
         all_log_probs = []
         all_thought_ids = []
 
-        # Generate each thought independently
+        # Generate each thought independently (with same length)
         for _ in range(self.num_thoughts):
-            thought, log_prob, ids = self._generate_single(input_ids, position, hidden_states)
+            thought, log_prob, ids = self._generate_single(
+                input_ids, position, hidden_states, thought_length
+            )
             all_thoughts.append(thought)
             all_log_probs.append(log_prob)
             all_thought_ids.append(ids)
 
         # Stack results
         thoughts = torch.stack(all_thoughts, dim=1)
-        log_probs = torch.stack(all_log_probs, dim=1)
+        # Stack scalars with dim=0 to get [num_thoughts] tensor
+        log_probs = torch.stack(all_log_probs, dim=0)
 
         return ThoughtOutput(
             thoughts=thoughts,
@@ -76,6 +82,7 @@ class ThoughtGenerator(nn.Module):
         input_ids: torch.Tensor,
         position: int,
         hidden_states: Optional[torch.Tensor],
+        thought_length: int,
     ) -> Tuple[torch.Tensor, torch.Tensor, List[int]]:
         """Generate a single thought continuation."""
         device = input_ids.device
@@ -86,10 +93,7 @@ class ThoughtGenerator(nn.Module):
         generated_ids = []
         log_probs_list = []
 
-        # Adaptive length (10-20 tokens)
-        thought_length = torch.randint(self.min_length, self.max_length + 1, (1,)).item()
-
-        # Generate tokens
+        # Generate tokens (using provided thought_length for consistent sizes)
         for step in range(thought_length):
             outputs = self.base_model(current_ids)
             logits = outputs.logits[:, -1, :] / self.temperature
