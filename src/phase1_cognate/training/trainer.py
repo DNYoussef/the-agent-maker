@@ -112,8 +112,8 @@ class EMAModel:
         self.shadow = state_dict.copy()
 
 
-from ..data.curriculum_loader import CurriculumLoader
-from ..model.model_config import Phase1Config
+from phase1_cognate.data.curriculum_loader import CurriculumLoader
+from phase1_cognate.model.model_config import Phase1Config
 from .wandb_logger import Phase1WandBLogger
 
 
