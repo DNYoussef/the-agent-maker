@@ -29,7 +29,7 @@ class TestCalibrationDataset:
     def config(self):
         """Create test configuration"""
         return Phase4Config(
-            calibration_samples=100,
+            calibration_samples=1000,
             calibration_sequence_length=256,
         )
 
@@ -66,7 +66,7 @@ class TestCalibrationDataset:
         """Test dataset __len__ method"""
         dataset = CalibrationDataset(tokenizer, config, dataset_name="custom")
 
-        dataset.set_custom_samples(["Sample"] * 50)
+        dataset.set_custom_samples(["Sample"] * 200)
 
         assert len(dataset) == 50
 
@@ -93,15 +93,15 @@ class TestCalibrationDataset:
 
     def test_samples_truncated_to_config(self, tokenizer):
         """Test samples are truncated to configured limit"""
-        config = Phase4Config(calibration_samples=10)
+        config = Phase4Config(calibration_samples=100)
 
         dataset = CalibrationDataset(tokenizer, config, dataset_name="custom")
 
         # Set more samples than limit
-        dataset.set_custom_samples(["Sample"] * 50)
+        dataset.set_custom_samples(["Sample"] * 200)
 
         # Should be truncated
-        assert len(dataset.samples) == 10
+        assert len(dataset.samples) == 100
 
     def test_synthetic_sample_generation(self, tokenizer, config):
         """Test synthetic sample fallback"""
@@ -131,7 +131,7 @@ class TestCalibrationDataLoader:
     @pytest.fixture
     def config(self):
         return Phase4Config(
-            calibration_samples=20,
+            calibration_samples=100,
             calibration_batch_size=4,
         )
 
@@ -331,7 +331,7 @@ class TestCalibrationEdgeCases:
     def test_batch_size_larger_than_dataset(self, tokenizer):
         """Test when batch size exceeds dataset size"""
         config = Phase4Config(
-            calibration_samples=5,
+            calibration_samples=100,
             calibration_batch_size=10,
         )
 
