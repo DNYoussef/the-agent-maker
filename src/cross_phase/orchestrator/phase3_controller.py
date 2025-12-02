@@ -1,7 +1,8 @@
 """Phase 3: Quiet-STaR - Add reasoning via prompt baking + RL"""
 
+from typing import Any, List, Optional
+
 from .base_controller import PhaseController, PhaseResult, get_tokenizer
-from typing import Optional, List, Any
 
 
 class Phase3Controller(PhaseController):

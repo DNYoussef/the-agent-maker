@@ -1,7 +1,8 @@
 """Phase 8: Final Compression - Triple compression pipeline"""
 
+from typing import Any, List, Optional
+
 from .base_controller import PhaseController, PhaseResult, get_tokenizer
-from typing import Optional, List, Any
 
 
 class Phase8Controller(PhaseController):

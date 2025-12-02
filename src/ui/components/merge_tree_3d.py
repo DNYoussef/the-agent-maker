@@ -167,7 +167,10 @@ def generate_evolution_tree_data(
 
 
 def create_3d_merge_tree(
-    nodes_df: pd.DataFrame, edges_df: pd.DataFrame, highlight_lineage: Optional[str] = None, height: int = 800
+    nodes_df: pd.DataFrame,
+    edges_df: pd.DataFrame,
+    highlight_lineage: Optional[str] = None,
+    height: int = 800,
 ) -> go.Figure:
     """
     Create interactive 3D Plotly visualization of merge tree.
@@ -475,7 +478,8 @@ def render_phase2_3d_visualization(
 
     # Filter data by generation range
     filtered_nodes = nodes_df[
-        (cast(int, nodes_df["generation"]) >= gen_range[0]) & (cast(int, nodes_df["generation"]) <= gen_range[1])
+        (cast(int, nodes_df["generation"]) >= gen_range[0])
+        & (cast(int, nodes_df["generation"]) <= gen_range[1])
     ]
     filtered_edges = edges_df[
         edges_df["child_id"].isin(filtered_nodes["id"])

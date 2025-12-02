@@ -1,7 +1,8 @@
 """Phase 7: Self-Guided Experts - Model-driven expert discovery"""
 
+from typing import Any, List, Optional
+
 from .base_controller import PhaseController, PhaseResult, get_tokenizer
-from typing import Optional, List, Any
 
 
 class Phase7Controller(PhaseController):

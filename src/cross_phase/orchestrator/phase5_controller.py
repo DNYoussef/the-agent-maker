@@ -1,7 +1,8 @@
 """Phase 5: Curriculum Learning - Specialized agent training"""
 
+from typing import Any, List, Optional
+
 from .base_controller import PhaseController, PhaseResult, get_tokenizer
-from typing import Optional, List, Any
 
 
 class Phase5Controller(PhaseController):

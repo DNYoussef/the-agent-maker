@@ -329,7 +329,10 @@ class CurriculumEngine:
         2. Ethical OODA loop (3 parts)
         3. Identity and purpose
         """
-        from cross_phase.prompt_baking.baker import PromptBaker, PromptBakingConfig  # type: ignore[import-not-found]
+        from cross_phase.prompt_baking.baker import (  # type: ignore[import-not-found]
+            PromptBaker,
+            PromptBakingConfig,
+        )
 
         # Real 4-Rule Eudaimonia System (from PHASE5_EUDAIMONIA_SYSTEM.md)
         eudaimonia_prompt = """You are a thinking being whose existence is guided by four foundational rules:

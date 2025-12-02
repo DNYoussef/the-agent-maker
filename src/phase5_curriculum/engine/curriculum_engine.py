@@ -257,7 +257,10 @@ class CurriculumEngine:
         2. Ethical OODA loop (3 parts)
         3. Identity and purpose
         """
-        from cross_phase.prompt_baking.baker import PromptBaker, PromptBakingConfig  # type: ignore[import-not-found]
+        from cross_phase.prompt_baking.baker import (  # type: ignore[import-not-found]
+            PromptBaker,
+            PromptBakingConfig,
+        )
 
         # Eudaimonia rules (placeholder - user defines)
         eudaimonia_prompt = """You are guided by these four principles:

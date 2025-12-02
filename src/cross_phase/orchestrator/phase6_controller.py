@@ -1,7 +1,8 @@
 """Phase 6: Tool & Persona Baking - A/B cycle optimization"""
 
+from typing import Any, List, Optional
+
 from .base_controller import PhaseController, PhaseResult, get_tokenizer
-from typing import Optional, List, Any
 
 
 class Phase6Controller(PhaseController):

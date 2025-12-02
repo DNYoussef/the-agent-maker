@@ -1,7 +1,8 @@
 """Phase 1: Cognate - Create 3 foundation models"""
 
+from typing import Any, List, Optional
+
 from .base_controller import PhaseController, PhaseResult
-from typing import Optional, List, Any
 
 
 class Phase1Controller(PhaseController):

@@ -833,7 +833,9 @@ def render_reasoning_trace_tab() -> None:
         st.code(trace["prompt"], language=None)
 
         st.markdown("#### Generated Thoughts")
-        for i, (thought, rating) in enumerate(zip(list(trace["thoughts"]), list(trace["quality_ratings"]))):
+        for i, (thought, rating) in enumerate(
+            zip(list(trace["thoughts"]), list(trace["quality_ratings"]))
+        ):
             quality_color = get_quality_color(rating)
             with st.expander(f"💭 Thought {i+1} - Quality: {rating:.2%}", expanded=(i == 0)):
                 st.markdown(
@@ -1129,7 +1131,8 @@ def render_prompt_baking_tab() -> None:
 
     for stage in stages:
         with st.expander(
-            f"{stage['name']} - {stage['progress']:.0f}%", expanded=cast(float, stage["progress"]) > 0
+            f"{stage['name']} - {stage['progress']:.0f}%",
+            expanded=cast(float, stage["progress"]) > 0,
         ):
             st.progress(stage["progress"] / 100)
             st.caption(f"Estimated time: {stage['time']}")

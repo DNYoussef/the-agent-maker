@@ -199,7 +199,9 @@ def create_curriculum_stages_visual(current_stage: int = 3) -> go.Figure:
     return fig
 
 
-def create_edge_of_chaos_gauge(current_difficulty: float = 7.5, accuracy: float = 0.76) -> go.Figure:
+def create_edge_of_chaos_gauge(
+    current_difficulty: float = 7.5, accuracy: float = 0.76
+) -> go.Figure:
     """Create gauge for edge-of-chaos assessment"""
     # Determine if in optimal zone
     in_zone = 7.0 <= current_difficulty <= 8.5 and 0.70 <= accuracy <= 0.80

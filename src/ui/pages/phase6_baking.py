@@ -128,7 +128,9 @@ def create_ab_cycle_timeline() -> go.Figure:
 
         colors.append(color)
         texts.append(
-            f"{cycle['name']}<br>{cycle['duration']}min" if cast(int, cycle["duration"]) > 0 else cycle["name"]
+            f"{cycle['name']}<br>{cycle['duration']}min"
+            if cast(int, cycle["duration"]) > 0
+            else cycle["name"]
         )
         customdata.append(
             {
@@ -593,7 +595,9 @@ def create_baking_time_breakdown() -> go.Figure:
                 x=[comp["time"]],
                 y=[comp["name"]],
                 orientation="h",
-                marker=dict(color=colors[cast(str, comp["type"])], line=dict(color="#FFFFFF", width=1)),
+                marker=dict(
+                    color=colors[cast(str, comp["type"])], line=dict(color="#FFFFFF", width=1)
+                ),
                 text=f"{comp['time']} min",
                 textposition="inside",
                 textfont=dict(color="#FFFFFF", size=11),

@@ -1,7 +1,8 @@
 """Phase 2: EvoMerge - Evolve 3 models into 1"""
 
+from typing import Any, List, Optional
+
 from .base_controller import PhaseController, PhaseResult, ValidationThresholds
-from typing import Optional, List, Any
 
 
 class Phase2Controller(PhaseController):

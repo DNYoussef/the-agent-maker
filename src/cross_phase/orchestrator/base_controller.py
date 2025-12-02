@@ -7,7 +7,7 @@ ISS-016: Uses unified get_tokenizer() for all phases
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Optional, List, Any
+from typing import Any, Dict, List, Optional
 
 # ISS-015/ISS-022: Import constants and validation thresholds
 from cross_phase.constants import (

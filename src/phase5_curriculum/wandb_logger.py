@@ -280,7 +280,9 @@ class Phase5WandBLogger:
         # Store for final summary
         self._level_metrics[metrics.level] = data
 
-    def log_prompt_baking(self, level: int, prompt_type: str, loss: float, time_minutes: float) -> None:
+    def log_prompt_baking(
+        self, level: int, prompt_type: str, loss: float, time_minutes: float
+    ) -> None:
         """Log prompt baking metrics."""
         data = {
             f"baking/level_{level}/{prompt_type}_loss": loss,

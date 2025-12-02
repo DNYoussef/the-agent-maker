@@ -1,7 +1,8 @@
 """Phase 4: BitNet - 1.58-bit quantization for model compression"""
 
+from typing import Any, List, Optional
+
 from .base_controller import PhaseController, PhaseResult
-from typing import Optional, List, Any
 
 
 class Phase4Controller(PhaseController):

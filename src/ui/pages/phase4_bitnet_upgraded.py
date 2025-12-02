@@ -240,7 +240,11 @@ def create_quality_gate_circles(gates) -> go.Figure:
         if isinstance(gate["value"], bool):
             value = 100 if gate["value"] else 0
         elif isinstance(gate["threshold"], tuple):
-            value = 100 if gate["threshold"][0] <= cast(int, gate["value"]) <= gate["threshold"][1] else 0
+            value = (
+                100
+                if gate["threshold"][0] <= cast(int, gate["value"]) <= gate["threshold"][1]
+                else 0
+            )
         else:
             value = (
                 (gate["value"] / gate["threshold"]) * 100

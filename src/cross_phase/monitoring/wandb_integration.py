@@ -352,7 +352,9 @@ class WandBIntegration:
         }
         self.log_metrics(wandb_metrics)
 
-    def log_artifact(self, artifact_name: str, artifact_type: str, file_path: str, metadata: Dict) -> None:
+    def log_artifact(
+        self, artifact_name: str, artifact_type: str, file_path: str, metadata: Dict
+    ) -> None:
         """
         Log model artifact to W&B with error handling (ISS-018).
 
