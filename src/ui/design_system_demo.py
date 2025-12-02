@@ -18,7 +18,7 @@ from design_system import (
 )
 
 
-def main():
+def main() -> None:
     """Demo page showing design system components"""
 
     # Page config

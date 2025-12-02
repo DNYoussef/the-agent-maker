@@ -19,7 +19,7 @@ import json
 import warnings
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Mapping, Optional, Union
 
 import torch
 import torch.nn as nn
@@ -99,7 +99,7 @@ def _reconstruct_optimizer_state(
     tensors: Dict[str, torch.Tensor], metadata: Dict[str, Any]
 ) -> Dict[str, Any]:
     """Reconstruct optimizer state from tensors and metadata."""
-    state = {}
+    state: Dict[str, Any] = {}
 
     for param_key, param_state in metadata.get("state", {}).items():
         param_id = int(param_key) if param_key.isdigit() else param_key
@@ -360,13 +360,13 @@ def migrate_legacy_checkpoint(
 
     # Create a temporary module to save
     class TempModule(nn.Module):
-        def __init__(self, state_dict: Dict[str, torch.Tensor]):
+        def __init__(self, state_dict: Dict[str, torch.Tensor]) -> Any:
             super().__init__()
             for name, param in state_dict.items():
                 # Register as buffer (not parameter) to preserve exact structure
                 self.register_buffer(name.replace(".", "__DOT__"), param)
 
-        def state_dict(self, *args, **kwargs):
+        def state_dict(self, *args, **kwargs) -> Any:
             # Return original keys
             return {name.replace("__DOT__", "."): buf for name, buf in self._buffers.items()}
 

@@ -19,7 +19,7 @@ Research Foundation:
 """
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch.nn as nn
 
@@ -46,8 +46,8 @@ class CurriculumEngine:
         """Initialize curriculum engine."""
         self.config = config or CurriculumConfig()
         self.level_progress: List[LevelProgress] = []
-        self.metrics = {}
-        self.start_time = None
+        self.metrics: Dict[str, Any] = {}
+        self.start_time: Optional[float] = None
 
     def run(
         self,
@@ -181,7 +181,7 @@ class CurriculumEngine:
 
     def _run_assessment(
         self, model: nn.Module, tokenizer: Any, frontier_client: Optional[Any]
-    ) -> tuple:
+    ) -> Tuple[int, Any]:
         """
         Stage 1: Find the edge-of-chaos level (75% accuracy threshold).
 
@@ -216,7 +216,7 @@ class CurriculumEngine:
             specialization=self.config.specialization,
         )
 
-        curriculum = generator.generate(frontier_client)
+        curriculum = generator.generate(frontier_client)  # type: ignore[assignment]
         return curriculum
 
     def _run_training_loop(
@@ -227,7 +227,7 @@ class CurriculumEngine:
         coding_env: Optional[Any],
         frontier_client: Optional[Any],
         level: int,
-    ) -> tuple:
+    ) -> Tuple[nn.Module, Dict[str, Any]]:
         """
         Stage 3: Training loop with variants and hints.
 
@@ -242,7 +242,7 @@ class CurriculumEngine:
             enable_variants=self.config.variant_generation_enabled,
         )
 
-        trained_model, metrics = trainer.train_level(
+        trained_model, metrics = trainer.train_level(  # type: ignore[arg-type]
             model, level_questions, tokenizer, coding_env, frontier_client, level
         )
 
@@ -257,7 +257,7 @@ class CurriculumEngine:
         2. Ethical OODA loop (3 parts)
         3. Identity and purpose
         """
-        from cross_phase.prompt_baking.baker import PromptBaker, PromptBakingConfig
+        from cross_phase.prompt_baking.baker import PromptBaker, PromptBakingConfig  # type: ignore[import-not-found]
 
         # Eudaimonia rules (placeholder - user defines)
         eudaimonia_prompt = """You are guided by these four principles:

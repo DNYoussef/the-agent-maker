@@ -62,13 +62,14 @@ class Phase1WandBLogger:
                 mode=mode,
                 tags=["phase1", "cognate", model_name, "pretraining"],
             )
-            logger.info(f"W&B initialized: {wandb.run.name}")
+            if wandb.run is not None:
+                logger.info(f"W&B initialized: {wandb.run.name}")
             self.run = wandb.run
         except Exception as e:
             logger.error(f"W&B initialization failed: {e}")
             self.run = None
 
-    def watch_model(self, model: nn.Module, log_freq: int = 100):
+    def watch_model(self, model: nn.Module, log_freq: int = 100) -> None:
         """
         Track model gradients and parameters with W&B
 
@@ -92,7 +93,7 @@ class Phase1WandBLogger:
         gpu_memory_gb: float,
         gpu_util: Optional[float] = None,
         tokens_per_sec: Optional[float] = None,
-    ):
+    ) -> None:
         """
         Log metrics at each training step
 
@@ -143,7 +144,7 @@ class Phase1WandBLogger:
         val_accuracies: Dict[str, float],
         curriculum_stage: int,
         epoch_time_minutes: float,
-    ):
+    ) -> None:
         """
         Log metrics at end of epoch
 
@@ -176,7 +177,7 @@ class Phase1WandBLogger:
         final_perplexity: float,
         model_size_mb: float,
         diversity_metrics: Dict[str, float],
-    ):
+    ) -> None:
         """
         Log final metrics at end of training
 
@@ -208,7 +209,7 @@ class Phase1WandBLogger:
         )
         wandb.log({"diversity/metrics_table": diversity_table})
 
-    def log_model_artifact(self, model_path: str, metadata: Dict):
+    def log_model_artifact(self, model_path: str, metadata: Dict) -> None:
         """
         Log model as W&B artifact
 
@@ -225,6 +226,6 @@ class Phase1WandBLogger:
         artifact.add_file(model_path)
         wandb.log_artifact(artifact)
 
-    def finish(self):
+    def finish(self) -> None:
         """Finish W&B run"""
         wandb.finish()

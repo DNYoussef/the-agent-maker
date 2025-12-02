@@ -44,7 +44,7 @@ class TitansMAGConfig:
     dropout: float = 0.1
     attention_dropout: float = 0.1
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate configuration"""
         assert self.d_model % self.n_heads == 0, (
             f"d_model ({self.d_model}) must be divisible by " f"n_heads ({self.n_heads})"
@@ -73,7 +73,7 @@ class TRMConfig:
     # Memory efficiency
     detach_between_steps: bool = True  # Detach for gradient flow
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate configuration"""
         assert self.T_max + 1 == len(self.step_weights), (
             f"Need T_max+1 ({self.T_max + 1}) weights for initial state + recursion steps, "
@@ -174,7 +174,7 @@ class Phase1Config:
     mixed_precision: bool = False  # Optional
     gradient_checkpointing: bool = True  # Memory efficiency
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Apply specialization settings"""
         if self.specialization:
             # Override ACT threshold

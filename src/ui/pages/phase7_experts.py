@@ -9,7 +9,7 @@ import json
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -32,7 +32,7 @@ COLORS = {
 }
 
 
-def render_phase7_dashboard():
+def render_phase7_dashboard() -> None:
     """Main dashboard for Phase 7 Self-Guided Experts"""
 
     # Apply custom CSS for futuristic theme
@@ -81,7 +81,7 @@ def render_phase7_dashboard():
         render_results_tab()
 
 
-def apply_custom_css():
+def apply_custom_css() -> None:
     """Apply futuristic command center CSS theme"""
     st.markdown(
         f"""
@@ -177,7 +177,7 @@ def apply_custom_css():
     )
 
 
-def render_hero_section():
+def render_hero_section() -> None:
     """Render hero section with phase title and progress"""
     st.markdown(
         f"""
@@ -280,10 +280,10 @@ def calculate_total_progress() -> float:
     stage3_prog = st.session_state.get("stage3_progress", 0.0)
 
     # Weights: Stage 1 (10%), Stage 2 (40%), Stage 3 (50%)
-    return 0.1 * stage1_prog + 0.4 * stage2_prog + 0.5 * stage3_prog
+    return float(0.1 * stage1_prog + 0.4 * stage2_prog + 0.5 * stage3_prog)
 
 
-def render_config_panel():
+def render_config_panel() -> None:
     """Render configuration controls in sidebar"""
     st.subheader("Expert Configuration")
 
@@ -368,7 +368,7 @@ def render_config_panel():
         reset_session_state()
 
 
-def render_overview_tab():
+def render_overview_tab() -> None:
     """Overview of Phase 7 process"""
     col1, col2, col3, col4 = st.columns(4)
 
@@ -501,7 +501,7 @@ def render_overview_tab():
         )
 
 
-def render_expert_discovery_tab():
+def render_expert_discovery_tab() -> None:
     """Expert discovery visualization (Stage 1)"""
     st.subheader("Stage 1: Model Self-Analysis")
 
@@ -704,7 +704,7 @@ def generate_expert_specializations(n: int) -> List[Dict]:
     return experts
 
 
-def render_svf_training_tab():
+def render_svf_training_tab() -> None:
     """SVF training visualization (Stage 2)"""
     st.subheader("Stage 2: Transformer² SVF Training")
 
@@ -879,7 +879,7 @@ def render_svf_training_tab():
     st.plotly_chart(fig_routing, use_container_width=True)
 
 
-def render_adas_search_tab():
+def render_adas_search_tab() -> None:
     """ADAS architecture search visualization (Stage 3)"""
     st.subheader("Stage 3: NSGA-II Architecture Search")
 
@@ -1084,7 +1084,7 @@ def render_adas_search_tab():
         )
 
 
-def render_architecture_tab():
+def render_architecture_tab() -> None:
     """Architecture visualization"""
     st.subheader("Discovered Architecture")
 
@@ -1289,7 +1289,7 @@ def render_architecture_tab():
         st.info("Architecture will be displayed after expert discovery completes...")
 
 
-def render_cost_time_tab():
+def render_cost_time_tab() -> None:
     """Cost and time tracking"""
     st.subheader("Resource Usage & Budget")
 
@@ -1438,7 +1438,7 @@ def render_cost_time_tab():
     st.dataframe(models_df, use_container_width=True, hide_index=True)
 
 
-def render_results_tab():
+def render_results_tab() -> None:
     """Results and final model"""
     st.subheader("Phase 7 Results")
 
@@ -1566,7 +1566,7 @@ def render_results_tab():
             st.markdown(f"<div style='color: {color};'>{icon} {item}</div>", unsafe_allow_html=True)
 
 
-def reset_session_state():
+def reset_session_state() -> None:
     """Reset all session state variables"""
     keys_to_reset = [
         "phase7_running",

@@ -1,12 +1,13 @@
 """Phase 8: Final Compression - Triple compression pipeline"""
 
 from .base_controller import PhaseController, PhaseResult, get_tokenizer
+from typing import Optional, List, Any
 
 
 class Phase8Controller(PhaseController):
     """Phase 8: Final Compression - Triple compression pipeline."""
 
-    def execute(self, input_models: list = None) -> PhaseResult:
+    def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:
         """Execute Phase 8: SeedLM + VPTQ + Hypercompression.
 
         Args:
@@ -80,11 +81,11 @@ class Phase8Controller(PhaseController):
                 error=str(e),
             )
 
-    def _get_tokenizer(self):
+    def _get_tokenizer(self) -> None:
         """Get tokenizer using unified utility (ISS-016)."""
         return get_tokenizer("gpt2")
 
-    def validate_input(self, input_models: list = None) -> bool:
+    def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
         """Validate 1 input model from Phase 7."""
         if not input_models or len(input_models) != 1:
             raise ValueError(

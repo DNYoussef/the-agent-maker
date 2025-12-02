@@ -317,7 +317,7 @@ class CurriculumTrainingLoop:
             if end > start:
                 return response[start:end].strip()
 
-        return response
+        return response  # type: ignore[no-any-return]
 
     def _generate_variant(
         self, question: Question, frontier_client: Optional[Any]

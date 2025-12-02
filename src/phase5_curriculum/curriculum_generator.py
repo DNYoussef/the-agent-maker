@@ -67,7 +67,7 @@ class AdaptiveCurriculumGenerator:
         baseline_level: int,
         num_levels: int = 10,
         questions_per_level: int = 2000,
-        frontier_models: List[str] = None,
+        frontier_models: Optional[List[str]] = None,
         specialization: SpecializationType = SpecializationType.CODING,
     ):
         """

@@ -4,7 +4,7 @@ Comprehensive design system for the Streamlit UI with futuristic command center 
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Literal, Optional, cast
 
 # ============================================================================
 # COLOR PALETTE - Futuristic Command Center Theme

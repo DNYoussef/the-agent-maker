@@ -7,7 +7,7 @@ Real-time visualization of compression progress, metrics, and dual model outputs
 import json
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import numpy as np
 import pandas as pd
@@ -17,7 +17,7 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 
-def render_phase4_dashboard():
+def render_phase4_dashboard() -> None:
     """Main dashboard for Phase 4 BitNet compression"""
     st.title("🗜️ Phase 4: BitNet 1.58-bit Compression")
     st.markdown("**Ternary quantization** → {-1, 0, +1} → 8.2× compression")
@@ -54,7 +54,7 @@ def render_phase4_dashboard():
         render_dual_outputs_tab()
 
 
-def render_config_panel():
+def render_config_panel() -> None:
     """Render configuration controls in sidebar"""
     st.subheader("Compression Settings")
 
@@ -152,7 +152,7 @@ def render_config_panel():
         reset_session_state()
 
 
-def render_overview_tab():
+def render_overview_tab() -> None:
     """Overview of Phase 4 compression process"""
     col1, col2, col3, col4 = st.columns(4)
 
@@ -204,9 +204,9 @@ def render_overview_tab():
         cols = st.columns([0.5, 3, 1, 1])
 
         with cols[0]:
-            if step["status"] == "complete":
+            if cast(str, step["status"]) == "complete":
                 st.markdown("✅")
-            elif step["status"] == "in_progress":
+            elif cast(str, step["status"]) == "in_progress":
                 st.markdown("⏳")
             else:
                 st.markdown("⏸️")
@@ -218,7 +218,7 @@ def render_overview_tab():
             st.markdown(f"`{step['time']}`")
 
         with cols[3]:
-            if step["status"] == "in_progress":
+            if cast(str, step["status"]) == "in_progress":
                 st.progress(0.6)
 
     # Key features
@@ -251,7 +251,7 @@ def render_overview_tab():
         )
 
 
-def render_realtime_progress_tab():
+def render_realtime_progress_tab() -> None:
     """Real-time compression progress visualization"""
     st.subheader("⚡ Layer-by-Layer Compression")
 
@@ -335,7 +335,7 @@ def render_realtime_progress_tab():
     st.plotly_chart(fig2, use_container_width=True)
 
 
-def render_metrics_analysis_tab():
+def render_metrics_analysis_tab() -> None:
     """Metrics analysis and comparison"""
     st.subheader("📈 Pre/Post Compression Metrics")
 
@@ -418,7 +418,7 @@ def render_metrics_analysis_tab():
             st.metric("Epochs", "10/10", delta="Complete")
 
 
-def render_quality_validation_tab():
+def render_quality_validation_tab() -> None:
     """Quality validation and gradient flow testing"""
     st.subheader("🔬 Quality Gates & Validation")
 
@@ -472,7 +472,7 @@ def render_quality_validation_tab():
         cols = st.columns([0.3, 2, 1, 1, 0.5])
 
         with cols[0]:
-            if gate["status"] == "pass":
+            if cast(str, gate["status"]) == "pass":
                 st.markdown("✅")
             else:
                 st.markdown("❌")
@@ -487,7 +487,7 @@ def render_quality_validation_tab():
             st.markdown(f"`Actual: {gate['actual']}`")
 
         with cols[4]:
-            if gate["status"] == "pass":
+            if cast(str, gate["status"]) == "pass":
                 st.markdown("**PASS**")
             else:
                 st.markdown("**FAIL**")
@@ -557,7 +557,7 @@ def render_quality_validation_tab():
     st.plotly_chart(fig, use_container_width=True)
 
 
-def render_dual_outputs_tab():
+def render_dual_outputs_tab() -> None:
     """Dual model outputs comparison"""
     st.subheader("💾 Dual Model Outputs")
 
@@ -657,7 +657,7 @@ phase4_output/
     st.success("✅ **Phase 4 → Phase 5 handoff: READY**")
 
 
-def reset_session_state():
+def reset_session_state() -> None:
     """Reset all session state variables"""
     keys_to_reset = [
         "compression_running",

@@ -15,7 +15,7 @@ from cross_phase.orchestrator.pipeline import PipelineOrchestrator
 from cross_phase.storage.model_registry import ModelRegistry
 
 
-def inject_custom_css():
+def inject_custom_css() -> None:
     """Inject custom CSS for enhanced visual components"""
     css = """
     <style>
@@ -432,7 +432,7 @@ def inject_custom_css():
     st.markdown(css, unsafe_allow_html=True)
 
 
-def render_hero_section(session_id, session_info):
+def render_hero_section(session_id, session_info) -> None:
     """Render enhanced hero section with gradient and status"""
     status = session_info.get("status", "unknown").upper() if session_info else "NO SESSION"
     current_phase = session_info.get("current_phase", "N/A") if session_info else "N/A"
@@ -449,7 +449,7 @@ def render_hero_section(session_id, session_info):
     )
 
 
-def render_enhanced_metrics(session_info, models_count):
+def render_enhanced_metrics(session_info, models_count) -> None:
     """Render enhanced metric cards with icons and animations"""
     col1, col2, col3, col4 = st.columns(4)
 
@@ -518,7 +518,7 @@ def render_enhanced_metrics(session_info, models_count):
     )
 
 
-def render_phase_timeline(current_phase):
+def render_phase_timeline(current_phase) -> None:
     """Render visual 8-phase timeline with status indicators"""
     phases = [
         {
@@ -592,12 +592,12 @@ def render_phase_timeline(current_phase):
 
     for phase in phases:
         # Determine status
-        if phase["key"] < current_phase:
+        if cast(int, phase["key"]) < current_phase:
             status_class = "complete"
             badge_class = "status-badge-complete"
             badge_text = "Complete"
             badge_icon = "✓"
-        elif phase["key"] == current_phase:
+        elif cast(str, phase["key"]) == current_phase:
             status_class = "running"
             badge_class = "status-badge-running"
             badge_text = "Running"
@@ -635,7 +635,7 @@ def render_phase_timeline(current_phase):
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-def render_activity_log():
+def render_activity_log() -> None:
     """Render enhanced activity log with card-based entries"""
     st.markdown('<div class="section-header">Recent Activity</div>', unsafe_allow_html=True)
 
@@ -715,7 +715,7 @@ def render_activity_log():
     st.markdown("</div></div>", unsafe_allow_html=True)
 
 
-def render():
+def render() -> None:
     """Render enhanced pipeline overview page"""
     inject_custom_css()
     registry = ModelRegistry()

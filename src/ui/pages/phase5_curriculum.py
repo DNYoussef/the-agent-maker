@@ -10,7 +10,7 @@ Futuristic theme with dark background and cyan accents.
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -46,7 +46,7 @@ CUSTOM_PLOTLY_TEMPLATE = go.layout.Template(
 def create_gradient_metric(
     label: str,
     value: str,
-    delta: str = None,
+    delta: Optional[str] = None,
     gradient_start: str = "#00F5D4",
     gradient_end: str = "#8338EC",
 ):
@@ -80,7 +80,7 @@ def create_gradient_metric(
     return html
 
 
-def create_curriculum_stages_visual(current_stage: int = 3):
+def create_curriculum_stages_visual(current_stage: int = 3) -> go.Figure:
     """Create visual representation of 7-stage curriculum with progress"""
     stages = [
         {
@@ -130,10 +130,10 @@ def create_curriculum_stages_visual(current_stage: int = 3):
     # Add stage nodes with different colors based on status
     for i, stage in enumerate(stages):
         status_colors = {"complete": "#00F5D4", "in_progress": "#FF006E", "pending": "#4A5568"}
-        color = status_colors[stage["status"]]
+        color = status_colors[cast(str, stage["status"])]
 
         # Larger marker for in_progress
-        marker_size = 35 if stage["status"] == "in_progress" else 25
+        marker_size = 35 if cast(str, stage["status"]) == "in_progress" else 25
 
         fig.add_trace(
             go.Scatter(
@@ -144,7 +144,7 @@ def create_curriculum_stages_visual(current_stage: int = 3):
                     size=marker_size,
                     color=color,
                     line=dict(color="#FFFFFF", width=3)
-                    if stage["status"] == "in_progress"
+                    if cast(str, stage["status"]) == "in_progress"
                     else dict(color="#2E3F4F", width=2),
                     symbol="circle",
                 ),
@@ -160,14 +160,14 @@ def create_curriculum_stages_visual(current_stage: int = 3):
         # Add stage labels below
         completion = (
             "100%"
-            if stage["status"] == "complete"
+            if cast(str, stage["status"]) == "complete"
             else "75%"
-            if stage["status"] == "in_progress"
+            if cast(str, stage["status"]) == "in_progress"
             else "0%"
         )
         fig.add_annotation(
             x=i,
-            y=stage["difficulty"] - 0.8,
+            y=cast(float, stage["difficulty"]) - 0.8,
             text=f"<b>{stage['name']}</b><br>{completion}",
             showarrow=False,
             font=dict(size=10, color=color),
@@ -199,7 +199,7 @@ def create_curriculum_stages_visual(current_stage: int = 3):
     return fig
 
 
-def create_edge_of_chaos_gauge(current_difficulty: float = 7.5, accuracy: float = 0.76):
+def create_edge_of_chaos_gauge(current_difficulty: float = 7.5, accuracy: float = 0.76) -> go.Figure:
     """Create gauge for edge-of-chaos assessment"""
     # Determine if in optimal zone
     in_zone = 7.0 <= current_difficulty <= 8.5 and 0.70 <= accuracy <= 0.80
@@ -242,7 +242,7 @@ def create_edge_of_chaos_gauge(current_difficulty: float = 7.5, accuracy: float 
     return fig
 
 
-def create_accuracy_threshold_indicator(accuracy: float = 0.76):
+def create_accuracy_threshold_indicator(accuracy: float = 0.76) -> go.Figure:
     """Create accuracy threshold indicator with 75% target"""
     fig = go.Figure()
 
@@ -297,7 +297,7 @@ def create_accuracy_threshold_indicator(accuracy: float = 0.76):
     return fig
 
 
-def create_adaptive_curriculum_chart(level_data: pd.DataFrame):
+def create_adaptive_curriculum_chart(level_data: pd.DataFrame) -> go.Figure:
     """Create chart showing 20,000 questions across 10 difficulty levels"""
     fig = make_subplots(
         rows=2,
@@ -382,7 +382,7 @@ def create_adaptive_curriculum_chart(level_data: pd.DataFrame):
     return fig
 
 
-def create_tool_use_metrics():
+def create_tool_use_metrics() -> go.Figure:
     """Create tool use training metrics visualization"""
     tools = ["Code Exec", "Validation", "Debug", "Test Gen", "Refactor"]
     proficiency = [0.85, 0.78, 0.72, 0.68, 0.65]
@@ -426,7 +426,7 @@ def create_tool_use_metrics():
     return fig
 
 
-def create_eudaimonia_radar():
+def create_eudaimonia_radar() -> go.Figure:
     """Create radar chart for 4-rule moral system"""
     categories = ["Benevolence", "Non-Harm", "Respect", "Autonomy"]
     values = [0.89, 0.94, 0.87, 0.82]
@@ -478,7 +478,7 @@ def create_eudaimonia_radar():
     return fig
 
 
-def create_self_modeling_chart():
+def create_self_modeling_chart() -> go.Figure:
     """Create self-modeling temperature prediction chart"""
     temperatures = np.linspace(0.0, 2.0, 21)
     actual_performance = 0.85 * np.exp(-((temperatures - 0.7) ** 2) / 0.5) + 0.15
@@ -537,7 +537,7 @@ def create_self_modeling_chart():
     return fig
 
 
-def create_dream_consolidation_metrics():
+def create_dream_consolidation_metrics() -> go.Figure:
     """Create dream consolidation visualization with autoencoder quality"""
     epochs_per_level = 3
     levels_completed = 3
@@ -619,7 +619,7 @@ def create_dream_consolidation_metrics():
     return fig
 
 
-def create_frontier_models_usage():
+def create_frontier_models_usage() -> go.Figure:
     """Create visualization of frontier model usage and costs"""
     models = ["GPT-4o-mini", "Claude-3.5\nHaiku", "Gemini 2.0\nFlash", "Qwen 2.5"]
     api_calls = [4500, 3800, 4200, 3500]
@@ -687,7 +687,7 @@ def create_frontier_models_usage():
     return fig
 
 
-def render_phase5_dashboard():
+def render_phase5_dashboard() -> None:
     """Main dashboard for Phase 5 Curriculum Learning"""
     st.title("📚 Phase 5: Curriculum Learning")
     st.markdown(
@@ -779,7 +779,7 @@ def render_phase5_dashboard():
         render_frontier_models_tab()
 
 
-def render_config_panel():
+def render_config_panel() -> None:
     """Render configuration controls in sidebar"""
     st.markdown("### 🎛️ Curriculum Settings")
 
@@ -862,7 +862,7 @@ def render_config_panel():
             st.rerun()
 
 
-def render_overview_tab():
+def render_overview_tab() -> None:
     """Overview tab with hero metrics and key stats"""
     # Hero section
     st.markdown(
@@ -1045,7 +1045,7 @@ def render_overview_tab():
     st.plotly_chart(fig_timeline, use_container_width=True)
 
 
-def render_curriculum_stages_tab():
+def render_curriculum_stages_tab() -> None:
     """Curriculum stages tab with 7-stage visualization"""
     st.markdown("### 📚 7-Stage Adaptive Curriculum")
 
@@ -1109,7 +1109,7 @@ def render_curriculum_stages_tab():
     st.dataframe(stage_details, use_container_width=True, hide_index=True)
 
 
-def render_edge_of_chaos_tab():
+def render_edge_of_chaos_tab() -> None:
     """Edge-of-chaos assessment tab"""
     st.markdown("### 🎯 Edge-of-Chaos Assessment")
 
@@ -1262,7 +1262,7 @@ def render_edge_of_chaos_tab():
     st.plotly_chart(fig_adjustment, use_container_width=True)
 
 
-def render_tool_ethics_tab():
+def render_tool_ethics_tab() -> None:
     """Tool use training and ethics baking tab"""
     st.markdown("### 🔧 Tool Use Training")
 
@@ -1364,7 +1364,7 @@ def render_tool_ethics_tab():
         )
 
 
-def render_self_modeling_tab():
+def render_self_modeling_tab() -> None:
     """Self-modeling and dream consolidation tab"""
     st.markdown("### 🧠 Self-Modeling: Temperature Range Prediction")
 
@@ -1492,7 +1492,7 @@ def render_self_modeling_tab():
         )
 
 
-def render_frontier_models_tab():
+def render_frontier_models_tab() -> None:
     """Frontier models usage and cost tracking tab"""
     st.markdown("### 🤖 Frontier Model Integration")
 

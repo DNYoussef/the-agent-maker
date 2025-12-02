@@ -41,7 +41,7 @@ class MergeTechniques:
     of merge techniques, applied sequentially in a 3-stage pipeline.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize all 6 merge technique implementations."""
         self.linear = LinearMerge()
         self.slerp = SLERPMerge()

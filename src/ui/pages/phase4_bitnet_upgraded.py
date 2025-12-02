@@ -8,7 +8,7 @@ and professional dark styling matching app theme.
 import json
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import numpy as np
 import pandas as pd
@@ -44,7 +44,7 @@ CUSTOM_PLOTLY_TEMPLATE = go.layout.Template(
 def create_gradient_metric(
     label: str,
     value: str,
-    delta: str = None,
+    delta: Optional[str] = None,
     gradient_start: str = "#00F5D4",
     gradient_end: str = "#8338EC",
 ):
@@ -78,7 +78,7 @@ def create_gradient_metric(
     return html
 
 
-def create_process_flow_visual():
+def create_process_flow_visual() -> go.Figure:
     """Create visual process flow with connected nodes"""
     steps = [
         {"name": "Load Phase 3", "icon": "📥", "status": "complete"},
@@ -121,10 +121,10 @@ def create_process_flow_visual():
     # Add step nodes
     for i, step in enumerate(steps):
         status_colors = {"complete": "#00F5D4", "in_progress": "#FF006E", "pending": "#4A5568"}
-        color = status_colors[step["status"]]
+        color = status_colors[cast(str, step["status"])]
 
         # Glowing effect for in_progress
-        marker_size = 30 if step["status"] == "in_progress" else 25
+        marker_size = 30 if cast(str, step["status"]) == "in_progress" else 25
 
         fig.add_trace(
             go.Scatter(
@@ -135,7 +135,7 @@ def create_process_flow_visual():
                     size=marker_size,
                     color=color,
                     line=dict(color="#FFFFFF", width=2)
-                    if step["status"] == "in_progress"
+                    if cast(str, step["status"]) == "in_progress"
                     else None,
                     symbol="circle",
                 ),
@@ -170,7 +170,7 @@ def create_process_flow_visual():
     return fig
 
 
-def create_animated_heatmap(layers, param_types):
+def create_animated_heatmap(layers, param_types) -> go.Figure:
     """Create animated compression heatmap with custom colors"""
     compression_data = np.random.uniform(6.0, 10.0, (len(layers), len(param_types)))
 
@@ -226,7 +226,7 @@ def create_animated_heatmap(layers, param_types):
     return fig
 
 
-def create_quality_gate_circles(gates):
+def create_quality_gate_circles(gates) -> go.Figure:
     """Create circular progress indicators for quality gates"""
     fig = make_subplots(
         rows=1,
@@ -240,15 +240,15 @@ def create_quality_gate_circles(gates):
         if isinstance(gate["value"], bool):
             value = 100 if gate["value"] else 0
         elif isinstance(gate["threshold"], tuple):
-            value = 100 if gate["threshold"][0] <= gate["value"] <= gate["threshold"][1] else 0
+            value = 100 if gate["threshold"][0] <= cast(int, gate["value"]) <= gate["threshold"][1] else 0
         else:
             value = (
                 (gate["value"] / gate["threshold"]) * 100
-                if gate["value"] >= gate["threshold"]
+                if cast(int, gate["value"]) >= gate["threshold"]
                 else 50
             )
 
-        color = "#00F5D4" if gate["status"] == "pass" else "#FF006E"
+        color = "#00F5D4" if cast(str, gate["status"]) == "pass" else "#FF006E"
 
         fig.add_trace(
             go.Indicator(
@@ -294,7 +294,7 @@ def create_quality_gate_circles(gates):
     return fig
 
 
-def create_gradient_flow_diagram():
+def create_gradient_flow_diagram() -> go.Figure:
     """Create gradient flow diagram with visual paths"""
     layers = ["Input", "Emb", "L0-5", "L6-11", "L12-17", "L18-23", "Head", "Output"]
     grad_norms = [0.08, 0.12, 0.15, 0.18, 0.20, 0.17, 0.13, 0.09]
@@ -350,7 +350,7 @@ def create_gradient_flow_diagram():
     return fig
 
 
-def create_sparsity_bar_chart(layers, sparsity_data):
+def create_sparsity_bar_chart(layers, sparsity_data) -> go.Figure:
     """Create sparsity distribution bar chart with gradient colors"""
     fig = go.Figure()
 
@@ -411,7 +411,7 @@ def create_sparsity_bar_chart(layers, sparsity_data):
     return fig
 
 
-def create_finetune_loss_curve():
+def create_finetune_loss_curve() -> go.Figure:
     """Create fine-tuning loss curve with confidence bands"""
     epochs = np.arange(1, 11)
     loss = 3.5 * np.exp(-0.3 * epochs) + np.random.normal(0, 0.05, len(epochs))
@@ -487,7 +487,7 @@ def create_finetune_loss_curve():
     return fig
 
 
-def render_phase4_dashboard():
+def render_phase4_dashboard() -> None:
     """Main dashboard for Phase 4 BitNet compression"""
     st.title("🗜️ Phase 4: BitNet 1.58-bit Compression")
     st.markdown("**Ternary quantization** → {-1, 0, +1} → 8.2x compression")
@@ -576,7 +576,7 @@ def render_phase4_dashboard():
         render_dual_outputs_tab()
 
 
-def render_config_panel():
+def render_config_panel() -> None:
     """Render configuration controls in sidebar with enhanced styling"""
     st.markdown("### 🎛️ Compression Settings")
 
@@ -692,7 +692,7 @@ def render_config_panel():
         st.rerun()
 
 
-def render_overview_tab():
+def render_overview_tab() -> None:
     """Overview with enhanced visuals"""
     col1, col2, col3, col4 = st.columns(4)
 
@@ -792,7 +792,7 @@ def render_overview_tab():
         )
 
 
-def render_realtime_progress_tab():
+def render_realtime_progress_tab() -> None:
     """Real-time progress with animations"""
     st.markdown("### ⚡ Layer-by-Layer Compression")
 
@@ -853,7 +853,7 @@ def render_realtime_progress_tab():
     st.plotly_chart(fig_sparsity, use_container_width=True)
 
 
-def render_metrics_analysis_tab():
+def render_metrics_analysis_tab() -> None:
     """Metrics analysis with enhanced tables"""
     st.markdown("### 📈 Pre/Post Compression Metrics")
 
@@ -928,7 +928,7 @@ def render_metrics_analysis_tab():
             )
 
 
-def render_quality_validation_tab():
+def render_quality_validation_tab() -> None:
     """Quality validation with circular progress"""
     st.markdown("### 🔬 Quality Gates & Validation")
 
@@ -984,7 +984,7 @@ def render_quality_validation_tab():
     cols = st.columns(len(gates))
     for i, gate in enumerate(gates):
         with cols[i]:
-            badge_color = "#00F5D4" if gate["status"] == "pass" else "#FF006E"
+            badge_color = "#00F5D4" if cast(str, gate["status"]) == "pass" else "#FF006E"
             st.markdown(
                 f"""
             <div style="text-align: center;">
@@ -1051,7 +1051,7 @@ def render_quality_validation_tab():
     st.plotly_chart(fig_gradient, use_container_width=True)
 
 
-def render_dual_outputs_tab():
+def render_dual_outputs_tab() -> None:
     """Dual outputs with file tree and checklist"""
     st.markdown("### 💾 Dual Model Outputs")
 
@@ -1225,7 +1225,7 @@ Format: FP16 tensors</pre>
     )
 
 
-def reset_session_state():
+def reset_session_state() -> None:
     """Reset all session state variables"""
     keys_to_reset = [
         "compression_running",

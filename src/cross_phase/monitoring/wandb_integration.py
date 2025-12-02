@@ -8,7 +8,7 @@ ISS-002: Export METRICS_COUNT at module level for test compatibility
 
 import logging
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import wandb
 
@@ -72,7 +72,7 @@ class WandBIntegration:
         """ISS-002: Alias for project_name for test compatibility."""
         return self.project_name
 
-    def init_phase_run(self, phase_name: str, config: Dict, session_id: str):
+    def init_phase_run(self, phase_name: str, config: Dict, session_id: str) -> Any:
         """
         Initialize W&B run for a specific phase with error handling (ISS-018).
 
@@ -107,7 +107,7 @@ class WandBIntegration:
             self.current_run = None
             return None
 
-    def log_metrics(self, metrics: Dict, step: Optional[int] = None):
+    def log_metrics(self, metrics: Dict, step: Optional[int] = None) -> None:
         """
         Log metrics to W&B with error handling (ISS-018).
 
@@ -281,7 +281,7 @@ class WandBIntegration:
 
         self.log_metrics(metrics, step)
 
-    def log_phase4_pre_compression(self, metrics: Dict):
+    def log_phase4_pre_compression(self, metrics: Dict) -> None:
         """Phase 4 Pre-Compression (3 metrics)"""
         wandb_metrics = {
             "compression/original_size_mb": metrics.get("original_size_mb", 0.0),
@@ -290,7 +290,7 @@ class WandBIntegration:
         }
         self.log_metrics(wandb_metrics)
 
-    def log_phase4_compression(self, metrics: Dict):
+    def log_phase4_compression(self, metrics: Dict) -> None:
         """Phase 4 Compression Process (7 metrics)"""
         wandb_metrics = {
             "compression/compressed_size_mb": metrics.get("compressed_size_mb", 0.0),
@@ -303,7 +303,7 @@ class WandBIntegration:
         }
         self.log_metrics(wandb_metrics)
 
-    def log_phase4_post_compression(self, metrics: Dict):
+    def log_phase4_post_compression(self, metrics: Dict) -> None:
         """Phase 4 Post-Compression (5 metrics)"""
         wandb_metrics = {
             "compression/post_perplexity": metrics.get("post_perplexity", 0.0),
@@ -314,7 +314,7 @@ class WandBIntegration:
         }
         self.log_metrics(wandb_metrics)
 
-    def log_phase4_fine_tuning(self, metrics: Dict):
+    def log_phase4_fine_tuning(self, metrics: Dict) -> None:
         """Phase 4 Fine-Tuning (4 metrics)"""
         if metrics is None:
             return
@@ -327,7 +327,7 @@ class WandBIntegration:
         }
         self.log_metrics(wandb_metrics)
 
-    def log_phase4_summary(self, results: Dict):
+    def log_phase4_summary(self, results: Dict) -> None:
         """Phase 4 Summary (8 metrics)"""
         post_metrics = results.get("post_compression", {})
         fine_tune = results.get("fine_tuning", {})
@@ -352,7 +352,7 @@ class WandBIntegration:
         }
         self.log_metrics(wandb_metrics)
 
-    def log_artifact(self, artifact_name: str, artifact_type: str, file_path: str, metadata: Dict):
+    def log_artifact(self, artifact_name: str, artifact_type: str, file_path: str, metadata: Dict) -> None:
         """
         Log model artifact to W&B with error handling (ISS-018).
 
@@ -383,7 +383,7 @@ class WandBIntegration:
         except Exception as e:
             logger.error(f"Unexpected error logging artifact: {e}")
 
-    def finish(self):
+    def finish(self) -> None:
         """Finish current W&B run with error handling (ISS-018)."""
         if self.current_run:
             try:
@@ -451,7 +451,7 @@ class MetricContinuityTracker:
         # ISS-002: History dict for test compatibility
         self.history: Dict[str, Dict] = {}
 
-    def add_phase_metrics(self, phase: str, metrics: Dict):
+    def add_phase_metrics(self, phase: str, metrics: Dict) -> None:
         """
         ISS-002: Add metrics for a phase (test-compatible API).
 
@@ -513,7 +513,7 @@ class MetricContinuityTracker:
         drop = (max_val - latest) / max_val
         return drop > threshold
 
-    def record_phase(self, phase_name: str, metrics: Dict):
+    def record_phase(self, phase_name: str, metrics: Dict) -> None:
         """
         Record metrics at end of phase (legacy API, wraps add_phase_metrics).
 
@@ -523,7 +523,7 @@ class MetricContinuityTracker:
         """
         self.add_phase_metrics(phase_name, metrics)
 
-    def log_to_wandb(self):
+    def log_to_wandb(self) -> None:
         """Log cross-phase metric evolution to W&B"""
         # Create continuity table
         continuity_table = wandb.Table(

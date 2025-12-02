@@ -109,7 +109,7 @@ class Phase2Pipeline:
             pass
         return mergers
 
-    def run(self, input_models: List[nn.Module], session_id: str = None) -> nn.Module:
+    def run(self, input_models: List[nn.Module], session_id: Optional[str] = None) -> nn.Module:
         """
         Run Phase 2 evolution.
 
@@ -195,7 +195,7 @@ class Phase2Pipeline:
 
         return self.champion if self.champion else self.population[0]
 
-    def _init_population(self, input_models: List[nn.Module]):
+    def _init_population(self, input_models: List[nn.Module]) -> None:
         """Initialize population from 3 input models."""
         self.population = []
 

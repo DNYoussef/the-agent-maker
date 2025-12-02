@@ -15,7 +15,7 @@ from model.model_config import TitansMAGConfig
 from model.titans_mag import TitansMAGBackbone, TitansMAGLayer
 
 
-def test_component_imports():
+def test_component_imports() -> None:
     """Test that all components can be imported"""
     print("Testing component imports...")
 
@@ -47,7 +47,7 @@ def test_component_imports():
     print("All component imports successful!\n")
 
 
-def test_model_instantiation():
+def test_model_instantiation() -> None:
     """Test that the model can be instantiated"""
     print("Testing model instantiation...")
 
@@ -61,7 +61,7 @@ def test_model_instantiation():
     return model
 
 
-def test_forward_pass(model):
+def test_forward_pass(model) -> None:
     """Test that a forward pass works"""
     print("Testing forward pass...")
 
@@ -82,7 +82,7 @@ def test_forward_pass(model):
     print("  Forward pass: OK\n")
 
 
-def test_memory_reset():
+def test_memory_reset() -> None:
     """Test memory reset functionality"""
     print("Testing memory reset...")
 

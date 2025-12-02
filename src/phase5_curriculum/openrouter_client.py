@@ -212,17 +212,17 @@ class OpenRouterClient:
         # HTTP client (created on __aenter__)
         self._client: Optional[httpx.AsyncClient] = None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "OpenRouterClient":
         """Async context manager entry."""
         self._client = httpx.AsyncClient(timeout=self.timeout)
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args: Any) -> None:
         """Async context manager exit."""
         if self._client:
             await self._client.aclose()
 
-    def _apply_rate_limit(self):
+    def _apply_rate_limit(self) -> None:
         """Apply rate limiting between requests."""
         current_time = time.time()
         time_since_last = current_time - self._last_request_time

@@ -1,12 +1,13 @@
 """Phase 3: Quiet-STaR - Add reasoning via prompt baking + RL"""
 
 from .base_controller import PhaseController, PhaseResult, get_tokenizer
+from typing import Optional, List, Any
 
 
 class Phase3Controller(PhaseController):
     """Phase 3: Quiet-STaR - Add reasoning via prompt baking + RL"""
 
-    def execute(self, input_models: list = None) -> PhaseResult:
+    def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:
         """Execute Phase 3: Prompt Baking (Step 1) + Quiet-STaR RL (Step 2).
 
         Two-step process:
@@ -81,11 +82,11 @@ class Phase3Controller(PhaseController):
                 error=str(e),
             )
 
-    def _get_tokenizer(self):
+    def _get_tokenizer(self) -> Any:
         """Get tokenizer using unified utility (ISS-016)."""
         return get_tokenizer("gpt2")
 
-    def _run_prompt_baking(self, model, tokenizer):
+    def _run_prompt_baking(self, model, tokenizer) -> None:
         """Run Step 1: Prompt Baking to embed reasoning strategies."""
         from cross_phase.prompt_baking.baker import PromptBaker, PromptBakingConfig
 
@@ -128,7 +129,7 @@ class Phase3Controller(PhaseController):
         print(f"  Prompt baking complete")
         return baked_model
 
-    def _run_quietstar_rl(self, baked_model, baseline_model, tokenizer):
+    def _run_quietstar_rl(self, baked_model, baseline_model, tokenizer) -> Any:
         """Run Step 2: Quiet-STaR RL training (simplified for MVP)."""
         import torch
 
@@ -146,7 +147,7 @@ class Phase3Controller(PhaseController):
         print(f"  RL step complete (simplified for MVP)")
         return baked_model
 
-    def _validate_anti_theater(self, model, tokenizer):
+    def _validate_anti_theater(self, model, tokenizer) -> Any:
         """Validate model outputs are genuine, not theatrical."""
         import torch
 
@@ -200,7 +201,7 @@ class Phase3Controller(PhaseController):
 
         return results
 
-    def validate_input(self, input_models: list = None) -> bool:
+    def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
         """Validate 1 input model from Phase 2"""
         if not input_models or len(input_models) != 1:
             raise ValueError(

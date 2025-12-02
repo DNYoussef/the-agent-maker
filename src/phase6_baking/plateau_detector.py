@@ -61,7 +61,7 @@ class PlateauDetector:
         self.plateau_counts = {"a_cycle": 0, "b_cycle": 0}
 
         # Track plateau events
-        self.plateau_events = []
+        self.plateau_events: List[Tuple[str, int]] = []
 
     def check(self, score: float, cycle: str) -> bool:
         """

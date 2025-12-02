@@ -11,7 +11,7 @@ ISS-025: Added QK-Clip implementation for attention score clipping
 """
 
 import logging
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 import torch.nn as nn
@@ -89,7 +89,7 @@ class MuonGrokfast(Optimizer):
                     state["momentum_buffer"] = torch.zeros_like(p.data)
 
     @torch.no_grad()
-    def step(self, closure=None):
+    def step(self, closure=None) -> Any:
         """Perform single optimization step"""
         loss = None
         if closure is not None:
@@ -125,7 +125,7 @@ class MuonGrokfast(Optimizer):
 
         return loss
 
-    def _muon_update(self, param, grad, state, group):
+    def _muon_update(self, param, grad, state, group) -> None:
         """Muon update with Newton-Schulz orthogonalization"""
         lr = group["muon_lr"]
         momentum = group["momentum"]
@@ -187,7 +187,7 @@ class MuonGrokfast(Optimizer):
         # Update param
         param.add_(G, alpha=-lr)
 
-    def _adamw_update(self, param, grad, state, group):
+    def _adamw_update(self, param, grad, state, group) -> None:
         """AdamW fallback for 1-D params"""
         lr = group["fallback_lr"]
 
@@ -213,7 +213,7 @@ class MuonGrokfast(Optimizer):
         """Get QK-Clip activation count (for logging) - ISS-025."""
         return self._qk_clip_count
 
-    def reset_qk_clip_count(self):
+    def reset_qk_clip_count(self) -> None:
         """Reset QK-Clip counter (call at start of each epoch)."""
         self._qk_clip_count = 0
 
@@ -244,7 +244,7 @@ class QKClipHook:
         self.clip_count = 0
         self._handles = []
 
-    def register(self, model: nn.Module):
+    def register(self, model: nn.Module) -> None:
         """
         Register QK-Clip hooks on all attention modules.
 
@@ -257,13 +257,13 @@ class QKClipHook:
                     self._handles.append(handle)
                     logger.debug(f"QK-Clip registered on: {name}")
 
-    def remove(self):
+    def remove(self) -> None:
         """Remove all registered hooks."""
         for handle in self._handles:
             handle.remove()
         self._handles.clear()
 
-    def _clip_hook(self, module, input, output):
+    def _clip_hook(self, module, input, output) -> Any:
         """
         Hook function that clips attention scores.
 
@@ -283,7 +283,7 @@ class QKClipHook:
         """Get number of times clipping threshold was exceeded."""
         return self.clip_count
 
-    def reset_count(self):
+    def reset_count(self) -> None:
         """Reset clip counter."""
         self.clip_count = 0
 

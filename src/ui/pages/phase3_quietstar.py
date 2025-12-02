@@ -9,7 +9,7 @@ import json
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -20,7 +20,7 @@ from plotly.subplots import make_subplots
 
 
 # ==================== CUSTOM CSS THEME ====================
-def apply_futuristic_theme():
+def apply_futuristic_theme() -> None:
     """Apply futuristic command center theme with glassmorphism"""
     st.markdown(
         """
@@ -176,7 +176,7 @@ def apply_futuristic_theme():
 
 
 # ==================== MAIN DASHBOARD ====================
-def render_phase3_dashboard():
+def render_phase3_dashboard() -> None:
     """Main dashboard for Phase 3 Quiet-STaR reasoning enhancement"""
     apply_futuristic_theme()
 
@@ -239,7 +239,7 @@ def render_phase3_dashboard():
 
 
 # ==================== SESSION STATE ====================
-def initialize_session_state():
+def initialize_session_state() -> None:
     """Initialize session state variables"""
     defaults = {
         "phase3_running": False,
@@ -270,7 +270,7 @@ def initialize_session_state():
 
 
 # ==================== CONFIG PANEL ====================
-def render_config_panel():
+def render_config_panel() -> None:
     """Render configuration controls in sidebar"""
     st.subheader("Thought Generation")
 
@@ -358,7 +358,7 @@ def render_config_panel():
         st.rerun()
 
 
-def reset_phase3_state():
+def reset_phase3_state() -> None:
     """Reset Phase 3 session state"""
     st.session_state.phase3_running = False
     st.session_state.coherence_semantic = 0.0
@@ -375,7 +375,7 @@ def reset_phase3_state():
 
 
 # ==================== HERO METRICS ====================
-def render_hero_metrics():
+def render_hero_metrics() -> None:
     """Render hero section with key metrics"""
     st.markdown("---")
 
@@ -427,7 +427,7 @@ def render_hero_metrics():
 
 
 # ==================== TAB 1: THOUGHT GENERATION ====================
-def render_thought_generation_tab():
+def render_thought_generation_tab() -> None:
     """Render thought generation visualization"""
     st.subheader("🧠 Token-Wise Parallel Thought Sampling")
 
@@ -492,7 +492,7 @@ def render_thought_generation_tab():
     st.plotly_chart(fig, use_container_width=True)
 
 
-def simulate_thought_generation():
+def simulate_thought_generation() -> None:
     """Simulate thought generation for demo"""
     if np.random.random() > 0.7:  # 30% chance per render
         thought_templates = [
@@ -512,7 +512,7 @@ def simulate_thought_generation():
         st.session_state.reasoning_quality = np.random.uniform(0.7, 0.95)
 
 
-def create_token_probability_heatmap():
+def create_token_probability_heatmap() -> go.Figure:
     """Create token probability distribution heatmap"""
     # Simulate token probabilities
     tokens = [f"T{i}" for i in range(20)]
@@ -547,7 +547,7 @@ def create_token_probability_heatmap():
 
 
 # ==================== TAB 2: COHERENCE SCORING ====================
-def render_coherence_scoring_tab():
+def render_coherence_scoring_tab() -> None:
     """Render coherence scoring section"""
     st.subheader("📊 Multi-Dimensional Coherence Analysis")
 
@@ -598,7 +598,7 @@ def render_coherence_scoring_tab():
         st.info("⏳ No coherence history yet. Start Phase 3 to track evolution.")
 
 
-def update_coherence_scores():
+def update_coherence_scores() -> None:
     """Update coherence scores (simulation)"""
     if np.random.random() > 0.8:  # 20% chance per render
         st.session_state.coherence_semantic = min(
@@ -773,7 +773,7 @@ def create_coherence_history_chart() -> go.Figure:
 
 
 # ==================== TAB 3: REASONING TRACE ====================
-def render_reasoning_trace_tab():
+def render_reasoning_trace_tab() -> None:
     """Render reasoning trace viewer"""
     st.subheader("🔍 Reasoning Trace Inspector")
 
@@ -823,7 +823,7 @@ def render_reasoning_trace_tab():
         "Select Reasoning Trace", [t["id"] for t in traces], format_func=lambda x: f"Trace #{x}"
     )
 
-    trace = next(t for t in traces if t["id"] == selected_trace_id)
+    trace = next(t for t in traces if cast(str, t["id"]) == selected_trace_id)
 
     # Display trace
     col1, col2 = st.columns([2, 1])
@@ -833,7 +833,7 @@ def render_reasoning_trace_tab():
         st.code(trace["prompt"], language=None)
 
         st.markdown("#### Generated Thoughts")
-        for i, (thought, rating) in enumerate(zip(trace["thoughts"], trace["quality_ratings"])):
+        for i, (thought, rating) in enumerate(zip(list(trace["thoughts"]), list(trace["quality_ratings"]))):
             quality_color = get_quality_color(rating)
             with st.expander(f"💭 Thought {i+1} - Quality: {rating:.2%}", expanded=(i == 0)):
                 st.markdown(
@@ -847,7 +847,7 @@ def render_reasoning_trace_tab():
     with col2:
         st.markdown("#### Thought Quality")
 
-        avg_quality = np.mean(trace["quality_ratings"])
+        avg_quality = np.mean(list(trace["quality_ratings"]))
         st.metric("Average Quality", f"{avg_quality:.2%}")
 
         # Quality distribution
@@ -888,7 +888,7 @@ def get_quality_color(rating: float) -> str:
 
 
 # ==================== TAB 4: ANTI-THEATER DETECTION ====================
-def render_anti_theater_tab():
+def render_anti_theater_tab() -> None:
     """Render anti-theater detection panel"""
     st.subheader("🛡️ Anti-Theater Detection System")
 
@@ -975,7 +975,7 @@ def render_anti_theater_tab():
         )
 
 
-def update_theater_metrics():
+def update_theater_metrics() -> None:
     """Update theater detection metrics (simulation)"""
     if np.random.random() > 0.85:  # 15% chance per render
         st.session_state.theater_score = max(
@@ -1067,7 +1067,7 @@ def create_theater_gauge(value: float) -> go.Figure:
 
 
 # ==================== TAB 5: PROMPT BAKING ====================
-def render_prompt_baking_tab():
+def render_prompt_baking_tab() -> None:
     """Render prompt baking status panel"""
     st.subheader("🔥 Chain-of-Thought Prompt Baking")
 
@@ -1129,7 +1129,7 @@ def render_prompt_baking_tab():
 
     for stage in stages:
         with st.expander(
-            f"{stage['name']} - {stage['progress']:.0f}%", expanded=stage["progress"] > 0
+            f"{stage['name']} - {stage['progress']:.0f}%", expanded=cast(float, stage["progress"]) > 0
         ):
             st.progress(stage["progress"] / 100)
             st.caption(f"Estimated time: {stage['time']}")
@@ -1189,7 +1189,7 @@ Always use structured reasoning: [Analysis] → [Steps] → [Verification] → [
     st.plotly_chart(fig, use_container_width=True)
 
 
-def update_baking_progress():
+def update_baking_progress() -> None:
     """Update baking progress (simulation)"""
     if st.session_state.baking_progress < 1.0:
         st.session_state.baking_progress = min(
@@ -1201,7 +1201,7 @@ def update_baking_progress():
 
 
 # ==================== TAB 6: TRAINING METRICS ====================
-def render_training_metrics_tab():
+def render_training_metrics_tab() -> None:
     """Render RL training metrics"""
     st.subheader("📈 REINFORCE RL Training Metrics")
 
@@ -1333,7 +1333,7 @@ def render_training_metrics_tab():
         st.info("⏳ No diversity data yet. Generate thoughts to track diversity.")
 
 
-def update_training_metrics():
+def update_training_metrics() -> None:
     """Update training metrics (simulation)"""
     if np.random.random() > 0.7:  # 30% chance per render
         # Simulate RL loss decrease
@@ -1346,7 +1346,7 @@ def update_training_metrics():
 
 
 # ==================== OPENROUTER FOOTER ====================
-def render_openrouter_footer():
+def render_openrouter_footer() -> None:
     """Render OpenRouter integration status"""
     st.markdown("---")
     st.markdown("### 🌐 OpenRouter Integration Status")

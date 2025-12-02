@@ -75,7 +75,7 @@ CUSTOM_PLOTLY_TEMPLATE = go.layout.Template(
 def create_gradient_metric(
     label: str,
     value: str,
-    delta: str = None,
+    delta: Optional[str] = None,
     gradient_start: str = "#00F5D4",
     gradient_end: str = "#8338EC",
     glow: bool = True,

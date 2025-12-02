@@ -1,6 +1,7 @@
 """
 Phase 2: EvoMerge - Evolutionary Optimization Dashboard
 
+import streamlit.components.v1 as components
 Comprehensive Streamlit dashboard for Phase 2 (EvoMerge) - 50 generations of
 evolutionary model merging with 6 merge techniques (Linear, SLERP, TIES, DARE,
 FrankenMerge, DFS).
@@ -20,13 +21,14 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+import streamlit.components.v1 as components
 import streamlit.components.v1 as components
 from plotly.subplots import make_subplots
 
@@ -90,7 +92,7 @@ class ModelIndividual:
 def create_gradient_metric(
     label: str,
     value: str,
-    delta: str = None,
+    delta: Optional[str] = None,
     gradient_start: str = "#00F5D4",
     gradient_end: str = "#8338EC",
 ) -> str:
@@ -733,7 +735,7 @@ def create_fitness_landscape_contour(population: List[ModelIndividual]) -> go.Fi
 # ============================================================================
 
 
-def render_hero_section(data: Dict):
+def render_hero_section(data: Dict) -> None:
     """Hero section with phase title and evolution progress"""
     hero_html = """
     <div style="
@@ -820,7 +822,7 @@ def render_hero_section(data: Dict):
         )
 
 
-def render_evolution_progress_section(data: Dict):
+def render_evolution_progress_section(data: Dict) -> None:
     """Evolution progress section"""
     st.markdown("### Evolution Progress")
 
@@ -880,7 +882,7 @@ def render_evolution_progress_section(data: Dict):
         )
 
 
-def render_merge_techniques_section(technique_stats: Dict):
+def render_merge_techniques_section(technique_stats: Dict) -> None:
     """Merge techniques performance panel"""
     st.markdown("### Merge Techniques Performance")
 
@@ -923,7 +925,7 @@ def render_merge_techniques_section(technique_stats: Dict):
             )
 
 
-def render_population_section(population: List[ModelIndividual]):
+def render_population_section(population: List[ModelIndividual]) -> None:
     """Population grid and stats"""
     st.markdown("### Current Population")
 
@@ -951,7 +953,7 @@ def render_population_section(population: List[ModelIndividual]):
         st.metric("Std Dev", f"{np.std(fitness_values):.4f}")
 
 
-def render_evolutionary_tree_section(current_gen: int, pop_size: int):
+def render_evolutionary_tree_section(current_gen: int, pop_size: int) -> None:
     """Evolutionary tree visualization"""
     st.markdown("### Evolutionary Tree")
 
@@ -972,7 +974,7 @@ def render_evolutionary_tree_section(current_gen: int, pop_size: int):
     )
 
 
-def render_fitness_landscape_section(population: List[ModelIndividual]):
+def render_fitness_landscape_section(population: List[ModelIndividual]) -> None:
     """Fitness landscape visualization"""
     st.markdown("### Fitness Landscape")
 
@@ -1000,7 +1002,7 @@ def render_fitness_landscape_section(population: List[ModelIndividual]):
     )
 
 
-def render_champion_model_card(champion: ModelIndividual, technique_stats: Dict):
+def render_champion_model_card(champion: ModelIndividual, technique_stats: Dict) -> None:
     """Champion model details card"""
     st.markdown("### Champion Model")
 
@@ -1109,7 +1111,7 @@ def render_champion_model_card(champion: ModelIndividual, technique_stats: Dict)
 # ============================================================================
 
 
-def render_phase2_dashboard():
+def render_phase2_dashboard() -> None:
     """Main Phase 2 EvoMerge dashboard"""
 
     # Custom CSS

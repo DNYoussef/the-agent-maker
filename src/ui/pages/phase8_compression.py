@@ -6,7 +6,7 @@ Three-stage compression pipeline with quality validation
 import streamlit as st
 
 
-def render():
+def render() -> None:
     """Render Phase 8: Final Compression Dashboard"""
     st.title("Phase 8: Final Compression")
     st.info(

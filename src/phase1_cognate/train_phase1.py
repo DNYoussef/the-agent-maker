@@ -34,7 +34,7 @@ from phase1_cognate.model.model_config import Phase1Config
 from phase1_cognate.training.trainer import Phase1Trainer, TrainingConfig
 
 
-def get_tokenizer_phase1():
+def get_tokenizer_phase1() -> None:
     """Get GPT-2 tokenizer with Phase 1 specific settings"""
     try:
         import os
@@ -60,7 +60,7 @@ def get_tokenizer_phase1():
         return get_tokenizer("gpt2")
 
 
-def download_and_process_datasets(dataset_names, cache_dir=None):
+def download_and_process_datasets(dataset_names, cache_dir=None) -> None:
     """
     Download and process datasets
 
@@ -93,7 +93,7 @@ def download_and_process_datasets(dataset_names, cache_dir=None):
     return processed_datasets
 
 
-def train_single_model(specialization: str, datasets: dict, tokenizer, args):
+def train_single_model(specialization: str, datasets: dict, tokenizer, args) -> None:
     """
     Train a single model
 
@@ -145,7 +145,7 @@ def train_single_model(specialization: str, datasets: dict, tokenizer, args):
     print(f"\n✓ {specialization.upper()} model training complete!\n")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Phase 1 (Cognate) Training")
 
     # Model selection

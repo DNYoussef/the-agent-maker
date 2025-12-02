@@ -51,7 +51,7 @@ class TRMTitansMAGModel(nn.Module):
         self.lm_head = nn.Linear(d_model, vocab_size, bias=False)
         self.tie_weights()
 
-    def tie_weights(self):
+    def tie_weights(self) -> None:
         """Tie LM head with token embeddings"""
         self.lm_head.weight = self.backbone.token_emb.weight
 
@@ -198,7 +198,7 @@ class TRMTitansMAGModel(nn.Module):
         counts["total"] = sum(counts.values())
         return counts
 
-    def reset_memory(self):
+    def reset_memory(self) -> None:
         """Reset LTM state (call between batches)"""
         self.backbone.reset_memory()
 

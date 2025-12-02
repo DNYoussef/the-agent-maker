@@ -17,7 +17,7 @@ Features:
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -54,10 +54,10 @@ CUSTOM_PLOTLY_TEMPLATE = go.layout.Template(
 def create_gradient_metric(
     label: str,
     value: str,
-    delta: Optional[str] = None,
+    delta: str = None,
     gradient_start: str = "#00F5D4",
     gradient_end: str = "#8338EC",
-) -> str:
+):
     """Create a metric card with gradient background"""
     delta_html = (
         f'<div style="color: #00F5D4; font-size: 14px; margin-top: 5px;">{delta}</div>'
@@ -88,7 +88,7 @@ def create_gradient_metric(
     return html
 
 
-def create_ab_cycle_timeline() -> go.Figure:
+def create_ab_cycle_timeline():
     """Create interactive A/B cycle timeline with alternating cycles"""
     cycles = [
         {"type": "A", "name": "Tool Opt 1", "iteration": 1, "duration": 120, "status": "complete"},
@@ -128,7 +128,7 @@ def create_ab_cycle_timeline() -> go.Figure:
 
         colors.append(color)
         texts.append(
-            f"{cycle['name']}<br>{cycle['duration']}min" if cast(int, cycle["duration"]) > 0 else cycle["name"]
+            f"{cycle['name']}<br>{cycle['duration']}min" if cycle["duration"] > 0 else cycle["name"]
         )
         customdata.append(
             {
@@ -143,7 +143,7 @@ def create_ab_cycle_timeline() -> go.Figure:
     fig.add_trace(
         go.Bar(
             y=[c["name"] for c in cycles],
-            x=[cast(int, c["duration"]) if cast(int, c["duration"]) > 0 else 10 for c in cycles],
+            x=[c["duration"] if c["duration"] > 0 else 10 for c in cycles],
             orientation="h",
             marker=dict(
                 color=colors,
@@ -192,7 +192,7 @@ def create_ab_cycle_timeline() -> go.Figure:
     return fig
 
 
-def create_swe_bench_progress() -> go.Figure:
+def create_swe_bench_progress():
     """Create SWE-Bench score progression chart with target line"""
     iterations = np.arange(1, 11)
     scores = np.array([70.1, 73.2, 76.8, 79.5, 82.1, 84.7, 87.3, 89.8, 92.1, 94.2])
@@ -279,7 +279,7 @@ def create_swe_bench_progress() -> go.Figure:
     return fig
 
 
-def create_half_baking_visualization() -> go.Figure:
+def create_half_baking_visualization():
     """Create visualization of half-baking strategy (50% strength per iteration)"""
     iterations = np.arange(0, 11)
     cumulative_strength = 1 - (0.5**iterations)
@@ -355,7 +355,7 @@ def create_half_baking_visualization() -> go.Figure:
     return fig
 
 
-def create_tool_proficiency_radar() -> go.Figure:
+def create_tool_proficiency_radar():
     """Create radar chart showing tool proficiency across different categories"""
     categories = [
         "Code Generation",
@@ -420,7 +420,7 @@ def create_tool_proficiency_radar() -> go.Figure:
     return fig
 
 
-def create_persona_evolution_heatmap() -> go.Figure:
+def create_persona_evolution_heatmap():
     """Create heatmap showing model-discovered persona patterns over iterations"""
     # Model-discovered patterns (NOT pre-defined personas)
     patterns = [
@@ -498,7 +498,7 @@ def create_persona_evolution_heatmap() -> go.Figure:
     return fig
 
 
-def create_plateau_detection_chart() -> go.Figure:
+def create_plateau_detection_chart():
     """Create chart showing performance plateau detection and cycle switching"""
     iterations = np.arange(1, 21)
     performance = np.concatenate(
@@ -569,7 +569,7 @@ def create_plateau_detection_chart() -> go.Figure:
     return fig
 
 
-def create_baking_time_breakdown() -> go.Figure:
+def create_baking_time_breakdown():
     """Create breakdown of prompt baking time per component"""
     components = [
         {"name": "Tool Prompt 1", "time": 5, "type": "A-Cycle"},
@@ -593,7 +593,7 @@ def create_baking_time_breakdown() -> go.Figure:
                 x=[comp["time"]],
                 y=[comp["name"]],
                 orientation="h",
-                marker=dict(color=colors[cast(str, comp["type"])], line=dict(color="#FFFFFF", width=1)),
+                marker=dict(color=colors[comp["type"]], line=dict(color="#FFFFFF", width=1)),
                 text=f"{comp['time']} min",
                 textposition="inside",
                 textfont=dict(color="#FFFFFF", size=11),
@@ -605,7 +605,7 @@ def create_baking_time_breakdown() -> go.Figure:
         )
 
     # Total time annotation
-    total_time = sum(cast(int, c["time"]) for c in components)
+    total_time = sum(c["time"] for c in components)
     fig.add_annotation(
         x=total_time + 2,
         y=len(components) - 1,
@@ -631,7 +631,7 @@ def create_baking_time_breakdown() -> go.Figure:
     return fig
 
 
-def create_baked_behaviors_table() -> go.Figure:
+def create_baked_behaviors_table():
     """Create table showing all baked behaviors with strength levels"""
     behaviors = [
         {
@@ -728,7 +728,7 @@ def create_baked_behaviors_table() -> go.Figure:
     return fig
 
 
-def render_phase6_dashboard() -> None:
+def render_phase6_dashboard():
     """Main dashboard for Phase 6 Tool & Persona Baking"""
 
     # Page config
@@ -929,7 +929,7 @@ def render_phase6_dashboard() -> None:
         render_baked_behaviors_tab()
 
 
-def render_ab_overview_tab() -> None:
+def render_ab_overview_tab():
     """Render A/B cycle overview tab"""
     st.markdown("### 🔄 A/B Cycle Timeline")
 
@@ -1012,7 +1012,7 @@ def render_ab_overview_tab() -> None:
     )
 
 
-def render_a_cycle_tab() -> None:
+def render_a_cycle_tab():
     """Render A-Cycle (Tool Optimization) tab"""
     st.markdown("### ⚡ A-Cycle: Tool Use Optimization (SWE-Bench)")
 
@@ -1045,7 +1045,7 @@ def render_a_cycle_tab() -> None:
         ]
 
         for m in metrics:
-            gain_color = "#00F5D4" if cast(int, m["gain"]) >= 23 else "#8338EC"
+            gain_color = "#00F5D4" if m["gain"] >= 23 else "#8338EC"
             st.markdown(
                 f"""
             <div style="background: linear-gradient(135deg, {gain_color}11 0%, {gain_color}22 100%);
@@ -1105,7 +1105,7 @@ def render_a_cycle_tab() -> None:
     st.plotly_chart(fig, use_container_width=True)
 
 
-def render_b_cycle_tab() -> None:
+def render_b_cycle_tab():
     """Render B-Cycle (Persona Discovery) tab"""
     st.markdown("### 🧠 B-Cycle: Self-Guided Persona Discovery")
 
@@ -1170,7 +1170,7 @@ def render_b_cycle_tab() -> None:
         ]
 
         for disc in discoveries:
-            strength_color = "#00F5D4" if cast(float, disc["strength"]) >= 0.75 else "#8338EC"
+            strength_color = "#00F5D4" if disc["strength"] >= 0.75 else "#8338EC"
             st.markdown(
                 f"""
             <div style="background: linear-gradient(135deg, {strength_color}11 0%, {strength_color}22 100%);
@@ -1293,7 +1293,7 @@ def render_b_cycle_tab() -> None:
     st.plotly_chart(fig, use_container_width=True)
 
 
-def render_half_baking_tab() -> None:
+def render_half_baking_tab():
     """Render half-baking strategy tab"""
     st.markdown("### 📈 Half-Baking Strategy: 50% Strength per Iteration")
 
@@ -1413,7 +1413,7 @@ def render_half_baking_tab() -> None:
     st.plotly_chart(fig, use_container_width=True)
 
 
-def render_baked_behaviors_tab() -> None:
+def render_baked_behaviors_tab():
     """Render baked behaviors tab"""
     st.markdown("### 🔥 All Baked Behaviors")
 

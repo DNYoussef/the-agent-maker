@@ -102,7 +102,7 @@ class TitansMAGBackbone(nn.Module):
 
         self._init_weights()
 
-    def _init_weights(self):
+    def _init_weights(self) -> None:
         """Initialize weights"""
         for module in self.modules():
             if isinstance(module, nn.Linear):
@@ -159,7 +159,7 @@ class TitansMAGBackbone(nn.Module):
 
         return output, loss_gate
 
-    def reset_memory(self):
+    def reset_memory(self) -> None:
         """Reset LTM state (call between batches)"""
         self.ltm.reset_memory()
 

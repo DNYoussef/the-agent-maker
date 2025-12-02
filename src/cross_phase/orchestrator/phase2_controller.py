@@ -1,12 +1,13 @@
 """Phase 2: EvoMerge - Evolve 3 models into 1"""
 
 from .base_controller import PhaseController, PhaseResult, ValidationThresholds
+from typing import Optional, List, Any
 
 
 class Phase2Controller(PhaseController):
     """Phase 2: EvoMerge - Evolve 3 models into 1"""
 
-    def execute(self, input_models: list = None) -> PhaseResult:
+    def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:
         """Execute Phase 2: 50-generation evolution.
 
         Uses evolutionary optimization with 6 merge techniques to evolve
@@ -64,7 +65,7 @@ class Phase2Controller(PhaseController):
                 error=str(e),
             )
 
-    def validate_input(self, input_models: list = None) -> bool:
+    def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
         """Validate 3 input models from Phase 1"""
         if not input_models or len(input_models) != 3:
             raise ValueError(

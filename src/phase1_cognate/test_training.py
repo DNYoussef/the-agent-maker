@@ -19,7 +19,7 @@ from phase1_cognate.model.model_config import Phase1Config
 from phase1_cognate.training.trainer import Phase1Trainer, TrainingConfig
 
 
-def create_synthetic_datasets(num_samples=100):
+def create_synthetic_datasets(num_samples=100) -> None:
     """Create synthetic datasets for testing"""
     datasets = {}
 
@@ -44,11 +44,11 @@ def create_synthetic_datasets(num_samples=100):
 class SimpleTokenizer:
     """Simple mock tokenizer"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.pad_token = "<pad>"
         self.eos_token = "<eos>"
 
-    def __call__(self, text, max_length=512, **kwargs):
+    def __call__(self, text, max_length=512, **kwargs) -> None:
         # Simple character-based tokenization
         tokens = [ord(c) % 32768 for c in text[:max_length]]
 
@@ -63,7 +63,7 @@ class SimpleTokenizer:
         }
 
 
-def test_model_creation():
+def test_model_creation() -> None:
     """Test creating all 3 models"""
     print("\n" + "=" * 70)
     print("TEST 1: MODEL CREATION")
@@ -86,7 +86,7 @@ def test_model_creation():
     print("\nOK Model creation test passed!\n")
 
 
-def test_curriculum():
+def test_curriculum() -> None:
     """Test curriculum loader"""
     print("\n" + "=" * 70)
     print("TEST 2: CURRICULUM LOADER")
@@ -103,7 +103,7 @@ def test_curriculum():
     print("\nOK Curriculum loader test passed!\n")
 
 
-def test_training_loop():
+def test_training_loop() -> None:
     """Test training loop with synthetic data"""
     print("\n" + "=" * 70)
     print("TEST 3: TRAINING LOOP (1 epoch, synthetic data)")
@@ -153,7 +153,7 @@ def test_training_loop():
         return False
 
 
-def main():
+def main() -> None:
     """Run all tests"""
     print("\n" + "=" * 70)
     print("PHASE 1 TRAINING PIPELINE TEST")

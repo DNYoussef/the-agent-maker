@@ -1,6 +1,7 @@
 """Phase 5: Curriculum Learning - Specialized agent training"""
 
 from .base_controller import PhaseController, PhaseResult, get_tokenizer
+from typing import Optional, List, Any
 
 
 class Phase5Controller(PhaseController):
@@ -16,7 +17,7 @@ class Phase5Controller(PhaseController):
     7. Level Progression - 10 levels
     """
 
-    def execute(self, input_models: list = None) -> PhaseResult:
+    def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:
         """Execute Phase 5: Curriculum-based specialization training.
 
         Args:
@@ -97,11 +98,11 @@ class Phase5Controller(PhaseController):
                 error=str(e),
             )
 
-    def _get_tokenizer(self):
+    def _get_tokenizer(self) -> None:
         """Get tokenizer using unified utility (ISS-016)."""
         return get_tokenizer("gpt2")
 
-    def validate_input(self, input_models: list = None) -> bool:
+    def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
         """Validate 1 input model from Phase 4."""
         if not input_models or len(input_models) != 1:
             raise ValueError(

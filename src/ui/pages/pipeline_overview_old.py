@@ -15,7 +15,7 @@ from cross_phase.orchestrator.pipeline import PipelineOrchestrator
 from cross_phase.storage.model_registry import ModelRegistry
 
 
-def render():
+def render() -> None:
     """Render pipeline overview page"""
     st.markdown('<h1 class="main-header">Pipeline Overview</h1>', unsafe_allow_html=True)
 

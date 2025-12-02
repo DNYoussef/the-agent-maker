@@ -25,7 +25,7 @@ try:
     WANDB_AVAILABLE = True
 except ImportError:
     WANDB_AVAILABLE = False
-    wandb = None
+    wandb = None  # type: ignore[assignment]
 
 
 class BakingCycleType(Enum):
@@ -105,7 +105,7 @@ class BakingEngine:
 
     def __init__(
         self,
-        config: BakingConfig = None,
+        config: Optional[BakingConfig] = None,
         use_wandb: bool = True,
         wandb_project: str = "agent-forge-phase6",
         wandb_run_name: Optional[str] = None,
@@ -120,7 +120,7 @@ class BakingEngine:
             wandb_run_name: Optional run name (auto-generated if None)
         """
         self.config = config or BakingConfig()
-        self.metrics = {
+        self.metrics: Dict[str, List[Any]] = {
             "a_cycle_scores": [],
             "b_cycle_scores": [],
             "iteration_times": [],
@@ -128,12 +128,12 @@ class BakingEngine:
         }
 
         # W&B integration
-        self.use_wandb = use_wandb and WANDB_AVAILABLE
-        self.wandb_project = wandb_project
-        self.wandb_run_name = wandb_run_name
-        self._wandb_run = None
+        self.use_wandb: bool = use_wandb and WANDB_AVAILABLE
+        self.wandb_project: str = wandb_project
+        self.wandb_run_name: Optional[str] = wandb_run_name
+        self._wandb_run: Optional[Any] = None
 
-    def _init_wandb(self):
+    def _init_wandb(self) -> None:
         """Initialize W&B run for Phase 6 logging."""
         if not self.use_wandb:
             return
@@ -157,12 +157,12 @@ class BakingEngine:
                 },
                 reinit=True,
             )
-            print(f"  W&B run initialized: {wandb.run.name}")
+            print(f"  W&B run initialized: {wandb.run.name if wandb.run else 'unknown'}")
         except Exception as e:
             print(f"  W&B init failed: {e}. Continuing without logging.")
             self.use_wandb = False
 
-    def _log_wandb(self, metrics: Dict[str, Any], step: Optional[int] = None):
+    def _log_wandb(self, metrics: Dict[str, Any], step: Optional[int] = None) -> None:
         """Log metrics to W&B."""
         if not self.use_wandb or not self._wandb_run:
             return
@@ -172,7 +172,7 @@ class BakingEngine:
         except Exception as e:
             print(f"  W&B log failed: {e}")
 
-    def _finish_wandb(self, result: "BakingResult"):
+    def _finish_wandb(self, result: "BakingResult") -> None:
         """Finish W&B run with summary."""
         if not self.use_wandb or not self._wandb_run:
             return

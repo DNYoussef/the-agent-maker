@@ -6,7 +6,7 @@ Coordinates execution of all 8 phases with handoff validation
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from ..storage.model_registry import ModelRegistry
 from .phase_controller import PhaseController, PhaseResult
@@ -165,7 +165,7 @@ class PipelineOrchestrator:
 
         return controller_class(phase_config, self.session_id)
 
-    def rollback_to_phase(self, phase_num: int):
+    def rollback_to_phase(self, phase_num: int) -> None:
         """
         Rollback to a previous phase checkpoint
 
@@ -183,7 +183,7 @@ class PipelineOrchestrator:
 
         return model_info
 
-    def cleanup(self):
+    def cleanup(self) -> Any:
         """Cleanup resources"""
         self.registry.close()
 

@@ -14,7 +14,7 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 
-def render():
+def render() -> None:
     """Render Phase 8: Final Compression Dashboard"""
 
     # Custom CSS for futuristic theme

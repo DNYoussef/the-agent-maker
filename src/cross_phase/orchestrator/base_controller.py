@@ -7,7 +7,7 @@ ISS-016: Uses unified get_tokenizer() for all phases
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Any
 
 # ISS-015/ISS-022: Import constants and validation thresholds
 from cross_phase.constants import (
@@ -55,7 +55,7 @@ class PhaseController(ABC):
         self.phase_name = self.__class__.__name__.replace("Controller", "").lower()
 
     @abstractmethod
-    def execute(self, input_models: list = None) -> PhaseResult:
+    def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:
         """
         Execute phase logic
 
@@ -68,7 +68,7 @@ class PhaseController(ABC):
         pass
 
     @abstractmethod
-    def validate_input(self, input_models: list = None) -> bool:
+    def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
         """
         Validate input from previous phase
 
@@ -97,6 +97,6 @@ class PhaseController(ABC):
         """Get W&B metrics configuration for this phase"""
         return {}  # Override in subclass
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Cleanup resources after phase completion"""
         pass

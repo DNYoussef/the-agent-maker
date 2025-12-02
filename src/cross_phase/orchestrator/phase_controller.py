@@ -7,7 +7,7 @@ ISS-016: Uses unified get_tokenizer() for all phases
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Any
 
 # ISS-015/ISS-022: Import constants and validation thresholds
 from cross_phase.constants import (
@@ -55,7 +55,7 @@ class PhaseController(ABC):
         self.phase_name = self.__class__.__name__.replace("Controller", "").lower()
 
     @abstractmethod
-    def execute(self, input_models: list = None) -> PhaseResult:
+    def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:
         """
         Execute phase logic
 
@@ -68,7 +68,7 @@ class PhaseController(ABC):
         pass
 
     @abstractmethod
-    def validate_input(self, input_models: list = None) -> bool:
+    def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
         """
         Validate input from previous phase
 
@@ -97,7 +97,7 @@ class PhaseController(ABC):
         """Get W&B metrics configuration for this phase"""
         return {}  # Override in subclass
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Cleanup resources after phase completion"""
         pass
 
@@ -105,7 +105,7 @@ class PhaseController(ABC):
 class Phase1Controller(PhaseController):
     """Phase 1: Cognate - Create 3 foundation models"""
 
-    def execute(self, input_models: list = None) -> PhaseResult:
+    def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:
         """Execute Phase 1: Create 3 TRM x Titans-MAG models"""
         import time
 
@@ -214,7 +214,7 @@ class Phase1Controller(PhaseController):
             error=None,
         )
 
-    def validate_input(self, input_models: list = None) -> bool:
+    def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
         """Phase 1 has no input"""
         return True
 
@@ -248,7 +248,7 @@ class Phase1Controller(PhaseController):
 class Phase2Controller(PhaseController):
     """Phase 2: EvoMerge - Evolve 3 models into 1"""
 
-    def execute(self, input_models: list = None) -> PhaseResult:
+    def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:
         """Execute Phase 2: 50-generation evolution.
 
         Uses evolutionary optimization with 6 merge techniques to evolve
@@ -306,7 +306,7 @@ class Phase2Controller(PhaseController):
                 error=str(e),
             )
 
-    def validate_input(self, input_models: list = None) -> bool:
+    def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
         """Validate 3 input models from Phase 1"""
         if not input_models or len(input_models) != 3:
             raise ValueError(
@@ -343,7 +343,7 @@ class Phase2Controller(PhaseController):
 class Phase3Controller(PhaseController):
     """Phase 3: Quiet-STaR - Add reasoning via prompt baking + RL"""
 
-    def execute(self, input_models: list = None) -> PhaseResult:
+    def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:
         """Execute Phase 3: Prompt Baking (Step 1) + Quiet-STaR RL (Step 2).
 
         Two-step process:
@@ -418,11 +418,11 @@ class Phase3Controller(PhaseController):
                 error=str(e),
             )
 
-    def _get_tokenizer(self):
+    def _get_tokenizer(self) -> Any:
         """Get tokenizer using unified utility (ISS-016)."""
         return get_tokenizer("gpt2")
 
-    def _run_prompt_baking(self, model, tokenizer):
+    def _run_prompt_baking(self, model, tokenizer) -> None:
         """Run Step 1: Prompt Baking to embed reasoning strategies."""
         from cross_phase.prompt_baking.baker import PromptBaker, PromptBakingConfig
 
@@ -465,7 +465,7 @@ class Phase3Controller(PhaseController):
         print(f"  Prompt baking complete")
         return baked_model
 
-    def _run_quietstar_rl(self, baked_model, baseline_model, tokenizer):
+    def _run_quietstar_rl(self, baked_model, baseline_model, tokenizer) -> Any:
         """Run Step 2: Quiet-STaR RL training (simplified for MVP)."""
         import torch
 
@@ -483,7 +483,7 @@ class Phase3Controller(PhaseController):
         print(f"  RL step complete (simplified for MVP)")
         return baked_model
 
-    def _validate_anti_theater(self, model, tokenizer):
+    def _validate_anti_theater(self, model, tokenizer) -> Any:
         """Validate model outputs are genuine, not theatrical."""
         import torch
 
@@ -537,7 +537,7 @@ class Phase3Controller(PhaseController):
 
         return results
 
-    def validate_input(self, input_models: list = None) -> bool:
+    def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
         """Validate 1 input model from Phase 2"""
         if not input_models or len(input_models) != 1:
             raise ValueError(
@@ -555,7 +555,7 @@ class Phase3Controller(PhaseController):
 class Phase4Controller(PhaseController):
     """Phase 4: BitNet - 1.58-bit quantization for model compression"""
 
-    def execute(self, input_models: list = None) -> PhaseResult:
+    def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:
         """Execute Phase 4: Compress model to 1.58-bit using BitNet quantization.
 
         Process:
@@ -672,7 +672,7 @@ class Phase4Controller(PhaseController):
 
         return {"params": total_params, "size_mb": size_mb, "size_bytes": size_bytes}
 
-    def _quantize_model(self, model):
+    def _quantize_model(self, model) -> Any:
         """Apply BitNet ternary quantization to model."""
         import torch
         import torch.nn as nn
@@ -739,7 +739,7 @@ class Phase4Controller(PhaseController):
 
         return quantized_state, scale_factors, stats
 
-    def _create_compressed_model(self, original_model, quantized_state, scale_factors):
+    def _create_compressed_model(self, original_model, quantized_state, scale_factors) -> Any:
         """Create compressed model from quantized state dict."""
         import copy
 
@@ -765,7 +765,7 @@ class Phase4Controller(PhaseController):
 
         return compressed_model
 
-    def _ste_finetune(self, model):
+    def _ste_finetune(self, model) -> Any:
         """Fine-tune with Straight-Through Estimator (simplified for MVP)."""
         # For MVP, skip actual fine-tuning (requires training data)
         # Full implementation would:
@@ -775,7 +775,7 @@ class Phase4Controller(PhaseController):
         print(f"  STE fine-tuning skipped (MVP mode)")
         return model
 
-    def validate_input(self, input_models: list = None) -> bool:
+    def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
         """Validate 1 input model from Phase 3"""
         if not input_models or len(input_models) != 1:
             raise ValueError(
@@ -805,7 +805,7 @@ class Phase5Controller(PhaseController):
     7. Level Progression - 10 levels
     """
 
-    def execute(self, input_models: list = None) -> PhaseResult:
+    def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:
         """Execute Phase 5: Curriculum-based specialization training.
 
         Args:
@@ -886,11 +886,11 @@ class Phase5Controller(PhaseController):
                 error=str(e),
             )
 
-    def _get_tokenizer(self):
+    def _get_tokenizer(self) -> Any:
         """Get tokenizer using unified utility (ISS-016)."""
         return get_tokenizer("gpt2")
 
-    def validate_input(self, input_models: list = None) -> bool:
+    def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
         """Validate 1 input model from Phase 4."""
         if not input_models or len(input_models) != 1:
             raise ValueError(
@@ -909,7 +909,7 @@ class Phase5Controller(PhaseController):
 class Phase6Controller(PhaseController):
     """Phase 6: Tool & Persona Baking - A/B cycle optimization."""
 
-    def execute(self, input_models: list = None) -> PhaseResult:
+    def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:
         """Execute Phase 6: A/B baking cycles.
 
         Args:
@@ -983,11 +983,11 @@ class Phase6Controller(PhaseController):
                 error=str(e),
             )
 
-    def _get_tokenizer(self):
+    def _get_tokenizer(self) -> Any:
         """Get tokenizer using unified utility (ISS-016)."""
         return get_tokenizer("gpt2")
 
-    def validate_input(self, input_models: list = None) -> bool:
+    def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
         """Validate 1 input model from Phase 5."""
         if not input_models or len(input_models) != 1:
             raise ValueError(
@@ -1006,7 +1006,7 @@ class Phase6Controller(PhaseController):
 class Phase7Controller(PhaseController):
     """Phase 7: Self-Guided Experts - Model-driven expert discovery."""
 
-    def execute(self, input_models: list = None) -> PhaseResult:
+    def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:
         """Execute Phase 7: Expert discovery, SVF training, ADAS optimization.
 
         Args:
@@ -1077,11 +1077,11 @@ class Phase7Controller(PhaseController):
                 error=str(e),
             )
 
-    def _get_tokenizer(self):
+    def _get_tokenizer(self) -> Any:
         """Get tokenizer using unified utility (ISS-016)."""
         return get_tokenizer("gpt2")
 
-    def validate_input(self, input_models: list = None) -> bool:
+    def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
         """Validate 1 input model from Phase 6."""
         if not input_models or len(input_models) != 1:
             raise ValueError(
@@ -1100,7 +1100,7 @@ class Phase7Controller(PhaseController):
 class Phase8Controller(PhaseController):
     """Phase 8: Final Compression - Triple compression pipeline."""
 
-    def execute(self, input_models: list = None) -> PhaseResult:
+    def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:
         """Execute Phase 8: SeedLM + VPTQ + Hypercompression.
 
         Args:
@@ -1174,11 +1174,11 @@ class Phase8Controller(PhaseController):
                 error=str(e),
             )
 
-    def _get_tokenizer(self):
+    def _get_tokenizer(self) -> Any:
         """Get tokenizer using unified utility (ISS-016)."""
         return get_tokenizer("gpt2")
 
-    def validate_input(self, input_models: list = None) -> bool:
+    def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
         """Validate 1 input model from Phase 7."""
         if not input_models or len(input_models) != 1:
             raise ValueError(

@@ -8,7 +8,7 @@ import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 
 class ModelRegistry:
@@ -38,7 +38,7 @@ class ModelRegistry:
         # Create schema
         self._create_schema()
 
-    def _enable_wal_mode(self):
+    def _enable_wal_mode(self) -> None:
         """Enable WAL mode and optimize for concurrent access"""
         self.conn.execute("PRAGMA journal_mode=WAL;")
         self.conn.execute("PRAGMA synchronous=NORMAL;")
@@ -49,7 +49,7 @@ class ModelRegistry:
         self.conn.execute("PRAGMA auto_vacuum=INCREMENTAL;")
         self.conn.commit()
 
-    def _create_schema(self):
+    def _create_schema(self) -> None:
         """Create database schema"""
         self.conn.executescript("""
             CREATE TABLE IF NOT EXISTS models (
@@ -159,7 +159,7 @@ class ModelRegistry:
             'metadata': json.loads(row[8]) if row[8] else {}
         }
 
-    def create_session(self, session_id: str, config: Dict):
+    def create_session(self, session_id: str, config: Dict) -> None:
         """Create new session"""
         self.conn.execute("""
             INSERT INTO sessions (
@@ -182,12 +182,12 @@ class ModelRegistry:
         """, (current_phase, progress_percent, session_id))
         self.conn.commit()
 
-    def checkpoint_wal(self):
+    def checkpoint_wal(self) -> None:
         """Manually checkpoint WAL to main database"""
         self.conn.execute("PRAGMA wal_checkpoint(RESTART);")
         self.conn.commit()
 
-    def vacuum_incremental(self, pages: int = 100):
+    def vacuum_incremental(self, pages: int = 100) -> None:
         """Incremental vacuum to reclaim space"""
         self.conn.execute(f"PRAGMA incremental_vacuum({pages});")
         self.conn.commit()
@@ -346,7 +346,7 @@ class ModelRegistry:
 
         return handoff_id
 
-    def close(self):
+    def close(self) -> None:
         """Close database connection"""
         self.checkpoint_wal()  # Final checkpoint
         self.conn.close()

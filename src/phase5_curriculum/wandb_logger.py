@@ -148,8 +148,8 @@ class Phase5WandBLogger:
             config: Metrics configuration
         """
         self.config = config or MetricsConfig()
-        self._run = None
-        self._step_counter = 0
+        self._run: Optional[Any] = None
+        self._step_counter: int = 0
         self._level_metrics: Dict[int, Dict[str, Any]] = {}
 
         # Check if W&B is available and enabled
@@ -196,7 +196,7 @@ class Phase5WandBLogger:
             self._enabled = False
             return False
 
-    def log_assessment(self, metrics: AssessmentMetrics):
+    def log_assessment(self, metrics: AssessmentMetrics) -> None:
         """Log edge-of-chaos assessment metrics."""
         data = {
             f"assessment/level_{metrics.level}/accuracy": metrics.accuracy,
@@ -207,7 +207,7 @@ class Phase5WandBLogger:
         }
         self._log(data)
 
-    def log_training_step(self, metrics: TrainingStepMetrics):
+    def log_training_step(self, metrics: TrainingStepMetrics) -> None:
         """Log training step metrics."""
         data = {
             f"training/level_{metrics.level}/step": metrics.step,
@@ -224,7 +224,7 @@ class Phase5WandBLogger:
             self._log(data)
             self._step_counter += 1
 
-    def log_self_modeling(self, metrics: SelfModelingMetrics):
+    def log_self_modeling(self, metrics: SelfModelingMetrics) -> None:
         """Log self-modeling training metrics."""
         data = {
             f"self_modeling/level_{metrics.level}/temperature_ranges": metrics.temperature_ranges,
@@ -234,7 +234,7 @@ class Phase5WandBLogger:
         }
         self._log(data)
 
-    def log_dream_consolidation(self, metrics: DreamConsolidationMetrics):
+    def log_dream_consolidation(self, metrics: DreamConsolidationMetrics) -> None:
         """Log dream consolidation metrics."""
         data = {
             f"dream/level_{metrics.level}/samples": metrics.dream_samples,
@@ -244,7 +244,7 @@ class Phase5WandBLogger:
         }
         self._log(data)
 
-    def log_eudaimonia(self, metrics: EudaimoniaMetrics):
+    def log_eudaimonia(self, metrics: EudaimoniaMetrics) -> None:
         """Log Eudaimonia alignment metrics."""
         data = {
             f"eudaimonia/level_{metrics.level}/score": metrics.eudaimonia_score,
@@ -261,7 +261,7 @@ class Phase5WandBLogger:
 
         self._log(data)
 
-    def log_level_completion(self, metrics: LevelCompletionMetrics):
+    def log_level_completion(self, metrics: LevelCompletionMetrics) -> None:
         """Log level completion summary."""
         data = {
             f"level_{metrics.level}/total_questions": metrics.total_questions,
@@ -280,7 +280,7 @@ class Phase5WandBLogger:
         # Store for final summary
         self._level_metrics[metrics.level] = data
 
-    def log_prompt_baking(self, level: int, prompt_type: str, loss: float, time_minutes: float):
+    def log_prompt_baking(self, level: int, prompt_type: str, loss: float, time_minutes: float) -> None:
         """Log prompt baking metrics."""
         data = {
             f"baking/level_{level}/{prompt_type}_loss": loss,
@@ -294,7 +294,7 @@ class Phase5WandBLogger:
         questions_generated: int,
         model_distribution: Dict[str, int],
         difficulty_distribution: Dict[str, int],
-    ):
+    ) -> None:
         """Log curriculum generation statistics."""
         data = {
             f"curriculum/level_{level}/questions_generated": questions_generated,
@@ -310,7 +310,7 @@ class Phase5WandBLogger:
 
     def log_api_usage(
         self, model: str, input_tokens: int, output_tokens: int, cost_usd: float, latency_ms: float
-    ):
+    ) -> None:
         """Log OpenRouter API usage."""
         data = {
             "api/input_tokens": input_tokens,
@@ -321,11 +321,11 @@ class Phase5WandBLogger:
         }
         self._log(data)
 
-    def log_custom(self, metrics: Dict[str, Any]):
+    def log_custom(self, metrics: Dict[str, Any]) -> None:
         """Log custom metrics."""
         self._log(metrics)
 
-    def _log(self, data: Dict[str, Any]):
+    def _log(self, data: Dict[str, Any]) -> None:
         """Internal logging method."""
         if self._enabled and self._run:
             wandb.log(data, step=self._step_counter)
@@ -337,7 +337,7 @@ class Phase5WandBLogger:
                 else:
                     logger.debug(f"  {key}: {value}")
 
-    def log_summary(self):
+    def log_summary(self) -> None:
         """Log final run summary."""
         if not self._level_metrics:
             return
@@ -358,7 +358,8 @@ class Phase5WandBLogger:
 
         if self._enabled and self._run:
             for key, value in summary.items():
-                wandb.run.summary[key] = value
+                if wandb.run:
+                    wandb.run.summary[key] = value
 
         if self.config.log_to_console:
             logger.info("Run Summary:")
@@ -368,7 +369,7 @@ class Phase5WandBLogger:
                 else:
                     logger.info(f"  {key}: {value}")
 
-    def finish(self):
+    def finish(self) -> None:
         """Finish the W&B run."""
         self.log_summary()
 

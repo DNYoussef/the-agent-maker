@@ -1,12 +1,13 @@
 """Phase 4: BitNet - 1.58-bit quantization for model compression"""
 
 from .base_controller import PhaseController, PhaseResult
+from typing import Optional, List, Any
 
 
 class Phase4Controller(PhaseController):
     """Phase 4: BitNet - 1.58-bit quantization for model compression"""
 
-    def execute(self, input_models: list = None) -> PhaseResult:
+    def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:
         """Execute Phase 4: Compress model to 1.58-bit using BitNet quantization.
 
         Process:
@@ -123,7 +124,7 @@ class Phase4Controller(PhaseController):
 
         return {"params": total_params, "size_mb": size_mb, "size_bytes": size_bytes}
 
-    def _quantize_model(self, model):
+    def _quantize_model(self, model) -> Any:
         """Apply BitNet ternary quantization to model."""
         import torch
         import torch.nn as nn
@@ -190,7 +191,7 @@ class Phase4Controller(PhaseController):
 
         return quantized_state, scale_factors, stats
 
-    def _create_compressed_model(self, original_model, quantized_state, scale_factors):
+    def _create_compressed_model(self, original_model, quantized_state, scale_factors) -> Any:
         """Create compressed model from quantized state dict."""
         import copy
 
@@ -216,7 +217,7 @@ class Phase4Controller(PhaseController):
 
         return compressed_model
 
-    def _ste_finetune(self, model):
+    def _ste_finetune(self, model) -> Any:
         """Fine-tune with Straight-Through Estimator (simplified for MVP)."""
         # For MVP, skip actual fine-tuning (requires training data)
         # Full implementation would:
@@ -226,7 +227,7 @@ class Phase4Controller(PhaseController):
         print(f"  STE fine-tuning skipped (MVP mode)")
         return model
 
-    def validate_input(self, input_models: list = None) -> bool:
+    def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
         """Validate 1 input model from Phase 3"""
         if not input_models or len(input_models) != 1:
             raise ValueError(

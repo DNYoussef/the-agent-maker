@@ -116,7 +116,7 @@ class ACTHead(nn.Module):
 
         return loss_bce + loss_entropy + 0.01 * diversity_loss
 
-    def update_ema_step_acc(self, step: int, accuracy: float):
+    def update_ema_step_acc(self, step: int, accuracy: float) -> None:
         """
         Update EMA of step accuracy
 

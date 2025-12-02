@@ -1,12 +1,13 @@
 """Phase 1: Cognate - Create 3 foundation models"""
 
 from .base_controller import PhaseController, PhaseResult
+from typing import Optional, List, Any
 
 
 class Phase1Controller(PhaseController):
     """Phase 1: Cognate - Create 3 foundation models"""
 
-    def execute(self, input_models: list = None) -> PhaseResult:
+    def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:
         """Execute Phase 1: Create 3 TRM x Titans-MAG models"""
         import time
 
@@ -115,7 +116,7 @@ class Phase1Controller(PhaseController):
             error=None,
         )
 
-    def validate_input(self, input_models: list = None) -> bool:
+    def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
         """Phase 1 has no input"""
         return True
 

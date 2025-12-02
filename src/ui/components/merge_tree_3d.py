@@ -13,7 +13,7 @@ Features:
 """
 
 import random
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -84,7 +84,7 @@ def generate_evolution_tree_data(
         gen_models = []
 
         # Get previous generation models
-        prev_gen = [n for n in nodes if n["generation"] == gen - 1]
+        prev_gen = [n for n in nodes if cast(str, n["generation"]) == gen - 1]
 
         # Generate models for this generation
         for m in range(models_per_gen):
@@ -167,7 +167,7 @@ def generate_evolution_tree_data(
 
 
 def create_3d_merge_tree(
-    nodes_df: pd.DataFrame, edges_df: pd.DataFrame, highlight_lineage: str = None, height: int = 800
+    nodes_df: pd.DataFrame, edges_df: pd.DataFrame, highlight_lineage: Optional[str] = None, height: int = 800
 ) -> go.Figure:
     """
     Create interactive 3D Plotly visualization of merge tree.
@@ -239,7 +239,7 @@ def create_3d_merge_tree(
 
     # Plot edges (parent-child connections)
     for technique in MERGE_TECHNIQUES.keys():
-        technique_edges = edges_df[edges_df["technique"] == technique]
+        technique_edges = edges_df[cast(str, edges_df["technique"]) == technique]
 
         if len(technique_edges) == 0:
             continue
@@ -250,8 +250,8 @@ def create_3d_merge_tree(
         z_lines = []
 
         for _, edge in technique_edges.iterrows():
-            parent = nodes_df[nodes_df["id"] == edge["parent_id"]].iloc[0]
-            child = nodes_df[nodes_df["id"] == edge["child_id"]].iloc[0]
+            parent = nodes_df[cast(str, nodes_df["id"]) == edge["parent_id"]].iloc[0]
+            child = nodes_df[cast(str, nodes_df["id"]) == edge["child_id"]].iloc[0]
 
             # Add line segment (parent -> child)
             x_lines.extend([parent["generation"], child["generation"], None])
@@ -278,7 +278,7 @@ def create_3d_merge_tree(
 
     # Plot nodes (models) by technique
     for technique, config in MERGE_TECHNIQUES.items():
-        technique_nodes = nodes_df[nodes_df["technique"] == technique]
+        technique_nodes = nodes_df[cast(str, nodes_df["technique"]) == technique]
 
         if len(technique_nodes) == 0:
             continue
@@ -322,7 +322,7 @@ def create_3d_merge_tree(
         )
 
     # Special handling for Phase 1 models (larger, distinctive)
-    phase1_nodes = nodes_df[nodes_df["technique"] == "Phase 1 (Cognate)"]
+    phase1_nodes = nodes_df[cast(str, nodes_df["technique"]) == "Phase 1 (Cognate)"]
     if len(phase1_nodes) > 0:
         hover_text = []
         for _, node in phase1_nodes.iterrows():
@@ -403,7 +403,7 @@ def _get_lineage_nodes(nodes_df: pd.DataFrame, edges_df: pd.DataFrame, node_id: 
         current = to_process.pop()
 
         # Find parents
-        parent_edges = edges_df[edges_df["child_id"] == current]
+        parent_edges = edges_df[cast(str, edges_df["child_id"]) == current]
 
         for _, edge in parent_edges.iterrows():
             parent_id = edge["parent_id"]
@@ -475,7 +475,7 @@ def render_phase2_3d_visualization(
 
     # Filter data by generation range
     filtered_nodes = nodes_df[
-        (nodes_df["generation"] >= gen_range[0]) & (nodes_df["generation"] <= gen_range[1])
+        (cast(int, nodes_df["generation"]) >= gen_range[0]) & (cast(int, nodes_df["generation"]) <= gen_range[1])
     ]
     filtered_edges = edges_df[
         edges_df["child_id"].isin(filtered_nodes["id"])
@@ -498,11 +498,11 @@ def render_phase2_3d_visualization(
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        initial_fitness = nodes_df[nodes_df["generation"] == 0]["fitness"].mean()
+        initial_fitness = nodes_df[cast(str, nodes_df["generation"]) == 0]["fitness"].mean()
         st.metric("Initial Avg Fitness", f"{initial_fitness:.3f}", delta=None)
 
     with col2:
-        final_fitness = nodes_df[nodes_df["generation"] == nodes_df["generation"].max()][
+        final_fitness = nodes_df[cast(str, nodes_df["generation"]) == nodes_df["generation"].max()][
             "fitness"
         ].mean()
         st.metric(
@@ -513,7 +513,7 @@ def render_phase2_3d_visualization(
 
     with col3:
         best_fitness = nodes_df["fitness"].max()
-        best_model = nodes_df[nodes_df["fitness"] == best_fitness].iloc[0]
+        best_model = nodes_df[cast(str, nodes_df["fitness"]) == best_fitness].iloc[0]
         st.metric(
             "Best Fitness", f"{best_fitness:.3f}", delta=f'Gen {int(best_model["generation"])}'
         )
@@ -525,7 +525,7 @@ def render_phase2_3d_visualization(
     # Technique breakdown
     with st.expander("View Merge Technique Breakdown"):
         technique_stats = (
-            nodes_df[nodes_df["technique"] != "Phase 1 (Cognate)"]
+            nodes_df[cast(str, nodes_df["technique"]) != "Phase 1 (Cognate)"]
             .groupby("technique")
             .agg({"fitness": ["count", "mean", "max"], "id": "count"})
             .round(3)

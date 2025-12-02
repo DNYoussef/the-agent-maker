@@ -130,7 +130,7 @@ class FrankenMerge:
             List of lists, where each inner list contains parameter names
             for one layer
         """
-        layer_groups = {}
+        layer_groups: dict[str, list[int]] = {}
 
         for param_name in dict(model.named_parameters()).keys():
             # Extract layer identifier (e.g., "linear1" from "linear1.weight")

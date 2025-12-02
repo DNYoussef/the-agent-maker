@@ -3,6 +3,7 @@
 # Import from parent utils.py (ISS-016 unified MockTokenizer)
 # Note: This requires accessing ../utils.py (sibling to utils/ directory)
 import importlib.util
+from typing import Optional, Dict, Any, List
 import sys
 from pathlib import Path
 

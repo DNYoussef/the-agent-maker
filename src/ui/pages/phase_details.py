@@ -11,7 +11,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
-def render():
+def render() -> None:
     """Render phase details page"""
     st.markdown('<h1 class="main-header">Phase Details</h1>', unsafe_allow_html=True)
 
@@ -47,7 +47,7 @@ def render():
         st.info(f"Phase {phase_num} details coming soon...")
 
 
-def render_phase1_details():
+def render_phase1_details() -> None:
     """Phase 1: Cognate (TRM × Titans-MAG)"""
     st.subheader("Phase 1: Cognate (TRM × Titans-MAG)")
     st.markdown("Creates 3 specialized 25M parameter models")
@@ -116,7 +116,7 @@ def render_phase1_details():
             st.text("• Gradient EMA: 0.98")
 
 
-def render_phase2_details():
+def render_phase2_details() -> None:
     """Phase 2: EvoMerge"""
     st.subheader("Phase 2: EvoMerge (50 generations)")
     st.markdown("Evolutionary optimization with 6 merge techniques")
@@ -160,7 +160,7 @@ def render_phase2_details():
         st.info("3D merge visualization coming soon (Three.js integration)")
 
 
-def render_phase3_details():
+def render_phase3_details() -> None:
     """Phase 3: Quiet-STaR (Reasoning Enhancement)"""
     st.subheader("Phase 3: Quiet-STaR (Reasoning Enhancement)")
     st.markdown("Two-step training: Prompt Baking → Quiet-STaR RL")
@@ -415,7 +415,7 @@ def render_phase3_details():
         st.success("✅ Ready for BitNet compression")
 
 
-def render_phase4_details():
+def render_phase4_details() -> None:
     """Phase 4: BitNet"""
     st.subheader("Phase 4: BitNet (1.58-bit Quantization)")
     st.markdown("8.2× compression with 3.8× speedup")

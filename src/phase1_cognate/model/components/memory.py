@@ -74,6 +74,6 @@ class LongTermMemory(nn.Module):
 
         return m
 
-    def reset_memory(self):
+    def reset_memory(self) -> None:
         """Reset memory state (call between batches)"""
         self.memory_state.zero_()

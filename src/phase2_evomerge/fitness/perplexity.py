@@ -97,7 +97,7 @@ def calculate_perplexity(
     return perplexity
 
 
-def _unpack_batch(batch, device: str):
+def _unpack_batch(batch, device: str) -> None:
     """
     Unpack batch into (input_ids, labels).
 
@@ -125,7 +125,7 @@ def _unpack_batch(batch, device: str):
     return input_ids, labels
 
 
-def _compute_cross_entropy_loss(logits, labels):
+def _compute_cross_entropy_loss(logits, labels) -> None:
     """
     Compute cross-entropy loss between logits and labels.
 

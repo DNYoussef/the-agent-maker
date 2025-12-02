@@ -15,7 +15,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
-def render():
+def render() -> None:
     """Render W&B monitoring dashboard page"""
 
     # Custom CSS for W&B theme
@@ -545,7 +545,7 @@ def render():
     df_runs = pd.DataFrame(runs_data)
 
     # Color code status
-    def color_status(val):
+    def color_status(val: Any) -> str:
         if val == "completed":
             return "background-color: #1a4d2e; color: #00FF9F"
         elif val == "running":

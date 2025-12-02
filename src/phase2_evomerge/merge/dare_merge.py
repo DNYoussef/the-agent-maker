@@ -41,7 +41,7 @@ class DAREMerge:
     performance while reducing parameter interference.
     """
 
-    def __init__(self, drop_rate: float = 0.9, rescale_factor: float = None):
+    def __init__(self, drop_rate: float = 0.9, rescale_factor: Optional[float] = None):
         """
         Initialize DARE merge.
 

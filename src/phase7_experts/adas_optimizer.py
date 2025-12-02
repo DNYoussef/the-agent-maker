@@ -9,6 +9,7 @@ Key insight: Multi-objective optimization for routing architecture.
 """
 
 import copy
+import math
 import random
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -48,8 +49,8 @@ class ADASResult:
     success: bool
     best_individual: Individual
     pareto_front: List[Individual]
-    generation_history: List[Dict]
-    metrics: Dict
+    generation_history: List[Dict[str, Any]]
+    metrics: Dict[str, Any]
 
 
 class ADASOptimizer:
@@ -69,7 +70,7 @@ class ADASOptimizer:
     - Multi-objective optimization
     """
 
-    def __init__(self, config: ADASConfig = None):
+    def __init__(self, config: Optional[ADASConfig] = None) -> None:
         """
         Initialize ADAS optimizer.
 
@@ -79,14 +80,14 @@ class ADASOptimizer:
         self.config = config or ADASConfig()
         self.population: List[Individual] = []
         self.pareto_front: List[Individual] = []
-        self.generation_history: List[Dict] = []
+        self.generation_history: List[Dict[str, Any]] = []
 
     def optimize(
         self,
         model: nn.Module,
         experts: List[Any],  # List of ExpertProfile
         tokenizer: Any,
-        evaluator: Callable = None,
+        evaluator: Optional[Callable[..., Any]] = None,
     ) -> Tuple[nn.Module, ADASResult]:
         """
         Run ADAS optimization.
@@ -169,7 +170,7 @@ class ADASOptimizer:
             },
         )
 
-    def _initialize_population(self, num_experts: int):
+    def _initialize_population(self, num_experts: int) -> None:
         """Initialize random population."""
         self.population = []
 
@@ -194,8 +195,12 @@ class ADASOptimizer:
             self.population.append(individual)
 
     def _evaluate_population(
-        self, model: nn.Module, experts: List[Any], tokenizer: Any, evaluator: Callable = None
-    ):
+        self,
+        model: nn.Module,
+        experts: List[Any],
+        tokenizer: Any,
+        evaluator: Optional[Callable[..., Any]] = None,
+    ) -> None:
         """Evaluate fitness for all individuals."""
         for individual in self.population:
             if not individual.fitness_scores:
@@ -209,7 +214,7 @@ class ADASOptimizer:
         model: nn.Module,
         experts: List[Any],
         tokenizer: Any,
-        evaluator: Callable = None,
+        evaluator: Optional[Callable[..., Any]] = None,
     ) -> Dict[str, float]:
         """Evaluate a single individual."""
         if evaluator is not None:
@@ -240,7 +245,7 @@ class ADASOptimizer:
 
         return scores
 
-    def _assign_ranks(self):
+    def _assign_ranks(self) -> None:
         """Assign Pareto ranks to population (NSGA-II)."""
         # Reset ranks
         for ind in self.population:
@@ -269,7 +274,6 @@ class ADASOptimizer:
 
     def _dominates(self, ind1: Individual, ind2: Individual) -> bool:
         """Check if ind1 Pareto-dominates ind2."""
-        dominated = False
         at_least_one_better = False
 
         for obj in self.config.objectives:
@@ -284,10 +288,10 @@ class ADASOptimizer:
 
         return at_least_one_better
 
-    def _calculate_crowding_distance(self):
+    def _calculate_crowding_distance(self) -> None:
         """Calculate crowding distance for diversity preservation."""
         # Group by rank
-        ranks = {}
+        ranks: Dict[int, List[Individual]] = {}
         for ind in self.population:
             if ind.rank not in ranks:
                 ranks[ind.rank] = []
@@ -399,7 +403,7 @@ class ADASOptimizer:
 
         return child1, child2
 
-    def _mutate(self, individual: Individual, num_experts: int):
+    def _mutate(self, individual: Individual, num_experts: int) -> None:
         """Gaussian mutation."""
         # Mutate routing weights
         for i in range(num_experts):
@@ -411,7 +415,7 @@ class ADASOptimizer:
         weight_sum = sum(individual.routing_weights)
         individual.routing_weights = [w / weight_sum for w in individual.routing_weights]
 
-    def _survivor_selection(self, offspring: List[Individual]):
+    def _survivor_selection(self, offspring: List[Individual]) -> None:
         """Elitist survivor selection."""
         # Combine parents and offspring
         combined = self.population + offspring
@@ -426,7 +430,7 @@ class ADASOptimizer:
         # Keep best
         self.population = combined[: self.config.population_size]
 
-    def _get_generation_stats(self) -> Dict:
+    def _get_generation_stats(self) -> Dict[str, Any]:
         """Get statistics for current generation."""
         accuracies = [ind.fitness_scores.get("accuracy", 0) for ind in self.population]
         latencies = [ind.fitness_scores.get("latency", 0) for ind in self.population]
@@ -441,10 +445,12 @@ class ADASOptimizer:
     def _select_knee_point(self) -> Individual:
         """Select knee point from Pareto front."""
         if not self.pareto_front:
-            return self.population[0] if self.population else None
+            if not self.population:
+                raise ValueError("No population or Pareto front available")
+            return self.population[0]
 
         # Simple: select by balanced accuracy and latency
-        def balance_score(ind):
+        def balance_score(ind: Individual) -> float:
             acc = ind.fitness_scores.get("accuracy", 0)
             lat = ind.fitness_scores.get("latency", 0)
             return acc + lat  # Both maximized
@@ -454,7 +460,7 @@ class ADASOptimizer:
     def _apply_routing(self, model: nn.Module, experts: List[Any], best: Individual) -> nn.Module:
         """Apply optimal routing to model."""
         # Store routing configuration as model attribute
-        model._expert_routing = {
+        model._expert_routing = {  # type: ignore[attr-defined]
             "weights": best.routing_weights,
             "configs": best.expert_configs,
             "num_experts": len(experts),
@@ -462,8 +468,5 @@ class ADASOptimizer:
 
         return model
 
-
-# Import math for entropy calculation
-import math
 
 __all__ = ["ADASOptimizer", "ADASConfig", "ADASResult", "Individual"]

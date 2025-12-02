@@ -16,14 +16,14 @@ from phase1_cognate.model.full_model import TRMTitansMAGModel
 from phase1_cognate.model.model_config import Phase1Config
 
 
-def generate_synthetic_batch(batch_size=4, seq_len=64, vocab_size=50257):
+def generate_synthetic_batch(batch_size=4, seq_len=64, vocab_size=50257) -> None:
     """Generate synthetic training batch"""
     input_ids = torch.randint(0, vocab_size, (batch_size, seq_len))
     labels = torch.randint(0, vocab_size, (batch_size, seq_len))
     return input_ids, labels
 
 
-def test_training_loop():
+def test_training_loop() -> None:
     """Test training loop with synthetic data"""
 
     print("\n" + "=" * 70)

@@ -13,7 +13,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
-def render():
+def render() -> None:
     """Render system monitor page"""
     st.markdown('<h1 class="main-header">System Monitor</h1>', unsafe_allow_html=True)
 

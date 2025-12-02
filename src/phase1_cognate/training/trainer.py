@@ -236,7 +236,7 @@ class Phase1Trainer:
         print(f"Created MuGrokfast optimizer (Phase 1 preset)")
         return optimizer
 
-    def _create_scheduler(self):
+    def _create_scheduler(self) -> Optional[Any]:
         """Create cosine annealing LR scheduler with warmup"""
         # MuGrokfast has different param groups, need to manually set 'lr' for scheduler compatibility
         for group in self.optimizer.param_groups:
@@ -279,7 +279,7 @@ class Phase1Trainer:
         )
         return scheduler
 
-    def train(self):
+    def train(self) -> None:
         """Run complete training loop"""
         print(f"\n{'='*70}")
         print(f"PHASE 1 TRAINING: {self.config.model_config.specialization.upper()}")
@@ -460,7 +460,7 @@ class Phase1Trainer:
 
         return total_loss / max(num_batches, 1)
 
-    def _log_step(self, loss: float, grad_norm: float, output: Dict):
+    def _log_step(self, loss: float, grad_norm: float, output: Dict) -> None:
         """Log metrics at training step"""
         # Get LR (MuGrokfast uses 'muon_lr' and 'fallback_lr')
         lr = self.optimizer.param_groups[0].get(
@@ -544,7 +544,7 @@ class Phase1Trainer:
         avg_val_loss = total_loss / max(total_samples, 1)
 
         # Placeholder accuracies (would need task-specific evaluation)
-        val_accs = {}
+        val_accs: dict[str, float] = {}
 
         print(
             f"  Validation: {num_batches} batches, {total_samples} samples, avg_loss={avg_val_loss:.4f}"
@@ -556,7 +556,7 @@ class Phase1Trainer:
 
         return avg_val_loss, val_accs
 
-    def save_checkpoint(self, filename: str):
+    def save_checkpoint(self, filename: str) -> None:
         """Save model checkpoint using secure SafeTensors format (ISS-004)"""
         # Remove extension if present (save_checkpoint adds .safetensors)
         base_name = filename.replace(".pt", "").replace(".pth", "")
@@ -619,7 +619,7 @@ class Phase1Trainer:
             print(f"  Checkpoint not found: {checkpoint_path}")
             return False
 
-    def log_final_metrics(self, training_time_hours: float):
+    def log_final_metrics(self, training_time_hours: float) -> None:
         """Log final metrics to W&B"""
         param_counts = self.model.count_parameters()
         model_size = (
