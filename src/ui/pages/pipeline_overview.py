@@ -593,7 +593,11 @@ def render_phase_timeline(current_phase: str) -> None:
 
     for phase in phases:
         # Determine status
-        if cast(int, phase["key"]) < int(current_phase) if current_phase and current_phase != "N/A" else 999:
+        if (
+            cast(int, phase["key"]) < int(current_phase)
+            if current_phase and current_phase != "N/A"
+            else 999
+        ):
             status_class = "complete"
             badge_class = "status-badge-complete"
             badge_text = "Complete"

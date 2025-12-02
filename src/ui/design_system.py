@@ -256,7 +256,9 @@ def get_badge_styles(
     }
 
 
-def get_metric_styles(size: Literal["small", "medium", "large"] = "medium") -> Dict[str, Dict[str, str]]:
+def get_metric_styles(
+    size: Literal["small", "medium", "large"] = "medium"
+) -> Dict[str, Dict[str, str]]:
     """Get metric display styles"""
     sizes = {
         "small": (TYPOGRAPHY["size_h3"], TYPOGRAPHY["size_tiny"]),

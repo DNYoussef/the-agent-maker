@@ -117,5 +117,5 @@ class Phase5Controller(PhaseController):
         """Validate Phase 5 output (specialization achieved)."""
         if result.metrics:
             levels = result.metrics.get("levels_completed", 0)
-            return bool(levels >= 1)# At least one level completed
+            return bool(levels >= 1)  # At least one level completed
         return True
