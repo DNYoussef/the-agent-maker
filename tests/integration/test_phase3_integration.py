@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 import torch
 import torch.nn as nn
+from safetensors.torch import save_file as safe_save_file
 
 from src.phase3_quietstar.anti_theater import validate_anti_theater
 from src.phase3_quietstar.config import QuietSTaRConfig
@@ -265,20 +266,22 @@ class TestPhaseHandoffIntegration:
         """Test Phase 2 input validation."""
         from src.phase3_quietstar.phase_handoff import Phase3HandoffValidator
 
-        # Create mock Phase 2 checkpoint
-        phase2_path = tmp_path / "phase2_model.pt"
-        torch.save(
-            {
-                "model_state_dict": {f"layer{i}.weight": torch.randn(100, 100) for i in range(10)},
+        # Create mock Phase 2 checkpoint (SafeTensors format)
+        phase2_path = tmp_path / "phase2_model.safetensors"
+        state_dict = {f"layer{i}.weight": torch.randn(100, 100) for i in range(10)}
+        safe_save_file(state_dict, str(phase2_path))
+        
+        # Save metadata as JSON
+        json_path = tmp_path / "phase2_model.json"
+        with open(json_path, "w") as f:
+            json.dump({
                 "config": {"phase": 2},
                 "metadata": {
                     "phase": 2,
                     "champion_selected": True,
                     "fitness_improvement": 0.235,
                 },
-            },
-            phase2_path,
-        )
+            }, f)
 
         registry_path = tmp_path / "registry.db"
         validator = Phase3HandoffValidator(registry_path)
@@ -293,39 +296,41 @@ class TestPhaseHandoffIntegration:
         """Test Phase 3 output validation."""
         from src.phase3_quietstar.phase_handoff import Phase3HandoffValidator
 
-        # Create mock checkpoints
-        final_path = tmp_path / "phase3_final.pt"
-        baked_path = tmp_path / "phase3_baked.pt"
-        rl_path = tmp_path / "phase3_rl.pt"
+        # Create mock checkpoints (SafeTensors format)
+        final_path = tmp_path / "phase3_final.safetensors"
+        baked_path = tmp_path / "phase3_baked.safetensors"
+        rl_path = tmp_path / "phase3_rl.safetensors"
 
-        torch.save(
-            {
-                "model_state_dict": {f"layer{i}.weight": torch.randn(100, 100) for i in range(10)},
+        # Save model state as SafeTensors
+        state_dict = {f"layer{i}.weight": torch.randn(100, 100) for i in range(10)}
+        safe_save_file(state_dict, str(final_path))
+        safe_save_file({"param": torch.randn(10)}, str(baked_path))
+        safe_save_file({"param": torch.randn(10)}, str(rl_path))
+
+        # Save metadata as JSON
+        with open(tmp_path / "phase3_final.json", "w") as f:
+            json.dump({
                 "config": {
                     "thinking_tokens": [
-                        "<think>",
-                        "</think>",
-                        "<step>",
-                        "<reason>",
-                        "<mece>",
-                        "<falsify>",
-                        "<expert>",
-                        "<doubt>",
+                        "<think>", "</think>", "<step>", "<reason>",
+                        "<mece>", "<falsify>", "<expert>", "<doubt>"
                     ]
                 },
-                "anti_theater_results": {
-                    "divergence": 0.35,
-                    "ablation": 0.05,
-                    "correlation": 0.62,
-                    "all_passed": True,
+                "metadata": {
+                    "anti_theater_results": {
+                        "divergence": 0.35,
+                        "ablation": 0.05,
+                        "correlation": 0.62,
+                        "all_passed": True,
+                    }
                 },
-            },
-            final_path,
-        )
-
-        torch.save({"final_accuracy": 0.87, "strategy_accuracies": {}}, baked_path)
-
-        torch.save({"reward_history": [0.5] * 1000, "episode": 1000}, rl_path)
+            }, f)
+        
+        with open(tmp_path / "phase3_baked.json", "w") as f:
+            json.dump({"metadata": {"strategy_accuracies": {"chain_of_thought": 0.87, "mece": 0.87}}}, f)
+        
+        with open(tmp_path / "phase3_rl.json", "w") as f:
+            json.dump({"metadata": {"reward_history": [0.5] * 1000, "episode": 1000}}, f)
 
         registry_path = tmp_path / "registry.db"
         validator = Phase3HandoffValidator(registry_path)
@@ -334,7 +339,7 @@ class TestPhaseHandoffIntegration:
 
         assert valid is True
         assert metadata["num_thinking_tokens"] == 8
-        assert metadata["baking_accuracy"] == 0.87
+        assert abs(metadata["baking_accuracy"] - 0.87) < 0.01
         assert metadata["anti_theater_passed"] is True
 
 

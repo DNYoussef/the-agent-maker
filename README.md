@@ -391,29 +391,39 @@ phase4_config = Phase4Config(
 
 ## Research Papers
 
-This implementation is based on:
+This implementation is based on the following academic research:
 
-**Architecture**:
-- Titans: Learning to Memorize at Test Time (Google DeepMind)
-- Test-time Compute Scaling
+### Phase 1: Architecture
+- **Behrouz, A., Zhong, P., & Mirrokni, V.** (2025). "Titans: Learning to Memorize at Test Time." *arXiv:2501.00663v1*. Google Research.
+- **Jolicoeur-Martineau, A.** (2025). "Less is More: Recursive Reasoning with Tiny Networks." *arXiv:2510.04871v1*. Samsung SAIL Montreal.
 
-**Training**:
-- Quiet-STaR: Language Models Can Teach Themselves to Think (Stanford)
-- Grokfast: Accelerated Grokking by Amplifying Slow Gradients
+### Phase 2: Model Merging
+- **Akiba, T., Shing, M., Tang, Y., Sun, Q., & Ha, D.** (2024). "Evolutionary Optimization of Model Merging Recipes." *arXiv:2403.13187v1*. Sakana AI.
 
-**Compression**:
-- BitNet b1.58: Every Large Language Model in 1.58 Bits (Microsoft)
-- SeedLM: Compressing LLM Weights into Seeds
-- VPTQ: Extreme Low-bit Vector Post-Training Quantization
+### Phase 3: Reasoning Enhancement
+- **Zelikman, E., Harik, G., Shao, Y., Jayasiri, V., Haber, N., & Goodman, N. D.** (2024). "Quiet-STaR: Language Models Can Teach Themselves to Think Before Speaking." *arXiv:2403.09629v2*. Stanford University.
 
-**Merging**:
-- TIES-Merging: Resolving Interference When Merging Models
-- DARE: Drop and Rescale
+### Phase 4: Quantization
+- **Wang, H. et al.** (2023). "BitNet: Scaling 1-bit Transformers for Large Language Models." *arXiv:2310.11453*. Microsoft Research.
+- **Ma, S. et al.** (2024). "The Era of 1-bit LLMs: All Large Language Models are in 1.58 Bits." *arXiv:2402.17764*. Microsoft Research.
+- **Mekkouri, M., Sun, M., & von Werra, L.** (2024). "Fine-tuning LLMs to 1.58bit: Extreme Quantization Made Easy." Hugging Face.
 
-**Specialization**:
-- Transformer^2: Self-adaptive LLMs
-- NSGA-II: A Fast and Elitist Multiobjective Genetic Algorithm
-- Prompt Baking (arXiv:2409.13697v1)
+### Phase 5: Curriculum Learning
+- **Ni, M. & Liu, W.** (2024). "Dreaming Is All You Need." *arXiv:2409.01633v1*. University of Technology Sydney.
+- **Zhang, S., Patel, A., Rizvi, S. A. et al.** (2024). "Intelligence at the Edge of Chaos." *arXiv:2410.02536v1*. Yale/Columbia/Northwestern.
+- **Premakumar, V. N. et al.** (2024). "Unexpected Benefits of Self-Modeling in Neural Systems." *arXiv:2407.10188v2*. Princeton Neuroscience Institute.
+
+### Phase 6: Prompt Baking
+- **Bhargava, A., Witkowski, C., Detkov, A., & Thomson, M.** (2024). "Prompt Baking." *arXiv:2409.13697v1*. Caltech.
+
+### Phase 7: Expert Systems
+- **Sun, Q., Cetin, E., & Tang, Y.** (2025). "Transformer-squared: Self-Adaptive LLMs." *ICLR 2025, arXiv:2501.06252v3*. Sakana AI.
+- **Hu, S., Lu, C., & Clune, J.** (2024). "Automated Design of Agentic Systems." *arXiv:2408.08435v1*. University of British Columbia.
+
+### Phase 8: Compression
+- **Shafipour, R. et al.** (2024). "SeedLM: Compressing LLM Weights into Seeds of Pseudo-Random Generators." *arXiv:2410.10714v2*. Apple/Meta.
+- **Liu, Y. et al.** (2024). "VPTQ: Extreme Low-Bit Vector Post-Training Quantization for Large Language Models." *arXiv:2409.17066v1*. Microsoft/USTC.
+- **Fan, F.-L. et al.** (2024). "Hyper-Compression: Model Compression via Hyperfunction." *arXiv:2409.00592v1*. Chinese University of Hong Kong.
 
 ---
 
