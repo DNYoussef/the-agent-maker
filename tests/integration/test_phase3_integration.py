@@ -39,7 +39,17 @@ def mock_model():
     model.return_value = mock_output
 
     # Mock parameters
-    model.parameters = Mock(return_value=[torch.randn(100, 100) for _ in range(10)])
+    # Mock parameters - use nn.Parameter for proper iteration
+    params = [nn.Parameter(torch.randn(100, 100)) for _ in range(10)]
+    model.parameters = Mock(return_value=iter(params))
+
+    # Mock to() to return self (not a new Mock)
+    model.to = Mock(return_value=model)
+    model.eval = Mock(return_value=model)
+    model.train = Mock(return_value=model)
+
+    # Mock generate for anti-theater tests
+    model.generate = Mock(return_value=torch.randint(0, 50257, (1, 30)))
 
     # Mock state dict
     model.state_dict = Mock(

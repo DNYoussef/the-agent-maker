@@ -129,7 +129,7 @@ class CMAESOptimizer:
             )
 
         # Create Optuna study with CMA-ES sampler
-        sampler = optuna.samplers.CMAESSampler(
+        sampler = optuna.samplers.CmaEsSampler(
             n_startup_trials=10,  # Random warmup trials
             seed=self.config.seed,
             # CMA-ES specific parameters
