@@ -28,7 +28,7 @@ class TestCalibrationDataset:
     @pytest.fixture
     def config(self):
         """Create test configuration"""
-        return Phase4Config(
+        return Phase4Config(wandb_enabled=False, 
             calibration_samples=1000,
             calibration_sequence_length=256,
         )
@@ -93,7 +93,7 @@ class TestCalibrationDataset:
 
     def test_samples_truncated_to_config(self, tokenizer):
         """Test samples are truncated to configured limit"""
-        config = Phase4Config(calibration_samples=100)
+        config = Phase4Config(wandb_enabled=False, calibration_samples=100)
 
         dataset = CalibrationDataset(tokenizer, config, dataset_name="custom")
 
@@ -130,7 +130,7 @@ class TestCalibrationDataLoader:
 
     @pytest.fixture
     def config(self):
-        return Phase4Config(
+        return Phase4Config(wandb_enabled=False, 
             calibration_samples=100,
             calibration_batch_size=4,
         )
@@ -169,7 +169,7 @@ class TestCalibrationDataLoader:
 
     def test_dataloader_pin_memory_cuda(self, tokenizer):
         """Test dataloader pin_memory for CUDA"""
-        config_cuda = Phase4Config(device="cuda")
+        config_cuda = Phase4Config(wandb_enabled=False, device="cuda")
         dataloader = create_calibration_dataloader(tokenizer, config_cuda)
 
         # Should pin memory for CUDA
@@ -177,7 +177,7 @@ class TestCalibrationDataLoader:
 
     def test_dataloader_pin_memory_cpu(self, tokenizer):
         """Test dataloader pin_memory for CPU"""
-        config_cpu = Phase4Config(device="cpu")
+        config_cpu = Phase4Config(wandb_enabled=False, device="cpu")
         dataloader = create_calibration_dataloader(tokenizer, config_cpu)
 
         # Should not pin memory for CPU
@@ -281,7 +281,7 @@ class TestCalibrationEdgeCases:
 
     @pytest.fixture
     def config(self):
-        return Phase4Config()
+        return Phase4Config(wandb_enabled=False, )
 
     @pytest.fixture
     def tokenizer(self):
@@ -330,7 +330,7 @@ class TestCalibrationEdgeCases:
 
     def test_batch_size_larger_than_dataset(self, tokenizer):
         """Test when batch size exceeds dataset size"""
-        config = Phase4Config(
+        config = Phase4Config(wandb_enabled=False, 
             calibration_samples=100,
             calibration_batch_size=10,
         )

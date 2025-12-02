@@ -53,7 +53,7 @@ class TestFineTuner:
     @pytest.fixture
     def config(self):
         """Create test configuration"""
-        return Phase4Config(
+        return Phase4Config(wandb_enabled=False, 
             fine_tune_epochs=2,
             fine_tune_lr=1e-4,
             enable_fine_tuning=True,
@@ -255,7 +255,7 @@ class TestFineTunerEdgeCases:
 
     @pytest.fixture
     def config(self):
-        return Phase4Config(fine_tune_epochs=1)
+        return Phase4Config(wandb_enabled=False, fine_tune_epochs=1)
 
     @pytest.fixture
     def compressed_model(self, config):
@@ -317,7 +317,7 @@ class TestFineTunerIntegration:
 
     @pytest.fixture
     def config(self):
-        return Phase4Config(
+        return Phase4Config(wandb_enabled=False, 
             fine_tune_epochs=1,
             fine_tune_lr=1e-4,
         )

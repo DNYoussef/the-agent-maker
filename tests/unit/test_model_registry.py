@@ -52,7 +52,7 @@ class TestModelRegistry:
 
         assert row is not None
         assert row[0] == session_id
-        assert row[1] == "active"
+        assert row[1] == "running"
 
         registry.close()
 

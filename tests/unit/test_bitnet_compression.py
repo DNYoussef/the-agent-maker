@@ -35,7 +35,7 @@ class TestCompressedModel:
     @pytest.fixture
     def config(self):
         """Create test configuration"""
-        return Phase4Config(
+        return Phase4Config(wandb_enabled=False, 
             sparsity_threshold=0.1,
             preserve_embedding_precision=True,
             preserve_output_precision=True,
@@ -244,7 +244,7 @@ class TestCompressedModelEdgeCases:
 
     @pytest.fixture
     def config(self):
-        return Phase4Config()
+        return Phase4Config(wandb_enabled=False, )
 
     @pytest.fixture
     def quantizer(self, config):
@@ -311,7 +311,7 @@ class TestCompressedModelIntegration:
 
     @pytest.fixture
     def config(self):
-        return Phase4Config()
+        return Phase4Config(wandb_enabled=False, )
 
     def test_quantizer_compressed_model_roundtrip(self, config):
         """Test full quantize-compress-dequantize roundtrip"""
@@ -352,7 +352,7 @@ class TestCompressedModelIntegration:
     def test_config_preserve_settings_respected(self):
         """Test that config preserve settings are respected"""
         # Config with no preservation
-        config_no_preserve = Phase4Config(
+        config_no_preserve = Phase4Config(wandb_enabled=False, 
             preserve_embedding_precision=False,
             preserve_output_precision=False,
         )
