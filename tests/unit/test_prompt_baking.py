@@ -49,13 +49,13 @@ class TestPhasePrompts:
         expected_personas = [
             "reasoning_specialist",
             "creative_thinker",
-            "analytical_debugger",
-            "rapid_prototyper",
-            "detail_oriented_reviewer",
-            "systems_architect",
-            "user_advocate",
-            "optimizer",
-            "documentation_expert",
+            "technical_expert",
+            "educator",
+            "code_specialist",
+            "data_analyst",
+            "researcher",
+            "debugger",
+            "system_designer",
         ]
 
         for persona in expected_personas:
@@ -63,67 +63,58 @@ class TestPhasePrompts:
             assert isinstance(personas[persona], str)
             assert len(personas[persona]) > 0
 
-    def test_phase6_tool_use_prompt(self):
-        """Test Phase 6 tool use prompt exists"""
-        prompt = PhasePrompts.PHASE6_TOOL_USE
+    def test_phase6_swe_bench_prompt(self):
+        """Test Phase 6 SWE-Bench prompt exists"""
+        prompt = PhasePrompts.PHASE6_SWE_BENCH
 
         assert isinstance(prompt, str)
-        assert "tool" in prompt.lower()
+        assert "engineer" in prompt.lower() or "github" in prompt.lower()
 
 
 class TestPromptManager:
     """Test PromptManager"""
 
-    def test_get_phase3_prompt(self):
-        """Test getting Phase 3 prompt"""
-        manager = PromptManager()
-        prompt = manager.get_prompt(phase=3, prompt_type="cot_reasoning")
+    def test_get_phase3_prompts(self):
+        """Test getting Phase 3 prompts"""
+        prompts = PromptManager.get_phase3_prompts()
 
-        assert prompt == PhasePrompts.PHASE3_COT_REASONING
+        assert isinstance(prompts, list)
+        assert len(prompts) == 1
+        assert prompts[0] == PhasePrompts.PHASE3_COT_REASONING
 
     def test_get_phase5_prompts(self):
         """Test getting Phase 5 prompts"""
-        manager = PromptManager()
+        prompts = PromptManager.get_phase5_prompts()
 
-        eudaimonia = manager.get_prompt(5, "eudaimonia")
-        tool_use = manager.get_prompt(5, "tool_use")
+        assert isinstance(prompts, list)
+        assert len(prompts) == 2
+        assert PhasePrompts.PHASE5_EUDAIMONIA in prompts
+        assert PhasePrompts.PHASE5_TOOL_USE in prompts
 
-        assert eudaimonia == PhasePrompts.PHASE5_EUDAIMONIA
-        assert tool_use == PhasePrompts.PHASE5_TOOL_USE
+    def test_get_phase6_prompts(self):
+        """Test getting Phase 6 prompts"""
+        prompts = PromptManager.get_phase6_prompts()
 
-    def test_get_phase6_persona(self):
-        """Test getting Phase 6 persona"""
-        manager = PromptManager()
+        assert isinstance(prompts, list)
+        # 9 personas + 1 SWE-Bench = 10 prompts
+        assert len(prompts) == 10
+        assert PhasePrompts.PHASE6_SWE_BENCH in prompts
 
-        persona = manager.get_prompt(6, "reasoning_specialist")
+    def test_get_all_prompts(self):
+        """Test getting all prompts"""
+        all_prompts = PromptManager.get_all_prompts()
 
-        assert persona == PhasePrompts.PHASE6_PERSONAS["reasoning_specialist"]
+        assert isinstance(all_prompts, dict)
+        assert "phase3" in all_prompts
+        assert "phase5" in all_prompts
+        assert "phase6" in all_prompts
 
-    def test_get_phase6_tool_prompt(self):
-        """Test getting Phase 6 tool prompt"""
-        manager = PromptManager()
+    def test_phase6_prompts_include_personas(self):
+        """Test Phase 6 prompts include all personas"""
+        prompts = PromptManager.get_phase6_prompts()
 
-        prompt = manager.get_prompt(6, "tool_use")
-
-        assert prompt == PhasePrompts.PHASE6_TOOL_USE
-
-    def test_list_available_prompts(self):
-        """Test listing available prompts"""
-        manager = PromptManager()
-
-        prompts = manager.list_available_prompts()
-
-        assert isinstance(prompts, dict)
-        assert 3 in prompts
-        assert 5 in prompts
-        assert 6 in prompts
-
-    def test_invalid_phase(self):
-        """Test invalid phase raises error"""
-        manager = PromptManager()
-
-        with pytest.raises(ValueError):
-            manager.get_prompt(99, "invalid")
+        for persona_prompt in PhasePrompts.PHASE6_PERSONAS.values():
+            assert persona_prompt in prompts
 
 
 class TestPromptBakingConfig:
