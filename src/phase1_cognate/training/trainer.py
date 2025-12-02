@@ -20,7 +20,6 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-sys.path.insert(0, str(Path(__file__).parents[2]))
 
 from cross_phase.mugrokfast.config import MuGrokConfig
 from cross_phase.mugrokfast.optimizer import MuonGrokfast, create_optimizer_from_phase
