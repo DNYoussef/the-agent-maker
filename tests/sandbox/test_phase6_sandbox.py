@@ -1,3 +1,6 @@
+import pytest
+pytestmark = pytest.mark.skip(reason="Standalone sandbox script - run with python directly")
+
 """
 Phase 6 Sandbox Test: Tool & Persona Baking
 
