@@ -18,14 +18,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import torch
 import torch.nn as nn
 
-# W&B integration (optional - graceful fallback)
-try:
-    import wandb
-
-    WANDB_AVAILABLE = True
-except ImportError:
-    WANDB_AVAILABLE = False
-    wandb = None  # type: ignore[assignment]
+from src.cross_phase.monitoring.wandb_integration import WandBIntegration
 
 
 class BakingCycleType(Enum):
@@ -107,8 +100,10 @@ class BakingEngine:
         self,
         config: Optional[BakingConfig] = None,
         use_wandb: bool = True,
-        wandb_project: str = "agent-forge-phase6",
+        wandb_project: str = "agent-forge-v2",
         wandb_run_name: Optional[str] = None,
+        wandb_integration: Optional[WandBIntegration] = None,
+        session_id: Optional[str] = None,
     ):
         """
         Initialize baking engine.
@@ -128,10 +123,13 @@ class BakingEngine:
         }
 
         # W&B integration
-        self.use_wandb: bool = use_wandb and WANDB_AVAILABLE
+        self.use_wandb: bool = use_wandb
         self.wandb_project: str = wandb_project
         self.wandb_run_name: Optional[str] = wandb_run_name
-        self._wandb_run: Optional[Any] = None
+        self.session_id = session_id or f"phase6_{int(time.time())}"
+        self.wandb_integration = wandb_integration or WandBIntegration(
+            project_name=wandb_project
+        )
 
     def _init_wandb(self) -> None:
         """Initialize W&B run for Phase 6 logging."""
@@ -139,9 +137,8 @@ class BakingEngine:
             return
 
         try:
-            self._wandb_run = wandb.init(
-                project=self.wandb_project,
-                name=self.wandb_run_name or f"phase6-baking-{int(time.time())}",
+            self.wandb_integration.init_phase_run(
+                phase_name="phase6",
                 config={
                     "phase": 6,
                     "a_cycle_iterations": self.config.a_cycle_iterations,
@@ -155,50 +152,41 @@ class BakingEngine:
                     "lora_r": self.config.lora_r,
                     "lora_alpha": self.config.lora_alpha,
                 },
-                reinit=True,
+                session_id=self.session_id,
             )
-            print(f"  W&B run initialized: {wandb.run.name if wandb.run else 'unknown'}")
+            print(f"  W&B run initialized: {self.session_id}")
         except Exception as e:
             print(f"  W&B init failed: {e}. Continuing without logging.")
             self.use_wandb = False
 
     def _log_wandb(self, metrics: Dict[str, Any], step: Optional[int] = None) -> None:
         """Log metrics to W&B."""
-        if not self.use_wandb or not self._wandb_run:
+        if not self.use_wandb:
             return
 
         try:
-            wandb.log(metrics, step=step)
+            self.wandb_integration.log_metrics(metrics, step=step)
         except Exception as e:
             print(f"  W&B log failed: {e}")
 
     def _finish_wandb(self, result: "BakingResult") -> None:
         """Finish W&B run with summary."""
-        if not self.use_wandb or not self._wandb_run:
+        if not self.use_wandb:
             return
 
         try:
-            # Log final summary
-            wandb.summary.update(
-                {
-                    "final_tool_score": result.final_tool_score,
-                    "final_persona_score": result.final_persona_score,
-                    "total_iterations": result.total_iterations,
-                    "a_cycle_count": result.a_cycle_count,
-                    "b_cycle_count": result.b_cycle_count,
-                    "success": result.success,
-                    "plateau_count": len(result.metrics.get("plateau_detections", [])),
-                }
-            )
-
-            # Log score histories as artifacts
-            if result.metrics.get("a_cycle_scores"):
-                wandb.log({"a_cycle_final_scores": result.metrics["a_cycle_scores"]})
-            if result.metrics.get("b_cycle_scores"):
-                wandb.log({"b_cycle_final_scores": result.metrics["b_cycle_scores"]})
-
-            wandb.finish()
-            print(f"  W&B run finished successfully")
+            summary_metrics = {
+                "final_tool_score": result.final_tool_score,
+                "final_persona_score": result.final_persona_score,
+                "total_iterations": result.total_iterations,
+                "a_cycle_count": result.a_cycle_count,
+                "b_cycle_count": result.b_cycle_count,
+                "success": result.success,
+                "plateau_count": len(result.metrics.get("plateau_detections", [])),
+            }
+            self.wandb_integration.log_metrics(summary_metrics)
+            self.wandb_integration.finish()
+            print("  W&B run finished successfully")
         except Exception as e:
             print(f"  W&B finish failed: {e}")
 
@@ -234,39 +222,39 @@ class BakingEngine:
         b_cycle_count = 0
         total_iterations = 0
 
-        # Import components
-        from .a_cycle_tool import ACycleOptimizer
-        from .b_cycle_persona import BCycleOptimizer
-        from .half_baking import HalfBaker
-        from .plateau_detector import PlateauDetector
-
-        # Initialize components
-        a_optimizer = ACycleOptimizer(
-            tool_prompts=self.config.tool_prompts,
-            lora_r=self.config.lora_r,
-            lora_alpha=self.config.lora_alpha,
-            num_epochs=self.config.baking_epochs,
-            learning_rate=self.config.learning_rate,
-        )
-
-        b_optimizer = BCycleOptimizer(
-            persona_prompts=self.config.persona_prompts,
-            lora_r=self.config.lora_r,
-            lora_alpha=self.config.lora_alpha,
-            num_epochs=self.config.baking_epochs,
-            learning_rate=self.config.learning_rate,
-        )
-
-        plateau_detector = PlateauDetector(
-            window_size=self.config.plateau_window, threshold=self.config.plateau_threshold
-        )
-
-        half_baker = HalfBaker(strength=self.config.half_bake_strength)
-
         # Current cycle (start with A)
         current_cycle = BakingCycleType.A_CYCLE
 
         try:
+            # Import components inside try block for proper error handling
+            from .a_cycle_tool import ACycleOptimizer
+            from .b_cycle_persona import BCycleOptimizer
+            from .half_baking import HalfBaker
+            from .plateau_detector import PlateauDetector
+
+            # Initialize components
+            a_optimizer = ACycleOptimizer(
+                tool_prompts=self.config.tool_prompts,
+                lora_r=self.config.lora_r,
+                lora_alpha=self.config.lora_alpha,
+                num_epochs=self.config.baking_epochs,
+                learning_rate=self.config.learning_rate,
+            )
+
+            b_optimizer = BCycleOptimizer(
+                persona_prompts=self.config.persona_prompts,
+                lora_r=self.config.lora_r,
+                lora_alpha=self.config.lora_alpha,
+                num_epochs=self.config.baking_epochs,
+                learning_rate=self.config.learning_rate,
+            )
+
+            plateau_detector = PlateauDetector(
+                window_size=self.config.plateau_window, threshold=self.config.plateau_threshold
+            )
+
+            half_baker = HalfBaker(strength=self.config.half_bake_strength)
+
             while total_iterations < self.config.max_total_iterations:
                 iter_start = time.time()
                 total_iterations += 1

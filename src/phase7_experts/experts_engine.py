@@ -16,6 +16,11 @@ from typing import Any, Dict, List, Optional, Tuple
 import torch
 import torch.nn as nn
 
+from src.cross_phase.monitoring.wandb_integration import WandBIntegration
+from .adas_optimizer import ADASConfig, ADASOptimizer
+from .expert_discovery import DiscoveryConfig, ExpertDiscovery
+from .svf_trainer import SVFConfig, SVFTrainer
+
 
 @dataclass
 class ExpertsConfig:
@@ -64,7 +69,12 @@ class ExpertsEngine:
     Key V2 innovation: Model-driven expert count (N=3-10) vs manual design.
     """
 
-    def __init__(self, config: ExpertsConfig = None):
+    def __init__(
+        self,
+        config: ExpertsConfig = None,
+        wandb_integration: Optional[WandBIntegration] = None,
+        session_id: Optional[str] = None,
+    ):
         """
         Initialize experts engine.
 
@@ -78,6 +88,8 @@ class ExpertsEngine:
             "adas_time": 0.0,
             "expert_metrics": [],
         }
+        self.wandb = wandb_integration
+        self.session_id = session_id
 
     def run(self, model: nn.Module, tokenizer: Any) -> Phase7Result:
         """
@@ -97,10 +109,20 @@ class ExpertsEngine:
         start_time = time.time()
 
         try:
+            if self.wandb:
+                self.wandb.init_phase_run(
+                    phase_name="phase7",
+                    config={
+                        "min_experts": self.config.min_experts,
+                        "max_experts": self.config.max_experts,
+                        "svf_epochs": self.config.svf_epochs,
+                        "adas_generations": self.config.adas_generations,
+                    },
+                    session_id=self.session_id or "phase7",
+                )
+
             # Stage 1: Expert Discovery
             stage1_start = time.time()
-            from .expert_discovery import DiscoveryConfig, ExpertDiscovery
-
             discovery_config = DiscoveryConfig(
                 min_experts=self.config.min_experts,
                 max_experts=self.config.max_experts,
@@ -110,11 +132,16 @@ class ExpertsEngine:
 
             num_experts, expert_profiles = discovery.discover(model, tokenizer)
             self.metrics["discovery_time"] = time.time() - stage1_start
+            if self.wandb:
+                self.wandb.log_metrics(
+                    {
+                        "phase7/discovery_time": self.metrics["discovery_time"],
+                        "phase7/num_experts": num_experts,
+                    }
+                )
 
             # Stage 2: SVF Training
             stage2_start = time.time()
-            from .svf_trainer import SVFConfig, SVFTrainer
-
             svf_config = SVFConfig(
                 num_singular_values=self.config.num_singular_values,
                 num_epochs=self.config.svf_epochs,
@@ -148,11 +175,11 @@ class ExpertsEngine:
                     )
 
             self.metrics["svf_time"] = time.time() - stage2_start
+            if self.wandb:
+                self.wandb.log_metrics({"phase7/svf_time": self.metrics["svf_time"]})
 
             # Stage 3: ADAS Optimization
             stage3_start = time.time()
-            from .adas_optimizer import ADASConfig, ADASOptimizer
-
             adas_config = ADASConfig(
                 population_size=self.config.adas_population,
                 num_generations=self.config.adas_generations,
@@ -164,6 +191,8 @@ class ExpertsEngine:
                 model=current_model, experts=expert_profiles, tokenizer=tokenizer
             )
             self.metrics["adas_time"] = time.time() - stage3_start
+            if self.wandb:
+                self.wandb.log_metrics({"phase7/adas_time": self.metrics["adas_time"]})
 
             # Extract routing configuration
             routing_config = {}
@@ -206,6 +235,19 @@ class ExpertsEngine:
                 duration=duration,
                 error=str(e),
             )
+        finally:
+            if self.wandb:
+                self.wandb.finish()
 
 
-__all__ = ["ExpertsEngine", "ExpertsConfig", "Phase7Result"]
+__all__ = [
+    "ADASConfig",
+    "ADASOptimizer",
+    "DiscoveryConfig",
+    "ExpertDiscovery",
+    "ExpertsEngine",
+    "ExpertsConfig",
+    "Phase7Result",
+    "SVFConfig",
+    "SVFTrainer",
+]

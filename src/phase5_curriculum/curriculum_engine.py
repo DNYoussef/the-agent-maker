@@ -24,6 +24,16 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import torch
 import torch.nn as nn
 
+from src.cross_phase.monitoring.wandb_integration import WandBIntegration
+
+# Import meta-calculus integration for spectral gap monitoring and k(L) scheduling
+try:
+    from src.cross_phase.meta_calculus.phase_facades import phase5 as meta_phase5
+
+    META_CALCULUS_AVAILABLE = True
+except ImportError:
+    META_CALCULUS_AVAILABLE = False
+
 
 class SpecializationType(Enum):
     """Types of agent specialization."""
@@ -114,12 +124,26 @@ class CurriculumEngine:
     7. Level Progression - Advance through levels
     """
 
-    def __init__(self, config: Optional[CurriculumConfig] = None):
+    def __init__(
+        self,
+        config: Optional[CurriculumConfig] = None,
+        wandb_integration: Optional[WandBIntegration] = None,
+        session_id: Optional[str] = None,
+    ):
         """Initialize curriculum engine."""
         self.config = config or CurriculumConfig()
         self.level_progress: List[LevelProgress] = []
         self.metrics: Dict[str, Any] = {}
         self.start_time: Optional[float] = None
+        self.wandb = wandb_integration
+        self.session_id = session_id
+
+        # Initialize spectral gap monitor if meta-calculus available
+        self.gap_monitor = None
+        self.gap_history: List[float] = []
+        if META_CALCULUS_AVAILABLE:
+            self.gap_monitor = meta_phase5.create_gap_monitor()
+            print("  [Meta-Calculus] Spectral gap monitoring enabled")
 
     def run(
         self,
@@ -151,17 +175,41 @@ class CurriculumEngine:
         print("=" * 70 + "\n")
 
         try:
+            if self.wandb:
+                self.wandb.init_phase_run(
+                    phase_name="phase5",
+                    config={
+                        "num_levels": self.config.num_levels,
+                        "questions_per_level": self.config.questions_per_level,
+                        "specialization": self.config.specialization.value,
+                    },
+                    session_id=self.session_id or "phase5",
+                )
             # Stage 1: Assessment
-            print("--- Stage 1: Assessment (Edge-of-Chaos Detection) ---")
+            print("--- Stage 1: Assessment (Edge-of-Chaos Detection) ---")      
             baseline_level, assessment_results = self._run_assessment(
                 model, tokenizer, frontier_client
             )
             print(f"  Baseline level: {baseline_level}")
+            if self.wandb:
+                self.wandb.log_metrics(
+                    {
+                        "phase5/baseline_level": baseline_level,
+                        "phase5/assessment_questions": self.config.assessment_questions,
+                    }
+                )
 
             # Stage 2: Curriculum Generation
             print("\n--- Stage 2: Curriculum Generation ---")
             curriculum = self._generate_curriculum(baseline_level, frontier_client)
             print(f"  Generated {sum(len(q) for q in curriculum.values())} questions")
+            if self.wandb:
+                self.wandb.log_metrics(
+                    {
+                        "phase5/levels": self.config.num_levels,
+                        "phase5/questions_total": sum(len(q) for q in curriculum.values()),
+                    }
+                )
 
             # Stage 3-7: Level Loop
             current_model = model
@@ -175,6 +223,14 @@ class CurriculumEngine:
                 current_model, level_metrics = self._run_training_loop(
                     current_model, curriculum[level], tokenizer, coding_env, frontier_client, level
                 )
+                if self.wandb:
+                    self.wandb.log_metrics(
+                        {
+                            "phase5/level": level,
+                            "phase5/level_accuracy": level_metrics.get("accuracy", 0.0),
+                            "phase5/level_mastery": level_metrics.get("mastery", 0.0),
+                        }
+                    )
 
                 # Check for hard wall
                 if level_metrics["accuracy"] < 0.5:
@@ -193,7 +249,7 @@ class CurriculumEngine:
                 # Stage 6: Dream Consolidation
                 print(f"\n--- Stage 6: Dream Consolidation (Level {level}) ---")
                 current_model = self._run_dream_consolidation(
-                    current_model, curriculum[level], tokenizer
+                    current_model, curriculum[level], tokenizer, level
                 )
 
                 # Track progress
@@ -214,6 +270,31 @@ class CurriculumEngine:
                     f"\n  Level {level} complete. Questions remaining: "
                     f"{level_metrics['remaining_questions']}"
                 )
+
+                # Stage 7: Spectral Gap-Based Advancement Check (Meta-Calculus)
+                if META_CALCULUS_AVAILABLE and self.gap_monitor is not None:
+                    # Compute spectral gap from model representations
+                    gap_value = self._compute_spectral_gap(current_model)
+                    self.gap_history.append(gap_value)
+
+                    # Check if ready to advance using spectral gap stability
+                    if level < self.config.num_levels:
+                        should_advance = meta_phase5.should_advance_stage(
+                            self.gap_history, level, self.config.num_levels
+                        )
+                        advancement_info = meta_phase5.get_advancement_info(
+                            self.gap_history, level
+                        )
+
+                        print(f"  [Meta-Calculus] Spectral gap: {gap_value:.4f}")
+                        print(f"  [Meta-Calculus] Ready to advance: {should_advance}")
+
+                        if not should_advance and advancement_info.get("stability", 0) < 0.5:
+                            print(f"  [Meta-Calculus] Representation unstable, consolidating...")
+                            # Extra consolidation round
+                            current_model = self._run_dream_consolidation(
+                                current_model, curriculum[level], tokenizer, level
+                            )
 
             # Compile final metrics
             duration = time.time() - self.start_time
@@ -240,7 +321,7 @@ class CurriculumEngine:
             )
 
         except Exception as e:
-            duration = time.time() - self.start_time if self.start_time else 0
+            duration = time.time() - self.start_time if self.start_time else 0  
             return Phase5Result(
                 success=False,
                 model=model,
@@ -250,6 +331,9 @@ class CurriculumEngine:
                 artifacts={},
                 error=str(e),
             )
+        finally:
+            if self.wandb:
+                self.wandb.finish()
 
     def _run_assessment(
         self, model: nn.Module, tokenizer: Any, frontier_client: Optional[Any]
@@ -320,6 +404,52 @@ class CurriculumEngine:
 
         return trained_model, metrics
 
+    def _get_baking_config(self, level: int) -> Dict[str, Any]:
+        """
+        Get level-adaptive baking configuration.
+
+        Early levels: Light baking (learning still happening)
+        Later levels: Stronger baking (embed more deeply)
+
+        Uses k(level/total_levels) from meta-calculus for physics-motivated scaling.
+
+        Returns:
+            Dict with lora_rank, lora_alpha, baking_strength, epochs, learning_rate
+        """
+        if META_CALCULUS_AVAILABLE:
+            L = level / max(1, self.config.num_levels)
+            k = meta_phase5.get_k_value(max(0.01, L))
+
+            # k is high for early levels (~0.15), low for late levels (~0.13)
+            # We want STRONGER baking for later levels
+            baking_strength = 0.3 + (1 - k * 6) * 0.5  # ~0.3 to ~0.8
+            baking_strength = max(0.3, min(0.8, baking_strength))
+
+            # LoRA rank scales with baking strength (8-32)
+            lora_rank = 8 + int(baking_strength * 30)
+            lora_rank = max(8, min(32, lora_rank))
+
+            # Epochs scale with level (3-5)
+            epochs = 3 + int((level / self.config.num_levels) * 2)
+            epochs = max(3, min(5, epochs))
+
+            return {
+                "lora_rank": lora_rank,
+                "lora_alpha": lora_rank * 2,
+                "baking_strength": baking_strength,
+                "epochs": epochs,
+                "learning_rate": 1e-4,
+            }
+
+        # Default config (no meta-calculus)
+        return {
+            "lora_rank": 16,
+            "lora_alpha": 32,
+            "baking_strength": 0.5,
+            "epochs": 3,
+            "learning_rate": 1e-4,
+        }
+
     def _run_prompt_baking(self, model: nn.Module, tokenizer: Any, level: int) -> nn.Module:
         """
         Stage 4: Bake moral compass and identity into weights.
@@ -328,6 +458,8 @@ class CurriculumEngine:
         1. Eudaimonia moral compass (4 rules)
         2. Ethical OODA loop (3 parts)
         3. Identity and purpose
+
+        Baking strength adapts to level via k(L) formula.
         """
         from cross_phase.prompt_baking.baker import (  # type: ignore[import-not-found]
             PromptBaker,
@@ -406,9 +538,22 @@ Your approach: Adapt to context, be helpful, be honest.""",
             self.config.specialization, identity_prompts[SpecializationType.GENERAL]
         )
 
-        # Sequential baking
-        config = PromptBakingConfig(lora_r=16, lora_alpha=32, num_epochs=3, learning_rate=1e-4)
+        # Get level-adaptive baking config (k(L)-based if meta-calculus available)
+        baking_cfg = self._get_baking_config(level)
+
+        config = PromptBakingConfig(
+            lora_r=baking_cfg["lora_rank"],
+            lora_alpha=baking_cfg["lora_alpha"],
+            num_epochs=baking_cfg["epochs"],
+            learning_rate=baking_cfg["learning_rate"],
+        )
         baker = PromptBaker(config)
+
+        if META_CALCULUS_AVAILABLE:
+            print(
+                f"  [Meta-Calculus] Baking config: rank={baking_cfg['lora_rank']}, "
+                f"strength={baking_cfg['baking_strength']:.2f}, epochs={baking_cfg['epochs']}"
+            )
 
         print(f"  Baking eudaimonia... (~{self.config.baking_time_minutes} min)")
         model = baker.bake_prompt(model, eudaimonia_prompt, tokenizer, half_bake=False)
@@ -444,13 +589,19 @@ Your approach: Adapt to context, be helpful, be honest.""",
         return trained_model
 
     def _run_dream_consolidation(
-        self, model: nn.Module, level_data: List[Dict], tokenizer: Any
+        self, model: nn.Module, level_data: List[Dict], tokenizer: Any, level: int = 1
     ) -> nn.Module:
         """
         Stage 6: Dream consolidation for memory preservation.
 
         High-temperature replay of learned experiences to consolidate
         memory without catastrophic forgetting.
+
+        Args:
+            model: Model to consolidate
+            level_data: Training data from completed level
+            tokenizer: Tokenizer for encoding
+            level: Current curriculum level (for k(L) scaling)
         """
         from .dream_consolidation import DreamConsolidator
 
@@ -458,6 +609,9 @@ Your approach: Adapt to context, be helpful, be honest.""",
             dream_temperature=self.config.dream_temperature,
             training_temperature=self.config.dream_training_temperature,
             num_samples=self.config.dream_samples,
+            level=level,
+            total_levels=self.config.num_levels,
+            use_k_scaling=META_CALCULUS_AVAILABLE,
         )
 
         consolidated_model = consolidator.consolidate(model, level_data, tokenizer)
@@ -529,6 +683,48 @@ Your approach: Adapt to context, be helpful, be honest.""",
                 level: len(questions) for level, questions in curriculum.items()
             },
         }
+
+    def _compute_spectral_gap(self, model: nn.Module) -> float:
+        """
+        Compute spectral gap from model representations.
+
+        Uses SVD on weight matrices to estimate representation diversity.
+        Higher gap = more diverse representations = better generalization.
+        """
+        try:
+            # Collect weight matrices from attention layers
+            weight_matrices = []
+            for name, param in model.named_parameters():
+                if "weight" in name and param.dim() >= 2:
+                    # Use first 2D slice if higher dimensional
+                    w = param.data
+                    if w.dim() > 2:
+                        w = w.view(w.size(0), -1)
+                    if w.size(0) >= 2 and w.size(1) >= 2:
+                        weight_matrices.append(w[:min(256, w.size(0)), :min(256, w.size(1))])
+
+            if not weight_matrices:
+                return 0.5  # Default if no weights found
+
+            # Compute spectral gap from a representative weight matrix
+            # Use the largest attention-like matrix
+            w = max(weight_matrices, key=lambda x: x.numel())
+
+            # SVD to get singular values
+            with torch.no_grad():
+                try:
+                    U, S, V = torch.svd(w.float())
+                    # Spectral gap = ratio of top two singular values
+                    if len(S) >= 2 and S[0] > 1e-8:
+                        gap = 1.0 - (S[1] / S[0]).item()
+                        return max(0.0, min(1.0, gap))
+                except Exception:
+                    pass
+
+            return 0.5  # Default on failure
+
+        except Exception:
+            return 0.5  # Safe default
 
 
 __all__ = [

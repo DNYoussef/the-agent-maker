@@ -200,10 +200,10 @@ def mock_tokenizer():
 class TestBakingEngineRun:
     """Test BakingEngine.run() method."""
 
-    @patch("phase6_baking.baking_engine.ACycleOptimizer")
-    @patch("phase6_baking.baking_engine.BCycleOptimizer")
-    @patch("phase6_baking.baking_engine.PlateauDetector")
-    @patch("phase6_baking.baking_engine.HalfBaker")
+    @patch("phase6_baking.a_cycle_tool.ACycleOptimizer")
+    @patch("phase6_baking.b_cycle_persona.BCycleOptimizer")
+    @patch("phase6_baking.plateau_detector.PlateauDetector")
+    @patch("phase6_baking.half_baking.HalfBaker")
     def test_run_returns_baking_result(
         self, mock_half, mock_plateau, mock_b, mock_a, mock_model, mock_tokenizer
     ):
@@ -239,7 +239,8 @@ class TestBakingEngineRun:
         """Test run() handles exceptions gracefully."""
         engine = BakingEngine()
 
-        with patch("phase6_baking.baking_engine.ACycleOptimizer") as mock_a:
+        # ACycleOptimizer is imported from .a_cycle_tool inside run()
+        with patch("phase6_baking.a_cycle_tool.ACycleOptimizer") as mock_a:
             mock_a.side_effect = Exception("Import failed")
             result = engine.run(mock_model, mock_tokenizer)
 

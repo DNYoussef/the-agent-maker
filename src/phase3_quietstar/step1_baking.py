@@ -34,7 +34,7 @@ from .vocabulary import compute_thinking_token_usage, prepare_model_for_phase3
 from .wandb_logger import WandBLogger
 
 sys.path.insert(0, str(Path(__file__).parents[2]))
-from cross_phase.utils.checkpoint_utils import save_checkpoint as secure_save
+from src.cross_phase.utils.checkpoint_utils import save_checkpoint as secure_save
 
 from ..cross_phase.mugrokfast import MuGrokConfig, MuonGrokfast
 from ..cross_phase.prompt_baking import PromptBaker

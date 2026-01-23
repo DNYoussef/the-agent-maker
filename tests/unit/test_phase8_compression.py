@@ -257,7 +257,8 @@ class TestCompressionEngineRun:
         config = CompressionConfig(seedlm_enabled=True)
         engine = CompressionEngine(config=config)
 
-        with patch("phase8_compression.compression_engine.SeedLMCompressor") as mock_seedlm:
+        # SeedLMCompressor is imported from .seedlm inside run()
+        with patch("phase8_compression.seedlm.SeedLMCompressor") as mock_seedlm:
             mock_seedlm.side_effect = Exception("Compression failed")
             result = engine.run(mock_model, mock_tokenizer)
 

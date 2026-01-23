@@ -11,8 +11,8 @@ import streamlit as st
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from cross_phase.orchestrator.pipeline import PipelineOrchestrator
-from cross_phase.storage.model_registry import ModelRegistry
+from src.cross_phase.orchestrator.pipeline import PipelineOrchestrator
+from src.cross_phase.storage.model_registry import ModelRegistry
 
 
 def render() -> None:

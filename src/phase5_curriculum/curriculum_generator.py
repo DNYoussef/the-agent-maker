@@ -18,7 +18,7 @@ import json
 import logging
 import random
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from .curriculum_engine import SpecializationType
 
@@ -34,6 +34,22 @@ try:
     OPENROUTER_AVAILABLE = True
 except ImportError:
     OPENROUTER_AVAILABLE = False
+
+# Import meta-calculus for k(L) difficulty curve
+try:
+    from src.cross_phase.meta_calculus.phase_facades import phase5 as meta_phase5
+
+    META_CALCULUS_AVAILABLE = True
+except ImportError:
+    META_CALCULUS_AVAILABLE = False
+
+# Import MOO for curriculum optimization
+try:
+    from src.cross_phase.meta_calculus.moo_utils import HybridMOORunner
+
+    MOO_AVAILABLE = True
+except ImportError:
+    MOO_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -146,11 +162,32 @@ class AdaptiveCurriculumGenerator:
         """
         Map new curriculum level to original difficulty scale.
 
-        Formula: original = baseline + (new_level - 1) * (100 - baseline) / (num_levels - 1)
+        If meta-calculus available, uses k(L) for physics-motivated difficulty curve.
+        Otherwise falls back to linear interpolation.
+
+        Linear formula: original = baseline + (new_level - 1) * (100 - baseline) / (num_levels - 1)
+        k(L) formula: Uses k(level/total_levels) to create non-linear curve
         """
         if self.num_levels <= 1:
             return self.baseline_level
 
+        # Use k(L) difficulty curve if meta-calculus available
+        if META_CALCULUS_AVAILABLE:
+            # Get k(L)-based difficulty (returns 0.0-1.0)
+            difficulty_normalized = meta_phase5.get_stage_difficulty(
+                stage=new_level,
+                total_stages=self.num_levels,
+                base_difficulty=0.3,  # Base difficulty for level 1
+            )
+            # Map to original scale: baseline -> 100
+            original = self.baseline_level + difficulty_normalized * (100 - self.baseline_level)
+            logger.debug(
+                f"k(L) difficulty: level {new_level} -> normalized {difficulty_normalized:.3f} "
+                f"-> original {original:.1f}"
+            )
+            return int(round(original))
+
+        # Fallback: Linear interpolation
         original = self.baseline_level + (new_level - 1) * (100 - self.baseline_level) / (
             self.num_levels - 1
         )
@@ -460,4 +497,272 @@ Always respond with valid JSON."""
         ]
 
 
-__all__ = ["AdaptiveCurriculumGenerator", "Question"]
+class MOOCurriculumGenerator(AdaptiveCurriculumGenerator):
+    """
+    Curriculum generator with multi-objective optimization.
+
+    Finds Pareto-optimal curriculum configurations balancing:
+    1. Expected learning rate
+    2. Concept retention
+    3. Difficulty smoothness
+    4. Total questions needed
+    """
+
+    def __init__(self, *args, **kwargs):
+        """Initialize MOO curriculum generator."""
+        super().__init__(*args, **kwargs)
+        self._evaluation_cache: Dict[tuple, Dict] = {}
+
+    def generate_optimal_curriculum(
+        self,
+        frontier_client: Optional[Any] = None,
+        n_generations: int = 30,
+    ) -> Tuple[Dict[int, List[Question]], Dict[str, Any]]:
+        """
+        Generate Pareto-optimal curriculum using MOO.
+
+        Objectives:
+        1. Maximize expected learning rate (smooth progression)
+        2. Maximize concept retention (spaced repetition potential)
+        3. Minimize difficulty variance (smoothness)
+        4. Minimize total questions (efficiency)
+
+        Args:
+            frontier_client: Optional API client for question generation
+            n_generations: Number of MOO generations
+
+        Returns:
+            Tuple of (curriculum, optimization_results)
+        """
+        if not MOO_AVAILABLE:
+            logger.warning("MOO not available, using standard generation")
+            return self.generate(frontier_client), {"error": "MOO not available"}
+
+        logger.info("Running MOO curriculum optimization...")
+
+        def evaluate_curriculum_params(params) -> List[float]:
+            """Evaluate curriculum parameters on 4 objectives."""
+            # params: [difficulty_alpha, difficulty_beta, questions_scale, spacing_factor]
+            alpha = max(0.5, params[0])  # Beta distribution alpha
+            beta = max(0.5, params[1])   # Beta distribution beta
+            q_scale = max(0.5, params[2])  # Questions per level multiplier
+            spacing = max(0.1, params[3])  # Spacing factor for retention
+
+            # Cache key
+            cache_key = (round(alpha, 2), round(beta, 2), round(q_scale, 2), round(spacing, 2))
+            if cache_key in self._evaluation_cache:
+                cached = self._evaluation_cache[cache_key]
+                return [
+                    cached["learning_rate_obj"],
+                    cached["retention_obj"],
+                    cached["smoothness_obj"],
+                    cached["questions_obj"],
+                ]
+
+            # Generate difficulty curve using beta distribution shape
+            difficulties = []
+            for level in range(1, self.num_levels + 1):
+                # Map level to [0, 1] then apply beta-shaped curve
+                t = (level - 1) / (self.num_levels - 1) if self.num_levels > 1 else 0.5
+                # Beta CDF approximation for difficulty curve
+                difficulty_t = self._beta_cdf_approx(t, alpha, beta)
+                # Map to actual difficulty range
+                difficulty = self.baseline_level + difficulty_t * (100 - self.baseline_level)
+                difficulties.append(difficulty)
+
+            # Calculate questions per level (scaled)
+            questions_per_level = [
+                int(self.questions_per_level * q_scale * (1 + spacing * (i / self.num_levels)))
+                for i in range(self.num_levels)
+            ]
+
+            # Objective 1: Learning rate (want smooth progression)
+            # Ideal: difficulties increase steadily
+            diffs = [difficulties[i+1] - difficulties[i] for i in range(len(difficulties)-1)]
+            learning_rate = sum(diffs) / len(diffs) if diffs else 0
+            # Penalize if any step is too large or negative
+            step_penalty = sum(max(0, d - 15) + max(0, -d) for d in diffs)
+            obj1_learning = -learning_rate + step_penalty * 0.5
+
+            # Objective 2: Retention (want spaced practice)
+            # More questions at harder levels = better retention
+            retention_score = sum(
+                q * (d / 100) for q, d in zip(questions_per_level, difficulties)
+            ) / sum(questions_per_level)
+            obj2_retention = -retention_score  # Maximize -> negate
+
+            # Objective 3: Smoothness (minimize difficulty variance)
+            if len(diffs) > 1:
+                mean_diff = sum(diffs) / len(diffs)
+                variance = sum((d - mean_diff) ** 2 for d in diffs) / len(diffs)
+            else:
+                variance = 0
+            obj3_smoothness = variance
+
+            # Objective 4: Total questions (minimize)
+            total_q = sum(questions_per_level)
+            obj4_questions = total_q / 10000  # Normalize
+
+            # Cache results
+            self._evaluation_cache[cache_key] = {
+                "learning_rate_obj": obj1_learning,
+                "retention_obj": obj2_retention,
+                "smoothness_obj": obj3_smoothness,
+                "questions_obj": obj4_questions,
+                "difficulties": difficulties,
+                "questions_per_level": questions_per_level,
+            }
+
+            return [obj1_learning, obj2_retention, obj3_smoothness, obj4_questions]
+
+        # Run MOO
+        runner = HybridMOORunner.from_evaluator(
+            evaluator=evaluate_curriculum_params,
+            n_vars=4,  # alpha, beta, q_scale, spacing
+            n_objs=4,  # learning, retention, smoothness, questions
+            xl=[0.5, 0.5, 0.5, 0.1],  # min values
+            xu=[5.0, 5.0, 2.0, 1.0],  # max values
+        )
+
+        result = runner.run(n_generations=n_generations)
+
+        # Select balanced solution
+        best_params = self._select_efficient_curriculum(result.X, result.F)
+
+        # Generate actual curriculum with best parameters
+        alpha, beta, q_scale, spacing = best_params
+        curriculum = self._generate_with_params(
+            frontier_client, alpha, beta, q_scale, spacing
+        )
+
+        logger.info(f"MOO curriculum optimization complete. Pareto front: {len(result.X)}")
+
+        return curriculum, {
+            "pareto_front_size": len(result.X),
+            "best_params": {
+                "alpha": alpha,
+                "beta": beta,
+                "questions_scale": q_scale,
+                "spacing_factor": spacing,
+            },
+            "backend_used": result.backend_used,
+            "n_evaluations": result.n_evaluations,
+            "evaluation_cache_size": len(self._evaluation_cache),
+        }
+
+    def _beta_cdf_approx(self, t: float, alpha: float, beta: float) -> float:
+        """Approximate beta CDF for difficulty curve shaping."""
+        # Simple approximation using power functions
+        # For alpha > beta: curve is convex (harder early)
+        # For alpha < beta: curve is concave (easier early, then harder)
+        # For alpha = beta = 1: linear
+        if alpha == 1 and beta == 1:
+            return t
+
+        # Use regularized incomplete beta approximation
+        # This is a simplified version - full implementation would use scipy
+        power = alpha / (alpha + beta)
+        if alpha > beta:
+            # Convex curve
+            return t ** (1 / power)
+        else:
+            # Concave curve
+            return 1 - (1 - t) ** power
+
+    def _select_efficient_curriculum(self, X, F) -> List[float]:
+        """Select efficient curriculum from Pareto front."""
+        import numpy as np
+
+        if len(X) == 0:
+            return [1.0, 1.0, 1.0, 0.5]  # Default params
+
+        # Normalize objectives
+        F_min = F.min(axis=0)
+        F_max = F.max(axis=0)
+        F_range = F_max - F_min
+        F_range[F_range == 0] = 1
+
+        F_norm = (F - F_min) / F_range
+
+        # Weighted sum: learning (30%), retention (30%), smoothness (25%), questions (15%)
+        weights = [0.30, 0.30, 0.25, 0.15]
+        scores = (F_norm * weights).sum(axis=1)
+
+        best_idx = scores.argmin()
+        return X[best_idx].tolist()
+
+    def _generate_with_params(
+        self,
+        frontier_client: Optional[Any],
+        alpha: float,
+        beta: float,
+        q_scale: float,
+        spacing: float,
+    ) -> Dict[int, List[Question]]:
+        """Generate curriculum with specified parameters."""
+        curriculum: Dict[int, List[Question]] = {}
+
+        for level in range(1, self.num_levels + 1):
+            # Calculate difficulty using beta-shaped curve
+            t = (level - 1) / (self.num_levels - 1) if self.num_levels > 1 else 0.5
+            difficulty_t = self._beta_cdf_approx(t, alpha, beta)
+            original_difficulty = int(
+                self.baseline_level + difficulty_t * (100 - self.baseline_level)
+            )
+
+            # Calculate questions for this level
+            num_questions = int(
+                self.questions_per_level * q_scale * (1 + spacing * (level / self.num_levels))
+            )
+
+            # Generate questions (reuse parent class logic)
+            if frontier_client and OPENROUTER_AVAILABLE:
+                level_questions = self._generate_from_frontier(
+                    frontier_client,
+                    random.choice(self.frontier_models),
+                    original_difficulty,
+                    level,
+                    num_questions,
+                )
+            else:
+                level_questions = self._generate_placeholder_questions(
+                    original_difficulty, level, num_questions
+                )
+
+            random.shuffle(level_questions)
+            curriculum[level] = level_questions
+
+            logger.debug(
+                f"Level {level}: difficulty={original_difficulty}, "
+                f"questions={len(level_questions)}"
+            )
+
+        return curriculum
+
+    def _generate_placeholder_questions(
+        self, difficulty: int, level: int, count: int
+    ) -> List[Question]:
+        """Generate placeholder questions for a level."""
+        questions = []
+        templates = self._get_question_templates(difficulty)
+
+        for i in range(count):
+            template = random.choice(templates)
+            question_text = self._fill_template(template, difficulty)
+
+            questions.append(
+                Question(
+                    id=f"moo_q_{level}_{i}_{random.randint(1000, 9999)}",
+                    level=level,
+                    original_difficulty=difficulty,
+                    question=question_text,
+                    source="moo_generator",
+                    test_cases=self._generate_test_cases(difficulty),
+                    hints=[],
+                )
+            )
+
+        return questions
+
+
+__all__ = ["AdaptiveCurriculumGenerator", "Question", "MOOCurriculumGenerator"]

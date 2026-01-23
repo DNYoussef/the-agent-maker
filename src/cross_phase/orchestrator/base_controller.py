@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 # ISS-015/ISS-022: Import constants and validation thresholds
-from cross_phase.constants import (
+from src.cross_phase.constants import (
     CURRICULUM_LEVELS,
     EVOMERGE_GENERATIONS,
     MIN_EXPERTS,
@@ -18,7 +18,7 @@ from cross_phase.constants import (
 )
 
 # ISS-016: Import unified tokenizer utility
-from cross_phase.utils import MockTokenizer, get_tokenizer
+from src.cross_phase.utils import MockTokenizer, get_tokenizer
 
 
 @dataclass

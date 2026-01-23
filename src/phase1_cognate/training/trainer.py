@@ -23,10 +23,10 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 
-from cross_phase.mugrokfast.config import MuGrokConfig
-from cross_phase.mugrokfast.optimizer import MuonGrokfast, create_optimizer_from_phase
-from cross_phase.utils.checkpoint_utils import load_checkpoint as secure_load
-from cross_phase.utils.checkpoint_utils import save_checkpoint
+from src.cross_phase.mugrokfast.config import MuGrokConfig
+from src.cross_phase.mugrokfast.optimizer import MuonGrokfast, create_optimizer_from_phase
+from src.cross_phase.utils.checkpoint_utils import load_checkpoint as secure_load
+from src.cross_phase.utils.checkpoint_utils import save_checkpoint
 
 from ..model.full_model import TRMTitansMAGModel
 
@@ -468,6 +468,25 @@ class Phase1Trainer:
             if (batch_idx + 1) % 50 == 0:
                 avg_loss = total_loss / num_batches
                 print(f"  Step {self.global_step}, Batch {batch_idx + 1}: " f"loss={avg_loss:.4f}")
+
+        # AGM-001: Flush any remaining accumulated gradients at end of epoch
+        # This ensures partial micro-batches aren't lost
+        if accum_steps > 0:
+            # Gradient clipping (scale by actual accumulation to maintain consistent magnitude)
+            grad_norm = torch.nn.utils.clip_grad_norm_(
+                self.model.parameters(), self.config.gradient_clip
+            )
+
+            # Optimizer step
+            self.optimizer.step()
+            self.optimizer.zero_grad()
+
+            # EMA update
+            if self.ema is not None:
+                self.ema.update()
+
+            self.global_step += 1
+            print(f"  Flushed {accum_steps} remaining accumulated gradients")
 
         return total_loss / max(num_batches, 1)
 

@@ -31,12 +31,13 @@ from tqdm import tqdm
 
 from ..cross_phase.mugrokfast import MuGrokConfig, MuonGrokfast
 from .architecture import QuietSTaRModel
+from .architecture.parallel_thought_generator import ParallelThoughtGenerator
 from .config import QuietSTaRConfig
 from .wandb_logger import WandBLogger
 
 sys.path.insert(0, str(Path(__file__).parents[2]))
-from cross_phase.utils.checkpoint_utils import load_checkpoint as secure_load
-from cross_phase.utils.checkpoint_utils import save_checkpoint as secure_save
+from src.cross_phase.utils.checkpoint_utils import load_checkpoint as secure_load
+from src.cross_phase.utils.checkpoint_utils import save_checkpoint as secure_save
 
 
 class REINFORCETrainer:
@@ -341,6 +342,27 @@ class REINFORCETrainer:
             + self.config.rl.kl_coefficient * kl_div
         )
 
+        # Teacher forcing loss (non-myopic)
+        tf_loss = None
+        if self.config.rl.enable_teacher_forcing:
+            thought_records = outputs_with.get("thought_records", [])
+            if thought_records:
+                tf_generator = ParallelThoughtGenerator(
+                    base_model=self.model.base_model,
+                    num_thoughts=self.config.rl.num_thoughts,
+                    max_length=self.config.rl.max_thought_length,
+                    min_length=self.config.rl.min_thought_length,
+                    temperature=self.config.rl.temperature,
+                    top_p=self.config.rl.top_p,
+                )
+                tf_loss = tf_generator.compute_teacher_forced_loss(
+                    input_ids=input_ids,
+                    thought_ids=thought_records[0]["thought_ids"],
+                    labels=labels,
+                    n_true=self.config.rl.n_true,
+                )
+                total_loss = total_loss + self.config.rl.teacher_forcing_weight * tf_loss
+
         # Backward pass
         self.optimizer.zero_grad()
         total_loss.backward()
@@ -369,6 +391,8 @@ class REINFORCETrainer:
             "num_thoughts_used": outputs_with.get("num_thoughts_used", 0),
             "avg_coherence": outputs_with.get("avg_coherence", 0.0),
         }
+        if tf_loss is not None:
+            metrics["teacher_forcing_loss"] = tf_loss.item()
 
         self.reward_history.append(reward.mean().item())
 
@@ -554,6 +578,8 @@ class REINFORCETrainer:
             "rl/num_thoughts": metrics["num_thoughts_used"],
             "rl/coherence": metrics["avg_coherence"],
         }
+        if "teacher_forcing_loss" in metrics:
+            log_dict["rl/teacher_forcing_loss"] = metrics["teacher_forcing_loss"]
 
         # Add learning rate if available
         if "learning_rate" in metrics:
