@@ -36,6 +36,14 @@ try:
 except ImportError:
     OPENROUTER_AVAILABLE = False
 
+# Import meta-calculus integration for MetaGrokfast optimizer
+try:
+    from src.cross_phase.meta_calculus.phase_facades import phase5 as meta_phase5
+
+    META_CALCULUS_AVAILABLE = True
+except ImportError:
+    META_CALCULUS_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -94,6 +102,48 @@ class CurriculumTrainingLoop:
         self.max_epochs = max_epochs
         self.convergence_threshold = convergence_threshold
 
+    def _get_mastery_threshold(self, question: "Question") -> int:
+        """
+        Get adaptive mastery threshold based on question difficulty.
+
+        Harder questions need MORE consecutive successes to prove mastery.
+        Uses k(difficulty/100) formula from meta-calculus.
+
+        Returns:
+            int: Number of consecutive successes needed (2-5)
+        """
+        if META_CALCULUS_AVAILABLE:
+            difficulty_normalized = question.original_difficulty / 100.0
+            k = meta_phase5.get_k_value(max(0.01, difficulty_normalized))
+
+            # k is high for easy (small L), low for hard (large L)
+            # We want MORE successes for hard questions
+            # Base = 3, range = 2-5
+            threshold = 3 + int((1 - k) * 2)  # 3 for easy, 5 for hard
+            return max(2, min(5, threshold))
+
+        return self.consecutive_for_mastery  # Default: 3
+
+    def _get_max_hints(self, question: "Question") -> int:
+        """
+        Get adaptive max hints based on difficulty.
+
+        Harder questions get more hints allowed.
+        Uses k(difficulty/100) formula from meta-calculus.
+
+        Returns:
+            int: Maximum hints allowed (3-7)
+        """
+        if META_CALCULUS_AVAILABLE:
+            difficulty_normalized = question.original_difficulty / 100.0
+            k = meta_phase5.get_k_value(max(0.01, difficulty_normalized))
+
+            # More hints for harder questions
+            max_hints = 3 + int((1 - k) * 4)  # 3-7 hints
+            return max(3, min(7, max_hints))
+
+        return self.max_hints  # Default: 5
+
     def train_level(
         self,
         model: nn.Module,
@@ -126,7 +176,13 @@ class CurriculumTrainingLoop:
 
         # Working copy of questions
         active_questions = copy.deepcopy(questions)
-        optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5)
+
+        # Use MetaGrokfast if available, fallback to AdamW
+        if META_CALCULUS_AVAILABLE:
+            optimizer = meta_phase5.create_optimizer(model, lr=1e-5)
+            logger.info("Using MetaGrokfast optimizer with bigeometric gradient filtering")
+        else:
+            optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5)
 
         print(f"  Starting with {len(active_questions)} questions")
 
@@ -154,8 +210,9 @@ class CurriculumTrainingLoop:
                     total_correct += 1
                     question.success_count += 1
 
-                    if question.success_count >= self.consecutive_for_mastery:
-                        # Mastered - remove
+                    mastery_threshold = self._get_mastery_threshold(question)
+                    if question.success_count >= mastery_threshold:
+                        # Mastered - remove (threshold adapts to difficulty)
                         questions_to_remove.append(question)
                         mastered_count += 1
                     elif self.enable_variants:
@@ -175,8 +232,9 @@ class CurriculumTrainingLoop:
                     question.success_count = 0  # Reset streak
                     question.attempt_count += 1
 
-                    if len(question.hints) < self.max_hints:
-                        # Generate hint
+                    max_hints_allowed = self._get_max_hints(question)
+                    if len(question.hints) < max_hints_allowed:
+                        # Generate hint (limit adapts to difficulty)
                         hint = self._generate_hint(question, result, frontier_client)
                         if hint:
                             question.hints.append(hint)
@@ -290,17 +348,9 @@ class CurriculumTrainingLoop:
             except Exception as e:
                 return False, str(e)
         else:
-            # Simplified validation (placeholder)
-            # In production, would parse and validate code
-            difficulty = question.original_difficulty
-            base_success_rate = max(0.3, 1.0 - (difficulty / 150))
-
-            # Boost success rate based on hints
-            hint_bonus = len(question.hints) * 0.05
-            success_rate = min(0.95, base_success_rate + hint_bonus)
-
-            success = random.random() < success_rate
-            return success, None if success else "Validation failed"
+            # AGM-005: Deterministic validation without coding_env
+            # Parse response and validate against test case expectations
+            return self._validate_response_heuristic(response, question)
 
     def _extract_code(self, response: str) -> str:
         """Extract code block from response."""
@@ -318,6 +368,99 @@ class CurriculumTrainingLoop:
                 return response[start:end].strip()
 
         return response  # type: ignore[no-any-return]
+
+    def _validate_response_heuristic(
+        self, response: str, question: Question
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        AGM-005: Deterministic validation without coding_env.
+
+        Validates response using heuristic checks:
+        1. Code structure validation (if code expected)
+        2. Keyword matching from test cases
+        3. Expected output patterns
+
+        Returns:
+            Tuple of (success, error_message)
+        """
+        if not response or len(response.strip()) < 10:
+            return False, "Response too short or empty"
+
+        # Check for error indicators in response
+        error_indicators = ["Error:", "error:", "Exception", "Traceback", "SyntaxError"]
+        for indicator in error_indicators:
+            if indicator in response:
+                return False, f"Response contains error: {indicator}"
+
+        # Extract code if present
+        code = self._extract_code(response)
+        has_code = code != response and len(code) > 10
+
+        # Validate test cases
+        validation_score = 0
+        total_checks = 0
+
+        for test_case in question.test_cases:
+            total_checks += 1
+
+            # Check if expected output appears in response
+            expected = test_case.get("expected", "")
+            if expected:
+                expected_str = str(expected)
+                if expected_str in response or expected_str in code:
+                    validation_score += 1
+                    continue
+
+            # Check for input handling
+            test_input = test_case.get("input", "")
+            if test_input and str(test_input) in code:
+                validation_score += 0.5
+
+            # Check description keywords
+            description = test_case.get("description", "")
+            keywords = [w for w in description.lower().split() if len(w) > 3]
+            keyword_matches = sum(1 for kw in keywords if kw in response.lower())
+            if keyword_matches >= len(keywords) * 0.5:
+                validation_score += 0.5
+
+        # Code structure checks for coding questions
+        if has_code:
+            # Check for function definition
+            if "def " in code:
+                validation_score += 0.5
+                total_checks += 0.5
+
+            # Check for return statement
+            if "return " in code:
+                validation_score += 0.5
+                total_checks += 0.5
+
+            # Check for proper indentation
+            lines = code.split("\n")
+            indented_lines = [l for l in lines if l.startswith("    ") or l.startswith("\t")]
+            if len(indented_lines) > 0:
+                validation_score += 0.25
+                total_checks += 0.25
+
+        # If no test cases, use basic quality checks
+        if total_checks == 0:
+            total_checks = 1
+            # Basic quality: non-trivial response with some structure
+            if len(response) > 50 and (has_code or ":" in response):
+                validation_score = 0.7
+
+        # Calculate success threshold based on difficulty
+        difficulty = question.original_difficulty
+        # Easier questions need higher match rate (70%), harder need less (50%)
+        threshold = max(0.5, 0.7 - (difficulty / 300))
+
+        success_rate = validation_score / max(1, total_checks)
+        success = success_rate >= threshold
+
+        if success:
+            return True, None
+        else:
+            return False, f"Validation score {success_rate:.1%} below threshold {threshold:.1%}"
 
     def _generate_variant(
         self, question: Question, frontier_client: Optional[Any]
