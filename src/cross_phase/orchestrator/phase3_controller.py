@@ -41,9 +41,10 @@ class Phase3Controller(PhaseController):
             print("--- Step 1: Prompt Baking ---")
             baked_model = self._run_prompt_baking(champion_model, tokenizer)
 
-            # Step 2: Quiet-STaR RL (simplified for MVP)
+            # Step 2: Quiet-STaR RL
+            # AGM-004: Returns tuple (model, rl_completed) for honest reporting
             print("\n--- Step 2: Quiet-STaR RL ---")
-            enhanced_model = self._run_quietstar_rl(baked_model, champion_model, tokenizer)
+            enhanced_model, rl_completed = self._run_quietstar_rl(baked_model, champion_model, tokenizer)
 
             # Step 3: Anti-theater validation
             print("\n--- Step 3: Anti-Theater Validation ---")
@@ -57,7 +58,7 @@ class Phase3Controller(PhaseController):
                 model=enhanced_model,
                 metrics={
                     "baking_completed": True,
-                    "rl_completed": True,
+                    "rl_completed": rl_completed,  # AGM-004: Honest reporting
                     "anti_theater_passed": anti_theater_results.get("all_passed", False),
                     "duration_seconds": duration,
                 },
@@ -130,23 +131,53 @@ class Phase3Controller(PhaseController):
         print(f"  Prompt baking complete")
         return baked_model
 
-    def _run_quietstar_rl(self, baked_model, baseline_model, tokenizer) -> Any:
-        """Run Step 2: Quiet-STaR RL training (simplified for MVP)."""
+    def _run_quietstar_rl(self, baked_model, baseline_model, tokenizer) -> tuple:
+        """
+        Run Step 2: Quiet-STaR RL training.
+
+        AGM-004: Returns (model, rl_completed) tuple with honest reporting.
+        Integrates full REINFORCETrainer when enable_full_rl=True in config.
+        """
         import torch
 
-        # For MVP, we do a simplified RL step
-        # Full implementation would use REINFORCETrainer from step2_rl.py
-        print(f"  Running simplified RL optimization...")
+        enable_full_rl = self.config.get("enable_full_rl", False)
+        rl_episodes = self.config.get("rl_episodes", 1000)
 
-        # In full implementation:
-        # from phase3_quietstar.step2_rl import REINFORCETrainer
-        # trainer = REINFORCETrainer(baked_model, baseline_model, tokenizer, config)
-        # enhanced_model = trainer.train(num_episodes=10000)
+        if enable_full_rl:
+            # AGM-004: Full RL implementation using REINFORCETrainer
+            try:
+                from phase3_quietstar.step2_rl import REINFORCETrainer
+                from phase3_quietstar.config import QuietSTaRConfig
 
-        # For now, return baked model as the enhanced model
-        # (RL training is compute-intensive and requires proper setup)
-        print(f"  RL step complete (simplified for MVP)")
-        return baked_model
+                print(f"  Running full REINFORCE RL training ({rl_episodes} episodes)...")
+
+                # Build config for trainer
+                rl_config = QuietSTaRConfig()
+                rl_config.rl.num_episodes = rl_episodes
+                rl_config.rl.num_thoughts = self.config.get("num_thoughts", 4)
+                rl_config.rl.max_thought_length = self.config.get("max_thought_length", 64)
+
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                trainer = REINFORCETrainer(
+                    model=baked_model,
+                    baked_model=baseline_model,
+                    tokenizer=tokenizer,
+                    config=rl_config,
+                    device=device,
+                )
+
+                enhanced_model = trainer.train()
+                print(f"  Full RL training complete")
+                return enhanced_model, True
+
+            except Exception as e:
+                print(f"  RL training failed: {e}, falling back to baked model")
+                return baked_model, False
+        else:
+            # AGM-004: Skip RL with honest reporting
+            print(f"  RL step skipped (enable_full_rl=False)")
+            print(f"  Using baked model as output (RL training is compute-intensive)")
+            return baked_model, False
 
     def _validate_anti_theater(self, model, tokenizer) -> Any:
         """Validate model outputs are genuine, not theatrical."""
