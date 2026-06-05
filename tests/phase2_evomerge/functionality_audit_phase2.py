@@ -25,6 +25,7 @@ import json
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+import pytest
 import torch
 import torch.nn as nn
 import numpy as np
@@ -203,8 +204,12 @@ class SimpleTestModel(nn.Module):
         return generated
 
 
-def test_imports(report: FunctionalityAuditReport):
-    """Test 1: Import all target modules."""
+@pytest.fixture
+def report() -> FunctionalityAuditReport:
+    return FunctionalityAuditReport()
+
+
+def _import_target_modules(report: FunctionalityAuditReport) -> Dict[str, object]:
     print("\n[TEST 1] Testing module imports...")
 
     modules_to_test = [
@@ -228,6 +233,12 @@ def test_imports(report: FunctionalityAuditReport):
             print(f"  [FAIL] {name}: {e}")
 
     return imported_modules
+
+
+def test_imports(report: FunctionalityAuditReport):
+    """Test 1: Import all target modules."""
+    imported_modules = _import_target_modules(report)
+    assert len(imported_modules) == 4, report.syntax_errors
 
 
 def test_cmaes_optimizer(report: FunctionalityAuditReport):
@@ -275,6 +286,7 @@ def test_cmaes_optimizer(report: FunctionalityAuditReport):
         report.add_test_result("CMA-ES: Overall", False, str(e))
         print(f"  [FAIL] {e}")
         traceback.print_exc()
+        raise
 
 
 def test_benchmark_evaluation(report: FunctionalityAuditReport):
@@ -309,6 +321,7 @@ def test_benchmark_evaluation(report: FunctionalityAuditReport):
         else:
             report.add_test_result("Benchmarks: Answer Extraction", False)
             print("  [FAIL] Answer Extraction")
+            assert all_correct, "numeric answer extraction produced an unexpected value"
 
         # Test 3.2: Config initialization
         config = BenchmarkConfig(benchmark_name="gsm8k", max_samples=10)
@@ -333,14 +346,14 @@ def test_benchmark_evaluation(report: FunctionalityAuditReport):
         except Exception as e:
             report.add_functionality_gap("Benchmarks",
                                         f"Dataset loading failed: {str(e)}")
-            report.add_test_result("Benchmarks: Dataset Loading", False, str(e))
-            print(f"  [SKIP] Dataset Loading (requires datasets library)")
+            print("  [SKIP] Dataset Loading (requires datasets library)")
 
     except Exception as e:
         report.add_runtime_error("Benchmark Evaluation", str(e))
         report.add_test_result("Benchmarks: Overall", False, str(e))
         print(f"  [FAIL] {e}")
         traceback.print_exc()
+        raise
 
 
 def test_dfs_paper_accurate(report: FunctionalityAuditReport):
@@ -398,6 +411,7 @@ def test_dfs_paper_accurate(report: FunctionalityAuditReport):
         report.add_test_result("DFS: Overall", False, str(e))
         print(f"  [FAIL] {e}")
         traceback.print_exc()
+        raise
 
 
 def test_hybrid_ps_dfs(report: FunctionalityAuditReport):
@@ -461,12 +475,14 @@ def test_hybrid_ps_dfs(report: FunctionalityAuditReport):
             report.add_test_result("Hybrid: Metrics Validation", False,
                                   f"Missing metrics: {missing}")
             print(f"  [FAIL] Metrics Validation (missing: {missing})")
+            assert all_present, f"missing hybrid metrics: {missing}"
 
     except Exception as e:
         report.add_runtime_error("Hybrid PS+DFS", str(e))
         report.add_test_result("Hybrid: Overall", False, str(e))
         print(f"  [FAIL] {e}")
         traceback.print_exc()
+        raise
 
 
 def test_integration(report: FunctionalityAuditReport):
@@ -534,6 +550,7 @@ def test_integration(report: FunctionalityAuditReport):
         report.add_test_result("Integration: Overall", False, str(e))
         print(f"  [FAIL] {e}")
         traceback.print_exc()
+        raise
 
 
 def generate_recommendations(report: FunctionalityAuditReport):
@@ -591,7 +608,7 @@ def main():
     report = FunctionalityAuditReport()
 
     # Run all tests
-    imported_modules = test_imports(report)
+    imported_modules = _import_target_modules(report)
 
     if len(imported_modules) > 0:
         test_cmaes_optimizer(report)

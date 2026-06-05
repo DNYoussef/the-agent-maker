@@ -18,6 +18,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+import pytest
 import torch
 import torch.nn as nn
 
@@ -166,6 +167,11 @@ def create_mock_model():
     return MockModel()
 
 
+@pytest.fixture
+def report() -> AuditReport:
+    return AuditReport()
+
+
 def test_imports(report):
     """Test all imports."""
     print("\nTesting imports...")
@@ -208,6 +214,9 @@ def test_imports(report):
         report.add_import_test("thought_generator (existing)", False, e)
         report.add_bug(f"Cannot import ThoughtGenerator: {e}")
 
+    failures = [name for name, result in report.results["imports"].items() if result["status"] != "PASS"]
+    assert not failures, f"import failures: {failures}; bugs={report.results['bugs']}"
+
 
 def test_instantiation(report):
     """Test class instantiation."""
@@ -220,7 +229,7 @@ def test_instantiation(report):
     except Exception as e:
         report.add_instantiation_test("MockModel", False, e)
         report.add_bug(f"Cannot create mock model: {e}")
-        return
+        raise AssertionError(f"Cannot create mock model: {e}") from e
 
     # Test ParallelThoughtGenerator
     try:
@@ -247,6 +256,11 @@ def test_instantiation(report):
         report.add_instantiation_test("Config Classes", False, e)
         report.add_bug(f"Cannot instantiate config classes: {e}")
 
+    failures = [
+        name for name, result in report.results["instantiation"].items() if result["status"] != "PASS"
+    ]
+    assert not failures, f"instantiation failures: {failures}; bugs={report.results['bugs']}"
+
 
 def test_methods(report):
     """Test key methods."""
@@ -259,7 +273,7 @@ def test_methods(report):
         generator = ParallelThoughtGenerator(mock_model, num_thoughts=4, max_length=10, min_length=5)
     except Exception as e:
         report.add_method_test("setup", False, error=e)
-        return
+        raise AssertionError(f"method setup failed: {e}") from e
 
     # Test 1: forward()
     try:
@@ -367,6 +381,9 @@ def test_methods(report):
         report.add_bug(f"compute_teacher_forced_loss() failed: {e}")
         report.add_fix("Review teacher forcing implementation - check label alignment and loss computation")
 
+    failures = [name for name, result in report.results["methods"].items() if result["status"] != "PASS"]
+    assert not failures, f"method failures: {failures}; bugs={report.results['bugs']}"
+
 
 def test_integration(report):
     """Test integration with existing code."""
@@ -435,6 +452,11 @@ def test_integration(report):
         report.add_integration_test("Config extensions integration", False, details=str(e))
         report.add_bug(f"Config integration failed: {e}")
         report.add_fix("Check config_extensions functions work with existing QuietSTaRRLConfig")
+
+    failures = [
+        name for name, result in report.results["integration"].items() if result["status"] != "PASS"
+    ]
+    assert not failures, f"integration failures: {failures}; bugs={report.results['bugs']}"
 
 
 def main():

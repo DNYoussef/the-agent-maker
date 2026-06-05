@@ -6,9 +6,12 @@ without downloading actual datasets (uses synthetic data).
 """
 
 import sys
+import tempfile
 from pathlib import Path
 
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 # Add repo src to path when run directly from tests/sandbox.
 sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
@@ -19,7 +22,7 @@ from phase1_cognate.model.model_config import Phase1Config
 from phase1_cognate.training.trainer import Phase1Trainer, TrainingConfig
 
 
-def create_synthetic_datasets(num_samples=100) -> None:
+def create_synthetic_datasets(num_samples=100) -> dict:
     """Create synthetic datasets for testing"""
     datasets = {}
 
@@ -63,6 +66,47 @@ class SimpleTokenizer:
         }
 
 
+class TinyTrainingModel(nn.Module):
+    """Small deterministic model for exercising the trainer loop safely."""
+
+    def __init__(self, vocab_size: int = 16) -> None:
+        super().__init__()
+        self.vocab_size = vocab_size
+        self.output = nn.Linear(vocab_size, vocab_size, bias=False)
+
+    def forward(self, input_ids, labels=None, **kwargs):
+        bounded_ids = input_ids.remainder(self.vocab_size)
+        one_hot = F.one_hot(bounded_ids, num_classes=self.vocab_size).float()
+        logits = self.output(one_hot)
+        result = {
+            "logits": logits,
+            "halting_steps": torch.ones(input_ids.shape[0], device=input_ids.device),
+        }
+
+        if labels is not None:
+            bounded_labels = labels.remainder(self.vocab_size)
+            loss = F.cross_entropy(
+                logits.reshape(-1, self.vocab_size),
+                bounded_labels.reshape(-1),
+            )
+            zero = torch.zeros((), device=input_ids.device)
+            result.update(
+                {
+                    "loss": loss,
+                    "loss_ce": loss,
+                    "loss_act": zero,
+                    "loss_gate": zero,
+                }
+            )
+
+        return result
+
+    def count_parameters(self) -> dict[str, int]:
+        total = sum(param.numel() for param in self.parameters())
+        trainable = sum(param.numel() for param in self.parameters() if param.requires_grad)
+        return {"total": total, "trainable": trainable}
+
+
 def test_model_creation() -> None:
     """Test creating all 3 models"""
     print("\n" + "=" * 70)
@@ -103,15 +147,14 @@ def test_curriculum() -> None:
     print("\nOK Curriculum loader test passed!\n")
 
 
-def test_training_loop() -> None:
+def test_training_loop(tmp_path: Path) -> None:
     """Test training loop with synthetic data"""
     print("\n" + "=" * 70)
     print("TEST 3: TRAINING LOOP (1 epoch, synthetic data)")
     print("=" * 70 + "\n")
 
-    # Create model
     model_config = Phase1Config(specialization="reasoning")
-    model = TRMTitansMAGModel(model_config)
+    model = TinyTrainingModel()
 
     # Create synthetic datasets
     datasets = create_synthetic_datasets(num_samples=50)
@@ -124,10 +167,15 @@ def test_training_loop() -> None:
         model_config=model_config,
         num_epochs=1,  # Just 1 epoch
         batch_size=4,
-        checkpoint_dir=Path("tests/artifacts/checkpoints"),
+        checkpoint_dir=tmp_path / "checkpoints",
         wandb_mode="disabled",  # Disable W&B for test
         device="cpu",
         log_every_n_steps=10,
+        use_curriculum=False,
+        use_lr_scheduler=False,
+        use_ema=False,
+        gradient_accumulation_steps=1,
+        save_every_n_epochs=99,
     )
 
     # Create trainer
@@ -139,18 +187,12 @@ def test_training_loop() -> None:
         tokenizer=tokenizer,
     )
 
-    # Train (just 1 epoch)
-    try:
-        print("Starting training...")
-        trainer.train()
-        print("\nOK Training loop test passed!\n")
-        return True
-    except Exception as e:
-        print(f"\nFAILED Training loop test failed: {e}\n")
-        import traceback
+    print("Starting training...")
+    trainer.train()
 
-        traceback.print_exc()
-        return False
+    assert trainer.global_step > 0
+    assert trainer.current_epoch == 1
+    print("\nOK Training loop test passed!\n")
 
 
 def main() -> None:
@@ -180,15 +222,20 @@ def main() -> None:
         return 1
 
     # Test 3: Training loop
-    success = test_training_loop()
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            test_training_loop(Path(tmp))
+    except Exception as e:
+        print(f"FAILED Training loop test failed: {e}")
+        import traceback
 
-    if success:
-        print("\n" + "=" * 70)
-        print("ALL TESTS PASSED - OK")
-        print("=" * 70 + "\n")
-        return 0
-    else:
+        traceback.print_exc()
         return 1
+
+    print("\n" + "=" * 70)
+    print("ALL TESTS PASSED - OK")
+    print("=" * 70 + "\n")
+    return 0
 
 
 if __name__ == "__main__":
