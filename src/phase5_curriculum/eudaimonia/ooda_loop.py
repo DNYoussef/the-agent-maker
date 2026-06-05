@@ -24,10 +24,20 @@ import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+import numpy as np
 
 from .archetypes import ArchetypeCouncil
 from .rules import EudaimoniaRuleSystem, EudaimoniaScore
+
+# Import MOO for Pareto-optimal action selection
+try:
+    from src.cross_phase.meta_calculus.moo_utils import HybridMOORunner
+
+    MOO_AVAILABLE = True
+except ImportError:
+    MOO_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -401,6 +411,130 @@ class OODALoop:
     def reset(self):
         """Reset loop history for a new session."""
         self.history = []
+
+    def select_action_moo(
+        self,
+        candidate_actions: List[str],
+        moral_direction: Dict[str, Any],
+        initial_score: EudaimoniaScore,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[Optional[SmallestMeasurableAction], Dict[str, Any]]:
+        """
+        Select action using multi-objective Pareto optimization.
+
+        Instead of weighted sum, finds Pareto-optimal actions across:
+        1. Maximize alignment with moral direction
+        2. Maximize measurability
+        3. Maximize reversibility
+        4. Minimize risk
+
+        Args:
+            candidate_actions: List of action descriptions
+            moral_direction: Moral direction from archetype council
+            initial_score: Current eudaimonia score
+            context: Additional context
+
+        Returns:
+            Tuple of (best_action, moo_results)
+        """
+        if not candidate_actions:
+            return None, {"error": "No candidate actions"}
+
+        context = context or {}
+
+        # Evaluate all candidate actions
+        evaluated_actions: List[SmallestMeasurableAction] = []
+        for action_desc in candidate_actions:
+            action = self._evaluate_action(action_desc, moral_direction, initial_score, context)
+            evaluated_actions.append(action)
+
+        if not evaluated_actions:
+            return None, {"error": "No actions could be evaluated"}
+
+        # Build objective matrix (all objectives to minimize)
+        # Shape: (n_actions, 4)
+        objectives = np.array([
+            [
+                -action.alignment_score,  # maximize -> negate
+                -action.measurability,    # maximize -> negate
+                -action.reversibility,    # maximize -> negate
+                action.risk_level,        # minimize
+            ]
+            for action in evaluated_actions
+        ])
+
+        # Find Pareto front
+        pareto_mask = self._find_pareto_front(objectives)
+        pareto_actions = [
+            action for action, is_pareto in zip(evaluated_actions, pareto_mask) if is_pareto
+        ]
+
+        if not pareto_actions:
+            # Fallback to highest overall score
+            best_action = max(evaluated_actions, key=lambda a: a.overall_score)
+            return best_action, {"fallback": True, "pareto_size": 0}
+
+        # Select from Pareto front
+        if len(pareto_actions) == 1:
+            best_action = pareto_actions[0]
+        else:
+            # Prefer action with best alignment among Pareto-optimal
+            # (alignment is the primary ethical objective)
+            best_action = max(pareto_actions, key=lambda a: a.alignment_score)
+
+        # Build results
+        moo_results = {
+            "pareto_front_size": len(pareto_actions),
+            "total_candidates": len(evaluated_actions),
+            "pareto_actions": [
+                {
+                    "description": a.description,
+                    "alignment": a.alignment_score,
+                    "measurability": a.measurability,
+                    "reversibility": a.reversibility,
+                    "risk": a.risk_level,
+                }
+                for a in pareto_actions
+            ],
+            "selected": {
+                "description": best_action.description,
+                "overall_score": best_action.overall_score,
+            },
+        }
+
+        logger.info(
+            f"MOO action selection: {len(pareto_actions)} Pareto-optimal from "
+            f"{len(evaluated_actions)} candidates"
+        )
+
+        return best_action, moo_results
+
+    def _find_pareto_front(self, objectives: np.ndarray) -> np.ndarray:
+        """
+        Find Pareto-optimal solutions.
+
+        A solution is Pareto-optimal if no other solution dominates it
+        (i.e., is better in all objectives).
+
+        Args:
+            objectives: (n_solutions, n_objectives) array, all to minimize
+
+        Returns:
+            Boolean mask of Pareto-optimal solutions
+        """
+        n_solutions = len(objectives)
+        is_pareto = np.ones(n_solutions, dtype=bool)
+
+        for i in range(n_solutions):
+            for j in range(n_solutions):
+                if i == j:
+                    continue
+                # Check if j dominates i (j is better or equal in all, strictly better in at least one)
+                if np.all(objectives[j] <= objectives[i]) and np.any(objectives[j] < objectives[i]):
+                    is_pareto[i] = False
+                    break
+
+        return is_pareto
 
 
 # Convenience function

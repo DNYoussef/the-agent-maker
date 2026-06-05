@@ -46,7 +46,13 @@ class Phase5Controller(PhaseController):
             tokenizer = self._get_tokenizer()
 
             # Create curriculum config
-            from phase5_curriculum import CurriculumConfig, CurriculumEngine, SpecializationType
+            from phase5_curriculum import (
+                CurriculumConfig,
+                CurriculumEngine,
+                SpecializationType,
+                OpenRouterClient,
+            )
+            from phase5_curriculum.docker_sandbox import DockerSandbox
 
             specialization = (
                 self.config.get("specialization", "coding") if self.config else "coding"
@@ -61,13 +67,27 @@ class Phase5Controller(PhaseController):
                 specialization=spec_type,
             )
 
+            # Initialize OpenRouter and Docker sandbox
+            frontier_client = OpenRouterClient()
+            coding_env = DockerSandbox()
+
             # Create and run engine
-            engine = CurriculumEngine(config=config)
+            from cross_phase.monitoring.wandb_integration import WandBIntegration
+
+            wandb_integration = WandBIntegration(
+                project_name=(self.config.get("wandb_project", "agent-forge-v2") if self.config else "agent-forge-v2"),
+                mode=(self.config.get("wandb_mode", "auto") if self.config else "auto"),
+            )
+            engine = CurriculumEngine(
+                config=config,
+                wandb_integration=wandb_integration,
+                session_id=self.session_id,
+            )
             result = engine.run(
                 model=quantized_model,
                 tokenizer=tokenizer,
-                frontier_client=None,  # Would connect to OpenRouter
-                coding_env=None,  # Would connect to sandbox
+                frontier_client=frontier_client,
+                coding_env=coding_env,
             )
 
             duration = time.time() - start_time

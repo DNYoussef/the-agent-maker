@@ -1,12 +1,13 @@
 """
 Phase 8: Benchmark Suite for Compression Quality Validation
 
-Provides MMLU and GSM8K benchmark evaluation to measure quality retention
-after compression. Critical for validating the 84%+ quality target.
+Provides local benchmark harnesses to measure quality retention after
+compression. The bundled MMLU/GSM8K questions are a small local sample bank,
+not an official benchmark dataset.
 
 Benchmarks:
-- MMLU (Massive Multitask Language Understanding): 57 subject areas
-- GSM8K (Grade School Math 8K): Mathematical reasoning
+- MMLU-style local sample bank
+- GSM8K-style local sample bank
 
 Quality Targets:
 - SeedLM stage: >95% retention
@@ -24,7 +25,6 @@ Usage:
 """
 
 import math
-import random
 import re
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -59,6 +59,8 @@ class BenchmarkResult:
     num_total: int
     per_category_scores: Dict[str, float] = field(default_factory=dict)
     sample_results: List[Dict] = field(default_factory=list)
+    evidence_status: str = "local_sample_bank_not_official_benchmark"
+    is_official_benchmark: bool = False
 
 
 @dataclass
@@ -76,10 +78,10 @@ class CompressionBenchmarkResult:
 
 class MMLUBenchmark:
     """
-    MMLU (Massive Multitask Language Understanding) Benchmark.
+    MMLU-style local sample benchmark.
 
-    Tests knowledge across 57 subjects including STEM, humanities, social sciences.
-    Each question is multiple choice (A, B, C, D).
+    The bundled questions cover only the local sample bank below. Missing MMLU
+    subjects are not filled with fabricated random-label placeholders.
 
     Format:
     Question: [question text]
@@ -200,28 +202,19 @@ class MMLUBenchmark:
         self.config = config or BenchmarkConfig()
 
     def get_questions(self, num_subjects: int = 10, samples_per_subject: int = 5) -> List[Dict]:
-        """Get MMLU questions for evaluation."""
+        """Get MMLU-style questions from the local sample bank only."""
         questions = []
-        subjects = random.sample(self.SUBJECTS, min(num_subjects, len(self.SUBJECTS)))
+        available_subjects = [subject for subject in self.SUBJECTS if subject in self.SAMPLE_QUESTIONS]
+        subjects = available_subjects[: min(num_subjects, len(available_subjects))]
 
         for subject in subjects:
-            # Use sample questions if available, else generate placeholders
-            if subject in self.SAMPLE_QUESTIONS:
-                subj_questions = self.SAMPLE_QUESTIONS[subject][:samples_per_subject]
-            else:
-                # Generate placeholder questions
-                subj_questions = [
-                    {
-                        "question": f"Sample {subject} question {i+1}?",
-                        "choices": ["Option A", "Option B", "Option C", "Option D"],
-                        "answer": random.choice(["A", "B", "C", "D"]),
-                    }
-                    for i in range(samples_per_subject)
-                ]
+            subj_questions = self.SAMPLE_QUESTIONS[subject][:samples_per_subject]
 
             for q in subj_questions:
-                q["subject"] = subject
-                questions.append(q)
+                question = q.copy()
+                question["subject"] = subject
+                question["evidence_status"] = "local_sample_bank_not_official_mmlu"
+                questions.append(question)
 
         return questions
 
@@ -338,6 +331,8 @@ class MMLUBenchmark:
             num_total=total,
             per_category_scores=subject_scores,
             sample_results=sample_results,
+            evidence_status="local_sample_bank_not_official_mmlu",
+            is_official_benchmark=False,
         )
 
 
@@ -538,6 +533,8 @@ class GSM8KBenchmark:
             num_total=total,
             per_category_scores={},
             sample_results=sample_results,
+            evidence_status="local_sample_bank_not_official_gsm8k",
+            is_official_benchmark=False,
         )
 
 

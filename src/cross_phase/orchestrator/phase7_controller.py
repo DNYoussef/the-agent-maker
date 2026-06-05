@@ -37,6 +37,7 @@ class Phase7Controller(PhaseController):
 
             # Create experts config
             from phase7_experts import ExpertsConfig, ExpertsEngine
+            from cross_phase.monitoring.wandb_integration import WandBIntegration
 
             config = ExpertsConfig(
                 min_experts=self.config.get("min_experts", 3) if self.config else 3,
@@ -47,7 +48,15 @@ class Phase7Controller(PhaseController):
             )
 
             # Run experts engine
-            engine = ExpertsEngine(config=config)
+            wandb_integration = WandBIntegration(
+                project_name=(self.config.get("wandb_project", "agent-forge-v2") if self.config else "agent-forge-v2"),
+                mode=(self.config.get("wandb_mode", "auto") if self.config else "auto"),
+            )
+            engine = ExpertsEngine(
+                config=config,
+                wandb_integration=wandb_integration,
+                session_id=self.session_id,
+            )
             result = engine.run(model=baked_model, tokenizer=tokenizer)
 
             duration = time.time() - start_time

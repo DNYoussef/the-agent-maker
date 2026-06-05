@@ -7,6 +7,7 @@ ISS-002: Export METRICS_COUNT at module level for test compatibility
 """
 
 import logging
+import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -57,15 +58,22 @@ class WandBIntegration:
     def __init__(
         self,
         project_name: str = "agent-forge-v2",
-        mode: str = "offline",
+        mode: Optional[str] = "auto",
         entity: Optional[str] = None,
         project: Optional[str] = None,  # ISS-002: Alias for project_name
     ):
         # ISS-002: Support both project_name and project parameter
         self.project_name = project if project else project_name
-        self.mode = mode
+        self.mode = self._resolve_mode(mode)
         self.entity = entity
         self.current_run: Any = None
+
+    @staticmethod
+    def _resolve_mode(mode: Optional[str]) -> str:
+        """Resolve W&B mode with offline-first default."""
+        if not mode or mode == "auto":
+            return "online" if os.getenv("WANDB_API_KEY") else "offline"
+        return mode
 
     @property
     def project(self) -> str:

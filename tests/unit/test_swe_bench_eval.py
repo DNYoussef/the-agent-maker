@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 from phase6_baking.swe_bench_eval import (
     EvaluationMode,
     EvaluationResult,
+    MissingSWEBenchDataError,
     SWEBenchEvaluator,
     SWEBenchTask,
 )
@@ -186,7 +187,7 @@ class TestSWEBenchEvaluator:
 
     def test_initialization_no_data(self):
         """Test initialization without data path."""
-        evaluator = SWEBenchEvaluator(data_path=None)
+        evaluator = SWEBenchEvaluator(data_path=None, allow_synthetic_tasks=True)
 
         assert evaluator.data_path is None
         assert evaluator.tasks == []
@@ -200,7 +201,7 @@ class TestSWEBenchEvaluator:
 
     def test_load_tasks_synthetic(self):
         """Test loading synthetic tasks (no data file)."""
-        evaluator = SWEBenchEvaluator(data_path=None)
+        evaluator = SWEBenchEvaluator(data_path=None, allow_synthetic_tasks=True)
         evaluator.load_tasks(max_tasks=10)
 
         assert len(evaluator.tasks) == 10
@@ -208,7 +209,7 @@ class TestSWEBenchEvaluator:
 
     def test_load_tasks_max_limit(self):
         """Test max_tasks limits loaded tasks."""
-        evaluator = SWEBenchEvaluator(data_path=None)
+        evaluator = SWEBenchEvaluator(data_path=None, allow_synthetic_tasks=True)
 
         evaluator.load_tasks(max_tasks=5)
         assert len(evaluator.tasks) == 5
@@ -218,7 +219,7 @@ class TestSWEBenchEvaluator:
 
     def test_synthetic_task_structure(self):
         """Test synthetic tasks have valid structure."""
-        evaluator = SWEBenchEvaluator(data_path=None)
+        evaluator = SWEBenchEvaluator(data_path=None, allow_synthetic_tasks=True)
         evaluator.load_tasks(max_tasks=5)
 
         for task in evaluator.tasks:
@@ -228,7 +229,7 @@ class TestSWEBenchEvaluator:
 
     def test_evaluate_single_basic(self):
         """Test evaluating a single task."""
-        evaluator = SWEBenchEvaluator(data_path=None)
+        evaluator = SWEBenchEvaluator(data_path=None, allow_synthetic_tasks=True)
         evaluator.load_tasks(max_tasks=1)
 
         task = evaluator.tasks[0]
@@ -241,7 +242,7 @@ class TestSWEBenchEvaluator:
 
     def test_evaluate_single_syntax_check(self):
         """Test syntax validation in evaluation."""
-        evaluator = SWEBenchEvaluator(data_path=None)
+        evaluator = SWEBenchEvaluator(data_path=None, allow_synthetic_tasks=True)
         evaluator.load_tasks(max_tasks=1)
 
         task = evaluator.tasks[0]
@@ -256,7 +257,7 @@ class TestSWEBenchEvaluator:
 
     def test_evaluate_single_empty_generation(self):
         """Test evaluation with empty generation."""
-        evaluator = SWEBenchEvaluator(data_path=None)
+        evaluator = SWEBenchEvaluator(data_path=None, allow_synthetic_tasks=True)
         evaluator.load_tasks(max_tasks=1)
 
         task = evaluator.tasks[0]
@@ -266,7 +267,7 @@ class TestSWEBenchEvaluator:
 
     def test_run_evaluation_basic(self):
         """Test running full evaluation."""
-        evaluator = SWEBenchEvaluator(data_path=None)
+        evaluator = SWEBenchEvaluator(data_path=None, allow_synthetic_tasks=True)
         evaluator.load_tasks(max_tasks=5)
 
         def dummy_generate(problem: str) -> str:
@@ -280,7 +281,7 @@ class TestSWEBenchEvaluator:
 
     def test_run_evaluation_stores_results(self):
         """Test evaluation stores results."""
-        evaluator = SWEBenchEvaluator(data_path=None)
+        evaluator = SWEBenchEvaluator(data_path=None, allow_synthetic_tasks=True)
         evaluator.load_tasks(max_tasks=5)
 
         def dummy_generate(problem: str) -> str:
@@ -292,7 +293,7 @@ class TestSWEBenchEvaluator:
 
     def test_aggregate_results(self):
         """Test aggregating results into metrics."""
-        evaluator = SWEBenchEvaluator(data_path=None)
+        evaluator = SWEBenchEvaluator(data_path=None, allow_synthetic_tasks=True)
 
         # Manually add results
         evaluator.results = [
@@ -314,7 +315,7 @@ class TestSWEBenchEvaluator:
 
     def test_reset(self):
         """Test reset clears results."""
-        evaluator = SWEBenchEvaluator(data_path=None)
+        evaluator = SWEBenchEvaluator(data_path=None, allow_synthetic_tasks=True)
         evaluator.results = [Mock(), Mock()]
 
         evaluator.reset()
@@ -323,7 +324,7 @@ class TestSWEBenchEvaluator:
 
     def test_get_failed_tasks(self):
         """Test getting failed tasks."""
-        evaluator = SWEBenchEvaluator(data_path=None)
+        evaluator = SWEBenchEvaluator(data_path=None, allow_synthetic_tasks=True)
         evaluator.load_tasks(max_tasks=3)
 
         # Manually set results with varying scores
@@ -350,7 +351,7 @@ class TestSWEBenchWithMockModel:
 
     def test_evaluate_with_mock_model(self):
         """Test evaluation with mocked model."""
-        evaluator = SWEBenchEvaluator(data_path=None)
+        evaluator = SWEBenchEvaluator(data_path=None, allow_synthetic_tasks=True)
         evaluator.load_tasks(max_tasks=3)
 
         call_count = [0]
@@ -405,12 +406,11 @@ class TestLoadFromFile:
             Path(temp_path).unlink()
 
     def test_load_from_nonexistent_file(self):
-        """Test loading from nonexistent file falls back to synthetic."""
+        """Test loading from nonexistent file fails closed by default."""
         evaluator = SWEBenchEvaluator(data_path="nonexistent/path.json")
-        evaluator.load_tasks(max_tasks=5)
 
-        # Should fall back to synthetic tasks
-        assert len(evaluator.tasks) == 5
+        with pytest.raises(MissingSWEBenchDataError, match="not an official SWE-Bench score"):
+            evaluator.load_tasks(max_tasks=5)
 
 
 class TestEdgeCases:
@@ -418,7 +418,7 @@ class TestEdgeCases:
 
     def test_empty_results_aggregate(self):
         """Test aggregating empty results."""
-        evaluator = SWEBenchEvaluator(data_path=None)
+        evaluator = SWEBenchEvaluator(data_path=None, allow_synthetic_tasks=True)
         evaluator.results = []
 
         metrics = evaluator.aggregate_results()
@@ -427,7 +427,7 @@ class TestEdgeCases:
 
     def test_very_long_problem_statement(self):
         """Test with very long problem statement."""
-        evaluator = SWEBenchEvaluator(data_path=None)
+        evaluator = SWEBenchEvaluator(data_path=None, allow_synthetic_tasks=True)
 
         long_problem = "Fix the bug. " * 1000
         task = SWEBenchTask(
@@ -443,7 +443,7 @@ class TestEdgeCases:
 
     def test_unicode_in_generation(self):
         """Test handling unicode in generated code."""
-        evaluator = SWEBenchEvaluator(data_path=None)
+        evaluator = SWEBenchEvaluator(data_path=None, allow_synthetic_tasks=True)
         evaluator.load_tasks(max_tasks=1)
 
         task = evaluator.tasks[0]

@@ -122,7 +122,7 @@ class DockerSandbox:
             )
             return result.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
-            logger.warning("Docker not available. Using fallback execution.")
+            logger.warning("Docker not available.")
             return False
 
     async def execute(
@@ -146,10 +146,10 @@ class DockerSandbox:
         """
         timeout = timeout or self.config.timeout_seconds
 
-        if self._docker_available:
-            return await self._execute_docker(code, language, timeout, env_vars)
-        else:
-            return await self._execute_fallback(code, language, timeout)
+        if not self._docker_available:
+            raise RuntimeError("Docker is required for sandbox execution but is not available.")
+
+        return await self._execute_docker(code, language, timeout, env_vars)
 
     async def _execute_docker(
         self, code: str, language: Language, timeout: float, env_vars: Optional[Dict[str, str]]
@@ -175,7 +175,6 @@ class DockerSandbox:
                 "--read-only",  # Read-only filesystem
                 f"--memory={self.config.memory_limit_mb}m",
                 f"--cpus={self.config.cpu_limit}",
-                f"--timeout={int(timeout)}",
                 "-v",
                 f"{temp_dir}:/sandbox:ro",  # Mount code read-only
             ]

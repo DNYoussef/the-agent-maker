@@ -97,33 +97,54 @@ class SlidingWindowAttention(nn.Module):
         Returns:
             Attention output [batch, n_heads, seq_len, head_dim]
         """
-        batch, n_heads, seq_len, _ = q.shape
-
-        # Compute full attention scores
-        scores = torch.matmul(q, k.transpose(-2, -1)) * self.scale
-
-        # Create sliding window mask: band diagonal where each position
-        # can attend to positions [i - window//2, i + window//2]
-        # Shape: [seq_len, seq_len]
+        batch, n_heads, seq_len, head_dim = q.shape
         window_half = self.window // 2
-        window_mask = self._create_sliding_window_mask(seq_len, window_half, q.device)
+        output = torch.zeros(batch, n_heads, seq_len, head_dim, device=q.device, dtype=q.dtype)
 
-        # Apply sliding window mask (expand for batch and heads)
-        # window_mask shape: [1, 1, seq_len, seq_len]
-        window_mask = window_mask.unsqueeze(0).unsqueeze(0)
-        scores = scores.masked_fill(~window_mask, float("-inf"))
+        for pos in range(seq_len):
+            start = max(0, pos - window_half)
+            end = min(seq_len, pos + window_half + 1)
 
-        # Apply additional mask if provided
-        if mask is not None:
-            scores = scores.masked_fill(mask == 0, float("-inf"))
+            q_pos = q[:, :, pos : pos + 1, :]
+            k_local = k[:, :, start:end, :]
+            v_local = v[:, :, start:end, :]
 
-        # Softmax and dropout
-        attn_weights = F.softmax(scores, dim=-1)
-        # Handle NaN from all-masked positions
-        attn_weights = torch.nan_to_num(attn_weights, nan=0.0)
-        attn_weights = self.dropout(attn_weights)
+            scores = torch.matmul(q_pos, k_local.transpose(-2, -1)) * self.scale
 
-        return torch.matmul(attn_weights, v)
+            if mask is not None:
+                local_mask = self._slice_attention_mask(mask, pos, start, end, batch, n_heads)
+                scores = scores.masked_fill(local_mask == 0, float("-inf"))
+
+            attn_weights = F.softmax(scores, dim=-1)
+            attn_weights = torch.nan_to_num(attn_weights, nan=0.0)
+            attn_weights = self.dropout(attn_weights)
+
+            output[:, :, pos : pos + 1, :] = torch.matmul(attn_weights, v_local)
+
+        return output
+
+    def _slice_attention_mask(
+        self,
+        mask: torch.Tensor,
+        position: int,
+        start: int,
+        end: int,
+        batch: int,
+        n_heads: int,
+    ) -> torch.Tensor:
+        """Return the mask slice for one query position and local key window."""
+        if mask.dim() == 2:
+            local = mask[position : position + 1, start:end]
+            return local.view(1, 1, 1, end - start)
+        if mask.dim() == 3:
+            local = mask[:, position : position + 1, start:end]
+            return local.view(batch, 1, 1, end - start)
+        if mask.dim() == 4:
+            return mask[:, :, position : position + 1, start:end]
+
+        raise ValueError(
+            "mask must have shape [seq, seq], [batch, seq, seq], or [batch, heads, seq, seq]"
+        )
 
     def _create_sliding_window_mask(
         self, seq_len: int, window_half: int, device: torch.device

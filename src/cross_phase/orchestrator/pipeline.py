@@ -9,7 +9,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ..storage.model_registry import ModelRegistry
-from .phase_controller import PhaseController, PhaseResult
+from ..monitoring.wandb_integration import WandBIntegration
+from .base_controller import PhaseController, PhaseResult
 
 
 class PipelineOrchestrator:
@@ -28,9 +29,11 @@ class PipelineOrchestrator:
         self.session_id = session_id or self._generate_session_id()
 
         # Initialize model registry
-        self.registry = ModelRegistry(
-            config.get("registry_path", "./storage/registry/model_registry.db")
+        registry_config = config.get("registry", {}) if isinstance(config, dict) else {}
+        db_path = registry_config.get("db_path") or config.get(
+            "registry_path", "./storage/registry/model_registry.db"
         )
+        self.registry = ModelRegistry(db_path)
 
         # Create session
         self.registry.create_session(self.session_id, config)
@@ -38,9 +41,20 @@ class PipelineOrchestrator:
         # Phase controllers (will be instantiated as needed)
         self.phase_controllers: List[PhaseController] = []
 
+        # W&B integration (offline-first)
+        wandb_config = config.get("wandb", {}) if isinstance(config, dict) else {}
+        wandb_mode = wandb_config.get("mode", "auto")
+        if wandb_config.get("enabled") is False:
+            wandb_mode = "disabled"
+        self.wandb = WandBIntegration(
+            project_name=wandb_config.get("project", "agent-forge-v2"),
+            mode=wandb_mode,
+            entity=wandb_config.get("entity"),
+        )
+
     def _generate_session_id(self) -> str:
         """Generate unique session ID"""
-        return f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        return f"session_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
 
     def run_full_pipeline(self) -> dict:
         """
@@ -79,12 +93,45 @@ class PipelineOrchestrator:
             progress_percent = (phase_num / 8) * 100
             self.registry.update_session_progress(self.session_id, phase_name, progress_percent)
 
+            # AGM-002: Register model in registry for rollback support
+            if result.model is not None:
+                model_path = result.artifacts.get("model_path", f"./checkpoints/{phase_name}/model.safetensors")
+                try:
+                    self.registry.register_model(
+                        session_id=self.session_id,
+                        phase_name=phase_name,
+                        model_name=f"{phase_name}_output",
+                        model_path=str(model_path),
+                        metadata={
+                            "metrics": result.metrics,
+                            "duration": duration,
+                            "parameters": result.artifacts.get("parameters", 0),
+                        }
+                    )
+                except Exception as e:
+                    print(f"  Warning: Failed to register model in registry: {e}")
+
             # Store results
             results[phase_name] = {
                 "success": result.success,
                 "duration": duration,
                 "metrics": result.metrics,
             }
+
+            # Log phase metrics to W&B
+            try:
+                self.wandb.init_phase_run(
+                    phase_name=phase_name,
+                    config=self.config.get("phases", {}).get(phase_name, {}),
+                    session_id=self.session_id,
+                )
+                if isinstance(result.metrics, dict):
+                    self.wandb.log_metrics(
+                        {f"{phase_name}/{k}": v for k, v in result.metrics.items()}
+                    )
+                self.wandb.finish()
+            except Exception:
+                pass
 
             # Pass model(s) to next phase
             if isinstance(result.model, list):
@@ -124,6 +171,41 @@ class PipelineOrchestrator:
 
         result = controller.execute(input_models)
 
+        # AGM-002: Register model in registry for rollback support
+        phase_name = f"phase{phase_num}"
+        if result.model is not None:
+            model_path = result.artifacts.get("model_path", f"./checkpoints/{phase_name}/model.safetensors")
+            try:
+                self.registry.register_model(
+                    session_id=self.session_id,
+                    phase_name=phase_name,
+                    model_name=f"{phase_name}_output",
+                    model_path=str(model_path),
+                    metadata={
+                        "metrics": result.metrics,
+                        "duration": result.duration,
+                        "parameters": result.artifacts.get("parameters", 0),
+                    }
+                )
+            except Exception as e:
+                print(f"  Warning: Failed to register model in registry: {e}")
+
+        # Log phase metrics to W&B
+        try:
+            phase_name = f"phase{phase_num}"
+            self.wandb.init_phase_run(
+                phase_name=phase_name,
+                config=self.config.get("phases", {}).get(phase_name, {}),
+                session_id=self.session_id,
+            )
+            if isinstance(result.metrics, dict):
+                self.wandb.log_metrics(
+                    {f"{phase_name}/{k}": v for k, v in result.metrics.items()}
+                )
+            self.wandb.finish()
+        except Exception:
+            pass
+
         if not controller.validate_output(result):
             raise ValueError(f"Phase {phase_num} output validation failed")
 
@@ -140,12 +222,40 @@ class PipelineOrchestrator:
             PhaseController instance
         """
         # Import phase controllers
-        from .phase_controller import (
-            Phase1Controller,
-            Phase2Controller,
-            Phase3Controller,
-            Phase4Controller,
-        )
+        if self.config.get("mock_mode"):
+            import torch
+            import torch.nn as nn
+
+            class MockPhaseController(PhaseController):
+                def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:
+                    model = nn.Linear(4, 4)
+                    return PhaseResult(
+                        success=True,
+                        phase_name=f"phase{phase_num}",
+                        model=[model] if phase_num == 1 else model,
+                        metrics={"mock": True, "phase_num": phase_num},
+                        duration=0.0,
+                        artifacts={},
+                        config=self.config,
+                        error=None,
+                    )
+
+                def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
+                    return True
+
+                def validate_output(self, result: PhaseResult) -> bool:
+                    return True
+
+            return MockPhaseController(self.config, self.session_id)
+
+        from .phase1_controller import Phase1Controller
+        from .phase2_controller import Phase2Controller
+        from .phase3_controller import Phase3Controller
+        from .phase4_controller import Phase4Controller
+        from .phase5_controller import Phase5Controller
+        from .phase6_controller import Phase6Controller
+        from .phase7_controller import Phase7Controller
+        from .phase8_controller import Phase8Controller
 
         # Map phase numbers to controllers
         controller_classes = {
@@ -153,7 +263,10 @@ class PipelineOrchestrator:
             2: Phase2Controller,
             3: Phase3Controller,
             4: Phase4Controller,
-            # TODO: Add Phase 5-8 controllers when implemented
+            5: Phase5Controller,
+            6: Phase6Controller,
+            7: Phase7Controller,
+            8: Phase8Controller,
         }
 
         controller_class = controller_classes.get(phase_num)
@@ -185,6 +298,10 @@ class PipelineOrchestrator:
 
     def cleanup(self) -> Any:
         """Cleanup resources"""
+        try:
+            self.wandb.finish()
+        except Exception:
+            pass
         self.registry.close()
 
     def __enter__(self):

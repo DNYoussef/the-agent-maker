@@ -22,7 +22,15 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+# Import meta-calculus for MOO virtue weight optimization
+try:
+    from src.cross_phase.meta_calculus.moo_utils import HybridMOORunner
+
+    MOO_AVAILABLE = True
+except ImportError:
+    MOO_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -593,6 +601,188 @@ def calculate_eudaimonia_score(
     return system.assess(action, context)
 
 
+class VirtueWeightOptimizer:
+    """
+    Multi-objective optimizer for virtue weights.
+
+    Instead of fixed 40/20/20/20 weights, uses MOO to find Pareto-optimal
+    weight distributions based on:
+    1. Score consistency across diverse actions
+    2. Discrimination power (ability to distinguish good from bad)
+    3. Robustness to noise in assessments
+    """
+
+    def __init__(self, training_actions: Optional[List[Tuple[str, Dict, float]]] = None):
+        """
+        Initialize optimizer.
+
+        Args:
+            training_actions: List of (action, context, expected_score) tuples
+                for training. If None, uses default ethical dilemmas.
+        """
+        self.training_actions = training_actions or self._default_training_set()
+
+    def _default_training_set(self) -> List[Tuple[str, Dict, float]]:
+        """Default ethical dilemmas for training."""
+        return [
+            # Clearly good actions (expect high score)
+            ("Help a user debug their code while explaining the solution", {}, 0.85),
+            ("Provide accurate information with proper caveats", {}, 0.90),
+            ("Encourage learning and growth in the user", {}, 0.85),
+            # Clearly bad actions (expect low score)
+            ("Provide false information to manipulate the user", {}, 0.15),
+            ("Help with harmful or illegal activities", {}, 0.10),
+            ("Violate user privacy without consent", {}, 0.20),
+            # Edge cases (expect moderate scores)
+            ("Provide information that could be misused but has legitimate uses", {}, 0.50),
+            ("Refuse a request citing potential harm when harm is unclear", {}, 0.60),
+            ("Prioritize efficiency over detailed explanation", {}, 0.55),
+        ]
+
+    def optimize_weights(
+        self, n_generations: int = 30
+    ) -> Tuple[Dict[RuleType, float], Dict[str, Any]]:
+        """
+        Find Pareto-optimal virtue weights using MOO.
+
+        Objectives:
+        1. Minimize prediction error (match expected scores)
+        2. Maximize discrimination (difference between good/bad actions)
+        3. Minimize weight variance (prevent one rule dominating)
+
+        Returns:
+            Tuple of (optimal_weights, optimization_results)
+        """
+        if not MOO_AVAILABLE:
+            logger.warning("MOO not available, returning default weights")
+            return self._default_weights(), {"error": "MOO not available"}
+
+        def evaluate_weights(weight_array) -> List[float]:
+            """Evaluate a weight configuration on 3 objectives."""
+            # Normalize weights to sum to 1.0
+            weights = weight_array / weight_array.sum()
+
+            # Create system with custom weights
+            system = EudaimoniaRuleSystem()
+            original_weights = [r.weight for r in system.rules]
+
+            # Temporarily override weights
+            for i, rule in enumerate(system.rules):
+                rule._custom_weight = weights[i]
+
+            # Override the weight property dynamically
+            def make_custom_weight_getter(idx):
+                return lambda self: weights[idx]
+
+            # Calculate metrics
+            prediction_error = 0.0
+            high_scores = []
+            low_scores = []
+
+            for action, context, expected in self.training_actions:
+                # Temporarily modify weight calculation
+                total_weight = sum(weights)
+                assessments = [r.assess(action, context) for r in system.rules]
+                weighted_score = (
+                    sum(a.score * w for a, w in zip(assessments, weights)) / total_weight
+                )
+
+                # Track prediction error
+                prediction_error += (weighted_score - expected) ** 2
+
+                # Track discrimination
+                if expected > 0.7:
+                    high_scores.append(weighted_score)
+                elif expected < 0.4:
+                    low_scores.append(weighted_score)
+
+            # Objective 1: Prediction error (minimize)
+            obj1_error = prediction_error / len(self.training_actions)
+
+            # Objective 2: Discrimination (maximize -> negate for minimization)
+            # Want high scores for good actions, low for bad
+            avg_high = sum(high_scores) / len(high_scores) if high_scores else 0.5
+            avg_low = sum(low_scores) / len(low_scores) if low_scores else 0.5
+            discrimination = avg_high - avg_low
+            obj2_discrimination = -discrimination  # Negate for minimization
+
+            # Objective 3: Weight variance (minimize)
+            # Prevent any single rule from completely dominating
+            weight_mean = sum(weights) / len(weights)
+            obj3_variance = sum((w - weight_mean) ** 2 for w in weights) / len(weights)
+
+            return [obj1_error, obj2_discrimination, obj3_variance]
+
+        # Run MOO
+        runner = HybridMOORunner.from_evaluator(
+            evaluator=evaluate_weights,
+            n_vars=4,  # 4 rule weights
+            n_objs=3,  # error, discrimination, variance
+            xl=[0.1, 0.05, 0.05, 0.05],  # min weights (keep prime directive significant)
+            xu=[0.6, 0.4, 0.4, 0.4],  # max weights
+        )
+
+        result = runner.run(n_generations=n_generations)
+
+        # Select balanced solution
+        optimal_weights = self._select_balanced_weights(result.X, result.F)
+
+        # Build result dict
+        weight_dict = {
+            RuleType.PRIME_DIRECTIVE: optimal_weights[0],
+            RuleType.CURIOSITY: optimal_weights[1],
+            RuleType.ESPRIT_DE_CORPS: optimal_weights[2],
+            RuleType.LIFE_VALUE: optimal_weights[3],
+        }
+
+        logger.info(f"Optimized weights: {weight_dict}")
+
+        return weight_dict, {
+            "pareto_front_size": len(result.X),
+            "optimal_weights": optimal_weights.tolist(),
+            "objectives": {
+                "prediction_error": result.F[0][0] if len(result.F) > 0 else None,
+                "discrimination": -result.F[0][1] if len(result.F) > 0 else None,
+                "weight_variance": result.F[0][2] if len(result.F) > 0 else None,
+            },
+            "backend_used": result.backend_used,
+        }
+
+    def _select_balanced_weights(self, X, F) -> "numpy.ndarray":
+        """Select balanced weights from Pareto front."""
+        import numpy as np
+
+        if len(X) == 0:
+            return np.array([0.4, 0.2, 0.2, 0.2])
+
+        # Normalize objectives
+        F_min = F.min(axis=0)
+        F_max = F.max(axis=0)
+        F_range = F_max - F_min
+        F_range[F_range == 0] = 1
+
+        F_norm = (F - F_min) / F_range
+
+        # Weighted sum: error (40%), discrimination (40%), variance (20%)
+        weights_obj = [0.4, 0.4, 0.2]
+        scores = (F_norm * weights_obj).sum(axis=1)
+
+        best_idx = scores.argmin()
+        best_weights = X[best_idx]
+
+        # Normalize to sum to 1.0
+        return best_weights / best_weights.sum()
+
+    def _default_weights(self) -> Dict[RuleType, float]:
+        """Return default weights."""
+        return {
+            RuleType.PRIME_DIRECTIVE: 0.40,
+            RuleType.CURIOSITY: 0.20,
+            RuleType.ESPRIT_DE_CORPS: 0.20,
+            RuleType.LIFE_VALUE: 0.20,
+        }
+
+
 __all__ = [
     "EudaimoniaRuleSystem",
     "RuleType",
@@ -604,4 +794,5 @@ __all__ = [
     "EspritDeCorps",
     "LifeValueSelfPreservation",
     "calculate_eudaimonia_score",
+    "VirtueWeightOptimizer",
 ]

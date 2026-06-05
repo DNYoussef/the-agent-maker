@@ -23,6 +23,12 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Environment files (NEVER commit API keys)
+.env
+.env.local
+.env.production
+.env*.local
+
 # Virtual environments
 venv/
 ENV/
@@ -96,3 +102,7 @@ verify_*.py
 nul
 .benchmarks/
 .mypy_cache/
+
+# Reference papers (copyrighted PDFs)
+references/
+*.pdf

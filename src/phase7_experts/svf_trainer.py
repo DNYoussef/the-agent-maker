@@ -231,17 +231,12 @@ class REINFORCETrainer:
         """
         self.step_count += 1
 
-        # Normalize rewards (important for stable training across tasks)
-        if self.config.normalize_rewards and rewards.std() > 1e-8:
-            normalized_rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-8)
-        else:
-            normalized_rewards = rewards
-
-        # Compute advantages using baseline (variance reduction)
+        # Compute advantages in raw reward space first. The EMA baseline tracks
+        # raw rewards, so subtracting it after z-normalization mixes scales.
         if self.step_count > self.config.warmup_steps:
-            advantages = normalized_rewards - self.baseline
+            raw_advantages = rewards - self.baseline
         else:
-            advantages = normalized_rewards
+            raw_advantages = rewards
 
         # Update baseline (exponential moving average)
         with torch.no_grad():
@@ -250,6 +245,12 @@ class REINFORCETrainer:
                 self.config.baseline_decay * self.baseline
                 + (1 - self.config.baseline_decay) * batch_mean
             )
+
+        # Normalize advantages after baseline subtraction for stable training.
+        if self.config.normalize_rewards and raw_advantages.std() > 1e-8:
+            advantages = (raw_advantages - raw_advantages.mean()) / (raw_advantages.std() + 1e-8)
+        else:
+            advantages = raw_advantages
 
         # REINFORCE loss: -log_prob * advantage
         # Negative because we maximize reward but minimize loss
@@ -387,7 +388,12 @@ class SVFTrainer:
         print(f"    Training for {self.config.num_epochs} epochs...")
         model.train()
         final_loss = 0.0
-        metrics = {"epoch_losses": [], "sv_norms": []}
+        metrics = {
+            "epoch_losses": [],
+            "sv_norms": [],
+            "successful_batches": 0,
+            "failed_batches": 0,
+        }
 
         for epoch in range(self.config.num_epochs):
             epoch_loss = 0.0
@@ -415,6 +421,9 @@ class SVFTrainer:
 
                     epoch_loss += batch_loss.item()
                     num_batches += 1
+                    metrics["successful_batches"] += 1
+                else:
+                    metrics["failed_batches"] += 1
 
             avg_loss = epoch_loss / max(1, num_batches)
             metrics["epoch_losses"].append(avg_loss)
@@ -425,6 +434,16 @@ class SVFTrainer:
             metrics["sv_norms"].append(sv_norm)
 
             print(f"      Epoch {epoch + 1}: loss={avg_loss:.4f}, sv_norm={sv_norm:.4f}")
+
+        if metrics["successful_batches"] == 0:
+            metrics["error"] = "No SVF training samples produced a valid loss"
+            return model, SVFResult(
+                success=False,
+                expert_id=expert_id,
+                final_loss=0.0,
+                sv_changes={},
+                metrics=metrics,
+            )
 
         # Step 5: Apply SV modifications to model
         print("    Applying SV modifications...")
@@ -505,7 +524,8 @@ class SVFTrainer:
                 module.weight.data = reconstructed
 
         # Forward pass
-        total_loss = torch.tensor(0.0, device=device, requires_grad=True)
+        total_loss = None
+        successful_samples = 0
 
         for sample in batch:
             try:
@@ -523,7 +543,8 @@ class SVFTrainer:
                 outputs = model(**inputs)
 
                 if hasattr(outputs, "loss") and outputs.loss is not None:
-                    total_loss = total_loss + outputs.loss
+                    total_loss = outputs.loss if total_loss is None else total_loss + outputs.loss
+                    successful_samples += 1
                 elif hasattr(outputs, "logits"):
                     logits = outputs.logits
                     shift_logits = logits[..., :-1, :].contiguous()
@@ -533,7 +554,8 @@ class SVFTrainer:
                         shift_labels.view(-1),
                         ignore_index=0,
                     )
-                    total_loss = total_loss + loss
+                    total_loss = loss if total_loss is None else total_loss + loss
+                    successful_samples += 1
 
             except Exception:
                 continue
@@ -543,7 +565,10 @@ class SVFTrainer:
             if name in original_weights:
                 module.weight.data = original_weights[name]
 
-        return total_loss / max(1, len(batch)) if len(batch) > 0 else None
+        if total_loss is None or successful_samples == 0:
+            return None
+
+        return total_loss / successful_samples
 
     def _apply_sv_modifications(self, model: nn.Module) -> nn.Module:
         """Apply trained SV modifications permanently."""

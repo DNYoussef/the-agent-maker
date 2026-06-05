@@ -105,8 +105,8 @@ class FitnessEvaluator:
         self.max_batches = max_batches
 
         # Create benchmark batch for speed/memory tests
-        self.benchmark_batch = torch.randint(
-            0, 1000, (benchmark_batch_size, benchmark_seq_len), device=device  # Vocab size dummy
+        self.benchmark_batch = torch.randn(
+            benchmark_batch_size, benchmark_seq_len, dtype=torch.float32, device=device
         )
 
         # Initialize cache

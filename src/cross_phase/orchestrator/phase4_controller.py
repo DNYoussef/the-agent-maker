@@ -37,35 +37,40 @@ class Phase4Controller(PhaseController):
             self.validate_input(input_models)
             enhanced_model = input_models[0]
 
+            # Phase 4 BitNet compression using core implementation
+            from phase4_bitnet.compressed_model import CompressedModel
+            from phase4_bitnet.config import Phase4Config
+            from phase4_bitnet.quantizer import BitNetQuantizer
+
+            phase4_config = (
+                Phase4Config.from_dict(self.config) if isinstance(self.config, dict) else Phase4Config()
+            )
+            quantizer = BitNetQuantizer(phase4_config)
+
             # Get model size before quantization
             original_size = self._get_model_size(enhanced_model)
             print(f"Original model size: {original_size['size_mb']:.2f} MB")
             print(f"Original parameters: {original_size['params']:,}")
 
-            # Step 1: Quantize model
+            # Step 1: Quantize model (BitLinear replacement)
             print("\n--- Step 1: Ternary Quantization ---")
-            quantized_state, scale_factors, quant_stats = self._quantize_model(enhanced_model)
-
-            # Step 2: Create compressed model
-            print("\n--- Step 2: Creating Compressed Model ---")
-            compressed_model = self._create_compressed_model(
-                enhanced_model, quantized_state, scale_factors
+            compressed_model = CompressedModel(
+                base_model=enhanced_model,
+                quantizer=quantizer,
+                config=phase4_config,
+                use_bitlinear=True,
             )
+            compressed_model.compress()
 
-            # Step 3: Fine-tune with STE (optional, simplified for MVP)
-            print("\n--- Step 3: STE Fine-tuning ---")
-            fine_tuned_model = self._ste_finetune(compressed_model)
+            # Step 2: Validate compression
+            print("\n--- Step 2: Validation ---")
+            stats = compressed_model.get_compression_stats()
+            compression_ratio = stats.get("compression_ratio", 1.0)
 
-            # Step 4: Validate compression
-            print("\n--- Step 4: Validation ---")
-            compressed_size = self._get_model_size(fine_tuned_model)
-            compression_ratio = original_size["size_mb"] / max(compressed_size["size_mb"], 0.01)
-
-            print(f"Compressed model size: {compressed_size['size_mb']:.2f} MB")
+            print(f"Compressed model size: {stats.get('quantized_size_mb', 0):.2f} MB")
             print(f"Compression ratio: {compression_ratio:.1f}x")
-            print(f"Sparsity ratio: {quant_stats.get('sparsity_ratio', 0):.2%}")
+            print(f"Sparsity ratio: {stats.get('sparsity_ratio', 0):.2%}")
 
-            # Validate thresholds
             validation_passed = compression_ratio >= self.config.get("min_compression", 4.0)
 
             duration = time.time() - start_time
@@ -73,19 +78,19 @@ class Phase4Controller(PhaseController):
             return PhaseResult(
                 success=True,
                 phase_name="phase4",
-                model=fine_tuned_model,
+                model=compressed_model,
                 metrics={
                     "original_size_mb": original_size["size_mb"],
-                    "compressed_size_mb": compressed_size["size_mb"],
+                    "compressed_size_mb": stats.get("quantized_size_mb", 0),
                     "compression_ratio": compression_ratio,
-                    "sparsity_ratio": quant_stats.get("sparsity_ratio", 0),
-                    "layers_quantized": quant_stats.get("layers_quantized", 0),
-                    "layers_preserved": quant_stats.get("layers_preserved", 0),
+                    "sparsity_ratio": stats.get("sparsity_ratio", 0),
+                    "layers_quantized": stats.get("layers_quantized", 0),
+                    "layers_preserved": stats.get("layers_preserved", 0),
                     "validation_passed": validation_passed,
                     "duration_seconds": duration,
                 },
                 duration=duration,
-                artifacts={"scale_factors": scale_factors, "quantization_stats": quant_stats},
+                artifacts={"compression_stats": stats},
                 config=self.config,
                 error=None,
             )

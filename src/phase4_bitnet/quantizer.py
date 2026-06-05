@@ -162,6 +162,7 @@ class BitNetQuantizer:
             "total_params": 0,
             "quantized_params": 0,
             "zero_params": 0,
+            "sparsity_ratio": 0.0,
         }
 
         original_state_dict = model.state_dict()

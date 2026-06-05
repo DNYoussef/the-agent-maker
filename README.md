@@ -1,5 +1,14 @@
 # Agent Forge
 
+## Canonical Status
+
+<!-- STATUS:START -->
+This repository does not ship a repository-local percentage-complete status file.
+Historical implementation-plan percentages are intentionally not repeated here.
+Use the audited remediation matrix for current completion status.
+<!-- STATUS:END -->
+
+
 **8-Phase Pipeline for Training Small Language Models from Scratch**
 
 [![CI](https://github.com/DNYoussef/the-agent-maker/actions/workflows/ci.yml/badge.svg)](https://github.com/DNYoussef/the-agent-maker/actions)
@@ -249,8 +258,8 @@ Triple compression pipeline with quality gates:
 - Automatic rollback if quality fails
 
 **Benchmarks**:
-- MMLU (multi-task language understanding)
-- GSM8K (grade school math)
+- MMLU-style local sample bank (not an official MMLU score unless an external dataset is supplied)
+- GSM8K-style local sample bank (not an official GSM8K score unless an external dataset is supplied)
 - Phase-specific evaluations
 
 **Grokfast Optimizer**:

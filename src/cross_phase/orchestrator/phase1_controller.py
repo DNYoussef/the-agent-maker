@@ -135,13 +135,12 @@ class Phase1Controller(PhaseController):
 
         if result.metrics:
             # Check for 3 models
-            model_count = result.metrics.get("model_count", 0)
-            if model_count < 3:
+            if not result.model or len(result.model) < 3:
                 return False
 
             # Check loss is reasonable (not NaN, not too high)
             for spec in ["reasoning", "memory", "speed"]:
-                loss = result.metrics.get(f"{spec}_loss", float("inf"))
+                loss = result.metrics.get(spec, {}).get("final_loss", float("inf"))
                 if loss == float("inf") or loss != loss:  # NaN check
                     return False
 

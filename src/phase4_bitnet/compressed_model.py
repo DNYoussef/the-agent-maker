@@ -11,6 +11,7 @@ import torch.nn as nn
 from src.phase4_bitnet.bitlinear import BitLinear, replace_linear_with_bitlinear
 from src.phase4_bitnet.config import Phase4Config
 from src.phase4_bitnet.quantizer import BitNetQuantizer
+from src.phase4_bitnet.utils import calculate_sparsity_ratio
 
 
 class CompressedModel(nn.Module):
@@ -43,7 +44,7 @@ class CompressedModel(nn.Module):
         base_model: nn.Module,
         quantizer: BitNetQuantizer,
         config: Phase4Config,
-        use_bitlinear: bool = True,
+        use_bitlinear: bool = False,
     ):
         """
         Initialize compressed model
@@ -139,16 +140,17 @@ class CompressedModel(nn.Module):
                 # Check if layer was quantized
                 if name in self.quantized_state:
                     quantized_tensor = self.quantized_state[name]
+                    target_dtype = param.dtype
 
                     # Dequantize if int8
                     if quantized_tensor.dtype == torch.int8:
                         dequantized = self.quantizer.dequantize_tensor(
                             quantized_tensor, self.scale_factors[name]
                         )
-                        param.data = dequantized.to(param.device)
+                        param.data = dequantized.to(device=param.device, dtype=target_dtype)
                     else:
                         # Preserved layer
-                        param.data = quantized_tensor.to(param.device)
+                        param.data = quantized_tensor.to(device=param.device, dtype=target_dtype)
 
         # Forward pass with quantized weights
         output = self.base_model(*args, **kwargs)
@@ -169,15 +171,9 @@ class CompressedModel(nn.Module):
             Dequantized state dictionary
         """
         if self.use_bitlinear:
-            # Mode 1: Extract from BitLinear layers
-            state_dict = {}
-            for name, module in self.base_model.named_modules():
-                if isinstance(module, BitLinear):
-                    # Get full-precision weights (not quantized)
-                    state_dict[f"{name}.weight"] = module.weight.data.half()
-                    if module.bias is not None:
-                        state_dict[f"{name}.bias"] = module.bias.data.half()
-            return state_dict
+            # Mode 1: Save full model in FP16 (BitLinear stores FP32 weights)
+            state_dict = self.base_model.state_dict()
+            return {k: v.half() for k, v in state_dict.items()}
 
         # Mode 2: Legacy dequantization
         if not self.is_compressed:
@@ -255,20 +251,30 @@ class CompressedModel(nn.Module):
             total_quantized = 0
             num_bitlinear = 0
 
-            for module in self.base_model.modules():
+            for name, module in self.base_model.named_modules():
                 if isinstance(module, BitLinear):
                     footprint = module.get_memory_footprint()
                     total_original += footprint["original_fp32"]
                     total_quantized += footprint["quantized_1.58bit"]
                     num_bitlinear += 1
+                elif isinstance(module, nn.Module) and list(module.parameters(recurse=False)):
+                    # Non-BitLinear modules stored in FP16 for dequantized output
+                    for param in module.parameters(recurse=False):
+                        total_original += param.nelement() * 4
+                        total_quantized += param.nelement() * 2
+
+            sparsity_ratio = calculate_sparsity_ratio(self.base_model)
 
             return {
                 "is_compressed": True,
                 "mode": "bitlinear",
                 "num_bitlinear_layers": num_bitlinear,
+                "layers_quantized": num_bitlinear,
+                "layers_preserved": 0,
                 "original_size_mb": total_original / (1024**2),
                 "quantized_size_mb": total_quantized / (1024**2),
                 "compression_ratio": total_original / total_quantized if total_quantized > 0 else 1.0,
+                "sparsity_ratio": sparsity_ratio,
             }
 
         # Mode 2: Legacy stats
@@ -277,7 +283,9 @@ class CompressedModel(nn.Module):
 
         quantized_size_mb = self._calculate_state_dict_size(self.quantized_state)
 
-        compression_ratio = original_size_mb / quantized_size_mb
+        compression_ratio = (
+            original_size_mb / quantized_size_mb if quantized_size_mb > 0 else 1.0
+        )
 
         stats = self.quantizer.get_stats()
 

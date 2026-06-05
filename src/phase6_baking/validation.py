@@ -190,9 +190,7 @@ class CrossTaskValidator:
 
                 # Log status
                 status = "PASS" if passed else "FAIL"
-                print(
-                    f"    Degradation: {degradation_percent:+.2f}% [{status}]"
-                )
+                print(f"    Degradation: {degradation_percent:+.2f}% [{status}]")
 
             except Exception as e:
                 print(f"    ERROR: {e}")
@@ -226,7 +224,9 @@ class CrossTaskValidator:
         print(f"Baked task: {baked_task}")
         print(f"Tasks evaluated: {len(task_results)}")
         print(f"Tasks passed: {tasks_passed}/{len(task_results)}")
-        print(f"Max degradation: {max_degradation*100:.2f}% (threshold: {self.config.max_acceptable_degradation*100:.1f}%)")
+        print(
+            f"Max degradation: {max_degradation*100:.2f}% (threshold: {self.config.max_acceptable_degradation*100:.1f}%)"
+        )
         print(f"Avg degradation: {avg_degradation*100:.2f}%")
 
         if all_passed:
@@ -305,9 +305,7 @@ class CrossTaskValidator:
             )
 
             # Store degradation matrix
-            heatmap[baked_task] = {
-                r.task_name: r.degradation_percent for r in result.task_results
-            }
+            heatmap[baked_task] = {r.task_name: r.degradation_percent for r in result.task_results}
 
         print(f"\nHeatmap generation complete")
         print(f"Matrix size: {len(tasks)} x {len(tasks)}")
@@ -323,46 +321,38 @@ def create_standard_benchmark_suite() -> Dict[str, Callable[[nn.Module], float]]
     """
     Create standard benchmark suite for cross-task validation.
 
-    Returns dict of evaluators for common tasks:
+    Returns dict of evaluator placeholders for common tasks:
         - SWE-Bench (code generation)
         - MATH (mathematical reasoning)
         - CommonsenseQA (commonsense reasoning)
         - HumanEval (code correctness)
         - GSM8K (grade school math)
 
+    This project does not bundle the benchmark datasets or harnesses. The
+    returned evaluators fail closed so callers cannot accidentally treat fixed
+    constants as measured benchmark evidence. Pass real evaluator callables into
+    CrossTaskValidator.validate_cross_task_forgetting() for production use.
+
     Returns:
         Dict[task_name, evaluator_function]
     """
-    # This would integrate with actual benchmark implementations
-    # For now, return placeholder structure
 
-    def swe_bench_evaluator(model: nn.Module) -> float:
-        """SWE-Bench code generation score."""
-        # Would call actual SWE-Bench evaluation
-        return 0.65  # Placeholder
+    def unavailable_evaluator(benchmark_name: str) -> Callable[[nn.Module], float]:
+        def evaluator(model: nn.Module) -> float:
+            raise RuntimeError(
+                f"{benchmark_name} evaluator is not configured. "
+                "Provide a real benchmark harness instead of using fixed placeholder scores."
+            )
 
-    def math_evaluator(model: nn.Module) -> float:
-        """MATH dataset score."""
-        return 0.58  # Placeholder
-
-    def commonsense_evaluator(model: nn.Module) -> float:
-        """CommonsenseQA score."""
-        return 0.72  # Placeholder
-
-    def humaneval_evaluator(model: nn.Module) -> float:
-        """HumanEval pass@1 score."""
-        return 0.45  # Placeholder
-
-    def gsm8k_evaluator(model: nn.Module) -> float:
-        """GSM8K math reasoning score."""
-        return 0.62  # Placeholder
+        evaluator.__name__ = f"{benchmark_name.lower().replace('-', '_')}_unconfigured"
+        return evaluator
 
     return {
-        "swe_bench": swe_bench_evaluator,
-        "math": math_evaluator,
-        "commonsense_qa": commonsense_evaluator,
-        "human_eval": humaneval_evaluator,
-        "gsm8k": gsm8k_evaluator,
+        "swe_bench": unavailable_evaluator("SWE-Bench"),
+        "math": unavailable_evaluator("MATH"),
+        "commonsense_qa": unavailable_evaluator("CommonsenseQA"),
+        "human_eval": unavailable_evaluator("HumanEval"),
+        "gsm8k": unavailable_evaluator("GSM8K"),
     }
 
 

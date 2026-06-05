@@ -7,8 +7,6 @@ Simplifies W&B logging for Phase 3 (Step 1 & Step 2).
 from pathlib import Path
 from typing import Dict, Optional
 
-import wandb
-
 from ..cross_phase.monitoring.wandb_integration import WandBIntegration
 
 
@@ -25,7 +23,8 @@ class WandBLogger:
         name: str = "phase3-training",
         config: Dict = None,
         tags: list = None,
-        mode: str = "offline",
+        mode: Optional[str] = "auto",
+        session_id: Optional[str] = None,
     ):
         """
         Initialize W&B logger.
@@ -38,14 +37,10 @@ class WandBLogger:
             mode: 'offline' or 'online'
         """
         self.integration = WandBIntegration(project_name=project, mode=mode)
-
-        # Initialize run
-        self.run = wandb.init(
-            project=project,
-            name=name,
+        self.run = self.integration.init_phase_run(
+            phase_name="phase3",
             config=config or {},
-            tags=tags or [],
-            mode=mode,
+            session_id=session_id or name,
         )
 
     def log(self, metrics: Dict, step: Optional[int] = None):

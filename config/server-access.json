@@ -1,0 +1,67 @@
+{
+  "server": {
+    "name": "corey",
+    "host": "w.m1el.eu",
+    "port": 2222,
+    "username": "david",
+    "connection_command": "ssh -p 2222 david@w.m1el.eu",
+    "owner": "Wizord (friend)"
+  },
+  "resources": {
+    "os": "Ubuntu 22.04.5 LTS",
+    "kernel": "5.15.0-163-generic",
+    "gpu": {
+      "model": "NVIDIA GeForce RTX 4080",
+      "vram": "16GB",
+      "driver": "535.274.02",
+      "cuda": "12.2"
+    },
+    "storage": {
+      "root_disk": {
+        "mount": "/",
+        "device": "/dev/nvme0n1p2",
+        "total": "1.8TB",
+        "used": "559GB",
+        "available": "1.2TB"
+      },
+      "data_disk": {
+        "mount": "/var/data",
+        "device": "/dev/nvme1n1",
+        "total": "3.6TB",
+        "used": "893GB",
+        "available": "2.6TB"
+      }
+    },
+    "memory": "126GB RAM (1% usage)",
+    "docker_version": "28.5.2"
+  },
+  "access": {
+    "method": "SSH key-based authentication",
+    "local_key": "C:\\Users\\17175\\.ssh\\id_ed25519",
+    "docker_access": true,
+    "sudo_access": "unknown"
+  },
+  "deployment": {
+    "project_path": "~/agent-forge",
+    "docker_image": "agent-forge:phase1",
+    "container_name": "agent-forge-phase1",
+    "volumes": {
+      "checkpoints": "~/agent-forge/checkpoints:/app/checkpoints",
+      "data": "~/agent-forge/data:/app/data",
+      "wandb": "~/agent-forge/wandb:/app/wandb"
+    }
+  },
+  "commands": {
+    "connect": "ssh -p 2222 david@w.m1el.eu",
+    "monitor": "docker logs -f agent-forge-phase1",
+    "check_status": "docker ps -a | grep agent-forge",
+    "start_training": "docker run -d --name agent-forge-phase1 -v $(pwd)/checkpoints:/app/checkpoints -v $(pwd)/data:/app/data -v $(pwd)/wandb:/app/wandb agent-forge:phase1",
+    "stop_training": "docker stop agent-forge-phase1",
+    "remove_container": "docker rm agent-forge-phase1"
+  },
+  "notes": {
+    "created": "2025-12-06",
+    "purpose": "Agent Forge training runs",
+    "gpu_status": "Available but nvidia-container-toolkit not installed - run scripts/setup-nvidia-docker.sh with sudo to enable GPU in Docker"
+  }
+}

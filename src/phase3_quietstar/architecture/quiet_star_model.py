@@ -79,6 +79,8 @@ class QuietSTaRModel(nn.Module):
         enhanced_hidden = base_hidden.clone()
         thought_positions = []
         coherence_scores_list = []
+        thought_records = []
+        last_injection = -self.thought_injector.min_interval
 
         for pos in range(seq_len - 1):
             # Check if injection needed
@@ -87,9 +89,11 @@ class QuietSTaRModel(nn.Module):
                 None,  # Attention weights optional
                 None,  # Loss optional
                 pos,
+                last_injection=last_injection,
             )
 
             if inject:
+                last_injection = pos
                 # Generate thoughts
                 thought_output = self.thought_generator(input_ids, pos, base_hidden[:, pos, :])
 
@@ -112,6 +116,7 @@ class QuietSTaRModel(nn.Module):
 
                 thought_positions.append(pos)
                 coherence_scores_list.append(coherence.composite.mean().item())
+                thought_records.append({"position": pos, "thought_ids": thought_output.thought_ids})
 
         # Final logits from enhanced hidden states
         final_logits = self.base_model.lm_head(enhanced_hidden)
@@ -123,6 +128,7 @@ class QuietSTaRModel(nn.Module):
             "logits": final_logits,
             "loss": loss,
             "thought_positions": thought_positions,
+            "thought_records": thought_records,
             "avg_coherence": (
                 sum(coherence_scores_list) / len(coherence_scores_list)
                 if coherence_scores_list

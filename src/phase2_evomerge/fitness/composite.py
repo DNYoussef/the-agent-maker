@@ -1,8 +1,8 @@
 """
 Composite fitness scoring for evolutionary optimization.
 
-This module combines four component metrics (perplexity, accuracy, speed, memory)
-into a single composite fitness score using weighted averaging.
+This module combines four normalized component metrics (perplexity, accuracy,
+speed, memory) into a single composite fitness score using weighted averaging.
 """
 
 from typing import Any, Dict, Optional
@@ -14,6 +14,9 @@ DEFAULT_WEIGHTS = {
     "speed": 0.2,  # 20% - Inference efficiency
     "memory": 0.1,  # 10% - Resource usage
 }
+
+REQUIRED_METRICS = {"perplexity", "accuracy", "speed", "memory"}
+REQUIRED_EXPECTED = {"perplexity", "speed", "memory"}
 
 # Default expected values for normalization
 DEFAULT_EXPECTED = {
@@ -35,14 +38,14 @@ def compute_composite_fitness(
     Compute composite fitness score from component metrics.
 
     Fitness formula:
-        composite = w_ppl * (1/ppl) + w_acc * acc +
-                   w_spd * (spd/expected_spd) + w_mem * (expected_mem/mem)
+        composite = w_ppl * norm_ppl + w_acc * acc +
+                   w_spd * norm_spd + w_mem * norm_mem
 
     Where:
-    - Lower perplexity = better (inverted)
-    - Higher accuracy = better (direct)
-    - Higher speed = better (normalized)
-    - Lower memory = better (inverted)
+    - Lower perplexity = better, normalized as min(expected_ppl / ppl, 1.0)
+    - Higher accuracy = better, already bounded to [0, 1]
+    - Higher speed = better, normalized as min(speed / expected_speed, 1.0)
+    - Lower memory = better, normalized as min(expected_memory / memory, 1.0)
 
     Args:
         perplexity: Perplexity value (lower is better)
@@ -58,10 +61,11 @@ def compute_composite_fitness(
             'composite': 0.185,  # Weighted average
             'components': {
                 'perplexity': 15.2,
-                'perplexity_score': 0.0658,  # 1/15.2
+                'perplexity_score': 0.987,  # expected_ppl / 15.2
                 'accuracy': 0.48,
+                'accuracy_score': 0.48,
                 'speed': 1250.0,
-                'speed_score': 1.042,  # 1250/1200
+                'speed_score': 1.0,  # capped speed/expected_speed
                 'memory': 520.0,
                 'memory_score': 0.962  # 500/520
             }
@@ -79,9 +83,25 @@ def compute_composite_fitness(
         expected_values = DEFAULT_EXPECTED
 
     # Validate weights sum to 1.0
+    missing_weights = REQUIRED_METRICS - set(weights)
+    extra_weights = set(weights) - REQUIRED_METRICS
+    if missing_weights or extra_weights:
+        raise ValueError(
+            f"Weights must contain exactly {sorted(REQUIRED_METRICS)}; "
+            f"missing={sorted(missing_weights)}, extra={sorted(extra_weights)}"
+        )
+
     weight_sum = sum(weights.values())
     if abs(weight_sum - 1.0) > 1e-6:
         raise ValueError(f"Weights must sum to 1.0, got {weight_sum:.6f}")
+
+    missing_expected = REQUIRED_EXPECTED - set(expected_values)
+    if missing_expected:
+        raise ValueError(f"Missing expected value(s): {sorted(missing_expected)}")
+
+    for key in REQUIRED_EXPECTED:
+        if expected_values[key] <= 0:
+            raise ValueError(f"Expected value for {key} must be positive")
 
     # Validate no negative values
     if perplexity < 0 or accuracy < 0 or speed < 0 or memory < 0:
@@ -96,12 +116,14 @@ def compute_composite_fitness(
         raise ValueError("Perplexity cannot be zero")
     if memory == 0:
         raise ValueError("Memory cannot be zero")
+    if accuracy > 1:
+        raise ValueError("Accuracy must be between 0.0 and 1.0")
 
-    # Compute component scores
-    perplexity_score = 1.0 / perplexity
+    # Compute bounded component scores so nominal weights control contribution.
+    perplexity_score = min(expected_values["perplexity"] / perplexity, 1.0)
     accuracy_score = accuracy
-    speed_score = speed / expected_values["speed"]
-    memory_score = expected_values["memory"] / memory
+    speed_score = min(speed / expected_values["speed"], 1.0)
+    memory_score = min(expected_values["memory"] / memory, 1.0)
 
     # Compute composite fitness
     composite_fitness = (
@@ -118,6 +140,7 @@ def compute_composite_fitness(
             "perplexity": perplexity,
             "perplexity_score": perplexity_score,
             "accuracy": accuracy,
+            "accuracy_score": accuracy_score,
             "speed": speed,
             "speed_score": speed_score,
             "memory": memory,

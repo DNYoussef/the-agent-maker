@@ -305,10 +305,10 @@ class TestThoughtInjector:
 
         assert injector.threshold == 0.6
         assert injector.min_interval == 3
-        assert injector.last_injection == -3
+        assert not hasattr(injector, "last_injection")
 
     def test_respects_minimum_interval(self):
-        """Test minimum interval between injections."""
+        """Test explicit minimum interval between injections."""
         injector = ThoughtInjector(threshold=0.0, min_interval=3)
 
         logits = torch.randn(1, 50257)
@@ -318,15 +318,18 @@ class TestThoughtInjector:
         assert inject1 is True
 
         # Next 2 positions should fail (within interval)
-        inject2 = injector.forward(logits, None, None, position=1)
+        inject2 = injector.forward(logits, None, None, position=1, last_injection=0)
         assert inject2 is False
 
-        inject3 = injector.forward(logits, None, None, position=2)
+        inject3 = injector.forward(logits, None, None, position=2, last_injection=0)
         assert inject3 is False
 
         # Position 3 should succeed (interval=3)
-        inject4 = injector.forward(logits, None, None, position=3)
+        inject4 = injector.forward(logits, None, None, position=3, last_injection=0)
         assert inject4 is True
+
+        # Without caller state, independent batches should not suppress each other.
+        assert injector.forward(logits, None, None, position=1) is True
 
     def test_high_entropy_triggers_injection(self):
         """Test high entropy triggers injection."""

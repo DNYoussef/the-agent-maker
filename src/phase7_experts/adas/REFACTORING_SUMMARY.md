@@ -37,7 +37,7 @@ Successfully refactored the monolithic `adas_optimizer.py` (485 lines) into a mo
 ### 5. `evaluation.py` (85 lines)
 - **Purpose**: Fitness evaluation logic
 - **Contains**:
-  - `evaluate_individual()` - Multi-objective fitness evaluation (accuracy, latency, diversity)
+  - `evaluate_individual()` - Multi-objective fitness evaluation through a caller-supplied evaluator; the module no longer fabricates default benchmark scores
   - `evaluate_population()` - Batch evaluation for entire population
 
 ### 6. `optimizer.py` (222 lines)

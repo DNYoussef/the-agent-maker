@@ -22,6 +22,10 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
+class MissingSWEBenchDataError(RuntimeError):
+    """Raised when an official SWE-Bench dataset is required but unavailable."""
+
+
 class EvaluationMode(Enum):
     """Evaluation strictness levels."""
 
@@ -111,7 +115,11 @@ class SWEBenchEvaluator:
     """
 
     def __init__(
-        self, data_path: Optional[str] = None, subset: str = "lite", cache_dir: Optional[str] = None
+        self,
+        data_path: Optional[str] = None,
+        subset: str = "lite",
+        cache_dir: Optional[str] = None,
+        allow_synthetic_tasks: bool = False,
     ):
         """
         Initialize SWE-Bench evaluator.
@@ -120,10 +128,13 @@ class SWEBenchEvaluator:
             data_path: Path to SWE-Bench JSON data file
             subset: "lite" (300 tasks), "test" (2294 tasks), or "dev" (225 tasks)
             cache_dir: Directory to cache downloaded data
+            allow_synthetic_tasks: Explicit test/demo escape hatch. Defaults to False so
+                missing official data cannot masquerade as a SWE-Bench evaluation.
         """
         self.data_path = Path(data_path) if data_path else None
         self.subset = subset
         self.cache_dir = Path(cache_dir) if cache_dir else Path("data/swe_bench_cache")
+        self.allow_synthetic_tasks = allow_synthetic_tasks
         self.tasks: List[SWEBenchTask] = []
         self.results: List[EvaluationResult] = []
         self._loaded = False
@@ -147,11 +158,17 @@ class SWEBenchEvaluator:
         """
         if self.data_path and self.data_path.exists():
             return self._load_from_file(max_tasks, repos, min_difficulty)
-        else:
-            print(f"Warning: SWE-Bench data not found at {self.data_path}")
-            print("Download from: https://github.com/princeton-nlp/SWE-bench")
-            print("Using synthetic tasks for testing...")
+
+        if self.allow_synthetic_tasks:
             return self._create_synthetic_tasks(max_tasks or 10)
+
+        source = str(self.data_path) if self.data_path else "no data_path"
+        raise MissingSWEBenchDataError(
+            "SWE-Bench data is not available "
+            f"({source}). Download an official SWE-Bench JSON dataset and pass "
+            "data_path, or set allow_synthetic_tasks=True only for local smoke tests. "
+            "Synthetic tasks are not an official SWE-Bench score."
+        )
 
     def _load_from_file(
         self, max_tasks: Optional[int], repos: Optional[List[str]], min_difficulty: Optional[int]
@@ -189,7 +206,7 @@ class SWEBenchEvaluator:
         return self.tasks
 
     def _create_synthetic_tasks(self, count: int) -> List[SWEBenchTask]:
-        """Create synthetic tasks for testing without real data."""
+        """Create explicitly requested smoke-test tasks; not official SWE-Bench data."""
         synthetic_tasks = [
             SWEBenchTask(
                 instance_id="synthetic-001",
@@ -478,4 +495,5 @@ __all__ = [
     "SWEBenchTask",
     "EvaluationResult",
     "EvaluationMode",
+    "MissingSWEBenchDataError",
 ]

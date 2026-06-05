@@ -146,6 +146,11 @@ class QuietSTaRRLConfig:
     injection_threshold: float = 0.6
     min_injection_interval: int = 3
 
+    # Teacher forcing (non-myopic loss)
+    enable_teacher_forcing: bool = True
+    n_true: int = 4
+    teacher_forcing_weight: float = 0.5
+
 
 @dataclass
 class AntiTheaterConfig:
@@ -209,4 +214,7 @@ class QuietSTaRConfig:
             "rl_kl_coefficient": self.rl.kl_coefficient,
             "num_thoughts": self.rl.num_thoughts,
             "coherence_weights": self.rl.coherence_weights,
+            "teacher_forcing_enabled": self.rl.enable_teacher_forcing,
+            "teacher_forcing_weight": self.rl.teacher_forcing_weight,
+            "teacher_forcing_n_true": self.rl.n_true,
         }

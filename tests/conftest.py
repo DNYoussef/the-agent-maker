@@ -21,8 +21,9 @@ def temp_dir():
 
 @pytest.fixture
 def sample_config():
-    """Sample configuration for testing"""
+    """Sample configuration for testing"""       
     return {
+        "mock_mode": True,
         "wandb": {"enabled": True, "mode": "offline", "project": "test-project"},
         "hardware": {"device_vram_gb": 6, "max_batch_size": 32},
         "phases": {"phase1": {"num_models": 3, "epochs": 10}},

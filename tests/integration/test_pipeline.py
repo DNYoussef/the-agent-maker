@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 
-from cross_phase.orchestrator.phase_controller import PhaseResult
+from cross_phase.orchestrator.base_controller import PhaseResult
 from cross_phase.orchestrator.pipeline import PipelineOrchestrator
 
 
@@ -31,12 +31,9 @@ class TestPipelineIntegration:
         config = sample_config.copy()
         config["registry"] = {"db_path": str(temp_dir / "test_single_phase.db")}
 
-        # Note: This will fail without actual phase implementations
-        # This is a placeholder test structure
-
-        with pytest.raises(AttributeError):  # Phase 1 not implemented yet
-            with PipelineOrchestrator(config) as pipeline:
-                result = pipeline.run_single_phase(1)
+        with PipelineOrchestrator(config) as pipeline:
+            result = pipeline.run_single_phase(1)
+            assert result.success is True
 
     def test_context_manager(self, sample_config, temp_dir):
         """Test context manager closes resources"""

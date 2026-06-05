@@ -274,10 +274,59 @@ class Phase4Controller:
         return metrics
 
     def _check_fine_tuning_needed(self, pre_metrics: Dict, post_metrics: Dict) -> bool:
-        """Check if fine-tuning is needed"""
-        # For now, always fine-tune if enabled
-        # In production, would compare perplexity
-        return self.config.enable_fine_tuning
+        """Check if fine-tuning is needed using measured quality degradation."""
+        if not self.config.enable_fine_tuning:
+            self.metrics["fine_tune_quality_gate"] = {
+                "decision": False,
+                "reason": "fine_tuning_disabled",
+            }
+            return False
+
+        pre_quality = self._extract_quality_metric(pre_metrics)
+        post_quality = self._extract_quality_metric(post_metrics)
+
+        if pre_quality is not None and post_quality is not None:
+            is_valid, degradation = validate_compression_quality(
+                pre_quality,
+                post_quality,
+                self.config.fine_tune_threshold,
+            )
+            decision = not is_valid
+            self.metrics["fine_tune_quality_gate"] = {
+                "decision": decision,
+                "reason": "measured_quality_degradation",
+                "pre_quality": pre_quality,
+                "post_quality": post_quality,
+                "degradation": degradation,
+                "threshold": self.config.fine_tune_threshold,
+            }
+            return decision
+
+        retention = post_metrics.get("quality_retention") or post_metrics.get("retention")
+        if retention is not None:
+            decision = float(retention) < (1.0 - self.config.fine_tune_threshold)
+            self.metrics["fine_tune_quality_gate"] = {
+                "decision": decision,
+                "reason": "measured_retention",
+                "retention": float(retention),
+                "threshold": 1.0 - self.config.fine_tune_threshold,
+            }
+            return decision
+
+        self.metrics["fine_tune_quality_gate"] = {
+            "decision": True,
+            "reason": "quality_metric_missing_conservative_fine_tune",
+        }
+        return True
+
+    @staticmethod
+    def _extract_quality_metric(metrics: Dict) -> Optional[float]:
+        """Extract a loss/perplexity metric where larger post values mean worse quality."""
+        for key in ("perplexity", "eval_perplexity", "validation_perplexity", "loss", "eval_loss"):
+            value = metrics.get(key)
+            if value is not None:
+                return float(value)
+        return None
 
     def _fine_tune_model(self) -> Dict:
         """Fine-tune compressed model"""

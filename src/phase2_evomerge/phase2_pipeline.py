@@ -8,6 +8,7 @@ Implements: 50-generation evolutionary optimization using 6 merge techniques.
 """
 
 import copy
+import importlib
 import random
 import time
 from dataclasses import dataclass, field
@@ -15,6 +16,15 @@ from typing import Any, Callable, Dict, List, Optional
 
 import torch
 import torch.nn as nn
+
+MERGER_SPECS = {
+    "slerp": ("phase2_evomerge.merge.slerp_merge", "SLERPMerge"),
+    "ties": ("phase2_evomerge.merge.ties_merge", "TIESMerge"),
+    "dare": ("phase2_evomerge.merge.dare_merge", "DAREMerge"),
+    "linear": ("phase2_evomerge.merge.linear_merge", "LinearMerge"),
+    "frankenmerge": ("phase2_evomerge.merge.frankenmerge", "FrankenMerge"),
+    "dfs": ("phase2_evomerge.merge.dfs_paper_accurate", "DFSPaperAccurate"),
+}
 
 
 @dataclass
@@ -81,42 +91,30 @@ class Phase2Pipeline:
     def _init_mergers(self) -> Dict:
         """Initialize merge technique instances."""
         mergers = {}
-        try:
-            from phase2_evomerge.merge.slerp_merge import SLERPMerge
+        import_errors = {}
 
-            mergers["slerp"] = SLERPMerge()
-        except ImportError:
-            pass
-        try:
-            from phase2_evomerge.merge.ties_merge import TIESMerge
+        for technique in self.config.merge_techniques:
+            if technique not in MERGER_SPECS:
+                import_errors[technique] = f"unknown merge technique {technique!r}"
+                continue
 
-            mergers["ties"] = TIESMerge()
-        except ImportError:
-            pass
-        try:
-            from phase2_evomerge.merge.dare_merge import DAREMerge
+            module_name, class_name = MERGER_SPECS[technique]
+            try:
+                module = importlib.import_module(module_name)
+                merger_cls = getattr(module, class_name)
+                mergers[technique] = merger_cls()
+            except (ImportError, AttributeError) as exc:
+                import_errors[technique] = str(exc)
 
-            mergers["dare"] = DAREMerge()
-        except ImportError:
-            pass
-        try:
-            from phase2_evomerge.merge.linear_merge import LinearMerge
+        if import_errors:
+            details = "; ".join(
+                f"{technique}: {error}" for technique, error in sorted(import_errors.items())
+            )
+            raise ImportError(f"Failed to initialize configured Phase 2 mergers: {details}")
 
-            mergers["linear"] = LinearMerge()
-        except ImportError:
-            pass
-        try:
-            from phase2_evomerge.merge.frankenmerge import FrankenMerge
+        if not mergers:
+            raise ImportError("No Phase 2 mergers initialized")
 
-            mergers["frankenmerge"] = FrankenMerge()
-        except ImportError:
-            pass
-        try:
-            from phase2_evomerge.merge.dfs_merge import DFSMerge
-
-            mergers["dfs"] = DFSMerge()
-        except ImportError:
-            pass
         return mergers
 
     def run(
@@ -342,7 +340,9 @@ class Phase2Pipeline:
         """Return collected metrics."""
         return self.metrics
 
-    def _run_hybrid_ps_dfs(self, input_models: List[nn.Module], tokenizer: Optional[Any]) -> nn.Module:
+    def _run_hybrid_ps_dfs(
+        self, input_models: List[nn.Module], tokenizer: Optional[Any]
+    ) -> nn.Module:
         """
         Run hybrid PS+DFS merging (paper's best approach).
 
@@ -368,7 +368,9 @@ class Phase2Pipeline:
             )
 
             def fitness_fn(model: nn.Module) -> float:
-                return evaluate_benchmark(model, tokenizer, self.config.benchmark_name, benchmark_config)
+                return evaluate_benchmark(
+                    model, tokenizer, self.config.benchmark_name, benchmark_config
+                )
 
         else:
             # Use proxy fitness
@@ -420,7 +422,9 @@ class Phase2Pipeline:
 
         def fitness_fn(model: nn.Module) -> float:
             """Evaluate model on real benchmark."""
-            return evaluate_benchmark(model, tokenizer, self.config.benchmark_name, benchmark_config)
+            return evaluate_benchmark(
+                model, tokenizer, self.config.benchmark_name, benchmark_config
+            )
 
         return fitness_fn
 

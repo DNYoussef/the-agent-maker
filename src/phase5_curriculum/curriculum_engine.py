@@ -64,6 +64,7 @@ class CurriculumConfig:
     consecutive_successes_for_mastery: int = 3
     max_hints_per_question: int = 5
     variant_generation_enabled: bool = True
+    offline_mode: bool = False
 
     # Self-modeling
     base_temperature_width: float = 0.2
@@ -343,6 +344,13 @@ class CurriculumEngine:
 
         Tests model on 1-100 difficulty scale to find where accuracy ~= 75%.
         """
+        if self.config.offline_mode:
+            return 1, {
+                "evidence_status": "offline_deterministic_assessment",
+                "frontier_client_used": False,
+                "baseline_level": 1,
+            }
+
         from .assessment import EdgeOfChaosAssessment
 
         assessment = EdgeOfChaosAssessment(
@@ -362,6 +370,20 @@ class CurriculumEngine:
 
         Maps: baseline -> level 1, original 100 -> level 10
         """
+        if self.config.offline_mode:
+            curriculum = {}
+            for level in range(1, self.config.num_levels + 1):
+                curriculum[level] = [
+                    {
+                        "id": f"offline-L{level}-{idx}",
+                        "question": f"Offline curriculum level {level} item {idx}",
+                        "difficulty": baseline_level + level - 1,
+                        "evidence_status": "offline_deterministic_curriculum",
+                    }
+                    for idx in range(1, self.config.questions_per_level + 1)
+                ]
+            return curriculum
+
         from .curriculum_generator import AdaptiveCurriculumGenerator
 
         generator = AdaptiveCurriculumGenerator(
@@ -390,6 +412,18 @@ class CurriculumEngine:
         Success path: Create variant, remove after 3 consecutive successes
         Failure path: Root cause analysis, add hint, reshuffle
         """
+        if self.config.offline_mode:
+            mastered = len(level_questions)
+            return model, {
+                "accuracy": 1.0 if mastered else 0.0,
+                "mastery": 1.0 if mastered else 0.0,
+                "remaining_questions": 0,
+                "mastered": mastered,
+                "variants": 0,
+                "hints": 0,
+                "evidence_status": "offline_deterministic_training_loop",
+            }
+
         from .training_loop import CurriculumTrainingLoop
 
         trainer = CurriculumTrainingLoop(
@@ -574,6 +608,9 @@ Your approach: Adapt to context, be helpful, be honest.""",
         Model learns to predict its own outputs at different temperatures,
         developing meta-cognitive awareness.
         """
+        if self.config.offline_mode:
+            return model
+
         from .self_modeling import SelfModelingTrainer
 
         # Calculate temperature ranges for this level
@@ -603,6 +640,9 @@ Your approach: Adapt to context, be helpful, be honest.""",
             tokenizer: Tokenizer for encoding
             level: Current curriculum level (for k(L) scaling)
         """
+        if self.config.offline_mode:
+            return model
+
         from .dream_consolidation import DreamConsolidator
 
         consolidator = DreamConsolidator(

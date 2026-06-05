@@ -6,6 +6,7 @@ Concurrent read/write access for model metadata and session tracking
 import json
 import os
 import sqlite3
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -25,33 +26,51 @@ class ModelRegistry:
     def __init__(self, db_path: str = "./storage/registry/model_registry.db"):
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._local = threading.local()
+        self._closed = False
 
-        # Connect with WAL mode
-        self.conn = sqlite3.connect(
-            str(self.db_path),
-            check_same_thread=False  # Allow multi-threading
-        )
-
-        # Enable WAL mode (CRITICAL for concurrent access)
-        self._enable_wal_mode()
-
-        # Create schema
+        # Create schema using the current thread's connection. Other threads
+        # lazily open their own SQLite connections instead of sharing one
+        # check_same_thread=False handle.
         self._create_schema()
+
+    @property
+    def conn(self) -> sqlite3.Connection:
+        """Return this thread's SQLite connection."""
+        return self._get_connection()
+
+    def _get_connection(self) -> sqlite3.Connection:
+        """Create or return the current thread's configured connection."""
+        if self._closed:
+            raise RuntimeError("ModelRegistry is closed")
+
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            conn = sqlite3.connect(str(self.db_path), timeout=30.0)
+            self._configure_connection(conn)
+            self._local.conn = conn
+        return conn
+
+    def _configure_connection(self, conn: sqlite3.Connection) -> None:
+        """Apply WAL/concurrency PRAGMAs to a single connection."""
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
+        conn.execute("PRAGMA cache_size=10000;")
+        conn.execute("PRAGMA temp_store=MEMORY;")
+        conn.execute("PRAGMA mmap_size=30000000000;")
+        conn.execute("PRAGMA page_size=4096;")
+        conn.execute("PRAGMA auto_vacuum=INCREMENTAL;")
+        conn.execute("PRAGMA busy_timeout=5000;")
+        conn.commit()
 
     def _enable_wal_mode(self) -> None:
         """Enable WAL mode and optimize for concurrent access"""
-        self.conn.execute("PRAGMA journal_mode=WAL;")
-        self.conn.execute("PRAGMA synchronous=NORMAL;")
-        self.conn.execute("PRAGMA cache_size=10000;")
-        self.conn.execute("PRAGMA temp_store=MEMORY;")
-        self.conn.execute("PRAGMA mmap_size=30000000000;")
-        self.conn.execute("PRAGMA page_size=4096;")
-        self.conn.execute("PRAGMA auto_vacuum=INCREMENTAL;")
-        self.conn.commit()
+        self._configure_connection(self.conn)
 
     def _create_schema(self) -> None:
         """Create database schema"""
-        self.conn.executescript("""
+        self.conn.executescript(
+            """
             CREATE TABLE IF NOT EXISTS models (
                 model_id TEXT PRIMARY KEY,
                 session_id TEXT NOT NULL,
@@ -90,42 +109,60 @@ class ModelRegistry:
                 current_phase TEXT,
                 progress_percent REAL
             );
-        """)
+        """
+        )
         self.conn.commit()
 
     def register_model(
-        self,
-        session_id: str,
-        phase_name: str,
-        model_name: str,
-        model_path: str,
-        metadata: Dict
+        self, session_id: str, phase_name: str, model_name: str, model_path: str, metadata: Dict
     ) -> str:
         """Register a model in the registry"""
         model_id = f"{phase_name}_{model_name}_{session_id}"
 
-        # Get model size
-        size_mb = os.path.getsize(model_path) / (1024 ** 2)
+        # Prefer real file size when the artifact exists. Some pipeline stages
+        # register metadata before the artifact is materialized; those use the
+        # supplied metadata size and otherwise remain unknown instead of raising.
+        size_mb = self._resolve_model_size_mb(model_path, metadata)
 
-        self.conn.execute("""
+        self.conn.execute(
+            """
             INSERT INTO models (
                 model_id, session_id, phase_name, model_name,
                 model_path, size_mb, parameters, metadata_json
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            model_id, session_id, phase_name, model_name,
-            model_path, size_mb, metadata.get('parameters', 0),
-            json.dumps(metadata)
-        ))
+        """,
+            (
+                model_id,
+                session_id,
+                phase_name,
+                model_name,
+                model_path,
+                size_mb,
+                metadata.get("parameters", 0),
+                json.dumps(metadata),
+            ),
+        )
         self.conn.commit()
 
         return model_id
+
+    def _resolve_model_size_mb(self, model_path: str, metadata: Dict) -> Optional[float]:
+        """Resolve model size without requiring the artifact to exist yet."""
+        if os.path.exists(model_path):
+            return os.path.getsize(model_path) / (1024**2)
+
+        for key in ("size_mb", "model_size_mb", "artifact_size_mb"):
+            value = metadata.get(key)
+            if value is not None:
+                return float(value)
+
+        return None
 
     def get_model(
         self,
         model_id: Optional[str] = None,
         session_id: Optional[str] = None,
-        phase_name: Optional[str] = None
+        phase_name: Optional[str] = None,
     ) -> Dict:
         """Get model info from registry"""
         if model_id:
@@ -148,38 +185,50 @@ class ModelRegistry:
             raise FileNotFoundError(f"Model not found: {model_id or (session_id, phase_name)}")
 
         return {
-            'model_id': row[0],
-            'session_id': row[1],
-            'phase_name': row[2],
-            'model_name': row[3],
-            'model_path': row[4],
-            'size_mb': row[5],
-            'parameters': row[6],
-            'created_at': row[7],
-            'metadata': json.loads(row[8]) if row[8] else {}
+            "model_id": row[0],
+            "session_id": row[1],
+            "phase_name": row[2],
+            "model_name": row[3],
+            "model_path": row[4],
+            "size_mb": row[5],
+            "parameters": row[6],
+            "created_at": row[7],
+            "metadata": json.loads(row[8]) if row[8] else {},
         }
 
     def create_session(self, session_id: str, config: Dict) -> None:
         """Create new session"""
-        self.conn.execute("""
-            INSERT INTO sessions (
+        self.conn.execute(
+            """
+            INSERT OR IGNORE INTO sessions (
                 session_id, pipeline_config_json, status, current_phase, progress_percent
             ) VALUES (?, ?, 'running', 'phase1', 0.0)
-        """, (session_id, json.dumps(config)))
+        """,
+            (session_id, json.dumps(config)),
+        )
+        self.conn.execute(
+            """
+            UPDATE sessions
+            SET pipeline_config_json = ?, status = 'running', current_phase = 'phase1',
+                progress_percent = 0.0
+            WHERE session_id = ?
+        """,
+            (json.dumps(config), session_id),
+        )
         self.conn.commit()
 
     def update_session_progress(
-        self,
-        session_id: str,
-        current_phase: str,
-        progress_percent: float
+        self, session_id: str, current_phase: str, progress_percent: float
     ) -> None:
         """Update session progress"""
-        self.conn.execute("""
+        self.conn.execute(
+            """
             UPDATE sessions
             SET current_phase = ?, progress_percent = ?
             WHERE session_id = ?
-        """, (current_phase, progress_percent, session_id))
+        """,
+            (current_phase, progress_percent, session_id),
+        )
         self.conn.commit()
 
     def checkpoint_wal(self) -> None:
@@ -189,14 +238,27 @@ class ModelRegistry:
 
     def vacuum_incremental(self, pages: int = 100) -> None:
         """Incremental vacuum to reclaim space"""
+        pages = self._coerce_vacuum_pages(pages)
         self.conn.execute(f"PRAGMA incremental_vacuum({pages});")
         self.conn.commit()
+
+    def _coerce_vacuum_pages(self, pages: int) -> int:
+        """Return a bounded integer page count for PRAGMA interpolation."""
+        if isinstance(pages, bool):
+            raise ValueError("Vacuum pages must be an integer")
+        try:
+            coerced = int(pages)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Vacuum pages must be an integer") from exc
+        if coerced < 0 or coerced > 1_000_000:
+            raise ValueError("Vacuum pages must be between 0 and 1000000")
+        return coerced
 
     def get_all_models(
         self,
         phase_filter: Optional[List[str]] = None,
         session_filter: Optional[str] = None,
-        limit: int = 100
+        limit: int = 100,
     ) -> List[Dict]:
         """Get all models from registry with optional filters.
 
@@ -212,7 +274,7 @@ class ModelRegistry:
         params: list[Any] = []
 
         if phase_filter:
-            placeholders = ','.join('?' * len(phase_filter))
+            placeholders = ",".join("?" * len(phase_filter))
             query += f" AND phase_name IN ({placeholders})"
             params.extend(phase_filter)
 
@@ -229,21 +291,23 @@ class ModelRegistry:
         models = []
         for row in rows:
             metadata = json.loads(row[8]) if row[8] else {}
-            models.append({
-                'model_id': row[0],
-                'session_id': row[1],
-                'phase': row[2],
-                'name': row[3],
-                'model_path': row[4],
-                'size_mb': row[5] or 0,
-                'params': row[6] or 0,
-                'created': row[7],
-                'status': metadata.get('status', 'complete'),
-                'loss': metadata.get('loss', 0.0),
-                'accuracy': metadata.get('accuracy', 0.0),
-                'perplexity': metadata.get('perplexity', 0.0),
-                'metadata': metadata
-            })
+            models.append(
+                {
+                    "model_id": row[0],
+                    "session_id": row[1],
+                    "phase": row[2],
+                    "name": row[3],
+                    "model_path": row[4],
+                    "size_mb": row[5] or 0,
+                    "params": row[6] or 0,
+                    "created": row[7],
+                    "status": metadata.get("status", "complete"),
+                    "loss": metadata.get("loss", 0.0),
+                    "accuracy": metadata.get("accuracy", 0.0),
+                    "perplexity": metadata.get("perplexity", 0.0),
+                    "metadata": metadata,
+                }
+            )
 
         return models
 
@@ -253,29 +317,33 @@ class ModelRegistry:
         Returns:
             Dictionary with storage breakdown
         """
-        cursor = self.conn.execute("""
+        cursor = self.conn.execute(
+            """
             SELECT
                 COUNT(*) as model_count,
                 COALESCE(SUM(size_mb), 0) as total_size_mb,
                 COUNT(DISTINCT session_id) as session_count,
                 COUNT(DISTINCT phase_name) as phase_count
             FROM models
-        """)
+        """
+        )
         row = cursor.fetchone()
 
         # Count checkpoints by checking for checkpoint-related models
-        cursor = self.conn.execute("""
+        cursor = self.conn.execute(
+            """
             SELECT COUNT(*) FROM models
             WHERE model_name LIKE '%checkpoint%' OR model_name LIKE '%ckpt%'
-        """)
+        """
+        )
         checkpoint_count = cursor.fetchone()[0]
 
         return {
-            'model_count': row[0],
-            'total_size_mb': row[1],
-            'session_count': row[2],
-            'phase_count': row[3],
-            'checkpoint_count': checkpoint_count
+            "model_count": row[0],
+            "total_size_mb": row[1],
+            "session_count": row[2],
+            "phase_count": row[3],
+            "checkpoint_count": checkpoint_count,
         }
 
     def delete_model(self, model_id: str) -> bool:
@@ -288,10 +356,7 @@ class ModelRegistry:
             True if deleted, False otherwise
         """
         try:
-            cursor = self.conn.execute(
-                "DELETE FROM models WHERE model_id = ?",
-                (model_id,)
-            )
+            cursor = self.conn.execute("DELETE FROM models WHERE model_id = ?", (model_id,))
             self.conn.commit()
             return cursor.rowcount > 0
         except Exception:
@@ -305,7 +370,7 @@ class ModelRegistry:
         input_model_metadata: Dict,
         output_model_metadata: Dict,
         validation_status: str,
-        validation_metrics: Dict
+        validation_metrics: Dict,
     ) -> str:
         """Register a phase handoff in the registry.
 
@@ -322,31 +387,39 @@ class ModelRegistry:
             Handoff ID
         """
         import uuid
+
         handoff_id = f"handoff_{from_phase}_{to_phase}_{uuid.uuid4().hex[:8]}"
 
         source_model_id = f"phase{from_phase}_{session_id}"
         target_model_id = f"phase{to_phase}_{session_id}"
 
-        self.conn.execute("""
+        self.conn.execute(
+            """
             INSERT INTO phase_handoffs (
                 handoff_id, source_phase, target_phase,
                 source_model_id, target_model_id,
                 validation_status, validation_metrics_json
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            handoff_id,
-            f"phase{from_phase}",
-            f"phase{to_phase}",
-            source_model_id,
-            target_model_id,
-            validation_status,
-            json.dumps(validation_metrics)
-        ))
+        """,
+            (
+                handoff_id,
+                f"phase{from_phase}",
+                f"phase{to_phase}",
+                source_model_id,
+                target_model_id,
+                validation_status,
+                json.dumps(validation_metrics),
+            ),
+        )
         self.conn.commit()
 
         return handoff_id
 
     def close(self) -> None:
         """Close database connection"""
-        self.checkpoint_wal()  # Final checkpoint
-        self.conn.close()
+        conn = getattr(self._local, "conn", None)
+        if conn is not None:
+            self.checkpoint_wal()  # Final checkpoint for this thread
+            conn.close()
+            self._local.conn = None
+        self._closed = True

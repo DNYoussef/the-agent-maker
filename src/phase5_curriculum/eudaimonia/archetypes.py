@@ -17,7 +17,17 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+import numpy as np
+
+# Import MOO for archetype weight learning
+try:
+    from src.cross_phase.meta_calculus.moo_utils import HybridMOORunner
+
+    MOO_AVAILABLE = True
+except ImportError:
+    MOO_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -532,6 +542,222 @@ class ArchetypeCouncil:
         return self.synthesize(guidances)
 
 
+@dataclass
+class InteractionOutcome:
+    """Outcome of an ethical interaction for learning."""
+
+    situation: str
+    context: Dict[str, Any]
+    action_taken: str
+    outcome_quality: float  # 0.0 (bad) to 1.0 (excellent)
+    user_feedback: Optional[str] = None
+    archetype_weights_used: Optional[Dict[ArchetypeType, float]] = None
+
+
+class ArchetypeWeightLearner:
+    """
+    Learns optimal archetype weights from interaction outcomes.
+
+    Uses MOO to find weights that balance:
+    1. Outcome quality (maximize positive outcomes)
+    2. Consistency (stable guidance across similar situations)
+    3. Fairness (balanced consideration of all archetypes)
+    """
+
+    def __init__(
+        self,
+        initial_weights: Optional[Dict[ArchetypeType, float]] = None,
+        min_weight: float = 0.1,
+        max_weight: float = 0.6,
+        learning_rate: float = 0.1,
+    ):
+        """
+        Initialize weight learner.
+
+        Args:
+            initial_weights: Starting weights (default: equal)
+            min_weight: Minimum allowed weight per archetype
+            max_weight: Maximum allowed weight per archetype
+            learning_rate: Learning rate for incremental updates
+        """
+        self.weights = initial_weights or {
+            ArchetypeType.CHRIST: 0.34,
+            ArchetypeType.HARMONY: 0.33,
+            ArchetypeType.STOIC: 0.33,
+        }
+        self.min_weight = min_weight
+        self.max_weight = max_weight
+        self.learning_rate = learning_rate
+        self.interaction_history: List[InteractionOutcome] = []
+        self._weight_history: List[Dict[ArchetypeType, float]] = [self.weights.copy()]
+
+    def record_interaction(self, outcome: InteractionOutcome):
+        """Record an interaction outcome for learning."""
+        # Store current weights with outcome if not already set
+        if outcome.archetype_weights_used is None:
+            outcome.archetype_weights_used = self.weights.copy()
+        self.interaction_history.append(outcome)
+
+    def learn_from_outcomes(
+        self, n_generations: int = 30
+    ) -> Tuple[Dict[ArchetypeType, float], Dict[str, Any]]:
+        """
+        Learn optimal weights from recorded interactions using MOO.
+
+        Objectives:
+        1. Maximize average outcome quality
+        2. Minimize outcome variance (consistency)
+        3. Minimize weight imbalance (fairness)
+
+        Returns:
+            Tuple of (optimal_weights, learning_results)
+        """
+        if len(self.interaction_history) < 5:
+            logger.warning("Not enough interactions for learning (need >= 5)")
+            return self.weights, {"error": "Insufficient data"}
+
+        if not MOO_AVAILABLE:
+            logger.warning("MOO not available, using gradient-based update")
+            return self._gradient_update(), {"method": "gradient"}
+
+        def evaluate_weights(weight_array) -> List[float]:
+            """Evaluate weights on 3 objectives."""
+            # Normalize weights
+            weights = weight_array / weight_array.sum()
+            weight_dict = {
+                ArchetypeType.CHRIST: weights[0],
+                ArchetypeType.HARMONY: weights[1],
+                ArchetypeType.STOIC: weights[2],
+            }
+
+            # Simulate outcomes with these weights
+            simulated_qualities = []
+            for outcome in self.interaction_history:
+                # Estimate quality contribution from each archetype
+                quality = 0.0
+                for archetype, weight in weight_dict.items():
+                    # Higher weight -> more influence on quality
+                    archetype_contribution = outcome.outcome_quality * weight
+                    quality += archetype_contribution
+
+                simulated_qualities.append(min(1.0, quality))
+
+            # Objective 1: Average quality (maximize -> negate)
+            avg_quality = np.mean(simulated_qualities)
+            obj1 = -avg_quality
+
+            # Objective 2: Variance (minimize - want consistency)
+            variance = np.var(simulated_qualities)
+            obj2 = variance
+
+            # Objective 3: Weight imbalance (minimize - want fairness)
+            # Gini-like coefficient
+            weights_sorted = np.sort(weights)
+            n = len(weights_sorted)
+            cumulative = np.cumsum(weights_sorted)
+            gini = (2 * np.sum((np.arange(1, n + 1) * weights_sorted)) /
+                    (n * np.sum(weights_sorted))) - (n + 1) / n
+            obj3 = abs(gini)  # 0 = perfect equality
+
+            return [obj1, obj2, obj3]
+
+        # Run MOO
+        runner = HybridMOORunner.from_evaluator(
+            evaluator=evaluate_weights,
+            n_vars=3,  # 3 archetype weights
+            n_objs=3,  # quality, variance, fairness
+            xl=[self.min_weight] * 3,
+            xu=[self.max_weight] * 3,
+        )
+
+        result = runner.run(n_generations=n_generations)
+
+        # Select balanced solution
+        optimal_weights = self._select_balanced_weights(result.X, result.F)
+
+        # Update internal weights
+        self.weights = {
+            ArchetypeType.CHRIST: optimal_weights[0],
+            ArchetypeType.HARMONY: optimal_weights[1],
+            ArchetypeType.STOIC: optimal_weights[2],
+        }
+        self._weight_history.append(self.weights.copy())
+
+        logger.info(f"Learned archetype weights: {self.weights}")
+
+        return self.weights, {
+            "pareto_front_size": len(result.X),
+            "interactions_used": len(self.interaction_history),
+            "avg_outcome_quality": np.mean([o.outcome_quality for o in self.interaction_history]),
+            "weight_evolution": len(self._weight_history),
+            "backend_used": result.backend_used,
+        }
+
+    def _gradient_update(self) -> Dict[ArchetypeType, float]:
+        """Simple gradient-based weight update (fallback)."""
+        # Calculate average quality per archetype weight setting
+        for outcome in self.interaction_history[-10:]:  # Use recent history
+            if outcome.outcome_quality > 0.7:
+                # Positive outcome - reinforce current weights
+                pass
+            elif outcome.outcome_quality < 0.4:
+                # Negative outcome - adjust toward uniform
+                for archetype in self.weights:
+                    current = self.weights[archetype]
+                    target = 0.33
+                    self.weights[archetype] = current + self.learning_rate * (target - current)
+
+        # Normalize
+        total = sum(self.weights.values())
+        for archetype in self.weights:
+            self.weights[archetype] /= total
+
+        return self.weights
+
+    def _select_balanced_weights(self, X, F) -> np.ndarray:
+        """Select balanced weights from Pareto front."""
+        if len(X) == 0:
+            return np.array([0.34, 0.33, 0.33])
+
+        # Normalize objectives
+        F_min = F.min(axis=0)
+        F_max = F.max(axis=0)
+        F_range = F_max - F_min
+        F_range[F_range == 0] = 1
+
+        F_norm = (F - F_min) / F_range
+
+        # Weighted sum: quality (50%), consistency (30%), fairness (20%)
+        weights = [0.50, 0.30, 0.20]
+        scores = (F_norm * weights).sum(axis=1)
+
+        best_idx = scores.argmin()
+        best_weights = X[best_idx]
+
+        # Normalize to sum to 1.0
+        return best_weights / best_weights.sum()
+
+    def get_weighted_council(self) -> "ArchetypeCouncil":
+        """Get an ArchetypeCouncil with learned weights applied."""
+        council = ArchetypeCouncil()
+        council.archetype_weights = self.weights.copy()
+        return council
+
+    def get_weight_evolution(self) -> List[Dict[ArchetypeType, float]]:
+        """Get history of weight changes."""
+        return self._weight_history.copy()
+
+    def reset(self):
+        """Reset learner state."""
+        self.weights = {
+            ArchetypeType.CHRIST: 0.34,
+            ArchetypeType.HARMONY: 0.33,
+            ArchetypeType.STOIC: 0.33,
+        }
+        self.interaction_history = []
+        self._weight_history = [self.weights.copy()]
+
+
 __all__ = [
     "ArchetypeCouncil",
     "ArchetypeType",
@@ -540,4 +766,6 @@ __all__ = [
     "ChristArchetype",
     "HarmonyArchetype",
     "StoicArchetype",
+    "ArchetypeWeightLearner",
+    "InteractionOutcome",
 ]

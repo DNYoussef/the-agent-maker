@@ -2,6 +2,7 @@
 Weights & Biases Monitor Page
 Comprehensive W&B monitoring across all 8 phases with 7,800+ total metrics
 """
+import os
 import sys
 import time
 from datetime import datetime, timedelta
@@ -226,8 +227,13 @@ def render() -> None:
     # Connection Panel
     st.markdown('<div class="section-header">CONNECTION STATUS</div>', unsafe_allow_html=True)
 
-    # Simulate W&B connection (in production, this would check actual W&B API)
-    wandb_connected = st.session_state.get("wandb_connected", False)
+    # Real W&B connection state (offline-first)
+    wandb_connected = bool(os.getenv("WANDB_API_KEY"))
+    project_name = "agent-forge-v2"
+    storage_root = Path(__file__).parent.parent.parent / "storage" / "wandb"
+    run_dirs = sorted(storage_root.glob("*")) if storage_root.exists() else []
+    latest_run = run_dirs[-1].name if run_dirs else "none"
+    local_runs_count = len(run_dirs)
 
     col1, col2 = st.columns([3, 1])
 
@@ -243,23 +249,27 @@ def render() -> None:
         )
 
         # Project info
-        project_name = st.session_state.get("wandb_project", "agent-forge-v2")
         st.markdown(
             f'<div class="connection-item"><span class="connection-label">Project:</span><span class="connection-value">{project_name}</span></div>',
             unsafe_allow_html=True,
         )
 
         # Run ID
-        run_id = st.session_state.get("wandb_run_id", "run_20250116_143052")
+        run_id = latest_run
         st.markdown(
             f'<div class="connection-item"><span class="connection-label">Current Run:</span><span class="connection-value">{run_id}</span></div>',
             unsafe_allow_html=True,
         )
 
         # API Key status
-        api_key_status = "CONFIGURED (wandb_***_1a2b3c)" if wandb_connected else "NOT SET"
+        api_key_status = "CONFIGURED" if wandb_connected else "NOT SET"
         st.markdown(
             f'<div class="connection-item"><span class="connection-label">API Key:</span><span class="connection-value">{api_key_status}</span></div>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            f'<div class="connection-item"><span class="connection-label">Local Runs:</span><span class="connection-value">{local_runs_count}</span></div>',
             unsafe_allow_html=True,
         )
 
@@ -267,18 +277,9 @@ def render() -> None:
 
     with col2:
         st.markdown("### Mode")
-        local_mode = st.toggle("Local Mode", value=False, help="Run W&B locally without cloud sync")
-
+        st.write("Offline (local sync ready)")
         st.markdown("### Actions")
-        if st.button("Connect to W&B", use_container_width=True):
-            st.session_state["wandb_connected"] = True
-            st.success("Connected to W&B!")
-            st.rerun()
-
-        if wandb_connected and st.button("Disconnect", use_container_width=True):
-            st.session_state["wandb_connected"] = False
-            st.info("Disconnected from W&B")
-            st.rerun()
+        st.write("Set `WANDB_API_KEY` to enable cloud sync.")
 
     # Phase Metrics Overview
     st.markdown('<div class="section-header">PHASE METRICS OVERVIEW</div>', unsafe_allow_html=True)

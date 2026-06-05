@@ -1,0 +1,44 @@
+# Agent Forge Docker Compose
+# Run with: docker compose up -d
+
+version: '3.8'
+
+services:
+  agent-forge:
+    build: .
+    container_name: agent-forge-phase1
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - WANDB_MODE=offline
+      - HF_HOME=/app/data/huggingface
+    volumes:
+      # Persist checkpoints and data
+      - ./checkpoints:/app/checkpoints
+      - ./data:/app/data
+      - ./wandb:/app/wandb
+      # Mount source for development
+      - ./src:/app/src:ro
+      - ./config:/app/config:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # Keep container running for interactive use
+    stdin_open: true
+    tty: true
+
+  # Monitoring service (optional)
+  tensorboard:
+    image: tensorflow/tensorflow:latest
+    container_name: agent-forge-tensorboard
+    ports:
+      - "6006:6006"
+    volumes:
+      - ./wandb:/logs
+    command: tensorboard --logdir=/logs --host=0.0.0.0
+    profiles:
+      - monitoring

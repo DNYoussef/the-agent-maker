@@ -401,7 +401,6 @@ class ThoughtInjector(nn.Module):
         super().__init__()
         self.threshold = threshold
         self.min_interval = min_interval
-        self.last_injection = -min_interval
 
     def forward(
         self,
@@ -409,10 +408,13 @@ class ThoughtInjector(nn.Module):
         attention_weights: Optional[torch.Tensor],
         loss: Optional[torch.Tensor],
         position: int,
+        last_injection: Optional[int] = None,
     ) -> bool:
         """Determine if thought injection needed at position."""
+        last_injection = -self.min_interval if last_injection is None else last_injection
+
         # Check minimum interval
-        if position - self.last_injection < self.min_interval:
+        if position - last_injection < self.min_interval:
             return False
 
         # Compute difficulty metrics
@@ -425,7 +427,6 @@ class ThoughtInjector(nn.Module):
 
         # Inject if above threshold
         if difficulty > self.threshold:
-            self.last_injection = position
             return True
 
         return False
@@ -516,6 +517,7 @@ class QuietSTaRModel(nn.Module):
         enhanced_hidden = base_hidden.clone()
         thought_positions = []
         coherence_scores_list = []
+        last_injection = -self.thought_injector.min_interval
 
         for pos in range(seq_len - 1):
             # Check if injection needed
@@ -524,9 +526,11 @@ class QuietSTaRModel(nn.Module):
                 None,  # Attention weights optional
                 None,  # Loss optional
                 pos,
+                last_injection=last_injection,
             )
 
             if inject:
+                last_injection = pos
                 # Generate thoughts
                 thought_output = self.thought_generator(input_ids, pos, base_hidden[:, pos, :])
 

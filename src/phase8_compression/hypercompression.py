@@ -130,10 +130,11 @@ class HyperCompressor:
                 compressed_state[name] = {"type": "preserved", "data": param.half()}
             else:
                 # Apply hypercompression with R^2 metrics
-                curve_params, retention, fit_metrics = self._fit_curves(param)
+                curve_params, segment_lengths, retention, fit_metrics = self._fit_curves(param)
                 compressed_state[name] = {
                     "type": "hyper",
                     "curve_params": curve_params,
+                    "segment_lengths": segment_lengths,
                     "shape": param.shape,
                     "curve_type": self.config.curve_type,
                 }
@@ -248,7 +249,9 @@ class HyperCompressor:
             num_parameters=0,
         )
 
-    def _fit_curves(self, tensor: torch.Tensor) -> Tuple[torch.Tensor, float, CurveFitMetrics]:
+    def _fit_curves(
+        self, tensor: torch.Tensor
+    ) -> Tuple[torch.Tensor, List[int], float, CurveFitMetrics]:
         """
         Fit parametric curves to tensor with R^2 metrics.
 
@@ -256,21 +259,21 @@ class HyperCompressor:
             tensor: Weight tensor
 
         Returns:
-            Tuple of (curve_parameters, retention, metrics)
+            Tuple of (curve_parameters, segment_lengths, retention, metrics)
         """
         flat = tensor.flatten().float()
 
-        # Divide into segments
-        segment_size = max(1, len(flat) // self.config.num_segments)
-        num_segments = (len(flat) + segment_size - 1) // segment_size
+        # Divide into deterministic near-even segments and persist those
+        # lengths so decode evaluates each curve over the same interval.
+        segment_lengths = self._segment_lengths(len(flat))
 
         all_params = []
         all_reconstructed = []
         segment_r_squared = []
+        start = 0
 
-        for i in range(num_segments):
-            start = i * segment_size
-            end = min(start + segment_size, len(flat))
+        for segment_length in segment_lengths:
+            end = start + segment_length
             segment = flat[start:end]
 
             # Fit curve to segment
@@ -284,6 +287,7 @@ class HyperCompressor:
             # Per-segment R^2
             metrics = self.compute_r_squared(segment, reconstructed)
             segment_r_squared.append(metrics.r_squared)
+            start = end
 
         # Stack parameters
         curve_params = torch.stack(all_params)
@@ -301,7 +305,16 @@ class HyperCompressor:
         # Retention is same as R^2 for consistency
         retention = overall_metrics.r_squared
 
-        return curve_params.half(), retention, overall_metrics
+        return curve_params.half(), segment_lengths, retention, overall_metrics
+
+    def _segment_lengths(self, total_size: int) -> List[int]:
+        """Return near-even segment lengths whose sum matches total_size."""
+        if total_size <= 0:
+            return []
+
+        num_segments = min(max(1, self.config.num_segments), total_size)
+        base, remainder = divmod(total_size, num_segments)
+        return [base + (1 if i < remainder else 0) for i in range(num_segments)]
 
     def _fit_segment(self, segment: torch.Tensor) -> torch.Tensor:
         """Fit a parametric curve to a segment."""
@@ -413,6 +426,7 @@ class HyperCompressor:
                 total_bytes += data["data"].numel() * 2  # FP16
             else:  # hyper
                 total_bytes += data["curve_params"].numel() * 2  # FP16
+                total_bytes += len(data.get("segment_lengths", [])) * 4
 
         return total_bytes / (1024 * 1024)
 
@@ -434,7 +448,10 @@ class HyperCompressor:
             else:
                 # Decompress from curves
                 decompressed = self._decompress_tensor(
-                    data["curve_params"], data["shape"], data["curve_type"]
+                    data["curve_params"],
+                    data["shape"],
+                    data["curve_type"],
+                    data.get("segment_lengths"),
                 )
                 decompressed_state[name] = decompressed
 
@@ -442,7 +459,11 @@ class HyperCompressor:
         return model
 
     def _decompress_tensor(
-        self, curve_params: torch.Tensor, shape: torch.Size, curve_type: str
+        self,
+        curve_params: torch.Tensor,
+        shape: torch.Size,
+        curve_type: str,
+        segment_lengths: Optional[List[int]] = None,
     ) -> torch.Tensor:
         """Decompress tensor from curve parameters."""
         original_size = 1
@@ -450,11 +471,18 @@ class HyperCompressor:
             original_size *= s
 
         num_segments = curve_params.shape[0]
-        segment_size = (original_size + num_segments - 1) // num_segments
+        if segment_lengths is None:
+            segment_size = (original_size + num_segments - 1) // num_segments
+            segment_lengths = [segment_size] * num_segments
+        else:
+            if len(segment_lengths) != num_segments:
+                raise ValueError("segment_lengths must have one entry per curve parameter row")
+            if sum(segment_lengths) != original_size:
+                raise ValueError("segment_lengths must sum to the original tensor size")
 
         segments = []
-        for params in curve_params:
-            segment = self._evaluate_curve(params.float(), segment_size)
+        for params, segment_length in zip(curve_params, segment_lengths):
+            segment = self._evaluate_curve(params.float(), segment_length)
             segments.append(segment)
 
         flat = torch.cat(segments)[:original_size]

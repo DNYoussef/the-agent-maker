@@ -22,6 +22,8 @@ get_tokenizer = _utils.get_tokenizer
 # ISS-001: Export utility functions required by tests
 get_model_size = _utils.get_model_size
 calculate_safe_batch_size = _utils.calculate_safe_batch_size
+validate_diversity = _utils.validate_diversity
+compute_diversity = _utils.compute_diversity
 validate_model_diversity = _utils.validate_model_diversity
 detect_training_divergence = _utils.detect_training_divergence
 compute_population_diversity = _utils.compute_population_diversity
@@ -35,6 +37,8 @@ __all__ = [
     # ISS-001: Added exports
     "get_model_size",
     "calculate_safe_batch_size",
+    "validate_diversity",
+    "compute_diversity",
     "validate_model_diversity",
     "detect_training_divergence",
     "compute_population_diversity",

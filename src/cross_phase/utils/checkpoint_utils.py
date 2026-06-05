@@ -156,8 +156,8 @@ def save_checkpoint(
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Prepare model state dict
-    tensors = {k: v for k, v in model.state_dict().items()}
+    # Prepare model state dict (clone to handle tied weights like embed/lm_head)
+    tensors = {k: v.clone().contiguous() for k, v in model.state_dict().items()}
 
     # Add extra tensors if provided
     if extra_tensors:

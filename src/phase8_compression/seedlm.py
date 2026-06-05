@@ -107,6 +107,7 @@ class SeedLMCompressor:
                     "seeds": seeds,
                     "scale": scale,
                     "shape": param.shape,
+                    "block_size": self.config.block_size,
                 }
                 layer_stats[name] = {
                     "compression": self._calculate_compression(param, seeds),
@@ -162,23 +163,21 @@ class SeedLMCompressor:
         num_blocks = (len(flat) + block_size - 1) // block_size
 
         seeds = []
-        total_error = 0.0
-
         for i in range(num_blocks):
             start = i * block_size
             end = min(start + block_size, len(flat))
             block = normalized[start:end]
 
             # Find best seed for this block
-            best_seed, best_error = self._find_best_seed(block)
+            best_seed, _best_error = self._find_best_seed(block)
             seeds.append(best_seed)
-            total_error += best_error
 
         seeds_tensor = torch.tensor(seeds, dtype=torch.int64)
 
-        # Calculate retention (1 - normalized error)
-        avg_error = total_error / max(num_blocks, 1)
-        retention = 1.0 - min(avg_error, 1.0)
+        # Retention is reconstruction fidelity against the original tensor,
+        # not the internal normalized MAE proxy used during seed search.
+        reconstructed = self._reconstruct_from_seeds(seeds_tensor, scale, original_shape)
+        retention = self._calculate_reconstruction_fidelity(tensor, reconstructed)
 
         return seeds_tensor, scale, retention
 
@@ -238,9 +237,10 @@ class SeedLMCompressor:
                 else:
                     total_bytes += tensor.numel() * 4
             else:  # seedlm
-                # Seeds (int64) + scale (float32) + shape metadata
+                # Seeds are stored as actual tensors here; do not charge an
+                # aspirational packed seed_bits size unless a packer exists.
                 seeds = data["seeds"]
-                total_bytes += seeds.numel() * (self.config.seed_bits // 8)
+                total_bytes += self._seed_storage_bytes(seeds)
                 total_bytes += 4  # scale
                 total_bytes += 32  # shape metadata
 
@@ -249,8 +249,34 @@ class SeedLMCompressor:
     def _calculate_compression(self, original: torch.Tensor, seeds: torch.Tensor) -> float:
         """Calculate compression ratio for a layer."""
         original_bytes = original.numel() * 4  # FP32
-        compressed_bytes = seeds.numel() * (self.config.seed_bits // 8) + 36  # seeds + metadata
+        compressed_bytes = self._seed_storage_bytes(seeds) + 36  # seeds + metadata
         return original_bytes / max(compressed_bytes, 1)
+
+    def _seed_storage_bytes(self, seeds: torch.Tensor) -> int:
+        """Return bytes for the seed tensor representation currently stored."""
+        return seeds.numel() * seeds.element_size()
+
+    def _calculate_reconstruction_fidelity(
+        self, original: torch.Tensor, reconstructed: torch.Tensor
+    ) -> float:
+        """Compute fidelity as one minus relative RMSE, clamped to [0, 1]."""
+        original_flat = original.flatten().float()
+        reconstructed_flat = reconstructed.flatten().float()
+        min_len = min(len(original_flat), len(reconstructed_flat))
+        original_flat = original_flat[:min_len]
+        reconstructed_flat = reconstructed_flat[:min_len]
+
+        if min_len == 0:
+            return 1.0
+
+        rmse = torch.sqrt(((original_flat - reconstructed_flat) ** 2).mean()).item()
+        reference = torch.sqrt((original_flat**2).mean()).item()
+
+        if reference <= 1e-12:
+            return 1.0 if rmse <= 1e-12 else 0.0
+
+        fidelity = 1.0 - (rmse / reference)
+        return max(0.0, min(1.0, fidelity))
 
     def _calculate_retention(self, compressed_state: Dict, layer_stats: Dict) -> float:
         """Calculate overall retention score."""
@@ -275,21 +301,40 @@ class SeedLMCompressor:
                 decompressed_state[name] = data["data"].float()
             else:
                 # Decompress from seeds
-                decompressed = self._decompress_tensor(data["seeds"], data["scale"], data["shape"])
+                decompressed = self._decompress_tensor(
+                    data["seeds"],
+                    data["scale"],
+                    data["shape"],
+                    data.get("block_size"),
+                )
                 decompressed_state[name] = decompressed
 
         model.load_state_dict(decompressed_state)
         return model
 
     def _decompress_tensor(
-        self, seeds: torch.Tensor, scale: torch.Tensor, shape: torch.Size
+        self,
+        seeds: torch.Tensor,
+        scale: torch.Tensor,
+        shape: torch.Size,
+        block_size: Optional[int] = None,
     ) -> torch.Tensor:
         """Decompress tensor from seeds."""
+        return self._reconstruct_from_seeds(seeds, scale, shape, block_size)
+
+    def _reconstruct_from_seeds(
+        self,
+        seeds: torch.Tensor,
+        scale: torch.Tensor,
+        shape: torch.Size,
+        block_size: Optional[int] = None,
+    ) -> torch.Tensor:
+        """Reconstruct tensor data from stored seeds and metadata."""
         flat_size = 1
         for s in shape:
             flat_size *= s
 
-        block_size = self.config.block_size
+        block_size = block_size or self.config.block_size
         blocks = []
 
         for seed in seeds:

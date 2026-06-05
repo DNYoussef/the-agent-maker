@@ -10,8 +10,8 @@ from pathlib import Path
 
 import torch
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parents[1]))
+# Add repo src to path when run directly from tests/sandbox.
+sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
 
 from phase1_cognate.data.curriculum_loader import CurriculumLoader
 from phase1_cognate.model.full_model import TRMTitansMAGModel

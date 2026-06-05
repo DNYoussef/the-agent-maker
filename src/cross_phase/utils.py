@@ -93,35 +93,42 @@ def calculate_safe_batch_size(model_or_size, device_vram_gb: float) -> int:
     return batch_size
 
 
-def validate_diversity(model1: nn.Module, model2: nn.Module, model3: nn.Module):
+def validate_diversity(
+    model1: nn.Module,
+    model2: nn.Module,
+    model3: nn.Module,
+    min_weight_diversity: float = 0.01,
+    min_parameter_delta: int = 100_000,
+):
     """
     Validate diversity across 3 Phase 1 models
     Raises AssertionError if diversity too low
     """
-    # Test 1: Different halting steps (ACT)
-    # This requires ACT metrics from actual model - placeholder for now
-    # In real implementation, would call measure_avg_halting_steps()
-    print("[WARN] Diversity validation not fully implemented (requires trained models)")
-
-    # Test 2: Different memory usage (LTM)
-    # In real implementation, would call measure_ltm_usage()
-
-    # Test 3: Different inference times
-    # In real implementation, would call measure_inference_time()
-
-    # Placeholder: Check parameter count diversity
+    models = [model1, model2, model3]
     params1 = sum(p.numel() for p in model1.parameters())
     params2 = sum(p.numel() for p in model2.parameters())
     params3 = sum(p.numel() for p in model3.parameters())
 
     param_diversity = max(params1, params2, params3) - min(params1, params2, params3)
-    if param_diversity > 100_000:  # At least 100K parameter difference
-        print(f"[OK] Parameter diversity validated: {param_diversity:,} params")
-    else:
-        print(
-            f"[WARN] Low parameter diversity: {param_diversity:,} params "
-            f"(this is expected for same architecture)"
-        )
+    weight_diversity = compute_diversity(models) if param_diversity == 0 else 1.0
+
+    if param_diversity >= min_parameter_delta or weight_diversity >= min_weight_diversity:
+        result = {
+            "passed": True,
+            "parameter_delta": param_diversity,
+            "weight_diversity": weight_diversity,
+            "min_parameter_delta": min_parameter_delta,
+            "min_weight_diversity": min_weight_diversity,
+        }
+        print(f"[OK] Diversity validated: {result}")
+        return result
+
+    raise AssertionError(
+        "Model diversity below threshold: "
+        f"parameter_delta={param_diversity}, weight_diversity={weight_diversity:.6f}, "
+        f"required parameter_delta>={min_parameter_delta} or "
+        f"weight_diversity>={min_weight_diversity}"
+    )
 
 
 def detect_training_issues(loss_history: list):
@@ -173,6 +180,10 @@ def compute_diversity(population: list) -> float:
         dot_product = np.dot(vec1, vec2)
         norm1 = np.linalg.norm(vec1)
         norm2 = np.linalg.norm(vec2)
+        if norm1 == 0 and norm2 == 0:
+            return 0.0
+        if norm1 == 0 or norm2 == 0:
+            return 1.0
         cosine_sim = dot_product / (norm1 * norm2)
         return 1 - cosine_sim
 
