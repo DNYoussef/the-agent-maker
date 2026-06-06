@@ -1,0 +1,168 @@
+{
+  "analyzer": "god_object",
+  "path": "D:\\Projects\\the-agent-maker",
+  "success": true,
+  "threshold": 15,
+  "violations": [
+    {
+      "description": "God Object detected: Class 'MuonGrokfast' has 16 methods (threshold: 15)",
+      "file_path": "D:\\Projects\\the-agent-maker\\docs\\v1-reference\\implementation\\mugrokfast_optimizer.py",
+      "id": "god_object_MuonGrokfast_mugrokfast_optimizer",
+      "line_number": 26,
+      "rule_id": "GOD_OBJECT_METHODS",
+      "severity": "high",
+      "type": "CoA",
+      "weight": 4.0
+    },
+    {
+      "description": "God Object detected: Class 'CircuitBreaker' has 19 methods (threshold: 15)",
+      "file_path": "D:\\Projects\\the-agent-maker\\lib\\library\\circuit_breaker\\circuit_breaker.py",
+      "id": "god_object_CircuitBreaker_circuit_breaker",
+      "line_number": 179,
+      "rule_id": "GOD_OBJECT_METHODS",
+      "severity": "high",
+      "type": "CoA",
+      "weight": 4.0
+    },
+    {
+      "description": "God Object detected: Class 'REINFORCETrainer' has 16 methods (threshold: 15)",
+      "file_path": "D:\\Projects\\the-agent-maker\\src\\phase3_quietstar\\step2_rl.py",
+      "id": "god_object_REINFORCETrainer_step2_rl",
+      "line_number": 43,
+      "rule_id": "GOD_OBJECT_METHODS",
+      "severity": "high",
+      "type": "CoA",
+      "weight": 4.0
+    },
+    {
+      "description": "God Object detected: Class 'AdaptiveCurriculumGenerator' has 16 methods (threshold: 15)",
+      "file_path": "D:\\Projects\\the-agent-maker\\src\\phase5_curriculum\\curriculum_generator.py",
+      "id": "god_object_AdaptiveCurriculumGenerator_curriculum_generator",
+      "line_number": 72,
+      "rule_id": "GOD_OBJECT_METHODS",
+      "severity": "high",
+      "type": "CoA",
+      "weight": 4.0
+    },
+    {
+      "description": "God Object detected: Class 'Phase5WandBLogger' has 16 methods (threshold: 15)",
+      "file_path": "D:\\Projects\\the-agent-maker\\src\\phase5_curriculum\\wandb_logger.py",
+      "id": "god_object_Phase5WandBLogger_wandb_logger",
+      "line_number": 133,
+      "rule_id": "GOD_OBJECT_METHODS",
+      "severity": "high",
+      "type": "CoA",
+      "weight": 4.0
+    },
+    {
+      "description": "God Object detected: Class 'HyperCompressor' has 16 methods (threshold: 15)",
+      "file_path": "D:\\Projects\\the-agent-maker\\src\\phase8_compression\\hypercompression.py",
+      "id": "god_object_HyperCompressor_hypercompression",
+      "line_number": 71,
+      "rule_id": "GOD_OBJECT_METHODS",
+      "severity": "high",
+      "type": "CoA",
+      "weight": 4.0
+    },
+    {
+      "description": "God Object detected: Class 'WandBIntegration' has 17 methods (threshold: 15)",
+      "file_path": "D:\\Projects\\the-agent-maker\\src\\cross_phase\\monitoring\\wandb_integration.py",
+      "id": "god_object_WandBIntegration_wandb_integration",
+      "line_number": 35,
+      "rule_id": "GOD_OBJECT_METHODS",
+      "severity": "high",
+      "type": "CoA",
+      "weight": 4.0
+    },
+    {
+      "description": "God Object detected: Class 'ModelRegistry' has 19 methods (threshold: 15)",
+      "file_path": "D:\\Projects\\the-agent-maker\\src\\cross_phase\\storage\\model_registry.py",
+      "id": "god_object_ModelRegistry_model_registry",
+      "line_number": 15,
+      "rule_id": "GOD_OBJECT_METHODS",
+      "severity": "high",
+      "type": "CoA",
+      "weight": 4.0
+    },
+    {
+      "description": "God Object detected: Class 'QualityValidator' has 21 methods (threshold: 15)",
+      "file_path": "D:\\Projects\\the-agent-maker\\src\\cross_phase\\validation\\quality_validator.py",
+      "id": "god_object_QualityValidator_quality_validator",
+      "line_number": 297,
+      "rule_id": "GOD_OBJECT_METHODS",
+      "severity": "high",
+      "type": "CoA",
+      "weight": 4.0
+    },
+    {
+      "description": "God Object detected: Class 'TestPhase3QuietSTaRE2E' has 16 methods (threshold: 15)",
+      "file_path": "D:\\Projects\\the-agent-maker\\tests\\e2e\\test_e2e_phase3_quietstar.py",
+      "id": "god_object_TestPhase3QuietSTaRE2E_test_e2e_phase3_quietstar",
+      "line_number": 20,
+      "rule_id": "GOD_OBJECT_METHODS",
+      "severity": "high",
+      "type": "CoA",
+      "weight": 4.0
+    },
+    {
+      "description": "God Object detected: Class 'TestPhase4BitNetE2E' has 20 methods (threshold: 15)",
+      "file_path": "D:\\Projects\\the-agent-maker\\tests\\e2e\\test_e2e_phase4_bitnet.py",
+      "id": "god_object_TestPhase4BitNetE2E_test_e2e_phase4_bitnet",
+      "line_number": 20,
+      "rule_id": "GOD_OBJECT_METHODS",
+      "severity": "high",
+      "type": "CoA",
+      "weight": 4.0
+    },
+    {
+      "description": "God Object detected: Class 'TestPhase6BakingE2E' has 16 methods (threshold: 15)",
+      "file_path": "D:\\Projects\\the-agent-maker\\tests\\e2e\\test_e2e_phase6_baking.py",
+      "id": "god_object_TestPhase6BakingE2E_test_e2e_phase6_baking",
+      "line_number": 10,
+      "rule_id": "GOD_OBJECT_METHODS",
+      "severity": "high",
+      "type": "CoA",
+      "weight": 4.0
+    },
+    {
+      "description": "God Object detected: Class 'TestPhase7ExpertsE2E' has 18 methods (threshold: 15)",
+      "file_path": "D:\\Projects\\the-agent-maker\\tests\\e2e\\test_e2e_phase7_experts.py",
+      "id": "god_object_TestPhase7ExpertsE2E_test_e2e_phase7_experts",
+      "line_number": 10,
+      "rule_id": "GOD_OBJECT_METHODS",
+      "severity": "high",
+      "type": "CoA",
+      "weight": 4.0
+    },
+    {
+      "description": "God Object detected: Class 'TestPhase8CompressionE2E' has 19 methods (threshold: 15)",
+      "file_path": "D:\\Projects\\the-agent-maker\\tests\\e2e\\test_e2e_phase8_compression.py",
+      "id": "god_object_TestPhase8CompressionE2E_test_e2e_phase8_compression",
+      "line_number": 10,
+      "rule_id": "GOD_OBJECT_METHODS",
+      "severity": "high",
+      "type": "CoA",
+      "weight": 4.0
+    },
+    {
+      "description": "God Object detected: Class 'TestCompressedModel' has 18 methods (threshold: 15)",
+      "file_path": "D:\\Projects\\the-agent-maker\\tests\\unit\\test_bitnet_compression.py",
+      "id": "god_object_TestCompressedModel_test_bitnet_compression",
+      "line_number": 32,
+      "rule_id": "GOD_OBJECT_METHODS",
+      "severity": "high",
+      "type": "CoA",
+      "weight": 4.0
+    },
+    {
+      "description": "God Object detected: Class 'TestThinkingVocabulary' has 25 methods (threshold: 15)",
+      "file_path": "D:\\Projects\\the-agent-maker\\tests\\unit\\test_phase3_vocabulary.py",
+      "id": "god_object_TestThinkingVocabulary_test_phase3_vocabulary",
+      "line_number": 67,
+      "rule_id": "GOD_OBJECT_METHODS",
+      "severity": "high",
+      "type": "CoA",
+      "weight": 4.0
+    }
+  ]
+}
