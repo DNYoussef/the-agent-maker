@@ -27,6 +27,8 @@ References:
     - GitHub: https://github.com/globalMOO/gmoo-sdk-suite
 """
 
+from __future__ import annotations
+
 import os
 import json
 import time
