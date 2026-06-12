@@ -1,0 +1,69 @@
+{
+  "provenance": "Float shadow of Lean theorems bgTransform_contracts/abs_bgTransform/bgTransform_fixed, kOf_strictAntiOn/kOf_mem_Icc, bgDerivMul_powFlow, f007_classical/f007_geometric/f007_bigeometric, signSqrtChart (gcc-lean-lab v0.1.0+); floats are not the proofs",
+  "generator": "lake exe gccvectors (GccLeanLab/VectorGen.lean)",
+  "bg_transform": [
+    {"k": 0.050000, "g": -4.000000, "expected": -1.148698},
+    {"k": 0.050000, "g": -1.000000, "expected": -1.000000},
+    {"k": 0.050000, "g": -0.001000, "expected": -0.501187},
+    {"k": 0.050000, "g": 0.001000, "expected": 0.501187},
+    {"k": 0.050000, "g": 1.000000, "expected": 1.000000},
+    {"k": 0.050000, "g": 9.000000, "expected": 1.245731},
+    {"k": 0.159300, "g": -4.000000, "expected": -1.555308},
+    {"k": 0.159300, "g": -1.000000, "expected": -1.000000},
+    {"k": 0.159300, "g": -0.001000, "expected": -0.110713},
+    {"k": 0.159300, "g": 0.001000, "expected": 0.110713},
+    {"k": 0.159300, "g": 1.000000, "expected": 1.000000},
+    {"k": 0.159300, "g": 9.000000, "expected": 2.013825},
+    {"k": 0.300000, "g": -4.000000, "expected": -2.297397},
+    {"k": 0.300000, "g": -1.000000, "expected": -1.000000},
+    {"k": 0.300000, "g": -0.001000, "expected": -0.015849},
+    {"k": 0.300000, "g": 0.001000, "expected": 0.015849},
+    {"k": 0.300000, "g": 1.000000, "expected": 1.000000},
+    {"k": 0.300000, "g": 9.000000, "expected": 3.737193},
+    {"k": 0.490000, "g": -4.000000, "expected": -3.890620},
+    {"k": 0.490000, "g": -1.000000, "expected": -1.000000},
+    {"k": 0.490000, "g": -0.001000, "expected": -0.001148},
+    {"k": 0.490000, "g": 0.001000, "expected": 0.001148},
+    {"k": 0.490000, "g": 1.000000, "expected": 1.000000},
+    {"k": 0.490000, "g": 9.000000, "expected": 8.613064}
+  ],
+  "power_law_D_BG": [
+    {"n": -2.000000, "expected_D_BG": 0.135335},
+    {"n": -1.000000, "expected_D_BG": 0.367879},
+    {"n": 0.500000, "expected_D_BG": 1.648721},
+    {"n": 1.000000, "expected_D_BG": 2.718282},
+    {"n": 3.000000, "expected_D_BG": 20.085537}
+  ],
+  "k_of_L": [
+    {"L": 1.000000, "expected_k": 0.159300},
+    {"L": 10.000000, "expected_k": 0.145600},
+    {"L": 100.000000, "expected_k": 0.131900},
+    {"L": 10000.000000, "expected_k": 0.104500},
+    {"L": 1000000.000000, "expected_k": 0.077100}
+  ],
+  "sign_sqrt": [
+    {"x": -10000.000000, "expected": -100.000000, "round_trip": -10000.000000},
+    {"x": -7.000000, "expected": -2.645751, "round_trip": -7.000000},
+    {"x": -1.000000, "expected": -1.000000, "round_trip": -1.000000},
+    {"x": -0.250000, "expected": -0.500000, "round_trip": -0.250000},
+    {"x": 0.000000, "expected": 0.000000, "round_trip": 0.000000},
+    {"x": 0.250000, "expected": 0.500000, "round_trip": 0.250000},
+    {"x": 1.000000, "expected": 1.000000, "round_trip": 1.000000},
+    {"x": 7.000000, "expected": 2.645751, "round_trip": 7.000000},
+    {"x": 10000.000000, "expected": 100.000000, "round_trip": 10000.000000}
+  ],
+  "f007": [
+    {"family": "classical_t_squared", "a": 0.500000, "expected": 1.000000},
+    {"family": "classical_t_squared", "a": 1.000000, "expected": 2.000000},
+    {"family": "classical_t_squared", "a": 2.000000, "expected": 4.000000},
+    {"family": "classical_t_squared", "a": 3.000000, "expected": 6.000000},
+    {"family": "geometric_exp2t", "a": 0.500000, "expected": 2.000000},
+    {"family": "geometric_exp2t", "a": 1.000000, "expected": 2.000000},
+    {"family": "geometric_exp2t", "a": 2.000000, "expected": 2.000000},
+    {"family": "geometric_exp2t", "a": 3.000000, "expected": 2.000000},
+    {"family": "bigeometric_t_cubed", "a": 0.500000, "expected": 3.000000},
+    {"family": "bigeometric_t_cubed", "a": 1.000000, "expected": 3.000000},
+    {"family": "bigeometric_t_cubed", "a": 2.000000, "expected": 3.000000},
+    {"family": "bigeometric_t_cubed", "a": 3.000000, "expected": 3.000000}
+  ]
+}
