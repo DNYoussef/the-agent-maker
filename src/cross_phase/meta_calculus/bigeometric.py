@@ -15,11 +15,16 @@ Mathematical Definition:
     D_BG[f](x) = exp(x * f'(x) / f(x))
 
 For gradient transformation:
-    g_meta = g * |g|^(2k-1)
+    g_meta = g * |g|^(2k-1)   so   |g_meta| = |g|^(2k)
 
-    When k > 0.5: dampens large gradients
-    When k < 0.5: amplifies small gradients
-    When k = 0.5: identity (classical)
+    For 0 < k < 0.5: contracts large gradients (|g| > 1) and lifts small
+    ones toward unit scale - the anti-explosion regime used in practice
+    (k(L) lands around 0.07-0.16). k = 0.5 is the identity. k > 0.5
+    re-amplifies large gradients (explosion returns); k <= 0 stops
+    vanishing as g -> 0 (noise floor amplification). The safe window is
+    (0, 0.5]; formal statements: gcc-lean-lab theorems
+    bgTransform_contracts, bgTransform_amplifies_of_k_le_zero,
+    bgTransform_expands_of_half_lt_k (GccLeanLab/MetaCalculus.lean).
 
 Applications in Agent Forge:
     - MuGrokFast gradient stabilization
@@ -27,12 +32,31 @@ Applications in Agent Forge:
     - Loss scaling for training stability
 """
 
+import warnings
+
 import torch
 import numpy as np
 from typing import Union, Optional, Tuple
 from dataclasses import dataclass
 
 from .k_formula import compute_k, k_from_gradient, KFormulaConfig
+
+_K_CLAMP_WARNED = False
+
+
+def _warn_k_clamped(k_seen: float, k_min: float, k_max: float) -> None:
+    """Warn once per process when an explicit k falls outside the safe window."""
+    global _K_CLAMP_WARNED
+    if _K_CLAMP_WARNED:
+        return
+    _K_CLAMP_WARNED = True
+    warnings.warn(
+        f"BigeometricTransform received k={k_seen:.4g} outside the safe window "
+        f"[{k_min}, {k_max}] and clamped it. k <= 0 amplifies the noise floor; "
+        f"k > 0.5 re-enables gradient explosion (see module docstring). "
+        f"Set BigeometricConfig(clamp_k=False) only for research sweeps.",
+        stacklevel=3,
+    )
 
 
 @dataclass
@@ -43,9 +67,15 @@ class BigeometricConfig:
     eps: float = 1e-8
     max_magnitude: float = 1e6  # Prevent overflow
 
-    # k parameter bounds
-    k_min: float = 0.0
-    k_max: float = 1.0
+    # k guardrail: the mathematically safe window for g * |g|^(2k-1) is
+    # (0, 0.5] (see module docstring). Bounds apply to EXPLICIT k passed to
+    # transform(); the adaptive path is additionally clamped by
+    # KFormulaConfig. k_min sits below every production k(L) value
+    # (~0.07-0.16) but excludes the k <= 0 pathology.
+    k_min: float = 0.05
+    k_max: float = 0.5
+    clamp_k: bool = True
+    warn_on_clamp: bool = True
 
     # Adaptive k settings
     use_adaptive_k: bool = True
@@ -91,6 +121,16 @@ class BigeometricTransform:
         # Ensure k is a tensor for computation
         if not isinstance(k, torch.Tensor):
             k = torch.tensor(k, device=grad.device, dtype=grad.dtype)
+
+        # Guardrail: keep k inside the safe window (0, 0.5] unless the
+        # caller explicitly opts out for research sweeps.
+        if self.config.clamp_k:
+            k_clamped = k.clamp(min=self.config.k_min, max=self.config.k_max)
+            if self.config.warn_on_clamp and bool((k_clamped != k).any()):
+                _warn_k_clamped(
+                    float(k.min()), self.config.k_min, self.config.k_max
+                )
+            k = k_clamped
 
         # Compute bigeometric transform
         abs_grad = torch.abs(grad).clamp(min=self.config.eps)
