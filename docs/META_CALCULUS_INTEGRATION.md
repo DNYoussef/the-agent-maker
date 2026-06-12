@@ -138,6 +138,21 @@ assert diversity["satisfies_bound"], "Merge collapsed spectral gap!"
 3. Weight norm (minimize)
 4. Invariance score (maximize)
 5. Fragility (minimize)
+6. Description length (minimize) - two-part MDL model bits
+
+**MDL objective (added 2026-06-11, plan P2)**: `description_length` carries
+the model-bits half of a two-part MDL code (`description_length_bits` in
+`moo_bridge.py`); perplexity/task-loss is already the data half, so the two
+are never combined into one number inside the objective. The exchange rate
+between bits and perplexity is therefore a *selection-time* regime choice:
+it lives in the `preference` weights passed to `select_from_pareto`, which
+now logs every selection (`pareto-select: ...`) so the choice is auditable.
+`weight_norm` remains as an objective but `description_length` supersedes it
+for size-vs-quality selection. Evaluators may supply their own measured
+`description_length`; otherwise a proxy is computed from the merge recipe
+(EvoMerge) or `n_experts * svf_rank * z_dim` (Expert Discovery). Disable
+with `include_mdl=False` for fixed-architecture sweeps where model bits are
+constant.
 
 ---
 

@@ -14,10 +14,15 @@ Key Features:
     - Pareto front analysis utilities
 """
 
+import logging
+import math
+
 import numpy as np
 from typing import Dict, List, Callable, Optional, Tuple, Any
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
+
+logger = logging.getLogger(__name__)
 
 try:
     from pymoo.core.problem import Problem
@@ -73,9 +78,63 @@ class ObjectiveDefinition:
     description: str = ""
 
 
+def description_length_bits(
+    *,
+    active_components: int,
+    total_components: int,
+    param_count: float,
+    residual_nll_bits: Optional[float] = None,
+) -> float:
+    """Two-part MDL score in bits: L(model) + L(data | model).
+
+    L(model): log2 C(total, active) for the support choice, plus
+              active * log2(param_count) as the pointer/precision proxy.
+    L(data):  residual_nll_bits when the caller supplies it. Defaults to
+              0.0 because perplexity (negative log-likelihood) is already a
+              SEPARATE objective in every predefined set - passing it here
+              too would double count the data term.
+
+    Refs: Rissanen 1978; Grunwald, The MDL Principle, ch. 5 (two-part codes).
+
+    Args:
+        active_components: components actually used (weight above threshold,
+            experts selected, ...). Clamped to total_components.
+        total_components: size of the component pool. Must be >= 1.
+        param_count: parameter-count proxy for pointer precision. Values
+            below 1 are treated as 1 (zero pointer bits).
+        residual_nll_bits: optional explicit data term in bits.
+
+    Returns:
+        Description length in bits (always finite, >= 0).
+    """
+    if total_components < 1:
+        raise ValueError(f"total_components must be >= 1, got {total_components}")
+    if active_components < 0:
+        raise ValueError(f"active_components must be >= 0, got {active_components}")
+
+    active = min(active_components, total_components)
+    log_binom = (
+        math.lgamma(total_components + 1)
+        - math.lgamma(active + 1)
+        - math.lgamma(total_components - active + 1)
+    ) / math.log(2)
+    pointer_bits = active * math.log2(max(param_count, 1.0))
+    data_bits = residual_nll_bits if residual_nll_bits is not None else 0.0
+    return log_binom + pointer_bits + data_bits
+
+
 # =============================================================================
 # Pre-defined Objective Sets for Agent Forge Phases
 # =============================================================================
+
+MDL_OBJECTIVE = ObjectiveDefinition(
+    name="description_length",
+    minimize=True,
+    description=(
+        "Two-part MDL model bits (lower is better). The data half of MDL is "
+        "the perplexity/task-loss objective; do not double count."
+    ),
+)
 
 EVOMERGE_OBJECTIVES = [
     ObjectiveDefinition(
@@ -103,6 +162,7 @@ EVOMERGE_OBJECTIVES = [
         minimize=True,
         description="Perturbation sensitivity (lower is better)"
     ),
+    MDL_OBJECTIVE,
 ]
 
 EXPERT_DISCOVERY_OBJECTIVES = [
@@ -131,6 +191,7 @@ EXPERT_DISCOVERY_OBJECTIVES = [
         minimize=False,
         description="Cross-seed variance (inverse)"
     ),
+    MDL_OBJECTIVE,
 ]
 
 COMPRESSION_OBJECTIVES = [
@@ -302,7 +363,8 @@ class EvoMergeProblem(AgentForgeMOOProblem):
         self,
         n_layers: int,
         n_techniques: int = 6,
-        model_evaluator: Optional[Callable] = None
+        model_evaluator: Optional[Callable] = None,
+        include_mdl: bool = True
     ):
         """
         Initialize EvoMerge problem.
@@ -311,10 +373,14 @@ class EvoMergeProblem(AgentForgeMOOProblem):
             n_layers: Number of model layers
             n_techniques: Number of merge techniques (default 6)
             model_evaluator: Function to evaluate merged model
+            include_mdl: Include the description_length objective. Disable
+                for fixed-architecture sweeps where model bits are constant
+                and the objective would waste an NSGA-II dimension.
         """
         self.n_layers = n_layers
         self.n_techniques = n_techniques
         self.model_evaluator = model_evaluator
+        self.include_mdl = include_mdl
 
         # Decision variables: layer ratios + technique weights
         n_var = n_layers + n_techniques
@@ -323,9 +389,13 @@ class EvoMergeProblem(AgentForgeMOOProblem):
         xl = np.zeros(n_var)
         xu = np.ones(n_var)
 
+        objectives = EVOMERGE_OBJECTIVES if include_mdl else [
+            obj for obj in EVOMERGE_OBJECTIVES if obj.name != "description_length"
+        ]
+
         super().__init__(
             n_var=n_var,
-            objectives=EVOMERGE_OBJECTIVES,
+            objectives=objectives,
             xl=xl,
             xu=xu
         )
@@ -349,6 +419,17 @@ class EvoMergeProblem(AgentForgeMOOProblem):
                 F[i, 2] = results.get("weight_norm", 0)
                 F[i, 3] = results.get("invariance_score", 0)
                 F[i, 4] = results.get("fragility", 0)
+                if self.include_mdl:
+                    # Evaluators may supply their own description_length;
+                    # otherwise compute model bits from the merge recipe.
+                    F[i, 5] = results.get(
+                        "description_length",
+                        description_length_bits(
+                            active_components=int((technique_weights > 1e-3).sum()),
+                            total_components=self.n_techniques,
+                            param_count=float(results.get("param_count", 1e8)),
+                        ),
+                    )
             else:
                 raise RuntimeError("EvoMergeProblem requires a model_evaluator; synthetic random objectives are disabled")
 
@@ -367,14 +448,21 @@ class ExpertDiscoveryProblem(AgentForgeMOOProblem):
         - z_dim: Z-vector dimension [8, 128]
     """
 
-    def __init__(self, expert_evaluator: Optional[Callable] = None):
+    def __init__(
+        self,
+        expert_evaluator: Optional[Callable] = None,
+        include_mdl: bool = True
+    ):
         """
         Initialize expert discovery problem.
 
         Args:
             expert_evaluator: Function to evaluate expert configuration
+            include_mdl: Include the description_length objective. Disable
+                for fixed-architecture sweeps where model bits are constant.
         """
         self.expert_evaluator = expert_evaluator
+        self.include_mdl = include_mdl
 
         # Decision variables
         n_var = 5
@@ -382,10 +470,15 @@ class ExpertDiscoveryProblem(AgentForgeMOOProblem):
         # Bounds [n_experts, sparsity, router_temp, svf_rank, z_dim]
         xl = np.array([3, 0.0, 0.1, 4, 8])
         xu = np.array([10, 1.0, 10.0, 64, 128])
+        self._max_experts = int(xu[0])
+
+        objectives = EXPERT_DISCOVERY_OBJECTIVES if include_mdl else [
+            obj for obj in EXPERT_DISCOVERY_OBJECTIVES if obj.name != "description_length"
+        ]
 
         super().__init__(
             n_var=n_var,
-            objectives=EXPERT_DISCOVERY_OBJECTIVES,
+            objectives=objectives,
             xl=xl,
             xu=xu
         )
@@ -411,6 +504,15 @@ class ExpertDiscoveryProblem(AgentForgeMOOProblem):
                 F[i, 2] = results.get("routing_entropy", 0)
                 F[i, 3] = results.get("compute_cost", 0)
                 F[i, 4] = results.get("robustness", 0)
+                if self.include_mdl:
+                    F[i, 5] = results.get(
+                        "description_length",
+                        description_length_bits(
+                            active_components=n_experts,
+                            total_components=self._max_experts,
+                            param_count=float(max(1, n_experts * svf_rank * z_dim)),
+                        ),
+                    )
             else:
                 raise RuntimeError("ExpertDiscoveryProblem requires an expert_evaluator; synthetic random objectives are disabled")
 
@@ -537,6 +639,13 @@ def select_from_pareto(
 
     else:
         raise ValueError(f"Unknown selection method: {method}")
+
+    # Governance: which point the frontier collapsed to, and under which
+    # weights, is a regime choice that must be auditable after the fact.
+    logger.info(
+        "pareto-select: method=%s idx=%d front_size=%d preference=%s",
+        method, best_idx, len(F), preference,
+    )
 
     return X[best_idx], F[best_idx]
 
