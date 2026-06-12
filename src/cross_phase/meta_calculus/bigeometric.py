@@ -44,16 +44,25 @@ from .k_formula import compute_k, k_from_gradient, KFormulaConfig
 _K_CLAMP_WARNED = False
 
 
-def _warn_k_clamped(k_seen: float, k_min: float, k_max: float) -> None:
-    """Warn once per process when an explicit k falls outside the safe window."""
+def _warn_k_clamped(k_lo: float, k_hi: float, k_min: float, k_max: float) -> None:
+    """Warn once per process when an explicit k falls outside the safe window.
+
+    Once-per-PROCESS by design: this is a canary that a misconfiguration
+    exists, not an event log - a training run with a bad k would otherwise
+    emit one warning per optimizer step. Consequence: in multi-config
+    processes only the first offending config warns; read the k range in
+    the message (it reports the full observed [min, max], which for tensor
+    k may include in-range elements alongside the offenders).
+    """
     global _K_CLAMP_WARNED
     if _K_CLAMP_WARNED:
         return
     _K_CLAMP_WARNED = True
     warnings.warn(
-        f"BigeometricTransform received k={k_seen:.4g} outside the safe window "
-        f"[{k_min}, {k_max}] and clamped it. k <= 0 amplifies the noise floor; "
-        f"k > 0.5 re-enables gradient explosion (see module docstring). "
+        f"BigeometricTransform received k values in [{k_lo:.4g}, {k_hi:.4g}], "
+        f"outside the safe window [{k_min}, {k_max}]; offending elements were "
+        f"clamped. k <= 0 amplifies the noise floor; k > 0.5 re-enables "
+        f"gradient explosion (see module docstring). "
         f"Set BigeometricConfig(clamp_k=False) only for research sweeps.",
         stacklevel=3,
     )
@@ -128,7 +137,8 @@ class BigeometricTransform:
             k_clamped = k.clamp(min=self.config.k_min, max=self.config.k_max)
             if self.config.warn_on_clamp and bool((k_clamped != k).any()):
                 _warn_k_clamped(
-                    float(k.min()), self.config.k_min, self.config.k_max
+                    float(k.min()), float(k.max()),
+                    self.config.k_min, self.config.k_max,
                 )
             k = k_clamped
 

@@ -67,9 +67,14 @@ class MOOConfig:
     save_history: bool = True
 
 
-@dataclass
+@dataclass(frozen=True)
 class ObjectiveDefinition:
-    """Definition of a single optimization objective."""
+    """Definition of a single optimization objective.
+
+    Frozen: instances are shared across objective tables (MDL_OBJECTIVE
+    appears in both EVOMERGE and EXPERT_DISCOVERY lists), so mutation would
+    alias across problems. Use dataclasses.replace() to derive variants.
+    """
 
     name: str
     minimize: bool = True  # False for maximize
@@ -422,6 +427,12 @@ class EvoMergeProblem(AgentForgeMOOProblem):
                 if self.include_mdl:
                     # Evaluators may supply their own description_length;
                     # otherwise compute model bits from the merge recipe.
+                    # The 1e-3 activity threshold applies to NORMALIZED
+                    # weights deliberately: that is the recipe actually
+                    # applied, and a component contributing <0.1% of the
+                    # merge carries no description-worthy information.
+                    # (With include_mdl=False, an evaluator-supplied
+                    # description_length key is ignored - you opted out.)
                     F[i, 5] = results.get(
                         "description_length",
                         description_length_bits(
