@@ -1,9 +1,9 @@
 # FORK STATUS: meta_calculus vs meta-calculus-toolkit
 
-**Date**: 2026-06-12 (plan P6)
+**Date**: 2026-06-12 (plan P6; corrections sync same evening)
 **Upstream**: `C:\Users\17175\Desktop\meta-calculus-toolkit` (GitHub:
 DNYoussef/meta-calculus-portfolio), certified against upstream commit
-`80bdc58`.
+`3678210`.
 **Downstream**: `src/cross_phase/meta_calculus/` (this repo), created
 Dec 2025 as an ML-focused ADAPTATION.
 
@@ -39,3 +39,34 @@ EXPECTED_SHA256 in both consumers together). ML-specific adaptation
 (optimizer wiring, phase configs, guardrails, MDL) is owned here and needs
 no upstream mirror. When touching shared semantics, update this file's
 certified-against commit.
+
+## Upstream corrections sync (2026-06-12 evening, toolkit fleet sweep)
+
+The toolkit ran every simulation + test and shipped corrections (its
+`docs/HONEST-STATUS.md`, commits `88269ec`..`3678210`). Audit of this
+module against each:
+
+- **RETRACTED upstream: "Bigeometric achieves 2nd order convergence."**
+  The old scheme was central difference in disguise (converting D_BG back
+  to an additive derivative reproduces u' exactly); meta-k schemes measure
+  ~0.84-0.95 (first-order-like). Fork impact: NONE in code -
+  `BigeometricTransform` here is a gradient transform pinned to the Lean
+  `bgTransform` vectors, not an advection scheme. Wording rule: never cite
+  bigeometric convergence order as a feature.
+- **Shu-Osher corrected**: upstream `cfd_nnc_comprehensive` silently
+  reported NaN (forward-Euler + MUSCL instability); fixed with SSP-RK2,
+  NNC limiter now measures 9.7% over superbee (Sod a tie). Fork impact:
+  none (no CFD claims here).
+- **`BigeometricDerivative` scalar-shape crash fixed upstream** (boolean
+  indexing assumed vectorized f). Fork impact: none - `bigeometric.py`
+  here was audited and has no such pattern.
+- **GlobalMOO wiring**: upstream's `ObjectiveType.PERCENT`-toward-zero was
+  degenerate; with native MINIMIZE the equal-budget baseline inverted
+  (GlobalMOO 99.42% better chi2 than pymoo at 200 evals/seed 20260612).
+  Fork impact: none - `moo_bridge.py` is pymoo-only, no GlobalMOO SDK
+  wiring to mis-wire.
+- **12-sim master suite disclosed as illustrative** (sim 1 hardcodes the
+  k*=0.14 it reports; five sims hardcode accuracy numbers) and **vacuum
+  suppression fails its own physics targets**. Fork impact: do not cite
+  `run_all_simulations.py` outputs as evidence; cite the dedicated
+  verification scripts per HONEST-STATUS.

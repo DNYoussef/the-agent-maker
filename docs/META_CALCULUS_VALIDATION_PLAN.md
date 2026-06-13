@@ -62,8 +62,26 @@ Toolkit (from its own `HONEST-STATUS.md` plus the audit):
 
 the-agent-maker module (unchanged from v1 of this plan):
 - G5. Landmines: pymoo hidden hard-dep, no k-range guardrail, GlobalMOO
-  stubs, unlogged scalarization weights.
-- G6. No MDL term in MOO objectives; only recovery tests.
+  stubs, unlogged scalarization weights. [CLOSED 2026-06-12, commits
+  c4f0922/8eafb07]
+- G6. No MDL term in MOO objectives; only recovery tests. [CLOSED
+  2026-06-12, commit 8eafb07]
+
+Toolkit operator core (NEW - inline math audit 2026-06-12, full detail in
+`meta-calculus-toolkit/docs/AUDIT-2026-06-12.md`, findings A1-A9):
+- G7. CRITICAL: `Sqrt` generator is not a bijection (x -> sqrt|x| vs
+  inverse y^2; round trip silently wrong for x < 0; derivative sign wrong
+  for x < 0). Violates the Czachor bijection axiom the whole system rests
+  on - and is exactly the object the Lean `Chart := Equiv` layer makes
+  unconstructible.
+- G8. Systemic sign-flipping epsilon guards (~8 sites): small negative
+  values replaced by +epsilon, flipping downstream quotient signs.
+- G9. Inconsistent overflow policy: GeometricDerivative clips
+  unconditionally at exp(+-50) while BigeometricDerivative deliberately
+  defaults to no clipping; plus Richardson extrapolation pairs wrong step
+  ratios after NaN filtering; weighted chain_rule double-counts u/v; the
+  "Mathematical Basis" docstring describes the conjugated operator, not
+  the implemented differential form.
 
 ---
 
@@ -116,6 +134,13 @@ P1+P2 -->+--> P6 fork-collapse / sync policy (1d)        [toolkit + agent-maker]
 Out of scope (explicit): GlobalMOO cloud client; new physics mechanisms for
 k(L) (research, not engineering); H0-tension work; GPU pipeline runs;
 portfolio-site redesign.
+
+Deferred (blocked by account spend limit as of 2026-06-12, tracked as task
+#8): the remaining audit lenses - bug/efficiency scan of cli.py +
+simulations + scheme_validator, results-reproducibility audit of the 8
+headline claims, portfolio-site design review. Relaunch the three agent
+prompts from the 2026-06-12 session when the limit is raised; their findings
+slot into P4 (code/results) and a new P7 (site) on arrival.
 
 ---
 
@@ -267,6 +292,24 @@ Concrete instantiations in `Tests.lean` (`bgDeriv_powFlow` at n=3;
 `f007_classical` on a polynomial; `bgTransform 0.3 (-4)` by `norm_num`).
 THEOREM_MAP gains a "toolkit concept -> theorem" column entry per new item.
 
+### 3.6 The audit's tombstone: signSqrtChart (NEW, from finding A1)
+
+The toolkit's broken `Sqrt` generator (audit A1) is unconstructible in the
+lab because `Chart := Equiv` demands proved round trips. Make that concrete:
+define the CORRECTED odd square root as an honest chart -
+
+```
+def signSqrt (x : Real) : Real := Real.sign x * Real.sqrt |x|   -- or via cases
+def signSqrtChart : Chart Real Real := { toFun := signSqrt, invFun := fun y => Real.sign y * y^2, ... }
+```
+
+with the two round-trip proofs (case split on sign; `Real.sqrt_sq`,
+`Real.sq_sqrt`, `abs_of_nonneg/abs_of_neg`). The proof obligations that Lean
+forces here are exactly the ones the Python `Sqrt` silently failed. Cite
+`signSqrtChart` in the P4.4 fix's docstring. If `Real.sign` API is awkward,
+define piecewise via `if 0 <= x then sqrt x else -sqrt (-x)` and prove with
+`split_ifs`.
+
 ### Exit criteria
 - `lake build` green, zero sorry, every theorem witnessed, THEOREM_MAP
   updated. Deliberate-break: flip an exponent in a witness example, watch it
@@ -341,7 +384,60 @@ HONEST-STATUS already admits all affine features fit equally well. Encode it:
     from the published formula (this is the bridge's premise, tested before
     the bridge exists).
 
-### 4.4 PyCBC MVE follow-through (smallest honest increment)
+### 4.4 Operator-defect remediation (AUDIT-2026-06-12, findings A1-A9)
+
+Fixes in `meta_calculus/core/` plus the property tests that make each defect
+class unrepresentable again. Full finding detail:
+`docs/AUDIT-2026-06-12.md` (same repo).
+
+1. **A1 Sqrt bijection (CRITICAL)** - `core/generators.py:256-275`. Replace
+   with the odd bijection `signSqrt(x) = sign(x) * sqrt|x|`, inverse
+   `sign(y) * y^2`, derivative `0.5 / sqrt|x|` (correct for both signs,
+   x != 0); raise DomainError at x = 0 or document the epsilon behavior.
+   R3 pre-grep: find all `Sqrt(` constructions in simulations/tests and
+   confirm none relied on the absolute-value behavior.
+   TEST (the permanent guard): a round-trip PROPERTY test over EVERY
+   generator in the registry - for x in a mixed-sign, mixed-magnitude grid,
+   `g.inverse(g(x)) ~ x` (rtol 1e-9) or a documented domain error.
+   "Fails if: any present or future generator ships without an actual
+   inverse" - the A1 class, killed permanently. Mirror witness in Lean
+   (P3.6): `signSqrtChart : Chart Real Real` proves the corrected version
+   IS an equivalence.
+2. **A2 sign-flip epsilon guards (HIGH)** - `core/derivatives.py:121,
+   480-483, 706-707`, `core/generators.py:244, 249`, `composite.py:152,
+   197`. Replace with `np.where(np.abs(v) < eps, np.copysign(eps, v), v)`.
+   TEST: sign-preservation - a function crossing zero from below must not
+   produce a positive guarded quotient at any site.
+3. **A3 GeometricDerivative unconditional clip (HIGH)** -
+   `core/derivatives.py:126-127`. Change `MAX_RATIO=50` to constructor
+   param `max_ratio: Optional[float] = None`, matching
+   BigeometricDerivative's honest default.
+   TEST: identity preservation `D_G[e^(kx)] = e^k` for k in {1, 10, 60} -
+   the k=60 case fails under the old clip.
+4. **A4 Richardson wrong-ratio pairing (MEDIUM)** -
+   `core/derivatives.py:716-720`. Keep (step, value) pairs; extrapolate
+   only adjacent valid pairs, or use ratio-aware weights
+   `(r^2 * D_small - D_large) / (r^2 - 1)`. Fix the backwards docstring
+   (line 736) and the "two smallest" comment (line 719).
+   TEST: force NaN at h/2, assert the result still has central-difference
+   accuracy on x^3 (catches the silent 4/3-on-ratio-4 blend).
+5. **A5 weighted chain_rule double-count (MEDIUM)** -
+   `core/derivatives.py:587-607`. Assert unity weights (raise otherwise)
+   and document, or implement the correct weighted composition.
+6. **A6 Mathematical Basis docstring (MEDIUM)** -
+   `core/derivatives.py:413-419`. Rewrite to derive the differential form;
+   cite gcc-lean-lab `f007_classical/f007_geometric/f007_bigeometric` as
+   the pinned semantics (they compiled against exactly the line-487
+   formula).
+7. **A7-A9 (LOW)** - AdaptiveMetaDerivative accepts+forwards `method`;
+   `frw_scheme_robustness.py:600` bare except -> `except Exception`;
+   rename/document the `stability` metric in `compare_derivative_methods`.
+
+Exit addition: deliberate-break for item 1 (restore the old Sqrt, watch the
+round-trip property test fail) and item 2 (revert one copysign, watch the
+sign-preservation test fail).
+
+### 4.5 PyCBC MVE follow-through (smallest honest increment)
 
 `run_pycbc_mve.py` exists; `pycbc_mve_results.json` is sparse (24 KB).
 Do NOT plan a LIGO research program here (out of scope). One increment:
@@ -365,9 +461,12 @@ consume.
 
 1. `gcc-lean-lab/GccLeanLab/VectorGen.lean` + `lean_exe gccvectors`:
    deterministic JSON to stdout - `bgTransform` grid, `bgDerivMul` power-law
-   expectations (`exp n`), `kOf` affine table, AND (new) F007 specialization
+   expectations (`exp n`), `kOf` affine table, (new) F007 specialization
    triples (function id, point, expected classical/geometric/bigeometric
-   values). Header: `"provenance": "Float shadow of Lean theorems <names>; floats are not the proofs"`.
+   values), AND (audit A1) generator round-trip vectors: (x, signSqrt x)
+   pairs over a mixed-sign grid so the toolkit's corrected Sqrt is pinned to
+   the chart-certified values from P3.6.
+   Header: `"provenance": "Float shadow of Lean theorems <names>; floats are not the proofs"`.
 2. Vendor `golden_vectors.json` into:
    - `meta-calculus-toolkit/tests/data/golden_vectors.json` -> consumed by
      `tests/test_golden_vectors.py` exercising `core/derivatives.py`
