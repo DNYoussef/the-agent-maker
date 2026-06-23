@@ -7,11 +7,7 @@ from pathlib import Path
 
 def test_pipeline_source_is_ascii():
     path = (
-        Path(__file__).resolve().parents[2]
-        / "src"
-        / "cross_phase"
-        / "orchestrator"
-        / "pipeline.py"
+        Path(__file__).resolve().parents[2] / "src" / "cross_phase" / "orchestrator" / "pipeline.py"
     )
     text = path.read_text(encoding="utf-8")
     offenders = [

@@ -9,8 +9,12 @@ from cross_phase.evaluation.evaluator import DEFAULT_TASKS, evaluate
 
 def test_evaluator_measures_correctness_not_noise():
     answers = {t.prompt: t.answer for t in DEFAULT_TASKS}
-    oracle = lambda model, tok, prompt, n: answers[prompt]
-    wrong = lambda model, tok, prompt, n: "0"  # none of the answers is 0
+
+    def oracle(model, tok, prompt, n):
+        return answers[prompt]
+
+    def wrong(model, tok, prompt, n):
+        return "0"  # none of the answers is 0
 
     # discriminates: oracle scores perfect, a wrong model scores low
     assert evaluate(None, None, generate_fn=oracle) == 1.0

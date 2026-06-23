@@ -43,11 +43,7 @@ def test_compute_gae_does_not_leak_across_batch_samples():
     next_values = torch.zeros(2)
     dones = torch.zeros(2)
 
-    adv_a = REINFORCETrainer.compute_gae(
-        stub, torch.tensor([1.0, 0.0]), values, next_values, dones
-    )
-    adv_b = REINFORCETrainer.compute_gae(
-        stub, torch.tensor([1.0, 5.0]), values, next_values, dones
-    )
+    adv_a = REINFORCETrainer.compute_gae(stub, torch.tensor([1.0, 0.0]), values, next_values, dones)
+    adv_b = REINFORCETrainer.compute_gae(stub, torch.tensor([1.0, 5.0]), values, next_values, dones)
     # Only sample 1's reward changed; sample 0's advantage must be unchanged.
     assert adv_a[0].item() == adv_b[0].item(), "advantage[0] must not depend on sample 1's reward"

@@ -12,12 +12,7 @@ import torch
 
 from cross_phase.mugrokfast.optimizer import MuonGrokfast
 from phase1_cognate.model.full_model import TRMTitansMAGModel
-from phase1_cognate.model.model_config import (
-    ACTConfig,
-    Phase1Config,
-    TitansMAGConfig,
-    TRMConfig,
-)
+from phase1_cognate.model.model_config import ACTConfig, Phase1Config, TitansMAGConfig, TRMConfig
 
 
 def _tiny_config():
@@ -59,6 +54,8 @@ def test_real_training_step_reduces_loss():
         losses.append(loss.item())
 
     first, last = losses[0], losses[-1]
-    assert all(l == l for l in losses), "loss must never be NaN"
+    assert all(v == v for v in losses), "loss must never be NaN"
     # Real learning on an overfit batch: loss must fall well below the start.
-    assert last < first * 0.5, f"real training must reduce loss (first={first:.3f}, last={last:.3f})"
+    assert (
+        last < first * 0.5
+    ), f"real training must reduce loss (first={first:.3f}, last={last:.3f})"

@@ -2,8 +2,8 @@
 Fail-first: these are RED before the fix and GREEN after. Hermetic, no heavy training.
 Run: PYTHONPATH=<wt>;<wt>/src PYTHONIOENCODING=utf-8 pytest tests/wave0 -q
 """
-import torch
 import pytest
+import torch
 
 
 def test_muon_newton_schulz_non_square_no_crash():
@@ -45,18 +45,20 @@ def test_self_modeling_quick_evaluate_deepcopies_model():
     # Bug 0.4: _quick_evaluate did `model_copy = model` then trained it, corrupting
     # the real model across every Pareto candidate. Must deep-copy.
     import inspect
+
     import phase5_curriculum.self_modeling as sm
 
     src = inspect.getsource(sm)
-    assert "model_copy = model\n" not in src and "model_copy = model " not in src, (
-        "no-clone bug still present (`model_copy = model`)"
-    )
+    assert (
+        "model_copy = model\n" not in src and "model_copy = model " not in src
+    ), "no-clone bug still present (`model_copy = model`)"
     assert "copy.deepcopy(model)" in src, "expected deepcopy of the model before training"
 
 
 def test_meta_calculus_runner_has_no_undefined_name():
     # Bug 0.5: HybridMOORunner.run referenced free name `runner_config` -> NameError.
     import inspect
+
     from cross_phase.meta_calculus.moo_utils.globalmoo_adapter import HybridMOORunner
 
     run_src = inspect.getsource(HybridMOORunner.run)
@@ -88,10 +90,11 @@ def test_phase2_merge_dispatch_handles_all_operator_signatures():
     # but DARE wants (finetuned, base) and DFS/TIES/Franken want (target, refs:List)
     # -> TypeError. _merge_models dispatches by signature; verify every shape works.
     import torch.nn as nn
-    from phase2_evomerge.phase2_pipeline import Phase2Pipeline
-    from phase2_evomerge.merge.linear_merge import LinearMerge  # merge(models: List)
+
     from phase2_evomerge.merge.dare_merge import DAREMerge  # merge(finetuned, base)
+    from phase2_evomerge.merge.linear_merge import LinearMerge  # merge(models: List)
     from phase2_evomerge.merge.ties_merge import TIESMerge  # merge(target, refs: List)
+    from phase2_evomerge.phase2_pipeline import Phase2Pipeline
 
     def tiny():
         torch.manual_seed(0)
@@ -107,13 +110,14 @@ def test_phase7_adas_fail_closed_and_engine_skips_honestly():
     # synthetic fitness (raises), but the engine's broad except swallowed it into a
     # silent success=False. Verify the fail-closed contract + the honest skip.
     import inspect
-    from phase7_experts.adas.evaluation import evaluate_individual
+
     from phase7_experts import experts_engine
+    from phase7_experts.adas.evaluation import evaluate_individual
 
     with pytest.raises(RuntimeError):
         evaluate_individual(None, None, None, None, evaluator=None)
 
     src = inspect.getsource(experts_engine)
-    assert "except RuntimeError" in src and "adas_skipped" in src, (
-        "engine must catch the no-evaluator RuntimeError and skip ADAS honestly"
-    )
+    assert (
+        "except RuntimeError" in src and "adas_skipped" in src
+    ), "engine must catch the no-evaluator RuntimeError and skip ADAS honestly"

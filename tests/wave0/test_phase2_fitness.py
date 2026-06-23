@@ -18,9 +18,10 @@ def test_evaluate_population_honors_use_real_fitness():
     # Bug: _evaluate_population always used the proxy _quick_fitness, ignoring
     # use_real_fitness (only the hybrid path honored it).
     import inspect
+
     from phase2_evomerge.phase2_pipeline import Phase2Pipeline
 
     src = inspect.getsource(Phase2Pipeline._evaluate_population)
-    assert "use_real_fitness" in src and "_create_real_fitness_fn" in src, (
-        "standard evaluation path must honor use_real_fitness"
-    )
+    assert (
+        "use_real_fitness" in src and "_create_real_fitness_fn" in src
+    ), "standard evaluation path must honor use_real_fitness"
