@@ -100,3 +100,20 @@ def test_phase2_merge_dispatch_handles_all_operator_signatures():
     for Op in (LinearMerge, DAREMerge, TIESMerge):
         out = Phase2Pipeline._merge_models(Op(), [tiny(), tiny()])
         assert isinstance(out, nn.Module), f"{Op.__name__} dispatch returned non-module"
+
+
+def test_phase7_adas_fail_closed_and_engine_skips_honestly():
+    # Bug 0.6: engine called adas.optimize with no evaluator; ADAS correctly refuses
+    # synthetic fitness (raises), but the engine's broad except swallowed it into a
+    # silent success=False. Verify the fail-closed contract + the honest skip.
+    import inspect
+    from phase7_experts.adas.evaluation import evaluate_individual
+    from phase7_experts import experts_engine
+
+    with pytest.raises(RuntimeError):
+        evaluate_individual(None, None, None, None, evaluator=None)
+
+    src = inspect.getsource(experts_engine)
+    assert "except RuntimeError" in src and "adas_skipped" in src, (
+        "engine must catch the no-evaluator RuntimeError and skip ADAS honestly"
+    )
