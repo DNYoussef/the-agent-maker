@@ -12,6 +12,7 @@ internal representations and confidence calibration.
 Enhanced with meta-calculus spectral gap monitoring to prevent representation collapse.
 """
 
+import logging
 import random
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
@@ -19,6 +20,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+# Module logger: optimize_temperature_ranges() calls logger.warning/.info but the
+# name was never defined -> NameError the moment that path ran (Wave-0 crash fix).
+logger = logging.getLogger(__name__)
 
 # Import meta-calculus for spectral gap monitoring
 try:

@@ -85,7 +85,7 @@ class MuonGrokfast(Optimizer):
                 state = self.state[p]
                 state["step"] = 0
                 state["ema_grad"] = torch.zeros_like(p.data)
-                if len(p.shape) >= 2:  # Muon params
+                if len(p.shape) == 2:  # Muon params (matrix-only; rank>2 -> fallback)
                     state["momentum_buffer"] = torch.zeros_like(p.data)
 
     @torch.no_grad()
@@ -116,7 +116,7 @@ class MuonGrokfast(Optimizer):
                 filtered_grad = grad + lambda_ * (grad - state["ema_grad"])
 
                 # ===== PARAMETER ROUTING =====
-                if len(p.shape) >= 2:
+                if len(p.shape) == 2:
                     # 2-D params → Muon (orthogonalization)
                     self._muon_update(p, filtered_grad, state, group)
                 else:
@@ -142,38 +142,26 @@ class MuonGrokfast(Optimizer):
             # Quantized forward, full-precision backward
             G = grad.clone()
 
-        # For Newton-Schulz, we need approximately square matrices
-        # For non-square matrices, use a simpler orthogonalization approach
-
-        if min(G.shape) < 128 or G.shape[0] == G.shape[1]:
-            # Square or small matrices: use standard Newton-Schulz
-            # Normalize first to avoid numerical issues
-            scale = G.norm() + 1e-8
-            G_norm = G / scale
-
-            for _ in range(ns_steps):
-                if G.shape[0] <= G.shape[1]:
-                    # Wide or square: G @ G.T
-                    A = G_norm @ G_norm.T
-                    G_norm = 1.5 * G_norm - 0.5 * G_norm @ A
-                else:
-                    # Tall: G.T @ G
-                    A = G_norm.T @ G_norm
-                    G_norm = 1.5 * G_norm - 0.5 * A @ G_norm.T
-                    G_norm = G_norm.T
-
-            G = G_norm * scale
-        else:
-            # Large non-square matrices: use simpler row/column normalization
-            # This preserves gradient direction while preventing low-rank collapse
-            if G.shape[0] > G.shape[1]:
-                # Normalize columns
-                col_norms = G.norm(dim=0, keepdim=True) + 1e-8
-                G = G / col_norms
-            else:
-                # Normalize rows
-                row_norms = G.norm(dim=1, keepdim=True) + 1e-8
-                G = G / row_norms
+        # Newton-Schulz orthogonalization (canonical Muon form).
+        # Operate on a wide matrix (rows <= cols) by transposing tall inputs, then
+        # iterate X <- 1.5 X - 0.5 (X X^T) X and transpose back. The previous code
+        # used the wrong operand order (G_norm @ A with A=[m,m]) which raised a
+        # shape error on every non-square 2D param (e.g. 64x100): A@X is the only
+        # shape-correct product. This form works for any 2D shape.
+        # ponytail: Wave-0 fix is crash-freedom on any 2D shape; spectral-norm
+        # scaling + optimal quintic coefficients are a Wave-1 orthogonality upgrade.
+        transposed = False
+        X = G
+        if X.shape[0] > X.shape[1]:
+            X = X.T
+            transposed = True
+        scale = X.norm() + 1e-8
+        X = X / scale
+        for _ in range(ns_steps):
+            A = X @ X.T  # [m, m] where m = min(rows, cols)
+            X = 1.5 * X - 0.5 * (A @ X)
+        X = X * scale
+        G = X.T if transposed else X
 
         # Momentum
         if momentum > 0:
