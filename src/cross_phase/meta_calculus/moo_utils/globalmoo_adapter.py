@@ -426,7 +426,7 @@ class HybridMOORunner:
         else:
             X, F, n_evals = self._run_pymoo()
 
-        minimize = runner_config.objective_minimize
+        minimize = self.config.objective_minimize
         if minimize and len(minimize) == F.shape[1]:
             F = F.copy()
             for j, is_minimize in enumerate(minimize):

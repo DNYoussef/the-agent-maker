@@ -39,3 +39,26 @@ def test_self_modeling_module_defines_logger():
     import phase5_curriculum.self_modeling as sm
 
     assert hasattr(sm, "logger"), "module-level `logger` missing -> NameError at runtime"
+
+
+def test_self_modeling_quick_evaluate_deepcopies_model():
+    # Bug 0.4: _quick_evaluate did `model_copy = model` then trained it, corrupting
+    # the real model across every Pareto candidate. Must deep-copy.
+    import inspect
+    import phase5_curriculum.self_modeling as sm
+
+    src = inspect.getsource(sm)
+    assert "model_copy = model\n" not in src and "model_copy = model " not in src, (
+        "no-clone bug still present (`model_copy = model`)"
+    )
+    assert "copy.deepcopy(model)" in src, "expected deepcopy of the model before training"
+
+
+def test_meta_calculus_runner_has_no_undefined_name():
+    # Bug 0.5: HybridMOORunner.run referenced free name `runner_config` -> NameError.
+    import inspect
+    from cross_phase.meta_calculus.moo_utils.globalmoo_adapter import HybridMOORunner
+
+    run_src = inspect.getsource(HybridMOORunner.run)
+    assert "runner_config" not in run_src, "undefined `runner_config` still referenced in run()"
+    assert "self.config.objective_minimize" in run_src

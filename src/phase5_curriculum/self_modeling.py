@@ -12,6 +12,7 @@ internal representations and confidence calibration.
 Enhanced with meta-calculus spectral gap monitoring to prevent representation collapse.
 """
 
+import copy
 import logging
 import random
 from dataclasses import dataclass
@@ -568,7 +569,9 @@ class MOOSelfModelingTrainer(SelfModelingTrainer):
 
         # Run training
         try:
-            model_copy = model  # In full impl, would clone
+            # Deep-copy: _quick_evaluate is called per Pareto candidate; training
+            # the real model in place corrupted it across generations.
+            model_copy = copy.deepcopy(model)
             self.train(model_copy, tokenizer)
 
             # Estimate accuracy from gap history
