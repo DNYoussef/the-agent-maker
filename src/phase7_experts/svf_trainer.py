@@ -507,72 +507,96 @@ class SVFTrainer:
         self, model: nn.Module, batch: List[Dict], tokenizer: Any, device: torch.device
     ) -> Optional[torch.Tensor]:
         """Forward pass with modified singular values."""
-        # Temporarily modify weights using new SVs
-        original_weights = {}
+        # Swap in graph-connected reconstructed weights. Assigning to
+        # `module.weight.data` detaches the autograd graph, so the loss would
+        # never be differentiable back to self.sv_params and SVF would train
+        # nothing. Instead we replace the weight Parameter with the
+        # graph-connected reconstruction itself (F.linear then keeps the graph),
+        # and restore the original Parameter after backward.
+        original_params = {}
 
-        for name, module in model.named_modules():
-            if hasattr(module, "_svf_S_param") and name in self.sv_params:
-                original_weights[name] = module.weight.data.clone()
+        # The pop/restore must be paired even on failure: a popped-but-not-
+        # restored weight leaves the module with no `weight` parameter and
+        # corrupts the model. Everything between the pop and the restore runs
+        # under try/finally so the original Parameters always come back.
+        try:
+            for name, module in model.named_modules():
+                if hasattr(module, "_svf_S_param") and name in self.sv_params:
+                    original_params[name] = module._parameters.pop("weight")
 
-                # Reconstruct weight with modified SVs
-                U = module._svf_U
-                S_new = self.sv_params[name]
-                Vh = module._svf_Vh
+                    # Reconstruct weight with modified SVs
+                    U = module._svf_U
+                    S_new = self.sv_params[name]
+                    Vh = module._svf_Vh
 
-                # W_new = U @ diag(S_new) @ Vh
-                reconstructed = U @ torch.diag(S_new) @ Vh
+                    # W_new = U @ diag(S_new) @ Vh
+                    reconstructed = U @ torch.diag(S_new) @ Vh
 
-                # Add back remaining SVs if any
-                if module._svf_S_original is not None:
-                    U_rest = module._svf_U_rest
-                    S_rest = module._svf_S_original
-                    Vh_rest = module._svf_Vh_rest
-                    if U_rest is not None and Vh_rest is not None:
-                        reconstructed = reconstructed + U_rest @ torch.diag(S_rest) @ Vh_rest
+                    # Add back remaining SVs if any
+                    if module._svf_S_original is not None:
+                        U_rest = module._svf_U_rest
+                        S_rest = module._svf_S_original
+                        Vh_rest = module._svf_Vh_rest
+                        if U_rest is not None and Vh_rest is not None:
+                            reconstructed = reconstructed + U_rest @ torch.diag(S_rest) @ Vh_rest
 
-                module.weight.data = reconstructed
+                    # Plain attribute (not a Parameter) so F.linear uses this exact
+                    # tensor and the gradient flows through to S_new.
+                    module.weight = reconstructed
 
-        # Forward pass
-        total_loss = None
-        successful_samples = 0
+            # Forward pass
+            total_loss = None
+            successful_samples = 0
 
-        for sample in batch:
-            try:
-                prompt = sample.get("prompt", sample.get("text", ""))
+            for sample in batch:
+                try:
+                    prompt = sample.get("prompt", sample.get("text", ""))
 
-                if hasattr(tokenizer, "__call__"):
-                    inputs = tokenizer(
-                        prompt, return_tensors="pt", max_length=256, truncation=True, padding=True
-                    )
-                else:
-                    inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
+                    if hasattr(tokenizer, "__call__"):
+                        inputs = tokenizer(
+                            prompt,
+                            return_tensors="pt",
+                            max_length=256,
+                            truncation=True,
+                            padding=True,
+                        )
+                    else:
+                        inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
 
-                inputs = {k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)}
+                    inputs = {
+                        k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)
+                    }
 
-                outputs = model(**inputs)
+                    outputs = model(**inputs)
 
-                if hasattr(outputs, "loss") and outputs.loss is not None:
-                    total_loss = outputs.loss if total_loss is None else total_loss + outputs.loss
-                    successful_samples += 1
-                elif hasattr(outputs, "logits"):
-                    logits = outputs.logits
-                    shift_logits = logits[..., :-1, :].contiguous()
-                    shift_labels = inputs["input_ids"][..., 1:].contiguous()
-                    loss = F.cross_entropy(
-                        shift_logits.view(-1, shift_logits.size(-1)),
-                        shift_labels.view(-1),
-                        ignore_index=0,
-                    )
-                    total_loss = loss if total_loss is None else total_loss + loss
-                    successful_samples += 1
+                    if hasattr(outputs, "loss") and outputs.loss is not None:
+                        total_loss = (
+                            outputs.loss if total_loss is None else total_loss + outputs.loss
+                        )
+                        successful_samples += 1
+                    elif hasattr(outputs, "logits"):
+                        logits = outputs.logits
+                        shift_logits = logits[..., :-1, :].contiguous()
+                        shift_labels = inputs["input_ids"][..., 1:].contiguous()
+                        loss = F.cross_entropy(
+                            shift_logits.view(-1, shift_logits.size(-1)),
+                            shift_labels.view(-1),
+                            ignore_index=0,
+                        )
+                        total_loss = loss if total_loss is None else total_loss + loss
+                        successful_samples += 1
 
-            except Exception:
-                continue
-
-        # Restore original weights
-        for name, module in model.named_modules():
-            if name in original_weights:
-                module.weight.data = original_weights[name]
+                except Exception:
+                    continue
+        finally:
+            # Restore the original weight Parameters. Handles the partial state
+            # where reconstruction raised after pop but before reassign (no
+            # plain `weight` attr present yet).
+            for name, module in model.named_modules():
+                if name in original_params:
+                    if "weight" in module.__dict__:
+                        del module.weight  # drop the plain-attr reconstructed tensor
+                    module.register_parameter("weight", original_params[name])
 
         if total_loss is None or successful_samples == 0:
             return None
