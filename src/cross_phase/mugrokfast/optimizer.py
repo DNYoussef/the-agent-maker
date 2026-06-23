@@ -11,6 +11,7 @@ ISS-025: Added QK-Clip implementation for attention score clipping
 """
 
 import logging
+import math
 from typing import Any, Dict, List, Optional, Union
 
 import torch
@@ -45,6 +46,10 @@ class MuonGrokfast(Optimizer):
         momentum: float = 0.95,
         nesterov: bool = True,
         ns_steps: int = 5,  # Newton-Schulz iterations
+        adamw_beta1: float = 0.9,
+        adamw_beta2: float = 0.999,
+        adamw_eps: float = 1e-8,
+        weight_decay: float = 0.0,
     ):
         # ISS-003: If config provided, use its values (backwards compatible)
         if config is not None:
@@ -58,6 +63,11 @@ class MuonGrokfast(Optimizer):
             momentum = config.momentum
             nesterov = config.nesterov
             ns_steps = config.ns_steps
+            # getattr fallbacks: older configs predate these AdamW fields.
+            adamw_beta1 = getattr(config, "adamw_beta1", adamw_beta1)
+            adamw_beta2 = getattr(config, "adamw_beta2", adamw_beta2)
+            adamw_eps = getattr(config, "adamw_eps", adamw_eps)
+            weight_decay = getattr(config, "weight_decay", weight_decay)
 
         # ISS-003: Store config for attribute access
         self.config = config
@@ -73,6 +83,10 @@ class MuonGrokfast(Optimizer):
             momentum=momentum,
             nesterov=nesterov,
             ns_steps=ns_steps,
+            adamw_beta1=adamw_beta1,
+            adamw_beta2=adamw_beta2,
+            adamw_eps=adamw_eps,
+            weight_decay=weight_decay,
         )
         super().__init__(params, defaults)
 
@@ -176,14 +190,44 @@ class MuonGrokfast(Optimizer):
         param.add_(G, alpha=-lr)
 
     def _adamw_update(self, param, grad, state, group) -> None:
-        """SGD update for 1-D params (embeddings, layer norms).
+        """Real AdamW update for 1-D params (biases, layer-norm weights).
 
-        Honesty: the body is plain SGD (param += -lr*grad), NOT AdamW - there are
-        no first/second moments, no bias correction, no decoupled weight decay.
-        The name is kept for back-compat; implementing real AdamW is a Wave-1 item.
+        First/second moment estimates with bias correction and decoupled weight
+        decay (Loshchilov & Hutter 2019). Replaces the prior plain-SGD body that
+        was mislabeled AdamW. (2-D params, including embeddings, route to Muon.)
         """
         lr = group["fallback_lr"]
-        param.add_(grad, alpha=-lr)
+        # group.get with defaults: optimizer state restored from a checkpoint
+        # saved before these keys existed would otherwise KeyError on resume.
+        beta1 = group.get("adamw_beta1", 0.9)
+        beta2 = group.get("adamw_beta2", 0.999)
+        eps = group.get("adamw_eps", 1e-8)
+        weight_decay = group.get("weight_decay", 0.0)
+
+        if "exp_avg" not in state:
+            state["exp_avg"] = torch.zeros_like(param.data)
+            state["exp_avg_sq"] = torch.zeros_like(param.data)
+
+        exp_avg = state["exp_avg"]
+        exp_avg_sq = state["exp_avg_sq"]
+        # Dedicated AdamW timestep, counted from when the moments first exist.
+        # Using the shared "step" would mis-bias-correct when upgrading an old
+        # SGD checkpoint (nonzero global step but zero-initialized moments).
+        state["adamw_step"] = state.get("adamw_step", 0) + 1
+        step = state["adamw_step"]
+
+        # Decoupled weight decay: applied to the parameter, not the gradient.
+        if weight_decay != 0:
+            param.mul_(1 - lr * weight_decay)
+
+        exp_avg.mul_(beta1).add_(grad, alpha=1 - beta1)
+        exp_avg_sq.mul_(beta2).addcmul_(grad, grad, value=1 - beta2)
+
+        bias_correction1 = 1 - beta1**step
+        bias_correction2 = 1 - beta2**step
+        denom = (exp_avg_sq.sqrt() / math.sqrt(bias_correction2)).add_(eps)
+        step_size = lr / bias_correction1
+        param.addcdiv_(exp_avg, denom, value=-step_size)
 
     def get_muon_lr(self) -> float:
         """Get current Muon learning rate"""

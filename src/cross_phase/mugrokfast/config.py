@@ -21,6 +21,10 @@ class MuGrokConfig:
     nesterov: bool = True
     ns_steps: int = 5
     weight_decay: float = 0.0
+    # AdamW fallback (1-D params: biases, layer-norm weights)
+    adamw_beta1: float = 0.9
+    adamw_beta2: float = 0.999
+    adamw_eps: float = 1e-8
 
     @classmethod
     def from_phase(cls, phase_num: int) -> "MuGrokConfig":
