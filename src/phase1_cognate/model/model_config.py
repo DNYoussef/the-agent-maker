@@ -175,13 +175,21 @@ class Phase1Config:
     gradient_checkpointing: bool = True  # Memory efficiency
 
     def __post_init__(self) -> None:
-        """Apply specialization settings"""
-        if self.specialization:
-            # Override ACT threshold
-            self.act_config.halt_threshold = self.act_thresholds[self.specialization]
+        """Apply specialization settings.
 
-            # Note: LTM capacity will be handled in model initialization
-            # titans_config.d_mem stays at 256 (factorized dimension)
+        HONESTY: the three "specializations" (reasoning/memory/speed) differ ONLY
+        by act_config.halt_threshold (set here) and the random seed (get_seed).
+        ltm_capacities and surprise_thresholds are NOT applied to the model and
+        cannot be without new architecture: the LMM is a single factorized EMA
+        vector (no memory "slots" -> capacity is meaningless) and there is no
+        surprise mechanism (the memory is an EMA pool, not Titans neural memory).
+        So these are the same architecture with a different halt threshold + init,
+        not three distinct designs. Real capacity/surprise differentiation is a
+        Wave-2 feature tied to implementing surprise-based memory.
+        """
+        if self.specialization:
+            # Override ACT threshold (the one specialization knob that is wired).
+            self.act_config.halt_threshold = self.act_thresholds[self.specialization]
 
     def get_seed(self) -> int:
         """Get random seed for this specialization"""
