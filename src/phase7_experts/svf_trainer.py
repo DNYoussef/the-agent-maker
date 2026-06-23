@@ -406,8 +406,17 @@ class SVFTrainer:
                 batch_loss = self._svf_forward_step(model, batch, tokenizer, device)
 
                 if batch_loss is not None:
-                    # REINFORCE-style gradient
-                    if self.config.reinforce_baseline:
+                    # REINFORCE-style baseline ONLY when there is a real group of
+                    # per-sample losses to average over. batch_loss here is a scalar
+                    # (total_loss / successful_samples), so `x - x.mean().detach()`
+                    # was just `x - x.detach()`: it zeroed the logged loss (~0) and
+                    # reduced no variance while leaving the gradient unchanged. Skip
+                    # it for scalars so the logged loss is the real value.
+                    if (
+                        self.config.reinforce_baseline
+                        and batch_loss.dim() > 0
+                        and batch_loss.numel() > 1
+                    ):
                         batch_loss = batch_loss - batch_loss.mean().detach()
 
                     # Backward
