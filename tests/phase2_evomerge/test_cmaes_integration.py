@@ -8,17 +8,17 @@ Tests the complete Phase 2 pipeline with:
 - Paper-accurate DFS with indicator arrays
 """
 
+import numpy as np
 import pytest
 import torch
 import torch.nn as nn
-import numpy as np
 
 from phase2_evomerge.evolution.cma_es import CMAESConfig, CMAESOptimizer, ps_merge_with_cmaes
 from phase2_evomerge.fitness.benchmarks import (
     BenchmarkConfig,
     GSM8KDataset,
-    extract_numeric_answer,
     evaluate_benchmark,
+    extract_numeric_answer,
 )
 from phase2_evomerge.merge.dfs_paper_accurate import DFSConfig, DFSPaperAccurate
 from phase2_evomerge.merge.hybrid_ps_dfs import HybridConfig, HybridPSDFS, hybrid_merge
@@ -230,7 +230,9 @@ class TestHybridPSDFS:
         def fitness_fn(model):
             return float(list(model.parameters())[0].mean().item())
 
-        config = HybridConfig(ps_candidates_multiplier=2, ps_generations=5, dfs_optimization_iterations=10)
+        config = HybridConfig(
+            ps_candidates_multiplier=2, ps_generations=5, dfs_optimization_iterations=10
+        )
 
         hybrid = HybridPSDFS(config)
         champion, metrics = hybrid.merge(models, fitness_fn, verbose=False)

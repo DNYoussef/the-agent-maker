@@ -22,30 +22,28 @@ Design:
     - Only imports from Layer 1 (spectral_gap.py)
 """
 
-from .monitoring import (
-    PhaseGapMonitor,
-    PhaseGapConfig,
-    should_advance_stage,
-    get_gap_health_status,
-    GapHealthStatus,
+from .gates import (
+    CompressionQualityResult,
+    MergeQualityResult,
+    QualityGateConfig,
+    check_compression_quality,
+    check_merge_quality,
+    check_quantization_quality,
 )
-
+from .monitoring import (
+    GapHealthStatus,
+    PhaseGapConfig,
+    PhaseGapMonitor,
+    get_gap_health_status,
+    should_advance_stage,
+)
 from .regularization import (
-    create_thought_regularizer,
+    DiversityRegularizerConfig,
+    anti_collapse_loss,
     create_expert_regularizer,
     create_generic_regularizer,
+    create_thought_regularizer,
     diversity_loss,
-    anti_collapse_loss,
-    DiversityRegularizerConfig,
-)
-
-from .gates import (
-    check_merge_quality,
-    check_compression_quality,
-    check_quantization_quality,
-    MergeQualityResult,
-    CompressionQualityResult,
-    QualityGateConfig,
 )
 
 __all__ = [

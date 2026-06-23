@@ -1,7 +1,7 @@
 """Phase 5 claim-control regressions for Agent Maker."""
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 import torch
@@ -20,7 +20,9 @@ from phase8_compression.benchmarks import BenchmarkConfig, MMLUBenchmark
 
 
 def test_mmlu_question_bank_does_not_fabricate_missing_subjects():
-    benchmark = MMLUBenchmark(BenchmarkConfig(mmlu_subjects=99, mmlu_samples_per_subject=3, device="cpu"))
+    benchmark = MMLUBenchmark(
+        BenchmarkConfig(mmlu_subjects=99, mmlu_samples_per_subject=3, device="cpu")
+    )
 
     questions = benchmark.get_questions(num_subjects=99, samples_per_subject=3)
 
@@ -30,7 +32,9 @@ def test_mmlu_question_bank_does_not_fabricate_missing_subjects():
     assert all(not q["question"].startswith("Sample ") for q in questions)
     assert all(q["answer"] in {"A", "B", "C", "D"} for q in questions)
     assert all(q["evidence_status"] == "local_sample_bank_not_official_mmlu" for q in questions)
-    assert len(questions) == sum(min(3, len(items)) for items in benchmark.SAMPLE_QUESTIONS.values())
+    assert len(questions) == sum(
+        min(3, len(items)) for items in benchmark.SAMPLE_QUESTIONS.values()
+    )
 
 
 def test_phase4_fine_tuning_decision_uses_measured_quality_gate():
@@ -43,7 +47,9 @@ def test_phase4_fine_tuning_decision_uses_measured_quality_gate():
     assert controller._check_fine_tuning_needed({"perplexity": 10.0}, {"perplexity": 10.6}) is True
     assert controller.metrics["fine_tune_quality_gate"]["degradation"] == pytest.approx(0.06)
 
-    disabled = Phase4Controller(Phase4Config(device="cpu", wandb_enabled=False, enable_fine_tuning=False))
+    disabled = Phase4Controller(
+        Phase4Config(device="cpu", wandb_enabled=False, enable_fine_tuning=False)
+    )
     assert disabled._check_fine_tuning_needed({"perplexity": 10.0}, {"perplexity": 99.0}) is False
 
 
@@ -121,7 +127,10 @@ def test_phase5_curriculum_runs_offline_without_frontier_client():
 
     assert result.success is True
     assert result.levels_completed == 2
-    assert result.artifacts["assessment_results"]["evidence_status"] == "offline_deterministic_assessment"
+    assert (
+        result.artifacts["assessment_results"]["evidence_status"]
+        == "offline_deterministic_assessment"
+    )
     assert result.artifacts["curriculum_stats"]["total_questions"] == 4
     assert all(
         progress.mastered_questions == 2 and progress.current_questions == 0

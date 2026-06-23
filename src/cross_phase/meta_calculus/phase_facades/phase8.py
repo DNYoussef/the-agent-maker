@@ -22,36 +22,26 @@ Usage:
 """
 
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
 import numpy as np
 
-# Layer 1 imports (core)
-from ..meta_grokfast import MetaGrokfast, GrokfastConfig
-from ..bigeometric import BigeometricTransform, to_log_space, from_log_space
+from ..bigeometric import BigeometricTransform, from_log_space, to_log_space
+from ..gap_utils.gates import CompressionQualityResult, GateDecision, QualityGateConfig
+from ..gap_utils.gates import check_compression_quality as _check_compression_quality
+from ..gap_utils.monitoring import PhaseGapMonitor
 
 # Layer 2 imports (utilities)
 from ..k_utils.layer_ratios import (
-    get_layer_compression_ratio,
-    get_all_compression_ratios,
     LayerRatioConfig,
+    get_all_compression_ratios,
+    get_layer_compression_ratio,
 )
-from ..transform_utils.weights import (
-    fit_weights_log_space as _fit_weights_log_space,
-    compute_reconstruction_error,
-    WeightMergeConfig,
-)
-from ..transform_utils.log_space import (
-    safe_log,
-    safe_exp,
-    log_space_normalize,
-    LogSpaceConfig,
-)
-from ..gap_utils.gates import (
-    check_compression_quality as _check_compression_quality,
-    CompressionQualityResult,
-    QualityGateConfig,
-    GateDecision,
-)
-from ..gap_utils.monitoring import PhaseGapMonitor
+
+# Layer 1 imports (core)
+from ..meta_grokfast import GrokfastConfig, MetaGrokfast
+from ..transform_utils.log_space import LogSpaceConfig, log_space_normalize, safe_exp, safe_log
+from ..transform_utils.weights import WeightMergeConfig, compute_reconstruction_error
+from ..transform_utils.weights import fit_weights_log_space as _fit_weights_log_space
 
 # Phase 8 specific defaults
 PHASE8_CONFIG = GrokfastConfig(
@@ -148,13 +138,15 @@ def get_stage_ratios(
     total_ratio = get_layer_compression_ratio(layer_idx, total_layers)
 
     # Distribute across stages (proportional to base ratios)
-    base_total = COMPRESSION_STAGES["seedlm"] * COMPRESSION_STAGES["vptq"] * COMPRESSION_STAGES["hyper"]
+    base_total = (
+        COMPRESSION_STAGES["seedlm"] * COMPRESSION_STAGES["vptq"] * COMPRESSION_STAGES["hyper"]
+    )
     scale = total_ratio / COMPRESSION_STAGES["total"]
 
     return {
-        "seedlm": COMPRESSION_STAGES["seedlm"] * scale ** 0.2,
-        "vptq": COMPRESSION_STAGES["vptq"] * scale ** 0.5,
-        "hyper": COMPRESSION_STAGES["hyper"] * scale ** 0.3,
+        "seedlm": COMPRESSION_STAGES["seedlm"] * scale**0.2,
+        "vptq": COMPRESSION_STAGES["vptq"] * scale**0.5,
+        "hyper": COMPRESSION_STAGES["hyper"] * scale**0.3,
         "total": total_ratio,
     }
 

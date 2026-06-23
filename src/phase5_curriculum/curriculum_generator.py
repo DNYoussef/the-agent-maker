@@ -544,7 +544,7 @@ class MOOCurriculumGenerator(AdaptiveCurriculumGenerator):
             """Evaluate curriculum parameters on 4 objectives."""
             # params: [difficulty_alpha, difficulty_beta, questions_scale, spacing_factor]
             alpha = max(0.5, params[0])  # Beta distribution alpha
-            beta = max(0.5, params[1])   # Beta distribution beta
+            beta = max(0.5, params[1])  # Beta distribution beta
             q_scale = max(0.5, params[2])  # Questions per level multiplier
             spacing = max(0.1, params[3])  # Spacing factor for retention
 
@@ -578,7 +578,7 @@ class MOOCurriculumGenerator(AdaptiveCurriculumGenerator):
 
             # Objective 1: Learning rate (want smooth progression)
             # Ideal: difficulties increase steadily
-            diffs = [difficulties[i+1] - difficulties[i] for i in range(len(difficulties)-1)]
+            diffs = [difficulties[i + 1] - difficulties[i] for i in range(len(difficulties) - 1)]
             learning_rate = sum(diffs) / len(diffs) if diffs else 0
             # Penalize if any step is too large or negative
             step_penalty = sum(max(0, d - 15) + max(0, -d) for d in diffs)
@@ -631,9 +631,7 @@ class MOOCurriculumGenerator(AdaptiveCurriculumGenerator):
 
         # Generate actual curriculum with best parameters
         alpha, beta, q_scale, spacing = best_params
-        curriculum = self._generate_with_params(
-            frontier_client, alpha, beta, q_scale, spacing
-        )
+        curriculum = self._generate_with_params(frontier_client, alpha, beta, q_scale, spacing)
 
         logger.info(f"MOO curriculum optimization complete. Pareto front: {len(result.X)}")
 

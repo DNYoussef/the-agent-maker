@@ -41,140 +41,103 @@ __version__ = "2.0.0"
 __author__ = "Agent Forge V2 Team"
 
 # =============================================================================
-# k(L) Formula
-# =============================================================================
-from .k_formula import (
-    # Core formula
-    compute_k,
-    KFormulaConfig,
-
-    # Domain-specific k functions
-    k_from_gradient,
-    k_from_layer_index,
-    k_from_entropy,
-    k_from_parameter_variance,
-
-    # Utilities
-    k_schedule,
-    print_k_table,
-    normalize_k_value,
-
-    # Constants
-    K_SLOPE,
-    K_INTERCEPT,
-    K_MIN,
-    K_MAX,
-)
-
-# =============================================================================
 # Bigeometric Transforms
 # =============================================================================
 from .bigeometric import (
-    # Core classes
-    BigeometricTransform,
-    BigeometricDerivative,
     BigeometricConfig,
-
-    # Main functions
+    BigeometricDerivative,
+    BigeometricTransform,
     bigeometric_gradient_transform,
     bigeometric_gradient_with_stats,
-
-    # Log-space operations
-    to_log_space,
     from_log_space,
     log_space_interpolation,
-
-    # Verification
-    run_verification as verify_bigeometric,
 )
+from .bigeometric import (
+    run_verification as verify_bigeometric,  # Core classes; Main functions; Log-space operations; Verification
+)
+from .bigeometric import to_log_space
 
 # =============================================================================
-# MOO Bridge
+# k(L) Formula
 # =============================================================================
-from .moo_bridge import (
-    # Configuration
-    MOOConfig,
-    ObjectiveDefinition,
-
-    # Pre-defined objectives
-    EVOMERGE_OBJECTIVES,
-    EXPERT_DISCOVERY_OBJECTIVES,
-    COMPRESSION_OBJECTIVES,
-
-    # Problem classes
-    AgentForgeMOOProblem,
-    EvoMergeProblem,
-    ExpertDiscoveryProblem,
-
-    # Runner and utilities
-    MOORunner,
-    select_from_pareto,
-    analyze_pareto_front,
-
-    # Cloud adapter
-    GlobalMOOAdapter,
+from .k_formula import (  # Core formula; Domain-specific k functions; Utilities; Constants
+    K_INTERCEPT,
+    K_MAX,
+    K_MIN,
+    K_SLOPE,
+    KFormulaConfig,
+    compute_k,
+    k_from_entropy,
+    k_from_gradient,
+    k_from_layer_index,
+    k_from_parameter_variance,
+    k_schedule,
+    normalize_k_value,
+    print_k_table,
 )
 
 # =============================================================================
 # MetaGrokfast Optimizer
 # =============================================================================
-from .meta_grokfast import (
-    # Main optimizer
-    MetaGrokfast,
-    MetaGrokfastConfig,
-
-    # Phase configurations
+from .meta_grokfast import (  # Main optimizer; Phase configurations; Utilities
     PHASE_CONFIGS,
     GrokfastFilterType,
-
-    # Utilities
+    MetaGrokfast,
+    MetaGrokfastConfig,
     create_optimizer_for_model,
 )
 
 # =============================================================================
-# Spectral Gap Monitoring
+# MOO Bridge
 # =============================================================================
-from .spectral_gap import (
-    # Core monitoring
-    SpectralGapMonitor,
-    SpectralGapConfig,
-
-    # Phase-specific functions
-    compute_expert_diversity,
-    compute_thought_diversity,
-    compute_merge_diversity_change,
-    compute_compression_gap_retention,
-
-    # Loss/regularization
-    SpectralGapRegularizer,
-    thought_diversity_loss,
+from .moo_bridge import (  # Configuration; Pre-defined objectives; Problem classes; Runner and utilities; Cloud adapter
+    COMPRESSION_OBJECTIVES,
+    EVOMERGE_OBJECTIVES,
+    EXPERT_DISCOVERY_OBJECTIVES,
+    AgentForgeMOOProblem,
+    EvoMergeProblem,
+    ExpertDiscoveryProblem,
+    GlobalMOOAdapter,
+    MOOConfig,
+    MOORunner,
+    ObjectiveDefinition,
+    analyze_pareto_front,
+    select_from_pareto,
 )
 
 # =============================================================================
 # Phase Integration (Auto-Triggering)
 # =============================================================================
-from .phase_integration import (
-    # Main integration class
+from .phase_integration import (  # Main integration class; Convenience functions; MOO functions (Phase 2, 7); Status
+    PHASE_INTEGRATION_DEFAULTS,
     PhaseIntegration,
     PhaseIntegrationConfig,
-    PHASE_INTEGRATION_DEFAULTS,
-
-    # Convenience functions
-    get_phase_optimizer,
-    get_phase_monitors,
     auto_integrate_phase,
-
-    # MOO functions (Phase 2, 7)
     create_moo_problem,
-    run_moo_optimization,
-
-    # Status
+    get_phase_monitors,
+    get_phase_optimizer,
     print_integration_status,
+    run_moo_optimization,
+)
+
+# =============================================================================
+# Spectral Gap Monitoring
+# =============================================================================
+from .spectral_gap import (  # Core monitoring; Phase-specific functions; Loss/regularization
+    SpectralGapConfig,
+    SpectralGapMonitor,
+    SpectralGapRegularizer,
+    compute_compression_gap_retention,
+    compute_expert_diversity,
+    compute_merge_diversity_change,
+    compute_thought_diversity,
+    thought_diversity_loss,
 )
 
 # =============================================================================
 # Convenience Aliases
 # =============================================================================
+
 
 # Quick access to phase-specific optimizer creation
 def create_phase_optimizer(phase: str, model, **kwargs):
@@ -237,7 +200,6 @@ __all__ = [
     "K_INTERCEPT",
     "K_MIN",
     "K_MAX",
-
     # bigeometric
     "BigeometricTransform",
     "BigeometricDerivative",
@@ -248,7 +210,6 @@ __all__ = [
     "from_log_space",
     "log_space_interpolation",
     "verify_bigeometric",
-
     # moo_bridge
     "MOOConfig",
     "ObjectiveDefinition",
@@ -262,14 +223,12 @@ __all__ = [
     "select_from_pareto",
     "analyze_pareto_front",
     "GlobalMOOAdapter",
-
     # meta_grokfast
     "MetaGrokfast",
     "MetaGrokfastConfig",
     "PHASE_CONFIGS",
     "GrokfastFilterType",
     "create_optimizer_for_model",
-
     # spectral_gap
     "SpectralGapMonitor",
     "SpectralGapConfig",
@@ -279,7 +238,6 @@ __all__ = [
     "compute_compression_gap_retention",
     "SpectralGapRegularizer",
     "thought_diversity_loss",
-
     # phase_integration
     "PhaseIntegration",
     "PhaseIntegrationConfig",
@@ -290,38 +248,31 @@ __all__ = [
     "create_moo_problem",
     "run_moo_optimization",
     "print_integration_status",
-
     # convenience
     "create_phase_optimizer",
     "quick_gap_check",
-
     # Layer 2 utility modules (subpackages)
     "k_utils",
     "gap_utils",
     "transform_utils",
     "moo_utils",
-
     # Layer 3 phase facades
     "phase_facades",
 ]
 
 # =============================================================================
-# Layer 2: Domain Utility Modules
-# =============================================================================
-from . import k_utils
-from . import gap_utils
-from . import transform_utils
-from . import moo_utils
-
-# =============================================================================
 # Layer 3: Phase Facades (Simple Per-Phase API)
 # =============================================================================
-from . import phase_facades
+# =============================================================================
+# Layer 2: Domain Utility Modules
+# =============================================================================
+from . import gap_utils, k_utils, moo_utils, phase_facades, transform_utils
 
 
 def print_module_info():
     """Print module information and available components."""
-    print(f"""
+    print(
+        f"""
 ================================================================================
 META-CALCULUS INTEGRATION FOR AGENT FORGE V2
 ================================================================================
@@ -356,7 +307,8 @@ QUICK START:
 >>> from src.cross_phase.meta_calculus import quick_gap_check
 >>> health = quick_gap_check(model)
 ================================================================================
-""")
+"""
+    )
 
 
 if __name__ == "__main__":

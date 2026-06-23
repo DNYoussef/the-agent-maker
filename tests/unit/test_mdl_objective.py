@@ -26,9 +26,7 @@ def test_bits_match_independent_formula():
     (e.g. ln instead of log2) - this is an independent reference value, not
     a tautology against the implementation.
     """
-    got = description_length_bits(
-        active_components=1, total_components=6, param_count=2.0 ** 20
-    )
+    got = description_length_bits(active_components=1, total_components=6, param_count=2.0**20)
     expected = math.log2(6) + 20.0
     assert abs(got - expected) < 1e-9
 
@@ -41,9 +39,7 @@ def test_bits_monotone_in_active_components():
     inverts its meaning.
     """
     bits = [
-        description_length_bits(
-            active_components=a, total_components=10, param_count=1e6
-        )
+        description_length_bits(active_components=a, total_components=10, param_count=1e6)
         for a in range(0, 6)
     ]
     assert all(b2 > b1 for b1, b2 in zip(bits, bits[1:]))
@@ -54,12 +50,8 @@ def test_bits_monotone_in_param_count():
 
     Fails if: log2(param_count) is dropped or clamped wrongly.
     """
-    small = description_length_bits(
-        active_components=3, total_components=6, param_count=1e6
-    )
-    large = description_length_bits(
-        active_components=3, total_components=6, param_count=1e9
-    )
+    small = description_length_bits(active_components=3, total_components=6, param_count=1e6)
+    large = description_length_bits(active_components=3, total_components=6, param_count=1e9)
     assert large > small
 
 
@@ -69,25 +61,17 @@ def test_bits_edge_cases():
     Fails if: edge handling regresses to NaN/inf (lgamma(0) traps) or the
     validation is removed and garbage flows into the F-matrix.
     """
-    zero = description_length_bits(
-        active_components=0, total_components=6, param_count=1e8
-    )
+    zero = description_length_bits(active_components=0, total_components=6, param_count=1e8)
     assert abs(zero - math.log2(1)) < 1e-9  # C(6,0) = 1, no pointers
 
     # active > total clamps rather than producing negative binomials
-    clamped = description_length_bits(
-        active_components=99, total_components=6, param_count=2.0
-    )
+    clamped = description_length_bits(active_components=99, total_components=6, param_count=2.0)
     assert math.isfinite(clamped)
 
     with pytest.raises(ValueError):
-        description_length_bits(
-            active_components=1, total_components=0, param_count=1.0
-        )
+        description_length_bits(active_components=1, total_components=0, param_count=1.0)
     with pytest.raises(ValueError):
-        description_length_bits(
-            active_components=-1, total_components=6, param_count=1.0
-        )
+        description_length_bits(active_components=-1, total_components=6, param_count=1.0)
 
 
 def test_objective_tables_gained_mdl_and_direction():
@@ -108,6 +92,7 @@ def test_evomerge_five_key_evaluator_still_works():
     Fails if: the MDL wiring requires a new evaluator key instead of
     computing its default from the merge recipe.
     """
+
     def evaluator(layer_ratios, technique_weights):
         return {
             "perplexity": 10.0,
@@ -124,9 +109,7 @@ def test_evomerge_five_key_evaluator_still_works():
     assert F.shape == (1, 6)
     assert np.isfinite(F).all()
     # One technique above threshold, default param_count 1e8:
-    expected = description_length_bits(
-        active_components=1, total_components=6, param_count=1e8
-    )
+    expected = description_length_bits(active_components=1, total_components=6, param_count=1e8)
     assert abs(F[0, 5] - expected) < 1e-9
 
 
@@ -136,6 +119,7 @@ def test_evaluator_supplied_description_length_wins():
     Fails if: the .get override path is removed and real measurements get
     silently replaced by the proxy.
     """
+
     def evaluator(layer_ratios, technique_weights):
         return {"perplexity": 1.0, "description_length": 42.0}
 
@@ -151,12 +135,11 @@ def test_include_mdl_false_restores_legacy_shape():
     Fails if: include_mdl=False still appends the column, breaking any
     fixed-architecture consumer that disabled it for dimension reasons.
     """
+
     def evaluator(layer_ratios, technique_weights):
         return {"perplexity": 1.0}
 
-    problem = EvoMergeProblem(
-        n_layers=1, model_evaluator=evaluator, include_mdl=False
-    )
+    problem = EvoMergeProblem(n_layers=1, model_evaluator=evaluator, include_mdl=False)
     assert problem.n_obj == 5
     x = np.array([[0.5, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
     F = problem.compute_objectives(x)
@@ -169,6 +152,7 @@ def test_expert_problem_mdl_prefers_smaller_architectures():
     Fails if: the param proxy (n_experts * svf_rank * z_dim) is miswired so
     architecture size no longer reaches the objective.
     """
+
     def evaluator(n_experts, sparsity, router_temp, svf_rank, z_dim):
         return {"task_loss": 1.0}
 
@@ -193,10 +177,12 @@ def test_mdl_keeps_small_model_on_frontier():
     from src.cross_phase.meta_calculus.moo_bridge import _minimize_flags_from_names
 
     # Two hand-built solutions: A better on perplexity, B 100x smaller.
-    F = np.array([
-        [1.0, 30.0],   # A: perplexity 1.0, 30 bits
-        [1.2, 10.0],   # B: perplexity 1.2, 10 bits
-    ])
+    F = np.array(
+        [
+            [1.0, 30.0],  # A: perplexity 1.0, 30 bits
+            [1.2, 10.0],  # B: perplexity 1.2, 10 bits
+        ]
+    )
     flags = _minimize_flags_from_names(["perplexity", "description_length"])
     assert flags.all()  # both minimized
 

@@ -19,11 +19,12 @@ class TestPhase6Imports:
     def test_prompt_pursuit_imports(self):
         """Test prompt_pursuit imports."""
         from src.phase6_baking.prompt_pursuit import (
-            PromptPursuitOptimizer,
             MultiPromptPursuit,
+            PromptPursuitOptimizer,
             PursuitConfig,
             PursuitResult,
         )
+
         assert PromptPursuitOptimizer is not None
         assert MultiPromptPursuit is not None
         assert PursuitConfig is not None
@@ -32,19 +33,17 @@ class TestPhase6Imports:
     def test_monte_carlo_kl_imports(self):
         """Test monte_carlo_kl imports."""
         from src.phase6_baking.monte_carlo_kl import (
-            monte_carlo_kl_from_trajectories,
             compute_baking_quality_score,
+            monte_carlo_kl_from_trajectories,
         )
+
         assert monte_carlo_kl_from_trajectories is not None
         assert compute_baking_quality_score is not None
 
     def test_drift_meter_imports(self):
         """Test drift_meter imports."""
-        from src.phase6_baking.drift_meter import (
-            PersonaDriftMeter,
-            DriftConfig,
-            DriftResult,
-        )
+        from src.phase6_baking.drift_meter import DriftConfig, DriftResult, PersonaDriftMeter
+
         assert PersonaDriftMeter is not None
         assert DriftConfig is not None
         assert DriftResult is not None
@@ -53,11 +52,12 @@ class TestPhase6Imports:
         """Test validation imports."""
         from src.phase6_baking.validation import (
             CrossTaskValidator,
+            TaskResult,
             ValidationConfig,
             ValidationResult,
-            TaskResult,
             create_standard_benchmark_suite,
         )
+
         assert CrossTaskValidator is not None
         assert ValidationConfig is not None
         assert ValidationResult is not None
@@ -71,6 +71,7 @@ class TestPhase6ClassInstantiation:
     def test_prompt_pursuit_optimizer_instantiation(self):
         """Test PromptPursuitOptimizer instantiation."""
         from src.phase6_baking.prompt_pursuit import PromptPursuitOptimizer, PursuitConfig
+
         config = PursuitConfig(pursuit_rounds=3)
         optimizer = PromptPursuitOptimizer(config)
         assert optimizer is not None
@@ -78,12 +79,14 @@ class TestPhase6ClassInstantiation:
     def test_multi_prompt_pursuit_instantiation(self):
         """Test MultiPromptPursuit instantiation."""
         from src.phase6_baking.prompt_pursuit import MultiPromptPursuit
+
         multi = MultiPromptPursuit()
         assert multi is not None
 
     def test_persona_drift_meter_instantiation(self):
         """Test PersonaDriftMeter instantiation."""
-        from src.phase6_baking.drift_meter import PersonaDriftMeter, DriftConfig
+        from src.phase6_baking.drift_meter import DriftConfig, PersonaDriftMeter
+
         config = DriftConfig(num_turns=10)
         meter = PersonaDriftMeter(config)
         assert meter is not None
@@ -91,6 +94,7 @@ class TestPhase6ClassInstantiation:
     def test_cross_task_validator_instantiation(self):
         """Test CrossTaskValidator instantiation."""
         from src.phase6_baking.validation import CrossTaskValidator, ValidationConfig
+
         config = ValidationConfig()
         validator = CrossTaskValidator(config)
         assert validator is not None
@@ -102,6 +106,7 @@ class TestPhase6MethodAvailability:
     def test_prompt_pursuit_optimizer_methods(self):
         """Test PromptPursuitOptimizer methods."""
         from src.phase6_baking.prompt_pursuit import PromptPursuitOptimizer
+
         optimizer = PromptPursuitOptimizer()
 
         methods = ["pursue", "get_metrics", "_bake_prompt", "_generate_calibration_samples"]
@@ -111,6 +116,7 @@ class TestPhase6MethodAvailability:
     def test_persona_drift_meter_methods(self):
         """Test PersonaDriftMeter methods."""
         from src.phase6_baking.drift_meter import PersonaDriftMeter
+
         meter = PersonaDriftMeter()
 
         methods = ["measure_drift", "compare_baked_vs_prompted", "get_metrics"]
@@ -120,9 +126,14 @@ class TestPhase6MethodAvailability:
     def test_cross_task_validator_methods(self):
         """Test CrossTaskValidator methods."""
         from src.phase6_baking.validation import CrossTaskValidator
+
         validator = CrossTaskValidator()
 
-        methods = ["validate_cross_task_forgetting", "generate_forgetting_heatmap_data", "get_metrics"]
+        methods = [
+            "validate_cross_task_forgetting",
+            "generate_forgetting_heatmap_data",
+            "get_metrics",
+        ]
         for method in methods:
             assert hasattr(validator, method), f"Missing method: {method}"
 
@@ -140,10 +151,10 @@ class TestPhase6Integration:
 
     def test_integration_with_baking_engine(self):
         """Test all modules can coexist with baking_engine."""
-        from src.phase6_baking.baking_engine import BakingEngine, BakingConfig
-        from src.phase6_baking.prompt_pursuit import PromptPursuitOptimizer
-        from src.phase6_baking.monte_carlo_kl import monte_carlo_kl_from_trajectories
+        from src.phase6_baking.baking_engine import BakingConfig, BakingEngine
         from src.phase6_baking.drift_meter import PersonaDriftMeter
+        from src.phase6_baking.monte_carlo_kl import monte_carlo_kl_from_trajectories
+        from src.phase6_baking.prompt_pursuit import PromptPursuitOptimizer
         from src.phase6_baking.validation import CrossTaskValidator
 
         # All imports should succeed
@@ -156,8 +167,8 @@ class TestPhase6PyTorchCompatibility:
 
     def test_pytorch_compatibility(self):
         """Test modules work with PyTorch."""
-        from src.phase6_baking.prompt_pursuit import PromptPursuitOptimizer
         from src.phase6_baking.drift_meter import PersonaDriftMeter
+        from src.phase6_baking.prompt_pursuit import PromptPursuitOptimizer
         from src.phase6_baking.validation import CrossTaskValidator
 
         # Create simple mock model

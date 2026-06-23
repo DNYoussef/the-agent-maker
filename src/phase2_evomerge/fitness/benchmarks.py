@@ -70,7 +70,9 @@ class GSM8KDataset(Dataset):
                 from datasets import load_dataset
 
                 dataset = load_dataset("gsm8k", "main", split="test")
-                samples = [{"question": item["question"], "answer": item["answer"]} for item in dataset]
+                samples = [
+                    {"question": item["question"], "answer": item["answer"]} for item in dataset
+                ]
             except Exception as e:
                 logger.warning(f"Could not load GSM8K from HuggingFace: {e}")
                 return []
@@ -101,7 +103,12 @@ class MGSMDataset(Dataset):
     Multilingual version of GSM8K covering 10 languages.
     """
 
-    def __init__(self, data_path: Optional[str] = None, max_samples: Optional[int] = None, language: str = "en"):
+    def __init__(
+        self,
+        data_path: Optional[str] = None,
+        max_samples: Optional[int] = None,
+        language: str = "en",
+    ):
         """
         Initialize MGSM dataset.
 
@@ -120,7 +127,9 @@ class MGSMDataset(Dataset):
                 from datasets import load_dataset
 
                 dataset = load_dataset("juletxara/mgsm", self.language, split="test")
-                samples = [{"question": item["question"], "answer": item["answer"]} for item in dataset]
+                samples = [
+                    {"question": item["question"], "answer": item["answer"]} for item in dataset
+                ]
             except Exception as e:
                 logger.warning(f"Could not load MGSM from HuggingFace: {e}")
                 return []
@@ -235,7 +244,9 @@ def evaluate_gsm8k(
             prompt = f"Question: {question}\nAnswer:"
 
             # Tokenize
-            inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=config.max_length)
+            inputs = tokenizer(
+                prompt, return_tensors="pt", truncation=True, max_length=config.max_length
+            )
             inputs = {k: v.to(config.device) for k, v in inputs.items()}
 
             # Generate
@@ -267,7 +278,9 @@ def evaluate_gsm8k(
 
             # Progress logging
             if (idx + 1) % 10 == 0:
-                logger.info(f"  Processed {idx + 1}/{len(dataset)}, accuracy so far: {correct / total:.2%}")
+                logger.info(
+                    f"  Processed {idx + 1}/{len(dataset)}, accuracy so far: {correct / total:.2%}"
+                )
 
     accuracy = correct / total if total > 0 else 0.0
 
@@ -297,7 +310,9 @@ def evaluate_mgsm(
     config = config or BenchmarkConfig(benchmark_name="mgsm")
 
     # Load dataset
-    dataset = MGSMDataset(data_path=config.mgsm_path, max_samples=config.max_samples, language=language)
+    dataset = MGSMDataset(
+        data_path=config.mgsm_path, max_samples=config.max_samples, language=language
+    )
 
     if len(dataset) == 0:
         logger.warning(f"MGSM dataset ({language}) is empty. Returning zero accuracy.")
@@ -326,7 +341,9 @@ def evaluate_mgsm(
             prompt = f"Question: {question}\nAnswer:"
 
             # Tokenize
-            inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=config.max_length)
+            inputs = tokenizer(
+                prompt, return_tensors="pt", truncation=True, max_length=config.max_length
+            )
             inputs = {k: v.to(config.device) for k, v in inputs.items()}
 
             # Generate
@@ -358,7 +375,9 @@ def evaluate_mgsm(
 
             # Progress logging
             if (idx + 1) % 10 == 0:
-                logger.info(f"  Processed {idx + 1}/{len(dataset)}, accuracy so far: {correct / total:.2%}")
+                logger.info(
+                    f"  Processed {idx + 1}/{len(dataset)}, accuracy so far: {correct / total:.2%}"
+                )
 
     accuracy = correct / total if total > 0 else 0.0
 

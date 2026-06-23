@@ -136,16 +136,12 @@ class ParallelThoughtGenerator(nn.Module):
         thought_hidden = final_outputs.last_hidden_state[:, -thought_length:, :]
 
         # Reshape: (batch * num_thoughts, thought_len, hidden) -> (batch, num_thoughts, thought_len, hidden)
-        thought_hidden = thought_hidden.view(
-            batch_size, self.num_thoughts, thought_length, -1
-        )
+        thought_hidden = thought_hidden.view(batch_size, self.num_thoughts, thought_length, -1)
 
         # Aggregate log probs
         # (thought_len, batch * num_thoughts, 1) -> (batch, num_thoughts)
         stacked_log_probs = torch.stack(all_log_probs, dim=0).squeeze(-1)
-        stacked_log_probs = stacked_log_probs.view(
-            thought_length, batch_size, self.num_thoughts
-        )
+        stacked_log_probs = stacked_log_probs.view(thought_length, batch_size, self.num_thoughts)
         log_probs = stacked_log_probs.sum(dim=0).mean(dim=0)  # (num_thoughts,)
 
         # Extract thought IDs
@@ -345,9 +341,7 @@ class ParallelThoughtGenerator(nn.Module):
         future_input = torch.cat(
             [
                 combined_input,
-                torch.zeros(
-                    combined_input.size(0), n_true, dtype=torch.long, device=device
-                ),
+                torch.zeros(combined_input.size(0), n_true, dtype=torch.long, device=device),
             ],
             dim=1,
         )
@@ -363,7 +357,9 @@ class ParallelThoughtGenerator(nn.Module):
         current_input = combined_input
 
         for i in range(n_true):
-            outputs = self.base_model(current_input, attention_mask=attention_mask[:, :, :current_input.size(1)])
+            outputs = self.base_model(
+                current_input, attention_mask=attention_mask[:, :, : current_input.size(1)]
+            )
             logits = outputs.logits[:, -1, :]
 
             # Get label for this position

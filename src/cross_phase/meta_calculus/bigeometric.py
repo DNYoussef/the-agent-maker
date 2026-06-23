@@ -33,13 +33,13 @@ Applications in Agent Forge:
 """
 
 import warnings
-
-import torch
-import numpy as np
-from typing import Union, Optional, Tuple
 from dataclasses import dataclass
+from typing import Optional, Tuple, Union
 
-from .k_formula import compute_k, k_from_gradient, KFormulaConfig
+import numpy as np
+import torch
+
+from .k_formula import KFormulaConfig, compute_k, k_from_gradient
 
 _K_CLAMP_WARNED = False
 
@@ -105,9 +105,7 @@ class BigeometricTransform:
         self.config = config or BigeometricConfig()
 
     def transform(
-        self,
-        grad: torch.Tensor,
-        k: Optional[Union[float, torch.Tensor]] = None
+        self, grad: torch.Tensor, k: Optional[Union[float, torch.Tensor]] = None
     ) -> torch.Tensor:
         """
         Apply bigeometric transformation to gradient.
@@ -137,8 +135,10 @@ class BigeometricTransform:
             k_clamped = k.clamp(min=self.config.k_min, max=self.config.k_max)
             if self.config.warn_on_clamp and bool((k_clamped != k).any()):
                 _warn_k_clamped(
-                    float(k.min()), float(k.max()),
-                    self.config.k_min, self.config.k_max,
+                    float(k.min()),
+                    float(k.max()),
+                    self.config.k_min,
+                    self.config.k_max,
                 )
             k = k_clamped
 
@@ -158,9 +158,7 @@ class BigeometricTransform:
         return grad * scale
 
     def inverse_transform(
-        self,
-        grad_meta: torch.Tensor,
-        k: Union[float, torch.Tensor]
+        self, grad_meta: torch.Tensor, k: Union[float, torch.Tensor]
     ) -> torch.Tensor:
         """
         Inverse bigeometric transformation.
@@ -192,7 +190,7 @@ class BigeometricTransform:
         # Actually need to solve numerically for exact inverse
         # Using approximation: |g| ~ |g_meta|^(1/(2k))
         inv_exp = 1.0 / (2 * k.clamp(min=0.1))  # Avoid division by zero
-        abs_grad = abs_meta ** inv_exp
+        abs_grad = abs_meta**inv_exp
 
         return torch.sign(grad_meta) * abs_grad
 
@@ -211,10 +209,7 @@ class BigeometricDerivative:
         self.eps = eps
 
     def __call__(
-        self,
-        f: torch.Tensor,
-        x: torch.Tensor,
-        df_dx: Optional[torch.Tensor] = None
+        self, f: torch.Tensor, x: torch.Tensor, df_dx: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """
         Compute bigeometric derivative.
@@ -259,7 +254,7 @@ class BigeometricDerivative:
             Verification results
         """
         x = torch.linspace(x_range[0], x_range[1], 100, requires_grad=True)
-        f = x ** n
+        f = x**n
         df_dx = n * x ** (n - 1)
 
         D_BG = self(f, x, df_dx)
@@ -271,7 +266,7 @@ class BigeometricDerivative:
             "D_BG_mean": D_BG.mean().item(),
             "D_BG_std": D_BG.std().item(),
             "is_constant": D_BG.std().item() < 1e-6,
-            "error": abs(D_BG.mean().item() - expected)
+            "error": abs(D_BG.mean().item() - expected),
         }
 
 
@@ -279,10 +274,11 @@ class BigeometricDerivative:
 # Gradient Transformation Functions (for MuGrokFast integration)
 # =============================================================================
 
+
 def bigeometric_gradient_transform(
     grad: torch.Tensor,
     k: Optional[Union[float, torch.Tensor]] = None,
-    config: Optional[BigeometricConfig] = None
+    config: Optional[BigeometricConfig] = None,
 ) -> torch.Tensor:
     """
     Transform gradient using bigeometric calculus.
@@ -304,7 +300,7 @@ def bigeometric_gradient_transform(
 def bigeometric_gradient_with_stats(
     grad: torch.Tensor,
     k: Optional[Union[float, torch.Tensor]] = None,
-    config: Optional[BigeometricConfig] = None
+    config: Optional[BigeometricConfig] = None,
 ) -> Tuple[torch.Tensor, dict]:
     """
     Transform gradient and return statistics for monitoring.
@@ -356,10 +352,8 @@ def bigeometric_gradient_with_stats(
 # Log-Space Operations (for Phase 8 compression)
 # =============================================================================
 
-def to_log_space(
-    tensor: torch.Tensor,
-    eps: float = 1e-8
-) -> Tuple[torch.Tensor, torch.Tensor]:
+
+def to_log_space(tensor: torch.Tensor, eps: float = 1e-8) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Transform tensor to log-space (bigeometric domain).
 
@@ -377,10 +371,7 @@ def to_log_space(
     return log_magnitudes, signs
 
 
-def from_log_space(
-    log_magnitudes: torch.Tensor,
-    signs: torch.Tensor
-) -> torch.Tensor:
+def from_log_space(log_magnitudes: torch.Tensor, signs: torch.Tensor) -> torch.Tensor:
     """
     Transform from log-space back to linear space.
 
@@ -395,10 +386,7 @@ def from_log_space(
 
 
 def log_space_interpolation(
-    w1: torch.Tensor,
-    w2: torch.Tensor,
-    alpha: float = 0.5,
-    eps: float = 1e-8
+    w1: torch.Tensor, w2: torch.Tensor, alpha: float = 0.5, eps: float = 1e-8
 ) -> torch.Tensor:
     """
     Interpolate weights in log-space (geometric mean).
@@ -432,7 +420,7 @@ def log_space_interpolation(
     result = torch.where(
         same_sign,
         sign1 * torch.exp(log_interp),
-        (1 - alpha) * w1 + alpha * w2  # Fall back to linear for sign changes
+        (1 - alpha) * w1 + alpha * w2,  # Fall back to linear for sign changes
     )
 
     return result
@@ -441,6 +429,7 @@ def log_space_interpolation(
 # =============================================================================
 # Verification and Testing
 # =============================================================================
+
 
 def run_verification():
     """Run verification tests for bigeometric operations."""
@@ -456,7 +445,9 @@ def run_verification():
     for n in [1, 2, 3, 5, 10]:
         result = D_BG.verify_power_law(n)
         status = "PASS" if result["is_constant"] else "FAIL"
-        print(f"   n={n}: D_BG = {result['D_BG_mean']:.4f} (expected {result['expected']:.4f}) [{status}]")
+        print(
+            f"   n={n}: D_BG = {result['D_BG_mean']:.4f} (expected {result['expected']:.4f}) [{status}]"
+        )
 
     # Test 2: Gradient transformation
     print("\n2. Gradient Transformation")
@@ -469,8 +460,10 @@ def run_verification():
         grad = torch.randn(100) * magnitude
         grad_meta, stats = bigeometric_gradient_with_stats(grad)
 
-        print(f"   |grad|={magnitude:.2f}: k={stats['k']:.4f}, "
-              f"compress={stats['compression_ratio']:.2f}x")
+        print(
+            f"   |grad|={magnitude:.2f}: k={stats['k']:.4f}, "
+            f"compress={stats['compression_ratio']:.2f}x"
+        )
 
     # Test 3: Log-space operations
     print("\n3. Log-Space Operations")

@@ -19,36 +19,32 @@ sys.path.insert(0, str(project_root))
 
 import torch
 import torch.nn as nn
+
 from src.phase3_quietstar.architecture.parallel_thought_generator import ParallelThoughtGenerator
 from src.phase3_quietstar.architecture.thought_generator import ThoughtGenerator
+from src.phase3_quietstar.config import QuietSTaRRLConfig
 from src.phase3_quietstar.config_extensions import (
-    extend_rl_config,
+    MetaTokenConfig,
     ParallelSamplingConfig,
     TeacherForcingConfig,
-    MetaTokenConfig,
-    create_complete_rl_config
+    create_complete_rl_config,
+    extend_rl_config,
 )
-from src.phase3_quietstar.config import QuietSTaRRLConfig
 
 
 class MockModel(nn.Module):
     """Mock model for testing."""
+
     def __init__(self):
         super().__init__()
-        self.config = type('obj', (object,), {
-            'hidden_size': 512,
-            'vocab_size': 50000
-        })()
+        self.config = type("obj", (object,), {"hidden_size": 512, "vocab_size": 50000})()
         self.embedding = nn.Embedding(50000, 512)
         self.lm_head = nn.Linear(512, 50000)
 
     def forward(self, input_ids, attention_mask=None):
         embeddings = self.embedding(input_ids)
         logits = self.lm_head(embeddings)
-        return type('obj', (object,), {
-            'logits': logits,
-            'last_hidden_state': embeddings
-        })()
+        return type("obj", (object,), {"logits": logits, "last_hidden_state": embeddings})()
 
 
 def test_diagonal_mask_correctness():
@@ -70,7 +66,7 @@ def test_diagonal_mask_correctness():
         num_thoughts=num_thoughts,
         seq_len=seq_len,
         position=position,
-        device='cpu'
+        device="cpu",
     )
 
     print(f"\n1. Mask Shape: {mask.shape}")
@@ -80,7 +76,7 @@ def test_diagonal_mask_correctness():
 
     # Test 1: Shared context (0:position+1) - all thoughts should attend
     print(f"\n2. Shared Context (positions 0 to {position}):")
-    shared_context_valid = torch.all(mask[:, :position+1, :position+1] == 0.0)
+    shared_context_valid = torch.all(mask[:, : position + 1, : position + 1] == 0.0)
     print(f"   All positions can attend: {shared_context_valid}")
     assert shared_context_valid, "FAIL: Shared context not fully attendable"
     print("   [PASS] Shared context correct")
@@ -110,7 +106,7 @@ def test_diagonal_mask_correctness():
     for i in range(seq_len):
         for j in range(i + 1, seq_len):
             # Position i should NOT attend to future position j
-            future_masked = torch.all(mask[:, i, j] == float('-inf'))
+            future_masked = torch.all(mask[:, i, j] == float("-inf"))
             if not future_masked:
                 print(f"   [WARN] Position {i} attends to future position {j}")
 
@@ -174,7 +170,9 @@ def test_parallel_vs_sequential_equivalence():
     print("\n3. Thought IDs:")
     print(f"   Sequential thought_ids length: {len(seq_output.thought_ids)}")
     print(f"   Parallel thought_ids length: {len(par_output.thought_ids)}")
-    assert len(seq_output.thought_ids) == len(par_output.thought_ids), "FAIL: Thought ID count mismatch"
+    assert len(seq_output.thought_ids) == len(
+        par_output.thought_ids
+    ), "FAIL: Thought ID count mismatch"
     print("   [PASS] Thought ID structure compatible")
 
     print("\n[OVERALL] Interface equivalence: PASS")
@@ -233,7 +231,9 @@ def test_teacher_forcing_edge_cases():
     labels = torch.randint(0, 50000, (2, 30))
     for n_true in [1, 2, 4, 8]:
         try:
-            loss = generator.compute_teacher_forced_loss(input_ids, thought_ids, labels, n_true=n_true)
+            loss = generator.compute_teacher_forced_loss(
+                input_ids, thought_ids, labels, n_true=n_true
+            )
             print(f"   n_true={n_true}: Loss={loss.item():.4f} [PASS]")
         except Exception as e:
             print(f"   n_true={n_true}: [FAIL] {e}")
@@ -250,15 +250,19 @@ def test_config_extensions():
     # Test 1: extend_rl_config
     print("\n1. extend_rl_config:")
     base_config = QuietSTaRRLConfig()
-    print(f"   Before extension - has meta_token_grad_scale: {hasattr(base_config, 'meta_token_grad_scale')}")
+    print(
+        f"   Before extension - has meta_token_grad_scale: {hasattr(base_config, 'meta_token_grad_scale')}"
+    )
 
     extended = extend_rl_config(base_config)
-    print(f"   After extension - has meta_token_grad_scale: {hasattr(extended, 'meta_token_grad_scale')}")
+    print(
+        f"   After extension - has meta_token_grad_scale: {hasattr(extended, 'meta_token_grad_scale')}"
+    )
     print(f"   meta_token_grad_scale: {extended.meta_token_grad_scale}")
     print(f"   n_true: {extended.n_true}")
     print(f"   use_parallel_generation: {extended.use_parallel_generation}")
 
-    assert hasattr(extended, 'meta_token_grad_scale'), "FAIL: Missing meta_token_grad_scale"
+    assert hasattr(extended, "meta_token_grad_scale"), "FAIL: Missing meta_token_grad_scale"
     assert extended.meta_token_grad_scale == 100.0, "FAIL: Wrong default value"
     print("   [PASS] extend_rl_config works")
 
@@ -294,10 +298,10 @@ def test_config_extensions():
     print("\n5. create_complete_rl_config:")
     complete = create_complete_rl_config()
     print(f"   Keys: {list(complete.keys())}")
-    assert 'base' in complete, "FAIL: Missing 'base'"
-    assert 'parallel_sampling' in complete, "FAIL: Missing 'parallel_sampling'"
-    assert 'teacher_forcing' in complete, "FAIL: Missing 'teacher_forcing'"
-    assert 'meta_token' in complete, "FAIL: Missing 'meta_token'"
+    assert "base" in complete, "FAIL: Missing 'base'"
+    assert "parallel_sampling" in complete, "FAIL: Missing 'parallel_sampling'"
+    assert "teacher_forcing" in complete, "FAIL: Missing 'teacher_forcing'"
+    assert "meta_token" in complete, "FAIL: Missing 'meta_token'"
     print("   [PASS] create_complete_rl_config works")
 
     print("\n[OVERALL] Config extensions: PASS")
@@ -372,6 +376,7 @@ def main():
     except Exception as e:
         print(f"\n[FATAL ERROR] {e}")
         import traceback
+
         traceback.print_exc()
 
 

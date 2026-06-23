@@ -8,8 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ..storage.model_registry import ModelRegistry
 from ..monitoring.wandb_integration import WandBIntegration
+from ..storage.model_registry import ModelRegistry
 from .base_controller import PhaseController, PhaseResult
 
 
@@ -95,7 +95,9 @@ class PipelineOrchestrator:
 
             # AGM-002: Register model in registry for rollback support
             if result.model is not None:
-                model_path = result.artifacts.get("model_path", f"./checkpoints/{phase_name}/model.safetensors")
+                model_path = result.artifacts.get(
+                    "model_path", f"./checkpoints/{phase_name}/model.safetensors"
+                )
                 try:
                     self.registry.register_model(
                         session_id=self.session_id,
@@ -106,7 +108,7 @@ class PipelineOrchestrator:
                             "metrics": result.metrics,
                             "duration": duration,
                             "parameters": result.artifacts.get("parameters", 0),
-                        }
+                        },
                     )
                 except Exception as e:
                     print(f"  Warning: Failed to register model in registry: {e}")
@@ -174,7 +176,9 @@ class PipelineOrchestrator:
         # AGM-002: Register model in registry for rollback support
         phase_name = f"phase{phase_num}"
         if result.model is not None:
-            model_path = result.artifacts.get("model_path", f"./checkpoints/{phase_name}/model.safetensors")
+            model_path = result.artifacts.get(
+                "model_path", f"./checkpoints/{phase_name}/model.safetensors"
+            )
             try:
                 self.registry.register_model(
                     session_id=self.session_id,
@@ -185,7 +189,7 @@ class PipelineOrchestrator:
                         "metrics": result.metrics,
                         "duration": result.duration,
                         "parameters": result.artifacts.get("parameters", 0),
-                    }
+                    },
                 )
             except Exception as e:
                 print(f"  Warning: Failed to register model in registry: {e}")
@@ -199,9 +203,7 @@ class PipelineOrchestrator:
                 session_id=self.session_id,
             )
             if isinstance(result.metrics, dict):
-                self.wandb.log_metrics(
-                    {f"{phase_name}/{k}": v for k, v in result.metrics.items()}
-                )
+                self.wandb.log_metrics({f"{phase_name}/{k}": v for k, v in result.metrics.items()})
             self.wandb.finish()
         except Exception:
             pass

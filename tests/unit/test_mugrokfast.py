@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-
 from cross_phase.mugrokfast.config import MuGrokConfig
 from cross_phase.mugrokfast.optimizer import MuonGrokfast, create_optimizer_from_phase
 

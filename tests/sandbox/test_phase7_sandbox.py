@@ -13,7 +13,8 @@ CRITICAL: Verify 1.58-bit format preservation throughout pipeline.
 """
 
 import pytest
-pytestmark = pytest.mark.skip(reason='Standalone sandbox script - run with python directly')
+
+pytestmark = pytest.mark.skip(reason="Standalone sandbox script - run with python directly")
 
 import sys
 from pathlib import Path
@@ -22,33 +23,19 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
+import math
+import random
+from typing import Any, Dict, List, Optional
+
 import torch
 import torch.nn as nn
-import random
-import math
-from typing import Dict, Any, List, Optional
+
+from phase7_experts.adas_optimizer import ADASConfig, ADASOptimizer, ADASResult
 
 # Import Phase 7 modules
-from phase7_experts.expert_discovery import (
-    ExpertDiscovery,
-    ExpertProfile,
-    DiscoveryConfig,
-)
-from phase7_experts.svf_trainer import (
-    SVFTrainer,
-    SVFConfig,
-    SVFResult,
-)
-from phase7_experts.transformer2 import (
-    Transformer2,
-    Transformer2Config,
-    Transformer2Result,
-)
-from phase7_experts.adas_optimizer import (
-    ADASOptimizer,
-    ADASConfig,
-    ADASResult,
-)
+from phase7_experts.expert_discovery import DiscoveryConfig, ExpertDiscovery, ExpertProfile
+from phase7_experts.svf_trainer import SVFConfig, SVFResult, SVFTrainer
+from phase7_experts.transformer2 import Transformer2, Transformer2Config, Transformer2Result
 
 
 # Mock 1.58-bit Model (simulates Phase 4 output)
@@ -147,7 +134,9 @@ class Mock158BitModel(nn.Module):
 
         return results
 
-    def forward(self, input_ids: torch.Tensor, attention_mask: Optional[torch.Tensor] = None, **kwargs):
+    def forward(
+        self, input_ids: torch.Tensor, attention_mask: Optional[torch.Tensor] = None, **kwargs
+    ):
         """Forward pass with 1.58-bit weights."""
         # Embedding
         hidden_states = self.embedding(input_ids)
@@ -180,7 +169,7 @@ class MockTokenizer:
         """Tokenize text (mock implementation)."""
         # Simple: hash text to IDs
         tokens = [hash(word) % self.vocab_size for word in text.split()]
-        input_ids = torch.tensor([tokens[:kwargs.get("max_length", 128)]])
+        input_ids = torch.tensor([tokens[: kwargs.get("max_length", 128)]])
 
         return {
             "input_ids": input_ids,
@@ -189,7 +178,9 @@ class MockTokenizer:
 
 
 # Test Functions
-def test_expert_discovery(model: nn.Module, tokenizer: Any) -> tuple[int, List[ExpertProfile], bool]:
+def test_expert_discovery(
+    model: nn.Module, tokenizer: Any
+) -> tuple[int, List[ExpertProfile], bool]:
     """
     Test Stage 1: Expert Discovery
 
@@ -239,7 +230,9 @@ def test_expert_discovery(model: nn.Module, tokenizer: Any) -> tuple[int, List[E
         print(f"\n  [SUCCESS] Discovered {num_experts} experts")
         print("  Expert Summary:")
         for expert in experts:
-            print(f"    - {expert.name}: {expert.capabilities[:2]} (strength: {expert.strength_score:.2f})")
+            print(
+                f"    - {expert.name}: {expert.capabilities[:2]} (strength: {expert.strength_score:.2f})"
+            )
 
     return num_experts, experts, success
 
@@ -459,7 +452,9 @@ def test_adas_optimizer(
 
     # Check generation history
     if len(result.generation_history) != config.num_generations:
-        print(f"  [ERROR] Generation history mismatch: {len(result.generation_history)} vs {config.num_generations}")
+        print(
+            f"  [ERROR] Generation history mismatch: {len(result.generation_history)} vs {config.num_generations}"
+        )
         success = False
 
     if success:
@@ -467,7 +462,9 @@ def test_adas_optimizer(
         print(f"    Pareto front size: {len(result.pareto_front)}")
         print(f"    Best accuracy: {result.best_individual.fitness_scores.get('accuracy', 0):.3f}")
         print(f"    Best latency: {result.best_individual.fitness_scores.get('latency', 0):.3f}")
-        print(f"    Expert weights: {[f'{w:.2f}' for w in result.best_individual.routing_weights[:3]]}")
+        print(
+            f"    Expert weights: {[f'{w:.2f}' for w in result.best_individual.routing_weights[:3]]}"
+        )
 
     metrics = {
         "pareto_front_size": len(result.pareto_front),
@@ -597,6 +594,7 @@ def main():
     except Exception as e:
         results["errors"].append(f"Exception: {str(e)}")
         import traceback
+
         traceback.print_exc()
 
     # Final Report

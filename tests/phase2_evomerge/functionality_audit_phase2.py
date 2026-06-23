@@ -15,20 +15,20 @@ Audit Methodology:
 - Error handling verification
 """
 
+import json
 import sys
 import traceback
 from pathlib import Path
 from typing import Dict, List, Tuple
-import json
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+import numpy as np
 import pytest
 import torch
 import torch.nn as nn
-import numpy as np
 
 
 class FunctionalityAuditReport:
@@ -46,29 +46,20 @@ class FunctionalityAuditReport:
         """Record import test result."""
         self.import_status[module_name] = {
             "success": success,
-            "error": error if not success else None
+            "error": error if not success else None,
         }
 
     def add_syntax_error(self, module_name: str, error: str):
         """Record syntax error."""
-        self.syntax_errors.append({
-            "module": module_name,
-            "error": error
-        })
+        self.syntax_errors.append({"module": module_name, "error": error})
 
     def add_runtime_error(self, test_name: str, error: str):
         """Record runtime error."""
-        self.runtime_errors.append({
-            "test": test_name,
-            "error": error
-        })
+        self.runtime_errors.append({"test": test_name, "error": error})
 
     def add_functionality_gap(self, module_name: str, gap: str):
         """Record functionality gap."""
-        self.functionality_gaps.append({
-            "module": module_name,
-            "gap": gap
-        })
+        self.functionality_gaps.append({"module": module_name, "gap": gap})
 
     def add_recommendation(self, recommendation: str):
         """Add recommendation."""
@@ -76,10 +67,7 @@ class FunctionalityAuditReport:
 
     def add_test_result(self, test_name: str, passed: bool, details: str = ""):
         """Record test result."""
-        self.test_results[test_name] = {
-            "passed": passed,
-            "details": details
-        }
+        self.test_results[test_name] = {"passed": passed, "details": details}
 
     def generate_report(self) -> str:
         """Generate formatted audit report."""
@@ -89,7 +77,7 @@ class FunctionalityAuditReport:
             "=" * 80,
             "",
             "1. IMPORT STATUS",
-            "-" * 80
+            "-" * 80,
         ]
 
         for module, status in self.import_status.items():
@@ -98,11 +86,7 @@ class FunctionalityAuditReport:
             if status["error"]:
                 report_lines.append(f"        Error: {status['error']}")
 
-        report_lines.extend([
-            "",
-            "2. SYNTAX ERRORS",
-            "-" * 80
-        ])
+        report_lines.extend(["", "2. SYNTAX ERRORS", "-" * 80])
 
         if not self.syntax_errors:
             report_lines.append("  No syntax errors detected.")
@@ -112,11 +96,7 @@ class FunctionalityAuditReport:
                 report_lines.append(f"  Error: {error['error']}")
                 report_lines.append("")
 
-        report_lines.extend([
-            "",
-            "3. RUNTIME ERRORS",
-            "-" * 80
-        ])
+        report_lines.extend(["", "3. RUNTIME ERRORS", "-" * 80])
 
         if not self.runtime_errors:
             report_lines.append("  No runtime errors detected.")
@@ -126,11 +106,7 @@ class FunctionalityAuditReport:
                 report_lines.append(f"  Error: {error['error']}")
                 report_lines.append("")
 
-        report_lines.extend([
-            "",
-            "4. TEST RESULTS",
-            "-" * 80
-        ])
+        report_lines.extend(["", "4. TEST RESULTS", "-" * 80])
 
         passed_count = sum(1 for r in self.test_results.values() if r["passed"])
         total_count = len(self.test_results)
@@ -143,11 +119,7 @@ class FunctionalityAuditReport:
 
         report_lines.append(f"\n  Summary: {passed_count}/{total_count} tests passed")
 
-        report_lines.extend([
-            "",
-            "5. FUNCTIONALITY GAPS",
-            "-" * 80
-        ])
+        report_lines.extend(["", "5. FUNCTIONALITY GAPS", "-" * 80])
 
         if not self.functionality_gaps:
             report_lines.append("  No functionality gaps detected.")
@@ -157,11 +129,7 @@ class FunctionalityAuditReport:
                 report_lines.append(f"  Gap: {gap['gap']}")
                 report_lines.append("")
 
-        report_lines.extend([
-            "",
-            "6. RECOMMENDATIONS",
-            "-" * 80
-        ])
+        report_lines.extend(["", "6. RECOMMENDATIONS", "-" * 80])
 
         if not self.recommendations:
             report_lines.append("  No specific recommendations.")
@@ -169,12 +137,9 @@ class FunctionalityAuditReport:
             for i, rec in enumerate(self.recommendations, 1):
                 report_lines.append(f"  {i}. {rec}")
 
-        report_lines.extend([
-            "",
-            "=" * 80,
-            f"AUDIT COMPLETE - {passed_count}/{total_count} tests passed",
-            "=" * 80
-        ])
+        report_lines.extend(
+            ["", "=" * 80, f"AUDIT COMPLETE - {passed_count}/{total_count} tests passed", "=" * 80]
+        )
 
         return "\n".join(report_lines)
 
@@ -186,9 +151,7 @@ class SimpleTestModel(nn.Module):
     def __init__(self, hidden_size=64):
         super().__init__()
         self.embed = nn.Embedding(100, hidden_size)
-        self.layers = nn.ModuleList([
-            nn.Linear(hidden_size, hidden_size) for _ in range(3)
-        ])
+        self.layers = nn.ModuleList([nn.Linear(hidden_size, hidden_size) for _ in range(3)])
         self.output = nn.Linear(hidden_size, 100)
 
     def forward(self, input_ids):
@@ -223,7 +186,7 @@ def _import_target_modules(report: FunctionalityAuditReport) -> Dict[str, object
 
     for name, module_path in modules_to_test:
         try:
-            module = __import__(module_path, fromlist=['*'])
+            module = __import__(module_path, fromlist=["*"])
             report.add_import_result(name, True)
             imported_modules[module_path] = module
             print(f"  [PASS] {name}")
@@ -263,17 +226,15 @@ def test_cmaes_optimizer(report: FunctionalityAuditReport):
             return -np.sum((coeffs - 0.5) ** 2)
 
         best_coeffs, best_fitness = optimizer.optimize(
-            simple_objective,
-            n_dimensions=3,
-            n_trials=30,
-            verbose=False
+            simple_objective, n_dimensions=3, n_trials=30, verbose=False
         )
 
         assert best_coeffs is not None
         assert len(best_coeffs) == 3
         assert np.allclose(np.sum(best_coeffs), 1.0, atol=0.1)  # Should sum to ~1
-        report.add_test_result("CMA-ES: Simple Optimization", True,
-                              f"Best fitness: {best_fitness:.4f}")
+        report.add_test_result(
+            "CMA-ES: Simple Optimization", True, f"Best fitness: {best_fitness:.4f}"
+        )
         print(f"  [PASS] Simple Optimization (fitness: {best_fitness:.4f})")
 
         # Test 2.3: Coefficient normalization
@@ -336,16 +297,15 @@ def test_benchmark_evaluation(report: FunctionalityAuditReport):
             if len(dataset) > 0:
                 sample = dataset[0]
                 assert "question" in sample and "answer" in sample
-                report.add_test_result("Benchmarks: Dataset Loading", True,
-                                      f"Loaded {len(dataset)} samples")
+                report.add_test_result(
+                    "Benchmarks: Dataset Loading", True, f"Loaded {len(dataset)} samples"
+                )
                 print(f"  [PASS] Dataset Loading ({len(dataset)} samples)")
             else:
-                report.add_test_result("Benchmarks: Dataset Loading", False,
-                                      "Dataset is empty")
+                report.add_test_result("Benchmarks: Dataset Loading", False, "Dataset is empty")
                 print("  [WARN] Dataset is empty (may require internet)")
         except Exception as e:
-            report.add_functionality_gap("Benchmarks",
-                                        f"Dataset loading failed: {str(e)}")
+            report.add_functionality_gap("Benchmarks", f"Dataset loading failed: {str(e)}")
             print("  [SKIP] Dataset Loading (requires datasets library)")
 
     except Exception as e:
@@ -385,16 +345,16 @@ def test_dfs_paper_accurate(report: FunctionalityAuditReport):
         assert len(dfs.indicator_array) == T
         assert dfs.scaling_matrix.shape == (M, M)
 
-        report.add_test_result("DFS: Model Merging", True,
-                              f"Merged {M} models with {r} layers each")
+        report.add_test_result(
+            "DFS: Model Merging", True, f"Merged {M} models with {r} layers each"
+        )
         print(f"  [PASS] Model Merging ({M} models, {r} layers, T={T})")
 
         # Test 4.3: Custom indicator array
         indicators = np.ones(T, dtype=np.float32)
         scaling = np.eye(M, dtype=np.float32)
 
-        merged_custom = dfs.merge(models, indicator_array=indicators,
-                                 scaling_matrix=scaling)
+        merged_custom = dfs.merge(models, indicator_array=indicators, scaling_matrix=scaling)
         assert isinstance(merged_custom, nn.Module)
         report.add_test_result("DFS: Custom Indicators", True)
         print("  [PASS] Custom Indicators")
@@ -402,8 +362,7 @@ def test_dfs_paper_accurate(report: FunctionalityAuditReport):
         # Test 4.4: Layer counting
         layer_count = dfs._count_layers(models[0])
         assert layer_count > 0
-        report.add_test_result("DFS: Layer Counting", True,
-                              f"Detected {layer_count} layers")
+        report.add_test_result("DFS: Layer Counting", True, f"Detected {layer_count} layers")
         print(f"  [PASS] Layer Counting ({layer_count} layers)")
 
     except Exception as e:
@@ -422,9 +381,9 @@ def test_hybrid_ps_dfs(report: FunctionalityAuditReport):
         from phase2_evomerge.merge.hybrid_ps_dfs import HybridConfig, HybridPSDFS
 
         # Test 5.1: Initialization
-        config = HybridConfig(ps_candidates_multiplier=2,
-                            ps_generations=5,
-                            dfs_optimization_iterations=10)
+        config = HybridConfig(
+            ps_candidates_multiplier=2, ps_generations=5, dfs_optimization_iterations=10
+        )
         hybrid = HybridPSDFS(config)
 
         assert hybrid.config.ps_candidates_multiplier == 2
@@ -440,9 +399,7 @@ def test_hybrid_ps_dfs(report: FunctionalityAuditReport):
 
         # Use minimal settings for fast test
         test_config = HybridConfig(
-            ps_candidates_multiplier=2,
-            ps_generations=3,
-            dfs_optimization_iterations=5
+            ps_candidates_multiplier=2, ps_generations=3, dfs_optimization_iterations=5
         )
 
         hybrid = HybridPSDFS(test_config)
@@ -456,15 +413,25 @@ def test_hybrid_ps_dfs(report: FunctionalityAuditReport):
         n_candidates = len(models) * test_config.ps_candidates_multiplier
         assert len(hybrid.ps_candidates) == n_candidates
 
-        report.add_test_result("Hybrid: PS+DFS Merge", True,
-                              f"Created {n_candidates} PS candidates, "
-                              f"fitness improvement: {metrics['fitness_improvement']:.2%}")
-        print(f"  [PASS] PS+DFS Merge ({n_candidates} candidates, "
-              f"improvement: {metrics['fitness_improvement']:.2%})")
+        report.add_test_result(
+            "Hybrid: PS+DFS Merge",
+            True,
+            f"Created {n_candidates} PS candidates, "
+            f"fitness improvement: {metrics['fitness_improvement']:.2%}",
+        )
+        print(
+            f"  [PASS] PS+DFS Merge ({n_candidates} candidates, "
+            f"improvement: {metrics['fitness_improvement']:.2%})"
+        )
 
         # Test 5.3: Metrics validation
-        required_metrics = ["n_base_models", "n_ps_candidates", "baseline_fitness",
-                          "ps_best_fitness", "champion_fitness"]
+        required_metrics = [
+            "n_base_models",
+            "n_ps_candidates",
+            "baseline_fitness",
+            "ps_best_fitness",
+            "champion_fitness",
+        ]
 
         all_present = all(k in metrics for k in required_metrics)
         if all_present:
@@ -472,8 +439,9 @@ def test_hybrid_ps_dfs(report: FunctionalityAuditReport):
             print("  [PASS] Metrics Validation")
         else:
             missing = [k for k in required_metrics if k not in metrics]
-            report.add_test_result("Hybrid: Metrics Validation", False,
-                                  f"Missing metrics: {missing}")
+            report.add_test_result(
+                "Hybrid: Metrics Validation", False, f"Missing metrics: {missing}"
+            )
             print(f"  [FAIL] Metrics Validation (missing: {missing})")
             assert all_present, f"missing hybrid metrics: {missing}"
 
@@ -490,9 +458,9 @@ def test_integration(report: FunctionalityAuditReport):
     print("\n[TEST 6] Testing Cross-Module Integration...")
 
     try:
-        from phase2_evomerge.evolution.cma_es import CMAESOptimizer, CMAESConfig
+        from phase2_evomerge.evolution.cma_es import CMAESConfig, CMAESOptimizer
         from phase2_evomerge.merge.dfs_paper_accurate import DFSPaperAccurate
-        from phase2_evomerge.merge.hybrid_ps_dfs import HybridPSDFS, HybridConfig
+        from phase2_evomerge.merge.hybrid_ps_dfs import HybridConfig, HybridPSDFS
 
         # Test 6.1: CMA-ES with model merging
         models = [SimpleTestModel(hidden_size=32) for _ in range(3)]
@@ -513,10 +481,9 @@ def test_integration(report: FunctionalityAuditReport):
                     merged_params[param_name] = merged_param
             return float(list(merged_params.values())[0].mean().item())
 
-        best_coeffs, _ = optimizer.optimize(merge_and_evaluate,
-                                           n_dimensions=3,
-                                           n_trials=10,
-                                           verbose=False)
+        best_coeffs, _ = optimizer.optimize(
+            merge_and_evaluate, n_dimensions=3, n_trials=10, verbose=False
+        )
 
         assert best_coeffs is not None
         report.add_test_result("Integration: CMA-ES + Merge", True)
@@ -531,9 +498,7 @@ def test_integration(report: FunctionalityAuditReport):
 
         # Test 6.3: Full hybrid pipeline
         hybrid_config = HybridConfig(
-            ps_candidates_multiplier=2,
-            ps_generations=2,
-            dfs_optimization_iterations=3
+            ps_candidates_multiplier=2, ps_generations=2, dfs_optimization_iterations=3
         )
         hybrid = HybridPSDFS(hybrid_config)
 
@@ -557,12 +522,11 @@ def generate_recommendations(report: FunctionalityAuditReport):
     """Generate recommendations based on audit results."""
 
     # Check import failures
-    failed_imports = [name for name, status in report.import_status.items()
-                     if not status["success"]]
+    failed_imports = [
+        name for name, status in report.import_status.items() if not status["success"]
+    ]
     if failed_imports:
-        report.add_recommendation(
-            f"Fix import errors in modules: {', '.join(failed_imports)}"
-        )
+        report.add_recommendation(f"Fix import errors in modules: {', '.join(failed_imports)}")
 
     # Check for dataset availability
     if any("dataset" in gap["gap"].lower() for gap in report.functionality_gaps):
@@ -576,9 +540,7 @@ def generate_recommendations(report: FunctionalityAuditReport):
     pass_rate = passed / total if total > 0 else 0
 
     if pass_rate < 0.9:
-        report.add_recommendation(
-            f"Test pass rate is {pass_rate:.1%}. Investigate failing tests."
-        )
+        report.add_recommendation(f"Test pass rate is {pass_rate:.1%}. Investigate failing tests.")
 
     # Runtime errors
     if report.runtime_errors:
@@ -588,9 +550,7 @@ def generate_recommendations(report: FunctionalityAuditReport):
 
     # General recommendations
     if pass_rate >= 0.9 and not report.syntax_errors:
-        report.add_recommendation(
-            "Core functionality verified. Ready for integration testing."
-        )
+        report.add_recommendation("Core functionality verified. Ready for integration testing.")
 
 
 def main():

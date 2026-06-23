@@ -23,25 +23,16 @@ Usage:
 
 from typing import Any, Callable, Dict, Optional
 
-# Layer 1 imports (core)
-from ..meta_grokfast import MetaGrokfast, GrokfastConfig
-from ..spectral_gap import SpectralGapMonitor
+from ..gap_utils.monitoring import GapHealthStatus, PhaseGapMonitor
 
 # Layer 2 imports (utilities)
-from ..k_utils.scheduling import (
-    k_learning_rate_schedule,
-    create_k_lr_scheduler,
-    KScheduleConfig,
-)
-from ..gap_utils.monitoring import (
-    PhaseGapMonitor,
-    GapHealthStatus,
-)
-from ..moo_utils.architecture import (
-    ArchitectureSearchProblem,
-    search_architecture as _search_architecture,
-    ArchitectureSearchConfig,
-)
+from ..k_utils.scheduling import KScheduleConfig, create_k_lr_scheduler, k_learning_rate_schedule
+
+# Layer 1 imports (core)
+from ..meta_grokfast import GrokfastConfig, MetaGrokfast
+from ..moo_utils.architecture import ArchitectureSearchConfig, ArchitectureSearchProblem
+from ..moo_utils.architecture import search_architecture as _search_architecture
+from ..spectral_gap import SpectralGapMonitor
 
 # Phase 1 specific defaults
 PHASE1_CONFIG = GrokfastConfig(
@@ -163,6 +154,7 @@ def get_k_value(layer_idx: int, total_layers: int) -> float:
         k value for this layer
     """
     from ..k_formula import compute_k
+
     L = (layer_idx + 1) / total_layers  # Normalize to [0, 1]
     return compute_k(L)
 

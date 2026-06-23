@@ -12,6 +12,18 @@ Canonical imports should use:
     from cross_phase.orchestrator import Phase1Controller
 """
 
+# Re-export constants for backward compatibility
+# ISS-015/ISS-022: Import constants from cross_phase.constants
+from src.cross_phase.constants import (
+    CURRICULUM_LEVELS,
+    EVOMERGE_GENERATIONS,
+    MIN_EXPERTS,
+    ValidationThresholds,
+)
+
+# ISS-016: Import unified tokenizer utility
+from src.cross_phase.utils import MockTokenizer, get_tokenizer
+
 # Re-export base classes
 from .base_controller import PhaseController, PhaseResult
 
@@ -24,18 +36,6 @@ from .phase5_controller import Phase5Controller
 from .phase6_controller import Phase6Controller
 from .phase7_controller import Phase7Controller
 from .phase8_controller import Phase8Controller
-
-# Re-export constants for backward compatibility
-# ISS-015/ISS-022: Import constants from cross_phase.constants
-from src.cross_phase.constants import (
-    CURRICULUM_LEVELS,
-    EVOMERGE_GENERATIONS,
-    MIN_EXPERTS,
-    ValidationThresholds,
-)
-
-# ISS-016: Import unified tokenizer utility
-from src.cross_phase.utils import MockTokenizer, get_tokenizer
 
 __all__ = [
     # Base classes

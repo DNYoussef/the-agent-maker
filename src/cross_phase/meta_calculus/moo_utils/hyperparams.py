@@ -11,16 +11,12 @@ Phase Applications:
 """
 
 from dataclasses import dataclass
-from typing import Optional, Callable, Dict, Any
+from typing import Any, Callable, Dict, Optional
+
 import numpy as np
 
 # Layer 1 import only
-from ..moo_bridge import (
-    AgentForgeMOOProblem,
-    MOORunner,
-    MOOConfig,
-    ObjectiveDefinition,
-)
+from ..moo_bridge import AgentForgeMOOProblem, MOOConfig, MOORunner, ObjectiveDefinition
 
 
 @dataclass
@@ -39,6 +35,7 @@ class HyperparamSearchConfig:
 # =============================================================================
 # TRAINING HYPERPARAMS (Phase 1)
 # =============================================================================
+
 
 class TrainingHyperparamProblem(AgentForgeMOOProblem):
     """
@@ -144,6 +141,7 @@ def optimize_training_hyperparams(
 # THOUGHT HYPERPARAMS (Phase 3)
 # =============================================================================
 
+
 class ThoughtHyperparamProblem(AgentForgeMOOProblem):
     """
     Multi-objective thought generation hyperparameter optimization.
@@ -206,9 +204,7 @@ class ThoughtHyperparamProblem(AgentForgeMOOProblem):
             top_p = xi[3]
 
             try:
-                metrics = self.thought_evaluator(
-                    n_thoughts, thought_length, temperature, top_p
-                )
+                metrics = self.thought_evaluator(n_thoughts, thought_length, temperature, top_p)
 
                 # Note: coherence, diversity, quality are maximized (negated)
                 f[i, 0] = -metrics.get("coherence", 0)
@@ -252,6 +248,7 @@ def optimize_thought_hyperparams(
 # =============================================================================
 # CURRICULUM SCHEDULE (Phase 5)
 # =============================================================================
+
 
 class CurriculumScheduleProblem(AgentForgeMOOProblem):
     """
@@ -313,7 +310,7 @@ class CurriculumScheduleProblem(AgentForgeMOOProblem):
 
         for i, xi in enumerate(x):
             # Normalize stage ratios to sum to 1
-            stage_ratios = xi[:self.n_stages]
+            stage_ratios = xi[: self.n_stages]
             stage_ratios = stage_ratios / (stage_ratios.sum() + 1e-10)
 
             difficulty_start = xi[-2]
@@ -321,8 +318,7 @@ class CurriculumScheduleProblem(AgentForgeMOOProblem):
 
             try:
                 metrics = self.curriculum_evaluator(
-                    stage_ratios.tolist(),
-                    {"start": difficulty_start, "end": difficulty_end}
+                    stage_ratios.tolist(), {"start": difficulty_start, "end": difficulty_end}
                 )
 
                 # Note: efficiency, performance maximized (negated)
@@ -368,6 +364,7 @@ def optimize_curriculum_schedule(
 # =============================================================================
 # A/B CYCLE INTERLEAVING (Phase 6)
 # =============================================================================
+
 
 class ABCycleInterleavingProblem(AgentForgeMOOProblem):
     """

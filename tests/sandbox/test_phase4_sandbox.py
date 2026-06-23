@@ -18,14 +18,15 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-import torch
-import torch.nn as nn
 from typing import Dict, Tuple
 
-from src.phase4_bitnet.config import Phase4Config
-from src.phase4_bitnet.quantizer import BitNetQuantizer
+import torch
+import torch.nn as nn
+
 from src.phase4_bitnet.bitlinear import BitLinear, replace_linear_with_bitlinear
 from src.phase4_bitnet.compressed_model import CompressedModel
+from src.phase4_bitnet.config import Phase4Config
+from src.phase4_bitnet.quantizer import BitNetQuantizer
 
 
 class TestModel(nn.Module):
@@ -51,9 +52,9 @@ def test_ternary_quantization() -> Dict:
     """
     Test 1: Verify ternary quantization produces {-1, 0, +1}
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 1: Ternary Quantization")
-    print("="*80)
+    print("=" * 80)
 
     config = Phase4Config()
     quantizer = BitNetQuantizer(config)
@@ -111,9 +112,9 @@ def test_bitlinear_replacement() -> Dict:
     """
     Test 2: Verify BitLinear layer replacement
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 2: BitLinear Layer Replacement")
-    print("="*80)
+    print("=" * 80)
 
     # Create test model
     model = TestModel(hidden_dim=64, num_layers=2)
@@ -127,14 +128,17 @@ def test_bitlinear_replacement() -> Dict:
 
     # Count BitLinear layers
     bitlinear_count = sum(1 for m in model.modules() if isinstance(m, BitLinear))
-    remaining_linear = sum(1 for m in model.modules() if isinstance(m, nn.Linear) and not isinstance(m, BitLinear))
+    remaining_linear = sum(
+        1 for m in model.modules() if isinstance(m, nn.Linear) and not isinstance(m, BitLinear)
+    )
 
     print(f"BitLinear layers: {bitlinear_count}")
     print(f"Remaining Linear layers: {remaining_linear}")
 
     # Verify all replaced
-    assert bitlinear_count == original_linear_count, \
-        f"Expected {original_linear_count} BitLinear, got {bitlinear_count}"
+    assert (
+        bitlinear_count == original_linear_count
+    ), f"Expected {original_linear_count} BitLinear, got {bitlinear_count}"
     assert remaining_linear == 0, f"Found {remaining_linear} unreplaced Linear layers"
 
     # Test forward pass
@@ -157,9 +161,9 @@ def test_compression_ratio() -> Dict:
     """
     Test 3: Calculate compression ratio
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 3: Compression Ratio Calculation")
-    print("="*80)
+    print("=" * 80)
 
     config = Phase4Config()
     model = TestModel(hidden_dim=128, num_layers=3)
@@ -193,23 +197,28 @@ def test_compression_ratio() -> Dict:
     expected_min_ratio = 3.0  # Minimum for small test models
     expected_target_ratio = 8.2  # Paper target for large models
 
-    assert stats['compression_ratio'] >= expected_min_ratio, \
-        f"Compression ratio {stats['compression_ratio']:.2f}x below minimum {expected_min_ratio}x"
+    assert (
+        stats["compression_ratio"] >= expected_min_ratio
+    ), f"Compression ratio {stats['compression_ratio']:.2f}x below minimum {expected_min_ratio}x"
 
-    if stats['compression_ratio'] >= expected_target_ratio:
-        print(f"\nTarget compression ratio achieved! ({stats['compression_ratio']:.2f}x >= {expected_target_ratio}x)")
-    elif stats['compression_ratio'] >= 6.0:
+    if stats["compression_ratio"] >= expected_target_ratio:
+        print(
+            f"\nTarget compression ratio achieved! ({stats['compression_ratio']:.2f}x >= {expected_target_ratio}x)"
+        )
+    elif stats["compression_ratio"] >= 6.0:
         print(f"\nGood compression ratio for test model ({stats['compression_ratio']:.2f}x)")
     else:
-        print(f"\nNote: Small model compression ({stats['compression_ratio']:.2f}x) - scale overhead dominates")
+        print(
+            f"\nNote: Small model compression ({stats['compression_ratio']:.2f}x) - scale overhead dominates"
+        )
         print(f"      Large production models will achieve 6-8.2x compression")
 
     return {
         "status": "PASS",
-        "compression_ratio": stats['compression_ratio'],
-        "target_achieved": stats['compression_ratio'] >= expected_target_ratio,
-        "original_mb": stats['original_size_mb'],
-        "quantized_mb": stats['quantized_size_mb'],
+        "compression_ratio": stats["compression_ratio"],
+        "target_achieved": stats["compression_ratio"] >= expected_target_ratio,
+        "original_mb": stats["original_size_mb"],
+        "quantized_mb": stats["quantized_size_mb"],
     }
 
 
@@ -217,9 +226,9 @@ def test_forward_pass() -> Dict:
     """
     Test 4: Test forward pass with quantized model
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 4: Forward Pass with Quantized Model")
-    print("="*80)
+    print("=" * 80)
 
     config = Phase4Config()
     model = TestModel(hidden_dim=128, num_layers=3)
@@ -243,7 +252,10 @@ def test_forward_pass() -> Dict:
     print(f"Output std: {output.std():.4f}")
 
     # Verify output shape
-    assert output.shape == (batch_size, 10), f"Expected shape ({batch_size}, 10), got {output.shape}"
+    assert output.shape == (
+        batch_size,
+        10,
+    ), f"Expected shape ({batch_size}, 10), got {output.shape}"
 
     # Verify no NaN/Inf
     assert not torch.isnan(output).any(), "Output contains NaN"
@@ -262,9 +274,9 @@ def test_ste_gradient_flow() -> Dict:
     """
     Test 5: Verify STE (Straight-Through Estimator) gradient flow
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 5: STE Gradient Flow Verification")
-    print("="*80)
+    print("=" * 80)
 
     config = Phase4Config()
     model = TestModel(hidden_dim=64, num_layers=2)
@@ -304,7 +316,7 @@ def test_ste_gradient_flow() -> Dict:
     print(f"\nGradients computed for {len(gradients_exist)} parameters")
 
     # Check BitLinear layer gradients specifically
-    bitlinear_grads = [name for name in gradients_exist if 'layers' in name or 'output' in name]
+    bitlinear_grads = [name for name in gradients_exist if "layers" in name or "output" in name]
     print(f"BitLinear layer gradients: {len(bitlinear_grads)}")
 
     # Print top 5 gradient magnitudes
@@ -330,15 +342,17 @@ def test_weight_distribution() -> Dict:
     """
     Test 6: Verify weight distribution across entire model (using BitLinear mode)
     """
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 6: Model-Wide Weight Distribution (BitLinear Mode)")
-    print("="*80)
+    print("=" * 80)
 
     config = Phase4Config()
     model = TestModel(hidden_dim=128, num_layers=4)
 
     # Use BitLinear replacement for better distribution testing
-    model = replace_linear_with_bitlinear(model, weight_sparsity_threshold=config.sparsity_threshold)
+    model = replace_linear_with_bitlinear(
+        model, weight_sparsity_threshold=config.sparsity_threshold
+    )
 
     # Aggregate weight distribution from BitLinear layers
     total_params = 0
@@ -400,63 +414,64 @@ def run_all_tests() -> Dict:
     """
     Run all Phase 4 sandbox tests
     """
-    print("\n" + "#"*80)
+    print("\n" + "#" * 80)
     print("# PHASE 4 BITNET SANDBOX TEST SUITE")
-    print("#"*80)
+    print("#" * 80)
 
     results = {}
 
     try:
         # Test 1: Ternary quantization
-        results['test1_ternary_quantization'] = test_ternary_quantization()
+        results["test1_ternary_quantization"] = test_ternary_quantization()
 
         # Test 2: BitLinear replacement
-        results['test2_bitlinear_replacement'] = test_bitlinear_replacement()
+        results["test2_bitlinear_replacement"] = test_bitlinear_replacement()
 
         # Test 3: Compression ratio
-        results['test3_compression_ratio'] = test_compression_ratio()
+        results["test3_compression_ratio"] = test_compression_ratio()
 
         # Test 4: Forward pass
-        results['test4_forward_pass'] = test_forward_pass()
+        results["test4_forward_pass"] = test_forward_pass()
 
         # Test 5: STE gradient flow
-        results['test5_ste_gradient_flow'] = test_ste_gradient_flow()
+        results["test5_ste_gradient_flow"] = test_ste_gradient_flow()
 
         # Test 6: Weight distribution
-        results['test6_weight_distribution'] = test_weight_distribution()
+        results["test6_weight_distribution"] = test_weight_distribution()
 
         # Summary
-        print("\n" + "#"*80)
+        print("\n" + "#" * 80)
         print("# TEST SUMMARY")
-        print("#"*80)
+        print("#" * 80)
 
-        all_passed = all(r['status'] == 'PASS' for r in results.values())
+        all_passed = all(r["status"] == "PASS" for r in results.values())
 
         for test_name, result in results.items():
-            status = result['status']
+            status = result["status"]
             print(f"{test_name}: {status}")
 
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         if all_passed:
             print("ALL TESTS PASSED")
         else:
             print("SOME TESTS FAILED")
-        print("="*80)
+        print("=" * 80)
 
         return {
-            'overall_status': 'PASS' if all_passed else 'FAIL',
-            'tests': results,
+            "overall_status": "PASS" if all_passed else "FAIL",
+            "tests": results,
         }
 
     except Exception as e:
         print(f"\nERROR: {e}")
         import traceback
+
         traceback.print_exc()
 
         return {
-            'overall_status': 'ERROR',
-            'error': str(e),
-            'tests': results,
+            "overall_status": "ERROR",
+            "error": str(e),
+            "tests": results,
         }
 
 
@@ -464,33 +479,33 @@ if __name__ == "__main__":
     final_results = run_all_tests()
 
     # Print final report
-    print("\n" + "#"*80)
+    print("\n" + "#" * 80)
     print("# PHASE 4 SANDBOX TEST REPORT")
-    print("#"*80)
+    print("#" * 80)
 
     print(f"\nPhase: Phase 4 (BitNet - 1.58-bit Quantization)")
     print(f"Status: {final_results['overall_status']}")
 
-    if 'test3_compression_ratio' in final_results['tests']:
-        comp_result = final_results['tests']['test3_compression_ratio']
+    if "test3_compression_ratio" in final_results["tests"]:
+        comp_result = final_results["tests"]["test3_compression_ratio"]
         print(f"\nCompression Ratio: {comp_result['compression_ratio']:.2f}x")
         print(f"Target (8.2x) Achieved: {comp_result['target_achieved']}")
 
-    if 'test6_weight_distribution' in final_results['tests']:
-        dist_result = final_results['tests']['test6_weight_distribution']
+    if "test6_weight_distribution" in final_results["tests"]:
+        dist_result = final_results["tests"]["test6_weight_distribution"]
         print(f"\nWeight Distribution:")
         print(f"  -1: {dist_result['distribution']['-1']:.2f}%")
         print(f"   0: {dist_result['distribution']['0']:.2f}%")
         print(f"  +1: {dist_result['distribution']['+1']:.2f}%")
 
-    if 'test5_ste_gradient_flow' in final_results['tests']:
-        ste_result = final_results['tests']['test5_ste_gradient_flow']
+    if "test5_ste_gradient_flow" in final_results["tests"]:
+        ste_result = final_results["tests"]["test5_ste_gradient_flow"]
         print(f"\nSTE Working: {'YES' if ste_result['status'] == 'PASS' else 'NO'}")
         print(f"Gradients Computed: {ste_result['total_gradients']}")
 
-    if 'error' in final_results:
+    if "error" in final_results:
         print(f"\nErrors: {final_results['error']}")
     else:
         print(f"\nErrors: None")
 
-    print("\n" + "#"*80)
+    print("\n" + "#" * 80)

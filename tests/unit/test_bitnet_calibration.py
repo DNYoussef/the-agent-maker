@@ -8,9 +8,6 @@ from pathlib import Path
 
 import pytest
 import torch
-
-# Add src to path for imports
-
 from transformers import AutoTokenizer
 
 from cross_phase.utils import MockTokenizer
@@ -20,6 +17,8 @@ from phase4_bitnet.calibration import (
     create_calibration_dataloader,
 )
 from phase4_bitnet.config import Phase4Config
+
+# Add src to path for imports
 
 
 class TestCalibrationDataset:

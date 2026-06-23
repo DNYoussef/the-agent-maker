@@ -187,7 +187,7 @@ class CurriculumEngine:
                     session_id=self.session_id or "phase5",
                 )
             # Stage 1: Assessment
-            print("--- Stage 1: Assessment (Edge-of-Chaos Detection) ---")      
+            print("--- Stage 1: Assessment (Edge-of-Chaos Detection) ---")
             baseline_level, assessment_results = self._run_assessment(
                 model, tokenizer, frontier_client
             )
@@ -283,9 +283,7 @@ class CurriculumEngine:
                         should_advance = meta_phase5.should_advance_stage(
                             self.gap_history, level, self.config.num_levels
                         )
-                        advancement_info = meta_phase5.get_advancement_info(
-                            self.gap_history, level
-                        )
+                        advancement_info = meta_phase5.get_advancement_info(self.gap_history, level)
 
                         print(f"  [Meta-Calculus] Spectral gap: {gap_value:.4f}")
                         print(f"  [Meta-Calculus] Ready to advance: {should_advance}")
@@ -322,7 +320,7 @@ class CurriculumEngine:
             )
 
         except Exception as e:
-            duration = time.time() - self.start_time if self.start_time else 0  
+            duration = time.time() - self.start_time if self.start_time else 0
             return Phase5Result(
                 success=False,
                 model=model,
@@ -741,7 +739,7 @@ Your approach: Adapt to context, be helpful, be honest.""",
                     if w.dim() > 2:
                         w = w.view(w.size(0), -1)
                     if w.size(0) >= 2 and w.size(1) >= 2:
-                        weight_matrices.append(w[:min(256, w.size(0)), :min(256, w.size(1))])
+                        weight_matrices.append(w[: min(256, w.size(0)), : min(256, w.size(1))])
 
             if not weight_matrices:
                 return 0.5  # Default if no weights found

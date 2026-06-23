@@ -17,15 +17,15 @@ from pathlib import Path
 import pytest
 import torch
 
-from src.cross_phase.meta_calculus.bigeometric import (
-    BigeometricConfig,
-    BigeometricTransform,
-)
+from src.cross_phase.meta_calculus.bigeometric import BigeometricConfig, BigeometricTransform
 from src.cross_phase.meta_calculus.k_formula import KFormulaConfig, compute_k
 
 VECTOR_FILE = (
     Path(__file__).resolve().parents[2]
-    / "src" / "cross_phase" / "meta_calculus" / "golden_vectors.json"
+    / "src"
+    / "cross_phase"
+    / "meta_calculus"
+    / "golden_vectors.json"
 )
 EXPECTED_SHA256 = "4112e2a2dbf246984dbc8bb3e373c5b5aa9f591e0f007301f8a20ec2c2b608ea"
 

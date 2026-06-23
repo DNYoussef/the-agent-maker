@@ -18,10 +18,11 @@ from pathlib import Path
 src_path = Path(__file__).resolve().parents[2] / "src"
 sys.path.insert(0, str(src_path))
 
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
+
 import torch
 import torch.nn as nn
-from dataclasses import dataclass
-from typing import Dict, Any, Optional
 
 
 # Mock base model for testing
@@ -53,8 +54,13 @@ class MockBaseModel(nn.Module):
 
         return MockOutput(logits=logits, last_hidden_state=hidden)
 
-    def generate(self, input_ids: torch.Tensor, max_new_tokens: int = 20,
-                 do_sample: bool = False, num_return_sequences: int = 1) -> torch.Tensor:
+    def generate(
+        self,
+        input_ids: torch.Tensor,
+        max_new_tokens: int = 20,
+        do_sample: bool = False,
+        num_return_sequences: int = 1,
+    ) -> torch.Tensor:
         """Mock generation for anti-theater testing."""
         batch_size = input_ids.size(0)
         device = input_ids.device
@@ -67,8 +73,7 @@ class MockBaseModel(nn.Module):
 
             if do_sample:
                 next_token = torch.multinomial(
-                    torch.softmax(next_token_logits, dim=-1),
-                    num_samples=1
+                    torch.softmax(next_token_logits, dim=-1), num_samples=1
                 )
             else:
                 next_token = next_token_logits.argmax(dim=-1, keepdim=True)
@@ -80,9 +85,9 @@ class MockBaseModel(nn.Module):
 
 def test_thought_generator():
     """Test ThoughtGenerator component."""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 1: ThoughtGenerator - Parallel thought generation")
-    print("="*80)
+    print("=" * 80)
 
     from phase3_quietstar.architecture.thought_generator import ThoughtGenerator
 
@@ -94,7 +99,7 @@ def test_thought_generator():
         max_length=20,
         min_length=10,
         temperature=1.0,
-        top_p=0.9
+        top_p=0.9,
     )
 
     # Create input
@@ -113,16 +118,26 @@ def test_thought_generator():
 
         print(f"\n[PASS] ThoughtGenerator Output:")
         print(f"  - Thoughts shape: {output.thoughts.shape}")
-        print(f"  - Expected: (batch={batch_size}, num_thoughts={generator.num_thoughts}, thought_len=10-20, hidden={base_model.hidden_size})")
+        print(
+            f"  - Expected: (batch={batch_size}, num_thoughts={generator.num_thoughts}, thought_len=10-20, hidden={base_model.hidden_size})"
+        )
         print(f"  - Log probs shape: {output.log_probs.shape}")
         print(f"  - Num thought sequences: {len(output.thought_ids)}")
         print(f"  - First thought length: {len(output.thought_ids[0])}")
 
         # Validate shapes
-        assert output.thoughts.size(0) == batch_size, f"Wrong batch size: {output.thoughts.size(0)} != {batch_size}"
-        assert output.thoughts.size(1) == generator.num_thoughts, f"Wrong num_thoughts: {output.thoughts.size(1)} != {generator.num_thoughts}"
-        assert output.thoughts.size(-1) == base_model.hidden_size, f"Wrong hidden_size: {output.thoughts.size(-1)} != {base_model.hidden_size}"
-        assert len(output.thought_ids) == generator.num_thoughts, f"Wrong num thought IDs: {len(output.thought_ids)} != {generator.num_thoughts}"
+        assert (
+            output.thoughts.size(0) == batch_size
+        ), f"Wrong batch size: {output.thoughts.size(0)} != {batch_size}"
+        assert (
+            output.thoughts.size(1) == generator.num_thoughts
+        ), f"Wrong num_thoughts: {output.thoughts.size(1)} != {generator.num_thoughts}"
+        assert (
+            output.thoughts.size(-1) == base_model.hidden_size
+        ), f"Wrong hidden_size: {output.thoughts.size(-1)} != {base_model.hidden_size}"
+        assert (
+            len(output.thought_ids) == generator.num_thoughts
+        ), f"Wrong num thought IDs: {len(output.thought_ids)} != {generator.num_thoughts}"
 
         print(f"\n[PASS] All shape validations passed!")
         return True
@@ -130,23 +145,23 @@ def test_thought_generator():
     except Exception as e:
         print(f"\n[FAIL] ThoughtGenerator FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def test_coherence_scorer():
     """Test CoherenceScorer component."""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 2: CoherenceScorer - 3-dimensional scoring")
-    print("="*80)
+    print("=" * 80)
 
     from phase3_quietstar.architecture.coherence_scorer import CoherenceScorer
 
     # Setup
     hidden_size = 256
     scorer = CoherenceScorer(
-        hidden_size=hidden_size,
-        weights={"semantic": 0.4, "syntactic": 0.3, "predictive": 0.3}
+        hidden_size=hidden_size, weights={"semantic": 0.4, "syntactic": 0.3, "predictive": 0.3}
     )
 
     # Create inputs
@@ -176,16 +191,36 @@ def test_coherence_scorer():
         print(f"  - Expected shape: (batch={batch_size}, num_thoughts={num_thoughts})")
 
         # Validate shapes
-        assert scores.semantic.shape == (batch_size, num_thoughts), f"Wrong semantic shape: {scores.semantic.shape}"
-        assert scores.syntactic.shape == (batch_size, num_thoughts), f"Wrong syntactic shape: {scores.syntactic.shape}"
-        assert scores.predictive.shape == (batch_size, num_thoughts), f"Wrong predictive shape: {scores.predictive.shape}"
-        assert scores.composite.shape == (batch_size, num_thoughts), f"Wrong composite shape: {scores.composite.shape}"
+        assert scores.semantic.shape == (
+            batch_size,
+            num_thoughts,
+        ), f"Wrong semantic shape: {scores.semantic.shape}"
+        assert scores.syntactic.shape == (
+            batch_size,
+            num_thoughts,
+        ), f"Wrong syntactic shape: {scores.syntactic.shape}"
+        assert scores.predictive.shape == (
+            batch_size,
+            num_thoughts,
+        ), f"Wrong predictive shape: {scores.predictive.shape}"
+        assert scores.composite.shape == (
+            batch_size,
+            num_thoughts,
+        ), f"Wrong composite shape: {scores.composite.shape}"
 
         # Validate ranges [0, 1]
-        assert (scores.semantic >= 0).all() and (scores.semantic <= 1).all(), "Semantic scores out of range"
-        assert (scores.syntactic >= 0).all() and (scores.syntactic <= 1).all(), "Syntactic scores out of range"
-        assert (scores.predictive >= 0).all() and (scores.predictive <= 1).all(), "Predictive scores out of range"
-        assert (scores.composite >= 0).all() and (scores.composite <= 1).all(), "Composite scores out of range"
+        assert (scores.semantic >= 0).all() and (
+            scores.semantic <= 1
+        ).all(), "Semantic scores out of range"
+        assert (scores.syntactic >= 0).all() and (
+            scores.syntactic <= 1
+        ).all(), "Syntactic scores out of range"
+        assert (scores.predictive >= 0).all() and (
+            scores.predictive <= 1
+        ).all(), "Predictive scores out of range"
+        assert (scores.composite >= 0).all() and (
+            scores.composite <= 1
+        ).all(), "Composite scores out of range"
 
         print(f"\n[PASS] Sample scores (first batch, all thoughts):")
         print(f"  - Semantic: {scores.semantic[0].tolist()}")
@@ -199,15 +234,16 @@ def test_coherence_scorer():
     except Exception as e:
         print(f"\n[FAIL] CoherenceScorer FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def test_mixing_head():
     """Test MixingHead component."""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 3: MixingHead - Attention-based thought integration")
-    print("="*80)
+    print("=" * 80)
 
     from phase3_quietstar.architecture.mixing_head import MixingHead
 
@@ -239,7 +275,10 @@ def test_mixing_head():
         print(f"  - Expected: (batch={batch_size}, hidden_size={hidden_size})")
 
         # Validate shape
-        assert mixed_output.shape == (batch_size, hidden_size), f"Wrong output shape: {mixed_output.shape}"
+        assert mixed_output.shape == (
+            batch_size,
+            hidden_size,
+        ), f"Wrong output shape: {mixed_output.shape}"
 
         # Validate not NaN/Inf
         assert not torch.isnan(mixed_output).any(), "Output contains NaN"
@@ -259,15 +298,16 @@ def test_mixing_head():
     except Exception as e:
         print(f"\n[FAIL] MixingHead FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def test_thought_injector():
     """Test ThoughtInjector component."""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 4: ThoughtInjector - Difficulty-based injection")
-    print("="*80)
+    print("=" * 80)
 
     from phase3_quietstar.architecture.thought_injector import ThoughtInjector
 
@@ -282,7 +322,9 @@ def test_thought_injector():
 
     # Test 1: High difficulty (should inject)
     print(f"\n--- Test Case 1: High Difficulty ---")
-    high_difficulty_logits = torch.randn(batch_size, vocab_size) * 0.1  # Low confidence (high entropy)
+    high_difficulty_logits = (
+        torch.randn(batch_size, vocab_size) * 0.1
+    )  # Low confidence (high entropy)
     attention = torch.rand(batch_size, 10) / 10  # Dispersed attention
     loss = torch.tensor(5.0)  # High loss
 
@@ -315,9 +357,9 @@ def test_thought_injector():
 
 def test_anti_theater_detection():
     """Test Anti-Theater Detection."""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 5: Anti-Theater Detection - Validate genuine reasoning")
-    print("="*80)
+    print("=" * 80)
 
     from phase3_quietstar.anti_theater import AntiTheaterValidator
     from phase3_quietstar.config import AntiTheaterConfig
@@ -333,10 +375,7 @@ def test_anti_theater_detection():
 
         def forward(self, input_ids, labels=None, use_thoughts=True):
             outputs = self.base_model(input_ids)
-            result = {
-                "logits": outputs.logits,
-                "avg_coherence": 0.7 if use_thoughts else 0.0
-            }
+            result = {"logits": outputs.logits, "avg_coherence": 0.7 if use_thoughts else 0.0}
             if labels is not None:
                 result["loss"] = torch.tensor(1.0)
             return result
@@ -358,7 +397,7 @@ def test_anti_theater_detection():
             for _ in range(self.num_batches):
                 yield {
                     "input_ids": torch.randint(0, 1000, (2, 20)),
-                    "labels": torch.randint(0, 1000, (2, 20))
+                    "labels": torch.randint(0, 1000, (2, 20)),
                 }
 
     # Setup
@@ -375,10 +414,7 @@ def test_anti_theater_detection():
 
     try:
         validator = AntiTheaterValidator(
-            model=model,
-            tokenizer=tokenizer,
-            config=config,
-            device="cpu"
+            model=model, tokenizer=tokenizer, config=config, device="cpu"
         )
 
         print(f"\n[PASS] AntiTheaterValidator initialized successfully")
@@ -406,19 +442,20 @@ def test_anti_theater_detection():
     except Exception as e:
         print(f"\n[FAIL] Anti-Theater Detection FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def test_full_integration():
     """Test full Quiet-STaR forward pass integration."""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 6: Full Integration - Complete Quiet-STaR forward pass")
-    print("="*80)
+    print("=" * 80)
 
-    from phase3_quietstar.architecture.thought_generator import ThoughtGenerator
     from phase3_quietstar.architecture.coherence_scorer import CoherenceScorer
     from phase3_quietstar.architecture.mixing_head import MixingHead
+    from phase3_quietstar.architecture.thought_generator import ThoughtGenerator
     from phase3_quietstar.architecture.thought_injector import ThoughtInjector
 
     # Setup all components
@@ -448,7 +485,7 @@ def test_full_integration():
         # Simulate forward pass through sequence
         for position in range(5, seq_len - 5):
             # Get base output
-            base_output = base_model(input_ids[:, :position+1])
+            base_output = base_model(input_ids[:, : position + 1])
             base_hidden = base_output.last_hidden_state[:, -1, :]  # Last position
             base_logits = base_output.logits[:, -1, :]
 
@@ -471,7 +508,10 @@ def test_full_integration():
                 mixed_hidden = mixer(base_hidden, thought_avg, scores.composite)
 
                 # Validate shapes
-                assert mixed_hidden.shape == (batch_size, hidden_size), f"Wrong mixed shape at pos {position}"
+                assert mixed_hidden.shape == (
+                    batch_size,
+                    hidden_size,
+                ), f"Wrong mixed shape at pos {position}"
 
         print(f"\n[PASS] Full Integration Results:")
         print(f"  - Sequence length: {seq_len}")
@@ -485,15 +525,16 @@ def test_full_integration():
     except Exception as e:
         print(f"\n[FAIL] Full Integration FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 def main():
     """Run all Phase 3 sandbox tests."""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("PHASE 3 QUIET-STAR SANDBOX TEST SUITE")
-    print("="*80)
+    print("=" * 80)
     print("\nTesting Phase 3 Quiet-STaR components in isolated sandbox environment.")
     print("Using mock models to validate architecture without training.\n")
 
@@ -503,7 +544,7 @@ def main():
         "MixingHead": False,
         "ThoughtInjector": False,
         "Anti-Theater Detection": False,
-        "Full Integration": False
+        "Full Integration": False,
     }
 
     # Run tests
@@ -515,9 +556,9 @@ def main():
     results["Full Integration"] = test_full_integration()
 
     # Summary
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("PHASE 3 SANDBOX TEST SUMMARY")
-    print("="*80)
+    print("=" * 80)
 
     for component, passed in results.items():
         status = "[PASS] PASS" if passed else "[FAIL] FAIL"
@@ -533,12 +574,18 @@ def main():
     # Return values for automated testing
     return {
         "phase": "Phase 3 (Quiet-STaR)",
-        "status": "PASS" if all(results.values()) else "PARTIAL" if any(results.values()) else "FAIL",
+        "status": "PASS"
+        if all(results.values())
+        else "PARTIAL"
+        if any(results.values())
+        else "FAIL",
         "components_tested": list(results.keys()),
         "components_passed": [k for k, v in results.items() if v],
         "components_failed": [k for k, v in results.items() if not v],
-        "anti_theater_status": "TESTED (mock model)" if results["Anti-Theater Detection"] else "FAILED",
-        "errors": [k for k, v in results.items() if not v]
+        "anti_theater_status": "TESTED (mock model)"
+        if results["Anti-Theater Detection"]
+        else "FAILED",
+        "errors": [k for k, v in results.items() if not v],
     }
 
 
@@ -546,19 +593,20 @@ if __name__ == "__main__":
     result = main()
 
     # Print structured output
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("STRUCTURED OUTPUT FOR AUTOMATION")
-    print("="*80)
+    print("=" * 80)
     print(f"Phase: {result['phase']}")
     print(f"Status: {result['status']}")
     print(f"Components Tested: {', '.join(result['components_tested'])}")
     print(f"Anti-Theater Status: {result['anti_theater_status']}")
-    if result['errors']:
+    if result["errors"]:
         print(f"Errors: {', '.join(result['errors'])}")
     else:
         print("Errors: None")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     # Exit with appropriate code
     import sys
-    sys.exit(0 if result['status'] == 'PASS' else 1)
+
+    sys.exit(0 if result["status"] == "PASS" else 1)

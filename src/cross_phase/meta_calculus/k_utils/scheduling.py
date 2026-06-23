@@ -10,12 +10,12 @@ Phase Applications:
     - All phases: Warmup schedules with k-adaptation
 """
 
-from dataclasses import dataclass
-from typing import Optional, Callable, List
 import math
+from dataclasses import dataclass
+from typing import Callable, List, Optional
 
 # Layer 1 import only
-from ..k_formula import compute_k, normalize_k_value, K_MIN, K_MAX
+from ..k_formula import K_MAX, K_MIN, compute_k, normalize_k_value
 
 
 @dataclass
@@ -41,6 +41,7 @@ class KScheduleConfig:
 # =============================================================================
 # LEARNING RATE SCHEDULES (Phase 1, all phases)
 # =============================================================================
+
 
 def k_learning_rate_schedule(
     base_lr: float,
@@ -75,7 +76,9 @@ def k_learning_rate_schedule(
 
     # Handle warmup
     if step < config.warmup_steps:
-        warmup_factor = config.warmup_start_factor + (1 - config.warmup_start_factor) * (step / config.warmup_steps)
+        warmup_factor = config.warmup_start_factor + (1 - config.warmup_start_factor) * (
+            step / config.warmup_steps
+        )
         return base_lr * warmup_factor
 
     # Compute progress ratio (avoid log(0))
@@ -122,7 +125,7 @@ def create_k_lr_scheduler(
         raise ImportError("PyTorch required for create_k_lr_scheduler")
 
     config = config or KScheduleConfig()
-    base_lr = optimizer.param_groups[0]['lr']
+    base_lr = optimizer.param_groups[0]["lr"]
 
     def lr_lambda(step: int) -> float:
         # Return multiplier (not absolute LR)
@@ -135,6 +138,7 @@ def create_k_lr_scheduler(
 # =============================================================================
 # DIFFICULTY SCHEDULES (Phase 5 Curriculum)
 # =============================================================================
+
 
 def k_difficulty_schedule(
     stage: int,
@@ -208,14 +212,14 @@ def get_stage_difficulties(
         [1.0, 1.14, 1.29, 1.43, 1.57, 1.71, 1.86]
     """
     return [
-        k_difficulty_schedule(stage, total_stages, base_difficulty)
-        for stage in range(total_stages)
+        k_difficulty_schedule(stage, total_stages, base_difficulty) for stage in range(total_stages)
     ]
 
 
 # =============================================================================
 # WARMUP SCHEDULES
 # =============================================================================
+
 
 def k_warmup_schedule(
     step: int,
@@ -267,6 +271,7 @@ def k_warmup_schedule(
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
+
 
 def get_schedule_preview(
     schedule_fn: Callable,

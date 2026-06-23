@@ -14,9 +14,9 @@ Phase Applications:
     - Phase 8 (Compression): Layer-wise compression ratios
 """
 
+import math
 from dataclasses import dataclass
 from typing import List, Optional
-import math
 
 # Layer 1 import only
 from ..k_formula import k_from_layer_index, normalize_k_value
@@ -44,6 +44,7 @@ class LayerRatioConfig:
 # =============================================================================
 # MERGE RATIOS (Phase 2 EvoMerge)
 # =============================================================================
+
 
 def get_layer_merge_ratio(
     layer_idx: int,
@@ -117,15 +118,13 @@ def get_all_merge_ratios(
         >>> ratios = get_all_merge_ratios(8)
         >>> print([f"{r:.3f}" for r in ratios])
     """
-    return [
-        get_layer_merge_ratio(i, total_layers, base_ratio, config)
-        for i in range(total_layers)
-    ]
+    return [get_layer_merge_ratio(i, total_layers, base_ratio, config) for i in range(total_layers)]
 
 
 # =============================================================================
 # SPARSITY RATIOS (Phase 4 BitNet)
 # =============================================================================
+
 
 def get_layer_sparsity(
     layer_idx: int,
@@ -194,15 +193,13 @@ def get_all_sparsities(
     Returns:
         List of sparsity ratios per layer
     """
-    return [
-        get_layer_sparsity(i, total_layers, base_sparsity, config)
-        for i in range(total_layers)
-    ]
+    return [get_layer_sparsity(i, total_layers, base_sparsity, config) for i in range(total_layers)]
 
 
 # =============================================================================
 # COMPRESSION RATIOS (Phase 8)
 # =============================================================================
+
 
 def get_layer_compression_ratio(
     layer_idx: int,
@@ -288,6 +285,7 @@ def get_all_compression_ratios(
 # UTILITY FUNCTIONS
 # =============================================================================
 
+
 def get_layer_priority_order(total_layers: int) -> List[int]:
     """
     Get layer indices ordered by priority (high k first).
@@ -300,10 +298,7 @@ def get_layer_priority_order(total_layers: int) -> List[int]:
     Returns:
         List of layer indices, sorted by k value (high to low)
     """
-    layers_with_k = [
-        (i, k_from_layer_index(i, total_layers))
-        for i in range(total_layers)
-    ]
+    layers_with_k = [(i, k_from_layer_index(i, total_layers)) for i in range(total_layers)]
     # Sort by k descending (early layers = high priority)
     layers_with_k.sort(key=lambda x: x[1], reverse=True)
     return [layer_idx for layer_idx, _ in layers_with_k]

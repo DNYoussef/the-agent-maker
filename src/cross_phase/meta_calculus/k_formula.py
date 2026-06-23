@@ -19,11 +19,11 @@ Applications in Agent Forge:
     - Baking strength (Phase 6)
 """
 
-import torch
-import numpy as np
-from typing import Union, Optional
 from dataclasses import dataclass
+from typing import Optional, Union
 
+import numpy as np
+import torch
 
 # Verified coefficients from meta-calculus MOO optimization
 K_SLOPE = -0.0137
@@ -52,8 +52,7 @@ class KFormulaConfig:
 
 
 def compute_k(
-    L: Union[float, np.ndarray, torch.Tensor],
-    config: Optional[KFormulaConfig] = None
+    L: Union[float, np.ndarray, torch.Tensor], config: Optional[KFormulaConfig] = None
 ) -> Union[float, np.ndarray, torch.Tensor]:
     """
     Compute k parameter from scale L using verified formula.
@@ -90,7 +89,9 @@ def compute_k(
 def _compute_k_scalar(L: float, config: KFormulaConfig) -> float:
     """Scalar implementation of k(L)."""
     L_safe = max(L, config.eps)
-    log_L = np.log10(L_safe) if config.log_base == 10.0 else np.log(L_safe) / np.log(config.log_base)
+    log_L = (
+        np.log10(L_safe) if config.log_base == 10.0 else np.log(L_safe) / np.log(config.log_base)
+    )
     k = config.slope * log_L + config.intercept
     return max(config.k_min, min(config.k_max, k))
 
@@ -98,7 +99,9 @@ def _compute_k_scalar(L: float, config: KFormulaConfig) -> float:
 def _compute_k_numpy(L: np.ndarray, config: KFormulaConfig) -> np.ndarray:
     """NumPy implementation of k(L)."""
     L_safe = np.maximum(L, config.eps)
-    log_L = np.log10(L_safe) if config.log_base == 10.0 else np.log(L_safe) / np.log(config.log_base)
+    log_L = (
+        np.log10(L_safe) if config.log_base == 10.0 else np.log(L_safe) / np.log(config.log_base)
+    )
     k = config.slope * log_L + config.intercept
     return np.clip(k, config.k_min, config.k_max)
 
@@ -106,7 +109,11 @@ def _compute_k_numpy(L: np.ndarray, config: KFormulaConfig) -> np.ndarray:
 def _compute_k_torch(L: torch.Tensor, config: KFormulaConfig) -> torch.Tensor:
     """PyTorch implementation of k(L) with gradient support."""
     L_safe = torch.clamp(L, min=config.eps)
-    log_L = torch.log10(L_safe) if config.log_base == 10.0 else torch.log(L_safe) / np.log(config.log_base)
+    log_L = (
+        torch.log10(L_safe)
+        if config.log_base == 10.0
+        else torch.log(L_safe) / np.log(config.log_base)
+    )
     k = config.slope * log_L + config.intercept
     return torch.clamp(k, config.k_min, config.k_max)
 
@@ -115,9 +122,9 @@ def _compute_k_torch(L: torch.Tensor, config: KFormulaConfig) -> torch.Tensor:
 # Domain-Specific k(L) Functions
 # =============================================================================
 
+
 def k_from_gradient(
-    grad: Union[torch.Tensor, np.ndarray],
-    config: Optional[KFormulaConfig] = None
+    grad: Union[torch.Tensor, np.ndarray], config: Optional[KFormulaConfig] = None
 ) -> Union[torch.Tensor, np.ndarray]:
     """
     Compute k from gradient magnitude for MuGrokFast.
@@ -144,9 +151,7 @@ def k_from_gradient(
 
 
 def k_from_layer_index(
-    layer_idx: int,
-    total_layers: int,
-    config: Optional[KFormulaConfig] = None
+    layer_idx: int, total_layers: int, config: Optional[KFormulaConfig] = None
 ) -> float:
     """
     Compute k from layer position for layer-wise operations.
@@ -173,7 +178,7 @@ def k_from_layer_index(
 def k_from_entropy(
     entropy: Union[float, torch.Tensor, np.ndarray],
     max_entropy: float = 10.0,
-    config: Optional[KFormulaConfig] = None
+    config: Optional[KFormulaConfig] = None,
 ) -> Union[float, torch.Tensor, np.ndarray]:
     """
     Compute k from entropy for adaptive behavior.
@@ -204,8 +209,7 @@ def k_from_entropy(
 
 
 def k_from_parameter_variance(
-    params: Union[float, np.ndarray, torch.Tensor],
-    config: Optional[KFormulaConfig] = None
+    params: Union[float, np.ndarray, torch.Tensor], config: Optional[KFormulaConfig] = None
 ) -> Union[float, np.ndarray, torch.Tensor]:
     """
     Compute k from parameter variance for adaptive baking.
@@ -217,7 +221,11 @@ def k_from_parameter_variance(
         config = KFormulaConfig()
 
     if isinstance(params, torch.Tensor):
-        variance = torch.var(params, correction=0) if params.numel() > 0 else torch.zeros((), device=params.device, dtype=params.dtype)
+        variance = (
+            torch.var(params, correction=0)
+            if params.numel() > 0
+            else torch.zeros((), device=params.device, dtype=params.dtype)
+        )
         L = variance.clamp(min=config.eps)
     elif isinstance(params, np.ndarray):
         L = np.maximum(np.var(params), config.eps)
@@ -250,11 +258,9 @@ def normalize_k_value(
 # Utility Functions
 # =============================================================================
 
+
 def k_schedule(
-    num_steps: int,
-    start_L: float = 0.01,
-    end_L: float = 1.0,
-    schedule_type: str = "linear"
+    num_steps: int, start_L: float = 0.01, end_L: float = 1.0, schedule_type: str = "linear"
 ) -> np.ndarray:
     """
     Generate k schedule over training steps.

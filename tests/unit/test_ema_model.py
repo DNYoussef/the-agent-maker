@@ -18,7 +18,6 @@ import pytest
 import torch
 import torch.nn as nn
 
-
 from phase1_cognate.training.trainer import EMAModel
 
 

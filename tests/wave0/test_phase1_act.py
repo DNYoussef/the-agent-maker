@@ -22,9 +22,7 @@ def _tiny_config():
         mag_hidden=32,
     )
     trm = TRMConfig(T_max=1, micro_steps=1, step_weights=[0.5, 1.0])
-    cfg = Phase1Config(
-        titans_config=titans, trm_config=trm, act_config=ACTConfig(), device="cpu"
-    )
+    cfg = Phase1Config(titans_config=titans, trm_config=trm, act_config=ACTConfig(), device="cpu")
     return cfg
 
 

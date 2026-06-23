@@ -178,7 +178,9 @@ class PromptPursuitOptimizer:
             print(f"  Rounds: {final_round}")
             print(f"  Base score: {scores[0]:.4f}")
             print(f"  Final score: {scores[-1]:.4f}")
-            print(f"  Total improvement: {total_improvement:.4f} ({total_improvement/scores[0]*100:.1f}%)")
+            print(
+                f"  Total improvement: {total_improvement:.4f} ({total_improvement/scores[0]*100:.1f}%)"
+            )
 
             # Update metrics
             self.metrics["total_pursuits"] += 1
@@ -276,7 +278,9 @@ class PromptPursuitOptimizer:
                         # Mock tokenizer fallback
                         inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
 
-                    inputs = {k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)}
+                    inputs = {
+                        k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)
+                    }
 
                     # Forward pass
                     outputs = baked_model(**inputs)
@@ -292,7 +296,9 @@ class PromptPursuitOptimizer:
                         loss = torch.nn.functional.cross_entropy(
                             shift_logits.view(-1, shift_logits.size(-1)),
                             shift_labels.view(-1),
-                            ignore_index=tokenizer.pad_token_id if hasattr(tokenizer, "pad_token_id") else 0,
+                            ignore_index=tokenizer.pad_token_id
+                            if hasattr(tokenizer, "pad_token_id")
+                            else 0,
                         )
                     else:
                         continue

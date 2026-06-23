@@ -655,8 +655,9 @@ class ArchetypeWeightLearner:
             weights_sorted = np.sort(weights)
             n = len(weights_sorted)
             cumulative = np.cumsum(weights_sorted)
-            gini = (2 * np.sum((np.arange(1, n + 1) * weights_sorted)) /
-                    (n * np.sum(weights_sorted))) - (n + 1) / n
+            gini = (
+                2 * np.sum((np.arange(1, n + 1) * weights_sorted)) / (n * np.sum(weights_sorted))
+            ) - (n + 1) / n
             obj3 = abs(gini)  # 0 = perfect equality
 
             return [obj1, obj2, obj3]

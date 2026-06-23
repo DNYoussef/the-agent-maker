@@ -25,32 +25,21 @@ Usage:
 """
 
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
 import numpy as np
 
-# Layer 1 imports (core)
-from ..moo_bridge import EvoMergeProblem, MOORunner, MOOConfig
+from ..gap_utils.gates import MergeQualityResult, QualityGateConfig
+from ..gap_utils.gates import check_merge_quality as _check_merge_quality
 
 # Layer 2 imports (utilities)
-from ..k_utils.layer_ratios import (
-    get_layer_merge_ratio,
-    get_all_merge_ratios,
-    LayerRatioConfig,
-)
-from ..transform_utils.weights import (
-    bigeometric_merge as _bigeometric_merge,
-    bigeometric_merge_models,
-    WeightMergeConfig,
-)
-from ..gap_utils.gates import (
-    check_merge_quality as _check_merge_quality,
-    MergeQualityResult,
-    QualityGateConfig,
-)
-from ..moo_utils.selection import (
-    select_balanced,
-    select_knee_point,
-    SelectionResult,
-)
+from ..k_utils.layer_ratios import LayerRatioConfig, get_all_merge_ratios, get_layer_merge_ratio
+
+# Layer 1 imports (core)
+from ..moo_bridge import EvoMergeProblem, MOOConfig, MOORunner
+from ..moo_utils.selection import SelectionResult, select_balanced, select_knee_point
+from ..transform_utils.weights import WeightMergeConfig
+from ..transform_utils.weights import bigeometric_merge as _bigeometric_merge
+from ..transform_utils.weights import bigeometric_merge_models
 
 
 def get_merge_ratios(
@@ -156,7 +145,7 @@ def bigeometric_merge(
     if per_layer_ratios is not None:
         layer_alphas = {}
         state_names = list(model_a.state_dict().keys())
-        for idx, name in enumerate(state_names[:len(per_layer_ratios)]):
+        for idx, name in enumerate(state_names[: len(per_layer_ratios)]):
             layer_alphas[name] = per_layer_ratios[idx]
 
     result = bigeometric_merge_models(

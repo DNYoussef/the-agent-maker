@@ -16,10 +16,11 @@ This means composed/mixed operators preserve at least the minimum
 spectral gap - crucial for ensuring stability through transformations.
 """
 
-import torch
-import numpy as np
-from typing import Optional, Dict, List, Tuple, Union
 from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple, Union
+
+import numpy as np
+import torch
 
 
 @dataclass
@@ -57,11 +58,7 @@ class SpectralGapMonitor:
         self.config = config or SpectralGapConfig()
         self.history: Dict[str, List[float]] = {}
 
-    def compute_gap(
-        self,
-        matrix: torch.Tensor,
-        name: Optional[str] = None
-    ) -> Dict[str, float]:
+    def compute_gap(self, matrix: torch.Tensor, name: Optional[str] = None) -> Dict[str, float]:
         """
         Compute spectral gap of a matrix.
 
@@ -83,7 +80,7 @@ class SpectralGapMonitor:
         if self.config.use_svd:
             try:
                 U, S, V = torch.linalg.svd(matrix, full_matrices=False)
-                eigenvalues = S ** 2  # Squared singular values = eigenvalues of M^T M
+                eigenvalues = S**2  # Squared singular values = eigenvalues of M^T M
             except RuntimeError:
                 # Fallback for numerical issues
                 eigenvalues = torch.zeros(min(matrix.shape))
@@ -132,7 +129,7 @@ class SpectralGapMonitor:
                 self.history[name] = []
             self.history[name].append(gap)
             if len(self.history[name]) > self.config.history_window:
-                self.history[name] = self.history[name][-self.config.history_window:]
+                self.history[name] = self.history[name][-self.config.history_window :]
 
         return result
 
@@ -140,7 +137,7 @@ class SpectralGapMonitor:
         self,
         model: torch.nn.Module,
         include_patterns: Optional[List[str]] = None,
-        exclude_patterns: Optional[List[str]] = None
+        exclude_patterns: Optional[List[str]] = None,
     ) -> Dict[str, Dict[str, float]]:
         """
         Compute spectral gaps for all weight matrices in a model.
@@ -173,9 +170,7 @@ class SpectralGapMonitor:
         return results
 
     def compute_embedding_diversity(
-        self,
-        embeddings: torch.Tensor,
-        name: Optional[str] = None
+        self, embeddings: torch.Tensor, name: Optional[str] = None
     ) -> Dict[str, float]:
         """
         Compute diversity metrics for embeddings.
@@ -239,7 +234,9 @@ class SpectralGapMonitor:
                 "std": float(gaps_array.std()),
                 "min": float(gaps_array.min()),
                 "max": float(gaps_array.max()),
-                "trend": float(gaps_array[-10:].mean() - gaps_array[:10].mean()) if len(gaps) >= 20 else 0,
+                "trend": float(gaps_array[-10:].mean() - gaps_array[:10].mean())
+                if len(gaps) >= 20
+                else 0,
             }
 
         return summary
@@ -249,9 +246,9 @@ class SpectralGapMonitor:
 # Specialized Functions for Agent Forge Phases
 # =============================================================================
 
+
 def compute_expert_diversity(
-    expert_weights: List[torch.Tensor],
-    config: Optional[SpectralGapConfig] = None
+    expert_weights: List[torch.Tensor], config: Optional[SpectralGapConfig] = None
 ) -> Dict[str, float]:
     """
     Compute diversity metrics across multiple experts (Phase 7).
@@ -290,8 +287,7 @@ def compute_expert_diversity(
 
 
 def compute_thought_diversity(
-    thoughts: torch.Tensor,
-    config: Optional[SpectralGapConfig] = None
+    thoughts: torch.Tensor, config: Optional[SpectralGapConfig] = None
 ) -> Dict[str, float]:
     """
     Compute diversity metrics for parallel thoughts (Phase 3 Quiet-STaR).
@@ -318,7 +314,7 @@ def compute_thought_diversity(
 def compute_merge_diversity_change(
     models_before: List[torch.nn.Module],
     model_after: torch.nn.Module,
-    config: Optional[SpectralGapConfig] = None
+    config: Optional[SpectralGapConfig] = None,
 ) -> Dict[str, float]:
     """
     Compute how merging affected spectral gaps (Phase 2 EvoMerge).
@@ -363,7 +359,7 @@ def compute_merge_diversity_change(
 def compute_compression_gap_retention(
     model_original: torch.nn.Module,
     model_compressed: torch.nn.Module,
-    config: Optional[SpectralGapConfig] = None
+    config: Optional[SpectralGapConfig] = None,
 ) -> Dict[str, float]:
     """
     Compute spectral gap retention after compression (Phase 8).
@@ -409,6 +405,7 @@ def compute_compression_gap_retention(
 # Spectral Gap as Loss/Regularizer
 # =============================================================================
 
+
 class SpectralGapRegularizer(torch.nn.Module):
     """
     Regularizer that encourages healthy spectral gaps.
@@ -417,10 +414,7 @@ class SpectralGapRegularizer(torch.nn.Module):
     """
 
     def __init__(
-        self,
-        target_gap: float = 0.1,
-        weight: float = 0.01,
-        layers: Optional[List[str]] = None
+        self, target_gap: float = 0.1, weight: float = 0.01, layers: Optional[List[str]] = None
     ):
         """
         Initialize regularizer.
@@ -484,10 +478,7 @@ class SpectralGapRegularizer(torch.nn.Module):
         return self.weight * total_loss
 
 
-def thought_diversity_loss(
-    thoughts: torch.Tensor,
-    target_diversity: float = 0.5
-) -> torch.Tensor:
+def thought_diversity_loss(thoughts: torch.Tensor, target_diversity: float = 0.5) -> torch.Tensor:
     """
     Loss function to encourage diverse parallel thoughts.
 
@@ -522,6 +513,7 @@ def thought_diversity_loss(
 # =============================================================================
 # Demo and Testing
 # =============================================================================
+
 
 def run_demo():
     """Run spectral gap monitoring demo."""

@@ -26,12 +26,12 @@ import torch
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
-from src.cross_phase.utils import get_tokenizer
 from phase1_cognate.data.dataset_downloader import DATASET_CONFIGS, download_all_datasets
 from phase1_cognate.data.dataset_processor import process_dataset
 from phase1_cognate.model.full_model import TRMTitansMAGModel
 from phase1_cognate.model.model_config import Phase1Config
 from phase1_cognate.training.trainer import Phase1Trainer, TrainingConfig
+from src.cross_phase.utils import get_tokenizer
 
 
 def get_tokenizer_phase1() -> None:

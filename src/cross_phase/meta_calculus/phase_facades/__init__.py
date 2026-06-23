@@ -19,14 +19,7 @@ Design:
     - Facade pattern: simple interface hiding complex implementation
 """
 
-from . import phase1
-from . import phase2
-from . import phase3
-from . import phase4
-from . import phase5
-from . import phase6
-from . import phase7
-from . import phase8
+from . import phase1, phase2, phase3, phase4, phase5, phase6, phase7, phase8
 
 __all__ = [
     "phase1",

@@ -19,9 +19,9 @@ Design:
 """
 
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Tuple, Union, Any
-import numpy as np
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+import numpy as np
 
 # Type alias for constraint functions
 # Constraint function signature: (x: np.ndarray) -> float
@@ -143,6 +143,7 @@ def make_latency_constraint(
     config = config or ConstraintConfig()
 
     if latency_estimator is None:
+
         def latency_estimator(x: np.ndarray) -> float:
             return float(x[1]) if len(x) > 1 else 0.0
 
@@ -179,6 +180,7 @@ def make_memory_constraint(
     config = config or ConstraintConfig()
 
     if memory_estimator is None:
+
         def memory_estimator(x: np.ndarray) -> float:
             return float(x[2]) if len(x) > 2 else 0.0
 
@@ -215,6 +217,7 @@ def make_accuracy_constraint(
     config = config or ConstraintConfig()
 
     if accuracy_evaluator is None:
+
         def accuracy_evaluator(x: np.ndarray) -> float:
             return float(x[3]) if len(x) > 3 else 1.0
 

@@ -21,8 +21,8 @@ import torch.nn.functional as F
 
 # Import meta-calculus for k(level) sample scaling
 try:
-    from src.cross_phase.meta_calculus.phase_facades import phase5 as meta_phase5
     from src.cross_phase.meta_calculus.k_formula import compute_k
+    from src.cross_phase.meta_calculus.phase_facades import phase5 as meta_phase5
 
     META_CALCULUS_AVAILABLE = True
 except ImportError:
@@ -91,8 +91,10 @@ class DreamConsolidator:
             # Scale factor: 1.0 at level 1, up to 2.0 at level 10
             scale_factor = 1.0 + (1.0 - k) * 1.5
             self.num_samples = int(num_samples * scale_factor)
-            print(f"  [Meta-Calculus] k(L={L:.2f}) = {k:.4f}, "
-                  f"consolidation samples: {num_samples} -> {self.num_samples}")
+            print(
+                f"  [Meta-Calculus] k(L={L:.2f}) = {k:.4f}, "
+                f"consolidation samples: {num_samples} -> {self.num_samples}"
+            )
         else:
             self.num_samples = num_samples
 
@@ -408,7 +410,7 @@ class DreamQualityGate:
 
         # Check trend (declining gap suggests overfitting)
         if len(self.gap_history) >= self.history_window:
-            recent = self.gap_history[-self.history_window:]
+            recent = self.gap_history[-self.history_window :]
             trend = (recent[-1] - recent[0]) / len(recent)
             if trend < -0.01:  # Declining
                 return QualityGateResult(
@@ -426,7 +428,9 @@ class DreamQualityGate:
             recommendation = "Consolidation quality is optimal."
         elif gap_value > self.ideal_gap_range[1]:
             status = "high_diversity"
-            recommendation = "Gap above ideal range - good diversity but may need more consolidation."
+            recommendation = (
+                "Gap above ideal range - good diversity but may need more consolidation."
+            )
         else:
             status = "acceptable"
             recommendation = "Consolidation quality is acceptable."
@@ -527,9 +531,7 @@ class DreamQualityGate:
                     if w.dim() > 2:
                         w = w.view(w.size(0), -1)
                     if w.size(0) >= 2 and w.size(1) >= 2:
-                        weight_matrices.append(
-                            w[:min(256, w.size(0)), :min(256, w.size(1))]
-                        )
+                        weight_matrices.append(w[: min(256, w.size(0)), : min(256, w.size(1))])
 
             if not weight_matrices:
                 return 0.5

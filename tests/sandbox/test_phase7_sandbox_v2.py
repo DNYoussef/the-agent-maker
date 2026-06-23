@@ -1,4 +1,5 @@
 import pytest
+
 pytestmark = pytest.mark.skip(reason="Standalone sandbox script - run with python directly")
 
 """
@@ -17,15 +18,17 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
+from typing import Any, Dict, List
+
 import torch
 import torch.nn as nn
-from typing import Dict, Any, List
+
+from phase7_experts.adas_optimizer import ADASConfig, ADASOptimizer, Individual
 
 # Import Phase 7 modules
 from phase7_experts.expert_discovery import ExpertProfile
-from phase7_experts.svf_trainer import SVFTrainer, SVFConfig
+from phase7_experts.svf_trainer import SVFConfig, SVFTrainer
 from phase7_experts.transformer2 import Transformer2, Transformer2Config
-from phase7_experts.adas_optimizer import ADASOptimizer, ADASConfig, Individual
 
 
 # Mock 1.58-bit Model (simulates Phase 4 output)
@@ -94,9 +97,15 @@ class Mock158BitModel(nn.Module):
 
             total = total_minus + total_zero + total_plus
             results["stats"] = {
-                "minus_one": f"{total_minus}/{total} ({100*total_minus/total:.1f}%)" if total > 0 else "0/0",
-                "zero": f"{total_zero}/{total} ({100*total_zero/total:.1f}%)" if total > 0 else "0/0",
-                "plus_one": f"{total_plus}/{total} ({100*total_plus/total:.1f}%)" if total > 0 else "0/0",
+                "minus_one": f"{total_minus}/{total} ({100*total_minus/total:.1f}%)"
+                if total > 0
+                else "0/0",
+                "zero": f"{total_zero}/{total} ({100*total_zero/total:.1f}%)"
+                if total > 0
+                else "0/0",
+                "plus_one": f"{total_plus}/{total} ({100*total_plus/total:.1f}%)"
+                if total > 0
+                else "0/0",
             }
 
         return results
@@ -125,7 +134,7 @@ class MockTokenizer:
 
     def __call__(self, text: str, **kwargs):
         tokens = [hash(word) % self.vocab_size for word in text.split()]
-        input_ids = torch.tensor([tokens[:kwargs.get("max_length", 128)]])
+        input_ids = torch.tensor([tokens[: kwargs.get("max_length", 128)]])
         return {"input_ids": input_ids, "attention_mask": torch.ones_like(input_ids)}
 
 
@@ -271,6 +280,7 @@ def test_transformer2_inference(model, num_experts, tokenizer):
     except Exception as e:
         print(f"\n  [ERROR] Transformer^2 failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False, {}
 
@@ -299,8 +309,12 @@ def test_adas_optimizer(model, experts, tokenizer):
         if success:
             print(f"\n  [SUCCESS] ADAS optimization complete")
             print(f"    Pareto front size: {len(result.pareto_front)}")
-            print(f"    Best accuracy: {result.best_individual.fitness_scores.get('accuracy', 0):.3f}")
-            print(f"    Best latency: {result.best_individual.fitness_scores.get('latency', 0):.3f}")
+            print(
+                f"    Best accuracy: {result.best_individual.fitness_scores.get('accuracy', 0):.3f}"
+            )
+            print(
+                f"    Best latency: {result.best_individual.fitness_scores.get('latency', 0):.3f}"
+            )
 
         return success, {
             "pareto_front_size": len(result.pareto_front),
@@ -310,6 +324,7 @@ def test_adas_optimizer(model, experts, tokenizer):
     except Exception as e:
         print(f"\n  [ERROR] ADAS failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False, {}
 
@@ -418,6 +433,7 @@ def main():
         results["errors"].append(f"Exception: {str(e)}")
         results["status"] = "FAILED"
         import traceback
+
         traceback.print_exc()
 
     # Report

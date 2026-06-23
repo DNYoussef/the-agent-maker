@@ -24,23 +24,22 @@ Usage:
 """
 
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
 import numpy as np
 
-# Layer 1 imports (core)
-from ..meta_grokfast import MetaGrokfast, GrokfastConfig
+from ..gap_utils.monitoring import PhaseGapMonitor
 
 # Layer 2 imports (utilities)
 from ..k_utils.adaptive import (
+    AdaptiveConfig,
     get_baking_strength,
     get_baking_strengths_for_model,
     get_half_baking_ratio,
-    AdaptiveConfig,
 )
-from ..gap_utils.monitoring import PhaseGapMonitor
-from ..moo_utils.hyperparams import (
-    optimize_ab_interleaving,
-    ABCycleInterleavingProblem,
-)
+
+# Layer 1 imports (core)
+from ..meta_grokfast import GrokfastConfig, MetaGrokfast
+from ..moo_utils.hyperparams import ABCycleInterleavingProblem, optimize_ab_interleaving
 
 # Phase 6 specific defaults
 PHASE6_CONFIG = GrokfastConfig(
@@ -100,6 +99,7 @@ def get_layer_baking_strength(
         # Use layer position as proxy
         L = (layer_idx + 1) / total_layers
         from ..k_formula import compute_k
+
         k = compute_k(L)
         return 0.5 + 0.5 * k  # Higher k -> higher strength
 
@@ -162,6 +162,7 @@ def get_a_cycle_config(
         A-cycle configuration
     """
     from ..k_formula import compute_k
+
     k = compute_k(tool_complexity)
 
     return {
@@ -184,6 +185,7 @@ def get_b_cycle_config(
         B-cycle configuration
     """
     from ..k_formula import compute_k
+
     k = compute_k(persona_depth)
 
     return {
@@ -239,14 +241,14 @@ def compute_baking_loss(
     kl_original = F.kl_div(
         F.log_softmax(logits_baked, dim=-1),
         F.softmax(logits_original, dim=-1),
-        reduction='batchmean',
+        reduction="batchmean",
     )
 
     # KL to target (move toward)
     kl_target = F.kl_div(
         F.log_softmax(logits_baked, dim=-1),
         target_distribution,
-        reduction='batchmean',
+        reduction="batchmean",
     )
 
     # Weighted combination

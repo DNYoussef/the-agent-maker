@@ -5,9 +5,9 @@ Shows current pipeline status, progress, and session information with modern UI
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, Optional, cast
 
 import streamlit as st
-from typing import Any, Dict, Optional, cast
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))

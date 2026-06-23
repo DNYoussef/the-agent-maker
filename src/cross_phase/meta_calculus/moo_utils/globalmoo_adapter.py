@@ -29,18 +29,20 @@ References:
 
 from __future__ import annotations
 
-import os
 import json
+import os
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
 import numpy as np
 
 # Check for pymoo
 try:
     from pymoo.algorithms.moo.nsga2 import NSGA2
-    from pymoo.optimize import minimize
     from pymoo.core.problem import Problem as PymooProblem
+    from pymoo.optimize import minimize
+
     PYMOO_AVAILABLE = True
 except ImportError:
     PYMOO_AVAILABLE = False
@@ -51,17 +53,18 @@ try:
     from globalmoo.credentials import Credentials
     from globalmoo.request.create_model import CreateModel
     from globalmoo.request.create_project import CreateProject
-    from globalmoo.request.load_output_cases import LoadOutputCases
-    from globalmoo.request.load_objectives import LoadObjectives
-    from globalmoo.request.suggest_inverse import SuggestInverse
     from globalmoo.request.load_inversed_output import LoadInversedOutput
+    from globalmoo.request.load_objectives import LoadObjectives
+    from globalmoo.request.load_output_cases import LoadOutputCases
+    from globalmoo.request.suggest_inverse import SuggestInverse
+
     GLOBALMOO_AVAILABLE = True
 except ImportError:
     GLOBALMOO_AVAILABLE = False
 
 # Environment variables
-GLOBALMOO_API_KEY = os.environ.get('GLOBALMOO_API_KEY', '')
-GLOBALMOO_API_URL = os.environ.get('GLOBALMOO_API_URL', 'https://app.globalmoo.com/api/')
+GLOBALMOO_API_KEY = os.environ.get("GLOBALMOO_API_KEY", "")
+GLOBALMOO_API_URL = os.environ.get("GLOBALMOO_API_URL", "https://app.globalmoo.com/api/")
 
 
 @dataclass
@@ -150,7 +153,7 @@ class GlobalMOOClient:
             description=f"Agent Forge Phase Optimization - {self.config.model_name}",
         )
         response = self.client.send(project_req)
-        self.project_id = response.get('project_id', response.get('id'))
+        self.project_id = response.get("project_id", response.get("id"))
 
         # Create model with input/output specs
         model_req = CreateModel(
@@ -168,14 +171,18 @@ class GlobalMOOClient:
             ],
             output_specs=[
                 {
-                    "name": self.config.objective_names[i] if i < len(self.config.objective_names) else f"obj{i}",
-                    "minimize": self.config.objective_minimize[i] if i < len(self.config.objective_minimize) else True,
+                    "name": self.config.objective_names[i]
+                    if i < len(self.config.objective_names)
+                    else f"obj{i}",
+                    "minimize": self.config.objective_minimize[i]
+                    if i < len(self.config.objective_minimize)
+                    else True,
                 }
                 for i in range(n_outputs)
             ],
         )
         response = self.client.send(model_req)
-        self.model_id = response.get('model_id', response.get('id'))
+        self.model_id = response.get("model_id", response.get("id"))
 
         return self.project_id
 
@@ -219,7 +226,7 @@ class GlobalMOOClient:
         )
         suggestions = self.client.send(load_req)
 
-        return np.array([s['inputs'] for s in suggestions])
+        return np.array([s["inputs"] for s in suggestions])
 
     def get_pareto_front(self) -> Tuple[np.ndarray, np.ndarray]:
         """Get current Pareto front from GlobalMOO."""
@@ -230,8 +237,8 @@ class GlobalMOOClient:
         )
         response = self.client.send(obj_req)
 
-        X = np.array([s['inputs'] for s in response])
-        F = np.array([s['outputs'] for s in response])
+        X = np.array([s["inputs"] for s in response])
+        F = np.array([s["outputs"] for s in response])
 
         return X, F
 
@@ -261,7 +268,7 @@ class PymooRunner:
         result = minimize(
             self.problem,
             algorithm,
-            ('n_gen', self.config.n_generations),
+            ("n_gen", self.config.n_generations),
             seed=self.config.seed,
             verbose=False,
         )
@@ -480,6 +487,7 @@ class HybridMOORunner:
 
         # Generate initial population (Latin Hypercube Sampling)
         from pymoo.operators.sampling.lhs import LHS
+
         sampling = LHS()
         X_init = sampling(self.problem, self.config.pop_size).get("X")
 

@@ -33,32 +33,32 @@ class AuditReport:
             "methods": {},
             "integration": {},
             "bugs": [],
-            "fixes": []
+            "fixes": [],
         }
 
     def add_import_test(self, module_name, success, error=None):
         self.results["imports"][module_name] = {
             "status": "PASS" if success else "FAIL",
-            "error": str(error) if error else None
+            "error": str(error) if error else None,
         }
 
     def add_instantiation_test(self, class_name, success, error=None):
         self.results["instantiation"][class_name] = {
             "status": "PASS" if success else "FAIL",
-            "error": str(error) if error else None
+            "error": str(error) if error else None,
         }
 
     def add_method_test(self, method_name, success, result=None, error=None):
         self.results["methods"][method_name] = {
             "status": "PASS" if success else "FAIL",
             "result": result,
-            "error": str(error) if error else None
+            "error": str(error) if error else None,
         }
 
     def add_integration_test(self, test_name, success, details=None):
         self.results["integration"][test_name] = {
             "status": "PASS" if success else "FAIL",
-            "details": details
+            "details": details,
         }
 
     def add_bug(self, bug_description):
@@ -146,23 +146,18 @@ class AuditReport:
 
 def create_mock_model():
     """Create mock model for testing."""
+
     class MockModel(nn.Module):
         def __init__(self):
             super().__init__()
-            self.config = type('obj', (object,), {
-                'hidden_size': 512,
-                'vocab_size': 50000
-            })()
+            self.config = type("obj", (object,), {"hidden_size": 512, "vocab_size": 50000})()
             self.embedding = nn.Embedding(50000, 512)
             self.lm_head = nn.Linear(512, 50000)
 
         def forward(self, input_ids, attention_mask=None):
             embeddings = self.embedding(input_ids)
             logits = self.lm_head(embeddings)
-            return type('obj', (object,), {
-                'logits': logits,
-                'last_hidden_state': embeddings
-            })()
+            return type("obj", (object,), {"logits": logits, "last_hidden_state": embeddings})()
 
     return MockModel()
 
@@ -178,7 +173,10 @@ def test_imports(report):
 
     # Test 1: parallel_thought_generator
     try:
-        from src.phase3_quietstar.architecture.parallel_thought_generator import ParallelThoughtGenerator
+        from src.phase3_quietstar.architecture.parallel_thought_generator import (
+            ParallelThoughtGenerator,
+        )
+
         report.add_import_test("parallel_thought_generator", True)
     except Exception as e:
         report.add_import_test("parallel_thought_generator", False, e)
@@ -187,12 +185,13 @@ def test_imports(report):
     # Test 2: config_extensions
     try:
         from src.phase3_quietstar.config_extensions import (
-            extend_rl_config,
+            MetaTokenConfig,
             ParallelSamplingConfig,
             TeacherForcingConfig,
-            MetaTokenConfig,
-            create_complete_rl_config
+            create_complete_rl_config,
+            extend_rl_config,
         )
+
         report.add_import_test("config_extensions", True)
     except Exception as e:
         report.add_import_test("config_extensions", False, e)
@@ -201,6 +200,7 @@ def test_imports(report):
     # Test 3: dataclasses
     try:
         from src.phase3_quietstar.architecture.dataclasses import ThoughtOutput
+
         report.add_import_test("dataclasses", True)
     except Exception as e:
         report.add_import_test("dataclasses", False, e)
@@ -209,12 +209,15 @@ def test_imports(report):
     # Test 4: existing thought_generator
     try:
         from src.phase3_quietstar.architecture.thought_generator import ThoughtGenerator
+
         report.add_import_test("thought_generator (existing)", True)
     except Exception as e:
         report.add_import_test("thought_generator (existing)", False, e)
         report.add_bug(f"Cannot import ThoughtGenerator: {e}")
 
-    failures = [name for name, result in report.results["imports"].items() if result["status"] != "PASS"]
+    failures = [
+        name for name, result in report.results["imports"].items() if result["status"] != "PASS"
+    ]
     assert not failures, f"import failures: {failures}; bugs={report.results['bugs']}"
 
 
@@ -233,7 +236,10 @@ def test_instantiation(report):
 
     # Test ParallelThoughtGenerator
     try:
-        from src.phase3_quietstar.architecture.parallel_thought_generator import ParallelThoughtGenerator
+        from src.phase3_quietstar.architecture.parallel_thought_generator import (
+            ParallelThoughtGenerator,
+        )
+
         generator = ParallelThoughtGenerator(mock_model, num_thoughts=4)
         report.add_instantiation_test("ParallelThoughtGenerator", True)
     except Exception as e:
@@ -244,10 +250,11 @@ def test_instantiation(report):
     # Test config classes
     try:
         from src.phase3_quietstar.config_extensions import (
+            MetaTokenConfig,
             ParallelSamplingConfig,
             TeacherForcingConfig,
-            MetaTokenConfig
         )
+
         parallel_cfg = ParallelSamplingConfig()
         teacher_cfg = TeacherForcingConfig()
         meta_cfg = MetaTokenConfig()
@@ -257,7 +264,9 @@ def test_instantiation(report):
         report.add_bug(f"Cannot instantiate config classes: {e}")
 
     failures = [
-        name for name, result in report.results["instantiation"].items() if result["status"] != "PASS"
+        name
+        for name, result in report.results["instantiation"].items()
+        if result["status"] != "PASS"
     ]
     assert not failures, f"instantiation failures: {failures}; bugs={report.results['bugs']}"
 
@@ -268,9 +277,14 @@ def test_methods(report):
 
     # Setup
     try:
-        from src.phase3_quietstar.architecture.parallel_thought_generator import ParallelThoughtGenerator
+        from src.phase3_quietstar.architecture.parallel_thought_generator import (
+            ParallelThoughtGenerator,
+        )
+
         mock_model = create_mock_model()
-        generator = ParallelThoughtGenerator(mock_model, num_thoughts=4, max_length=10, min_length=5)
+        generator = ParallelThoughtGenerator(
+            mock_model, num_thoughts=4, max_length=10, min_length=5
+        )
     except Exception as e:
         report.add_method_test("setup", False, error=e)
         raise AssertionError(f"method setup failed: {e}") from e
@@ -281,35 +295,35 @@ def test_methods(report):
         output = generator(input_ids, position=10)
 
         # Validate output
-        assert hasattr(output, 'thoughts'), "Output missing 'thoughts' attribute"
-        assert hasattr(output, 'thought_ids'), "Output missing 'thought_ids' attribute"
-        assert hasattr(output, 'log_probs'), "Output missing 'log_probs' attribute"
+        assert hasattr(output, "thoughts"), "Output missing 'thoughts' attribute"
+        assert hasattr(output, "thought_ids"), "Output missing 'thought_ids' attribute"
+        assert hasattr(output, "log_probs"), "Output missing 'log_probs' attribute"
 
         # Check shapes
         batch_size = 2
         num_thoughts = 4
         assert output.thoughts.dim() == 4, f"thoughts should be 4D, got {output.thoughts.dim()}D"
         assert output.thoughts.size(0) == batch_size, f"batch dimension should be {batch_size}"
-        assert output.thoughts.size(1) == num_thoughts, f"num_thoughts dimension should be {num_thoughts}"
+        assert (
+            output.thoughts.size(1) == num_thoughts
+        ), f"num_thoughts dimension should be {num_thoughts}"
 
         report.add_method_test(
             "forward()",
             True,
-            result=f"Output shape: {output.thoughts.shape}, log_probs: {output.log_probs.shape}"
+            result=f"Output shape: {output.thoughts.shape}, log_probs: {output.log_probs.shape}",
         )
     except Exception as e:
         report.add_method_test("forward()", False, error=e)
         report.add_bug(f"forward() method failed: {e}")
-        report.add_fix("Check forward() implementation, especially tensor shapes and attention mask handling")
+        report.add_fix(
+            "Check forward() implementation, especially tensor shapes and attention mask handling"
+        )
 
     # Test 2: _create_diagonal_attention_mask()
     try:
         mask = generator._create_diagonal_attention_mask(
-            batch_size=2,
-            num_thoughts=4,
-            seq_len=30,
-            position=10,
-            device='cpu'
+            batch_size=2, num_thoughts=4, seq_len=30, position=10, device="cpu"
         )
 
         # Validate mask
@@ -319,18 +333,20 @@ def test_methods(report):
         # Check mask values
         unique_values = torch.unique(mask)
         has_zero = 0.0 in unique_values
-        has_neginf = float('-inf') in unique_values or torch.isinf(mask).any()
+        has_neginf = float("-inf") in unique_values or torch.isinf(mask).any()
         assert has_zero and has_neginf, "Mask should have 0.0 (attend) and -inf (mask) values"
 
         report.add_method_test(
             "_create_diagonal_attention_mask()",
             True,
-            result=f"Mask shape: {mask.shape}, unique values: {unique_values.tolist()[:5]}..."
+            result=f"Mask shape: {mask.shape}, unique values: {unique_values.tolist()[:5]}...",
         )
     except Exception as e:
         report.add_method_test("_create_diagonal_attention_mask()", False, error=e)
         report.add_bug(f"_create_diagonal_attention_mask() failed: {e}")
-        report.add_fix("Review diagonal mask algorithm - check shared context and diagonal blocking logic")
+        report.add_fix(
+            "Review diagonal mask algorithm - check shared context and diagonal blocking logic"
+        )
 
     # Test 3: _nucleus_sampling()
     try:
@@ -345,7 +361,7 @@ def test_methods(report):
         report.add_method_test(
             "_nucleus_sampling()",
             True,
-            result=f"Probs shape: {probs.shape}, sum: {probs.sum(dim=-1).tolist()}"
+            result=f"Probs shape: {probs.shape}, sum: {probs.sum(dim=-1).tolist()}",
         )
     except Exception as e:
         report.add_method_test("_nucleus_sampling()", False, error=e)
@@ -359,10 +375,7 @@ def test_methods(report):
         labels = torch.randint(0, 50000, (2, 30))
 
         loss = generator.compute_teacher_forced_loss(
-            input_ids=input_ids,
-            thought_ids=thought_ids,
-            labels=labels,
-            n_true=4
+            input_ids=input_ids, thought_ids=thought_ids, labels=labels, n_true=4
         )
 
         # Validate
@@ -372,16 +385,18 @@ def test_methods(report):
         assert not torch.isinf(loss), "Loss is inf"
 
         report.add_method_test(
-            "compute_teacher_forced_loss()",
-            True,
-            result=f"Loss value: {loss.item():.4f}"
+            "compute_teacher_forced_loss()", True, result=f"Loss value: {loss.item():.4f}"
         )
     except Exception as e:
         report.add_method_test("compute_teacher_forced_loss()", False, error=e)
         report.add_bug(f"compute_teacher_forced_loss() failed: {e}")
-        report.add_fix("Review teacher forcing implementation - check label alignment and loss computation")
+        report.add_fix(
+            "Review teacher forcing implementation - check label alignment and loss computation"
+        )
 
-    failures = [name for name, result in report.results["methods"].items() if result["status"] != "PASS"]
+    failures = [
+        name for name, result in report.results["methods"].items() if result["status"] != "PASS"
+    ]
     assert not failures, f"method failures: {failures}; bugs={report.results['bugs']}"
 
 
@@ -391,13 +406,17 @@ def test_integration(report):
 
     # Test 1: Compatibility with ThoughtGenerator
     try:
-        from src.phase3_quietstar.architecture.parallel_thought_generator import ParallelThoughtGenerator
+        from src.phase3_quietstar.architecture.parallel_thought_generator import (
+            ParallelThoughtGenerator,
+        )
         from src.phase3_quietstar.architecture.thought_generator import ThoughtGenerator
 
         mock_model = create_mock_model()
 
         # Create both generators
-        parallel_gen = ParallelThoughtGenerator(mock_model, num_thoughts=4, max_length=10, min_length=5)
+        parallel_gen = ParallelThoughtGenerator(
+            mock_model, num_thoughts=4, max_length=10, min_length=5
+        )
         sequential_gen = ThoughtGenerator(mock_model, num_thoughts=4, max_length=10, min_length=5)
 
         # Test same interface
@@ -407,16 +426,17 @@ def test_integration(report):
         output_sequential = sequential_gen(input_ids, position=10)
 
         # Check compatibility
-        assert hasattr(output_parallel, 'thoughts'), "Parallel output missing 'thoughts'"
-        assert hasattr(output_sequential, 'thoughts'), "Sequential output missing 'thoughts'"
+        assert hasattr(output_parallel, "thoughts"), "Parallel output missing 'thoughts'"
+        assert hasattr(output_sequential, "thoughts"), "Sequential output missing 'thoughts'"
 
-        assert output_parallel.thoughts.dim() == output_sequential.thoughts.dim(), \
-            f"Dimension mismatch: parallel {output_parallel.thoughts.dim()}D vs sequential {output_sequential.thoughts.dim()}D"
+        assert (
+            output_parallel.thoughts.dim() == output_sequential.thoughts.dim()
+        ), f"Dimension mismatch: parallel {output_parallel.thoughts.dim()}D vs sequential {output_sequential.thoughts.dim()}D"
 
         report.add_integration_test(
             "ThoughtGenerator compatibility",
             True,
-            details="Both generators produce compatible ThoughtOutput"
+            details="Both generators produce compatible ThoughtOutput",
         )
     except Exception as e:
         report.add_integration_test("ThoughtGenerator compatibility", False, details=str(e))
@@ -426,27 +446,32 @@ def test_integration(report):
     # Test 2: Config extensions integration
     try:
         from src.phase3_quietstar.config import QuietSTaRRLConfig
-        from src.phase3_quietstar.config_extensions import extend_rl_config, create_complete_rl_config
+        from src.phase3_quietstar.config_extensions import (
+            create_complete_rl_config,
+            extend_rl_config,
+        )
 
         # Test extend_rl_config
         base_config = QuietSTaRRLConfig()
         extended_config = extend_rl_config(base_config)
 
-        assert hasattr(extended_config, 'meta_token_grad_scale'), "Missing meta_token_grad_scale"
-        assert hasattr(extended_config, 'n_true'), "Missing n_true"
-        assert hasattr(extended_config, 'use_parallel_generation'), "Missing use_parallel_generation"
+        assert hasattr(extended_config, "meta_token_grad_scale"), "Missing meta_token_grad_scale"
+        assert hasattr(extended_config, "n_true"), "Missing n_true"
+        assert hasattr(
+            extended_config, "use_parallel_generation"
+        ), "Missing use_parallel_generation"
 
         # Test create_complete_rl_config
         complete_config = create_complete_rl_config()
-        assert 'base' in complete_config, "Missing 'base' in config"
-        assert 'parallel_sampling' in complete_config, "Missing 'parallel_sampling'"
-        assert 'teacher_forcing' in complete_config, "Missing 'teacher_forcing'"
-        assert 'meta_token' in complete_config, "Missing 'meta_token'"
+        assert "base" in complete_config, "Missing 'base' in config"
+        assert "parallel_sampling" in complete_config, "Missing 'parallel_sampling'"
+        assert "teacher_forcing" in complete_config, "Missing 'teacher_forcing'"
+        assert "meta_token" in complete_config, "Missing 'meta_token'"
 
         report.add_integration_test(
             "Config extensions integration",
             True,
-            details="Config extensions properly extend base config"
+            details="Config extensions properly extend base config",
         )
     except Exception as e:
         report.add_integration_test("Config extensions integration", False, details=str(e))

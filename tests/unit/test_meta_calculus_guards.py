@@ -13,11 +13,8 @@ import pytest
 import torch
 
 from src.cross_phase.meta_calculus import bigeometric as bg_module
-from src.cross_phase.meta_calculus.bigeometric import (
-    BigeometricConfig,
-    BigeometricTransform,
-)
 from src.cross_phase.meta_calculus import moo_bridge
+from src.cross_phase.meta_calculus.bigeometric import BigeometricConfig, BigeometricTransform
 from src.cross_phase.meta_calculus.moo_bridge import select_from_pareto
 
 
@@ -83,9 +80,9 @@ def test_out_of_range_k_is_clamped_and_warns():
         out = t.transform(g, k=-0.1)
 
     assert torch.isfinite(out).all()
-    assert out.abs().max().item() < 0.5, (
-        f"clamped output should be ~0.25, got {out.abs().max().item():.4g}"
-    )
+    assert (
+        out.abs().max().item() < 0.5
+    ), f"clamped output should be ~0.25, got {out.abs().max().item():.4g}"
     # Sign must survive the clamp path too.
     assert torch.sign(out).item() == 1.0
 

@@ -21,7 +21,6 @@ import pytest
 import torch
 import torch.nn as nn
 
-
 from phase5_curriculum.curriculum_engine import (
     CurriculumConfig,
     CurriculumEngine,
