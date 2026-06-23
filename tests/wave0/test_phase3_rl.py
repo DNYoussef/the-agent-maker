@@ -89,3 +89,22 @@ def test_train_episode_uses_thought_log_probs_for_policy_loss():
     )
     # No silent CE proxy fallback when there are no thoughts.
     assert "torch.zeros" in body, "no-thought case must be zero policy loss, not a CE proxy"
+
+
+def test_run_step2_rl_does_not_freeze_the_policy():
+    # Bug: run_step2_rl passed the trainable model as BOTH model and baked_model.
+    # The trainer freezes baked_model's params, and that same object is the base
+    # model inside QuietSTaRModel, so the policy was frozen and trained nothing.
+    # The baked baseline must be a separate frozen snapshot (deepcopy).
+    from pathlib import Path
+
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "src"
+        / "phase3_quietstar"
+        / "step2_rl.py"
+    )
+    src = path.read_text(encoding="utf-8")
+    body = src.split("def run_step2_rl", 1)[1]
+    assert "baked_model=model," not in body, "must not alias the trainable model as the frozen baseline"
+    assert "copy.deepcopy(model)" in body, "baked baseline must be a frozen snapshot"

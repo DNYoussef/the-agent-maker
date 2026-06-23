@@ -16,6 +16,7 @@ Training Flow:
 Duration: ~8-12 hours (10K episodes × 3-4s/episode)
 """
 
+import copy
 import json
 
 # ISS-004: Secure checkpoint utilities
@@ -735,10 +736,16 @@ def run_step2_rl(
     print(f"   Thinking tokens: {len(thinking_tokens)}")
     print(f"   Strategy accuracies: {strategy_accuracies}")
 
+    # The baked baseline must be a frozen SNAPSHOT, not the same object: the
+    # trainer freezes baked_model's parameters, and model is also the base model
+    # inside QuietSTaRModel, so passing `model` here would freeze the policy and
+    # train nothing. Deepcopy the just-loaded baked weights as the KL reference.
+    baked_model = copy.deepcopy(model)
+
     # Initialize trainer
     trainer = REINFORCETrainer(
         model=model,
-        baked_model=model,  # Use same model as baseline
+        baked_model=baked_model,
         tokenizer=tokenizer,
         config=config,
         device=device,
