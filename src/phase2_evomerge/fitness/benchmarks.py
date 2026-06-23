@@ -159,6 +159,11 @@ def extract_numeric_answer(text: str) -> Optional[float]:
     Returns:
         Extracted number or None if not found
     """
+    # Normalize thousands separators (1,000 -> 1000) before parsing. Without this
+    # the patterns below stop at the comma and read "#### 1,000" as 1, undercounting
+    # correct answers and corrupting the real-fitness signal.
+    text = re.sub(r"(?<=\d),(?=\d)", "", text)
+
     # Try GSM8K format (#### answer)
     match = re.search(r"####\s*(-?\d+(?:\.\d+)?)", text)
     if match:

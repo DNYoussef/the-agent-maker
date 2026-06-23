@@ -165,6 +165,10 @@ class Phase2Pipeline:
         if len(input_models) != 3:
             raise ValueError(f"Phase 2 requires 3 input models, got {len(input_models)}")
 
+        # Store for _evaluate_population so the standard path can honor
+        # use_real_fitness (previously only the hybrid path used it).
+        self.tokenizer = tokenizer
+
         print("\n" + "=" * 60)
         print("PHASE 2: EVOMERGE - EVOLUTIONARY OPTIMIZATION")
         print("=" * 60)
@@ -277,11 +281,18 @@ class Phase2Pipeline:
         """Evaluate fitness of all population members. Returns best fitness."""
         from phase2_evomerge.fitness.composite import compute_composite_fitness
 
+        # Honor use_real_fitness on the standard path (not just the hybrid path):
+        # use the real benchmark fitness when configured and a tokenizer is present,
+        # otherwise the proxy approximation.
+        use_real = self.config.use_real_fitness and getattr(self, "tokenizer", None) is not None
+        real_fitness_fn = self._create_real_fitness_fn(self.tokenizer) if use_real else None
+
         best_fitness = 0.0
         for i, model in enumerate(self.population):
-            # Quick fitness approximation (full eval is expensive)
-            fitness_result = self._quick_fitness(model)
-            model._fitness = fitness_result["composite"]
+            if real_fitness_fn is not None:
+                model._fitness = real_fitness_fn(model)
+            else:
+                model._fitness = self._quick_fitness(model)["composite"]
             if model._fitness > best_fitness:
                 best_fitness = model._fitness
 
