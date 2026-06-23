@@ -81,3 +81,22 @@ def test_prompt_baking_without_calibration_data_no_typeerror():
     baker = PromptBaker(PromptBakingConfig())
     out = baker.bake_prompt(m, "be a reasoning specialist", tokenizer=None)
     assert out is m
+
+
+def test_phase2_merge_dispatch_handles_all_operator_signatures():
+    # Bug 0.1: evolutionary path called every merge operator with a single list,
+    # but DARE wants (finetuned, base) and DFS/TIES/Franken want (target, refs:List)
+    # -> TypeError. _merge_models dispatches by signature; verify every shape works.
+    import torch.nn as nn
+    from phase2_evomerge.phase2_pipeline import Phase2Pipeline
+    from phase2_evomerge.merge.linear_merge import LinearMerge  # merge(models: List)
+    from phase2_evomerge.merge.dare_merge import DAREMerge  # merge(finetuned, base)
+    from phase2_evomerge.merge.ties_merge import TIESMerge  # merge(target, refs: List)
+
+    def tiny():
+        torch.manual_seed(0)
+        return nn.Sequential(nn.Linear(8, 8))
+
+    for Op in (LinearMerge, DAREMerge, TIESMerge):
+        out = Phase2Pipeline._merge_models(Op(), [tiny(), tiny()])
+        assert isinstance(out, nn.Module), f"{Op.__name__} dispatch returned non-module"

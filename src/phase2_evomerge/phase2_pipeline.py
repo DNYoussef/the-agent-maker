@@ -9,6 +9,7 @@ Implements: 50-generation evolutionary optimization using 6 merge techniques.
 
 import copy
 import importlib
+import inspect
 import random
 import time
 from dataclasses import dataclass, field
@@ -116,6 +117,30 @@ class Phase2Pipeline:
             raise ImportError("No Phase 2 mergers initialized")
 
         return mergers
+
+    @staticmethod
+    def _merge_models(merger, models: List[nn.Module]) -> nn.Module:
+        """Call a merge operator with its correct signature.
+
+        Operators have heterogeneous merge() signatures: Linear/SLERP take a list
+        of models, DARE takes (model_finetuned, model_base) two single models, and
+        DFS/TIES/Franken take (model_target, models_ref: List). The evolutionary
+        path called them all with a single list, raising TypeError for the 2-arg
+        operators. Dispatch by inspecting the signature so every operator is fed
+        correctly.
+        """
+        required = [
+            p
+            for name, p in inspect.signature(merger.merge).parameters.items()
+            if name != "self"
+            and p.default is inspect.Parameter.empty
+            and p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+        ]
+        if len(required) <= 1:
+            return merger.merge(models)  # list-taking (Linear/SLERP)
+        if "List" in str(required[1].annotation):
+            return merger.merge(models[0], models[1:])  # (target, refs) DFS/TIES/Franken
+        return merger.merge(models[0], models[1])  # (finetuned, base) DARE
 
     def run(
         self,
@@ -242,7 +267,7 @@ class Phase2Pipeline:
             parents = random.sample(input_models, 2)
             technique = random.choice(list(self._mergers.keys()))
             if technique in self._mergers:
-                child = self._mergers[technique].merge(parents)
+                child = self._merge_models(self._mergers[technique], parents)
                 self.population.append(child)
             else:
                 # Fallback: copy random parent
@@ -307,7 +332,9 @@ class Phase2Pipeline:
                 # Select random merge technique
                 technique = random.choice(list(self._mergers.keys()))
                 if technique in self._mergers:
-                    child = self._mergers[technique].merge([parents[i], parents[i + 1]])
+                    child = self._merge_models(
+                        self._mergers[technique], [parents[i], parents[i + 1]]
+                    )
                     offspring.append(child)
                 else:
                     offspring.append(copy.deepcopy(parents[i]))
