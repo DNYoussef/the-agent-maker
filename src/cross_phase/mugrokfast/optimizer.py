@@ -255,17 +255,20 @@ class MuonGrokfast(Optimizer):
 
 class QKClipHook:
     """
-    QK-Clip: Attention Score Safety Rails (ISS-025)
+    QK-Clip: Attention Score MONITOR (ISS-025)
 
-    Clips query-key dot products to prevent exploding attention scores
-    during RL training. Particularly important for Phases 3 and 6.
+    Honesty: this is a forward hook, which runs AFTER the module computes its
+    output, so it cannot modify pre-softmax attention scores. It only COUNTS how
+    often a module output exceeds the threshold (get_clip_count). It does not
+    clip and does not prevent gradient explosions.
+
+    Real QK-Clip requires clipping pre-softmax scores INSIDE the attention
+    forward via apply_qk_clip(); wiring that into each attention implementation
+    is a Wave-2 model change. Use this hook only as a diagnostic.
 
     Usage:
-        hook = QKClipHook(threshold=25.0)
-        hook.register(model)  # Auto-registers on attention modules
-
-    The hook intercepts attention scores before softmax and clips them
-    to [-threshold, +threshold], preventing gradient explosions.
+        monitor = QKClipHook(threshold=25.0)
+        monitor.register(model)  # counts threshold exceedances per attention module
     """
 
     def __init__(self, threshold: float = 25.0):
