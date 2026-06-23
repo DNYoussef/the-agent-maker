@@ -25,7 +25,7 @@ class MuonGrokfast(Optimizer):
     Unified optimizer combining Grokfast + Muon + QK-Clip
 
     Features:
-    - Parameter routing: 2-D params → Muon, 1-D params → fallback (AdamW)
+    - Parameter routing: 2-D params -> Muon, 1-D params -> fallback (AdamW)
     - Phase-specific presets
     - STE compatibility (for Phase 5 BitNet)
     - QK-Clip for RL stability (Phases 3, 6)
@@ -117,10 +117,10 @@ class MuonGrokfast(Optimizer):
 
                 # ===== PARAMETER ROUTING =====
                 if len(p.shape) == 2:
-                    # 2-D params → Muon (orthogonalization)
+                    # 2-D params -> Muon (orthogonalization)
                     self._muon_update(p, filtered_grad, state, group)
                 else:
-                    # 1-D params → AdamW fallback
+                    # 1-D params -> AdamW fallback
                     self._adamw_update(p, filtered_grad, state, group)
 
         return loss
@@ -176,10 +176,13 @@ class MuonGrokfast(Optimizer):
         param.add_(G, alpha=-lr)
 
     def _adamw_update(self, param, grad, state, group) -> None:
-        """AdamW fallback for 1-D params"""
-        lr = group["fallback_lr"]
+        """SGD update for 1-D params (embeddings, layer norms).
 
-        # Simple SGD for 1-D params (embeddings, layer norms)
+        Honesty: the body is plain SGD (param += -lr*grad), NOT AdamW - there are
+        no first/second moments, no bias correction, no decoupled weight decay.
+        The name is kept for back-compat; implementing real AdamW is a Wave-1 item.
+        """
+        lr = group["fallback_lr"]
         param.add_(grad, alpha=-lr)
 
     def get_muon_lr(self) -> float:

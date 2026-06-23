@@ -1,9 +1,11 @@
 """
 Phase 5: Self-Modeling System
 
-Implements temperature-range self-prediction training.
-Model learns to predict its own outputs at different temperatures,
-developing meta-cognitive awareness.
+Implements temperature-range self-prediction training: the model is trained
+(masked-token self-distillation) to predict its own sampled outputs at different
+temperatures. Honesty: this is self-distillation on the model's own generations;
+it does not by itself establish "meta-cognitive awareness" - that is an open
+research claim, not a property this loop measures or guarantees.
 
 Based on: "Unexpected Benefits of Self-Modeling in Neural Systems"
 Key insight: Models that predict their own outputs develop better
@@ -53,7 +55,7 @@ class SelfModelingTrainer:
     1. Generate outputs at various temperatures
     2. Mask portions of generated text
     3. Train model to predict masked tokens (knowing it generated them)
-    4. Repeat until model "groks" itself (>95% self-prediction accuracy)
+    4. Repeat until self-prediction accuracy reaches the configured target
     """
 
     def __init__(
