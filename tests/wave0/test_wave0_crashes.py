@@ -62,3 +62,22 @@ def test_meta_calculus_runner_has_no_undefined_name():
     run_src = inspect.getsource(HybridMOORunner.run)
     assert "runner_config" not in run_src, "undefined `runner_config` still referenced in run()"
     assert "self.config.objective_minimize" in run_src
+
+
+def test_vptq_default_config_disables_crashing_residual_path():
+    # Bug 0.7: default use_residual=True + num_codebooks=4 crashed on any real 2D
+    # layer (residual packing returns dicts; size/decompress assume tensors).
+    from phase8_compression.vptq import VPTQConfig
+
+    assert VPTQConfig().use_residual is False, "crashing residual path must be off by default"
+
+
+def test_prompt_baking_without_calibration_data_no_typeerror():
+    # Bug 0.2: phase5 called bake_prompt without the required calibration_data ->
+    # opaque TypeError. Now optional: honest logged no-op returning the model.
+    from cross_phase.prompt_baking.baker import PromptBaker, PromptBakingConfig
+
+    m = torch.nn.Linear(4, 4)
+    baker = PromptBaker(PromptBakingConfig())
+    out = baker.bake_prompt(m, "be a reasoning specialist", tokenizer=None)
+    assert out is m

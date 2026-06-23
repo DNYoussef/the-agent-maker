@@ -6,6 +6,7 @@ Based on: Prompt Baking paper (arXiv:2409.13697v1)
 Core Algorithm: θ_u = argmin D_KL(P_θ(·|u) || P_θu(·))
 """
 
+import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -13,6 +14,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -47,7 +50,7 @@ class PromptBaker:
         model: nn.Module,
         prompt: str,
         tokenizer,
-        calibration_data: list,
+        calibration_data: Optional[list] = None,
         half_bake: bool = False,
     ) -> nn.Module:
         """
@@ -63,6 +66,17 @@ class PromptBaker:
         Returns:
             Baked model
         """
+        # Wave-0: callers (phase5 curriculum_engine) invoked this without
+        # calibration_data, raising an opaque TypeError. Fail honestly instead:
+        # without calibration data there is nothing to bake, so warn loudly and
+        # return the model unchanged. (The KL objective itself is fixed in Wave 1.)
+        if not calibration_data:
+            logger.warning(
+                "bake_prompt called without calibration_data; skipping bake and "
+                "returning model unchanged (Wave-0 honest no-op)."
+            )
+            return model
+
         # Add LoRA adapters
         model_with_lora = self._add_lora_adapters(model)
 
