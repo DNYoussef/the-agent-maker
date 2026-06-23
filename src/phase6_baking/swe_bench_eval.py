@@ -197,7 +197,11 @@ class SWEBenchEvaluator:
         if max_tasks:
             items = items[:max_tasks]
 
-        # Convert to SWEBenchTask objects
+        # Convert to SWEBenchTask objects. Reset first so repeated load_tasks
+        # calls are idempotent: run_evaluation() re-loads, and evaluators are
+        # reused across pre/post-bake runs, so appending would grow the task
+        # list every call (synthetic loading already replaces the list).
+        self.tasks = []
         for item in items:
             task = SWEBenchTask.from_dict(item)
             self.tasks.append(task)

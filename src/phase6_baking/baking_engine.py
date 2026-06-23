@@ -66,6 +66,12 @@ class BakingConfig:
     lora_r: int = 16
     lora_alpha: int = 32
 
+    # A-cycle SWE-Bench tool evaluation. With no data_path and synthetic off, the
+    # A-cycle fails closed rather than scoring tool use by substring proxy.
+    swe_bench_data_path: Optional[str] = None
+    max_eval_tasks: int = 20
+    allow_synthetic_eval: bool = False
+
 
 @dataclass
 class BakingResult:
@@ -239,6 +245,9 @@ class BakingEngine:
                 lora_alpha=self.config.lora_alpha,
                 num_epochs=self.config.baking_epochs,
                 learning_rate=self.config.learning_rate,
+                swe_bench_data_path=self.config.swe_bench_data_path,
+                max_eval_tasks=self.config.max_eval_tasks,
+                allow_synthetic_eval=self.config.allow_synthetic_eval,
             )
 
             b_optimizer = BCycleOptimizer(

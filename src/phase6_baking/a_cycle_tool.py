@@ -56,19 +56,24 @@ class SWEBenchToolEvaluator:
         max_new_tokens: int = 256,
         temperature: float = 0.7,
         verbose: bool = False,
+        allow_synthetic_tasks: bool = False,
     ):
         """
         Initialize SWE-Bench tool evaluator.
 
         Args:
-            data_path: Path to SWE-Bench JSON data (None = use synthetic)
+            data_path: Path to SWE-Bench JSON data (None + allow_synthetic_tasks
+                False = fail closed; synthetic tasks are not a real SWE-Bench score)
             max_tasks: Maximum tasks per evaluation (controls cost/time)
             tokenizer: Tokenizer for encoding/decoding
             max_new_tokens: Max tokens to generate per task
             temperature: Generation temperature
             verbose: Print evaluation progress
+            allow_synthetic_tasks: Local smoke-test escape hatch only.
         """
-        self.swe_bench = SWEBenchEvaluator(data_path=data_path)
+        self.swe_bench = SWEBenchEvaluator(
+            data_path=data_path, allow_synthetic_tasks=allow_synthetic_tasks
+        )
         self.max_tasks = max_tasks
         self.tokenizer = tokenizer
         self.max_new_tokens = max_new_tokens
@@ -226,6 +231,9 @@ class ACycleOptimizer:
         lora_alpha: int = 32,
         num_epochs: int = 3,
         learning_rate: float = 5e-5,  # Fixed: was 1e-4, now 5e-5 per M4 spec
+        swe_bench_data_path: Optional[str] = None,
+        max_eval_tasks: int = 20,
+        allow_synthetic_eval: bool = False,
     ):
         """
         Initialize A-cycle optimizer.
@@ -236,52 +244,20 @@ class ACycleOptimizer:
             lora_alpha: LoRA alpha
             num_epochs: Baking epochs
             learning_rate: Learning rate
+            swe_bench_data_path: SWE-Bench data (None = synthetic tasks)
+            max_eval_tasks: Tasks per default SWE-Bench evaluation
         """
         self.tool_prompts = tool_prompts
         self.lora_r = lora_r
         self.lora_alpha = lora_alpha
         self.num_epochs = num_epochs
         self.learning_rate = learning_rate
+        self.swe_bench_data_path = swe_bench_data_path
+        self.max_eval_tasks = max_eval_tasks
+        self.allow_synthetic_eval = allow_synthetic_eval
+        self._default_evaluator: Optional["SWEBenchToolEvaluator"] = None
 
         self.state = {"iterations": 0, "scores": [], "best_score": 0.0, "prompts_used": []}
-
-        # Sample tool tasks
-        self.tool_tasks = self._generate_tool_tasks()
-
-    def _generate_tool_tasks(self) -> List[ToolTask]:
-        """Generate sample tool-use tasks."""
-        return [
-            ToolTask(
-                description="Read the contents of config.json and extract the API key",
-                expected_tools=["read_file", "parse_json"],
-                ground_truth="api_key_value",
-                difficulty=3,
-            ),
-            ToolTask(
-                description="Search for all Python files containing 'def main'",
-                expected_tools=["search_files", "grep"],
-                ground_truth="list_of_files",
-                difficulty=4,
-            ),
-            ToolTask(
-                description="Create a new directory and initialize a git repository",
-                expected_tools=["mkdir", "git_init"],
-                ground_truth="success",
-                difficulty=5,
-            ),
-            ToolTask(
-                description="Run the test suite and report failures",
-                expected_tools=["run_tests", "parse_output"],
-                ground_truth="test_results",
-                difficulty=6,
-            ),
-            ToolTask(
-                description="Debug the failing function by adding logging",
-                expected_tools=["read_file", "edit_file", "run_tests"],
-                ground_truth="fixed_code",
-                difficulty=7,
-            ),
-        ]
 
     def optimize(
         self, model: nn.Module, tokenizer: Any, evaluator: Any = None
@@ -323,59 +299,25 @@ class ACycleOptimizer:
         return baked_model, post_score
 
     def _evaluate_tool_use(self, model: nn.Module, tokenizer: Any, evaluator: Any = None) -> float:
-        """Evaluate model's tool-use ability."""
-        if evaluator is not None:
-            return evaluator.evaluate(model)
+        """Evaluate the model's tool-use ability.
 
-        # Default evaluation: score based on output coherence
-        model.eval()
-        total_score = 0.0
-
-        with torch.no_grad():
-            for task in self.tool_tasks:
-                # Create tool-use prompt
-                prompt = f"Task: {task.description}\nTools available: {', '.join(task.expected_tools)}\nPlan:"
-
-                try:
-                    # Tokenize
-                    if hasattr(tokenizer, "__call__"):
-                        inputs = tokenizer(
-                            prompt,
-                            return_tensors="pt",
-                            max_length=256,
-                            truncation=True,
-                            padding=True,
-                        )
-                    else:
-                        inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
-
-                    device = next(model.parameters()).device
-                    inputs = {
-                        k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)
-                    }
-
-                    # Generate
-                    if hasattr(model, "generate"):
-                        outputs = model.generate(**inputs, max_new_tokens=64, do_sample=False)
-                        output_text = (
-                            tokenizer.decode(outputs[0], skip_special_tokens=True)
-                            if hasattr(tokenizer, "decode")
-                            else ""
-                        )
-                    else:
-                        output_text = ""
-
-                    # Score based on tool mention
-                    tool_mentions = sum(
-                        1 for tool in task.expected_tools if tool in output_text.lower()
-                    )
-                    task_score = tool_mentions / len(task.expected_tools)
-                    total_score += task_score
-
-                except Exception:
-                    continue
-
-        return total_score / max(1, len(self.tool_tasks))
+        When no external evaluator is supplied, fall back to the real
+        SWEBenchToolEvaluator (synthetic SWE-Bench tasks when no data_path) rather
+        than counting whether expected tool NAMES appear as substrings in the
+        output. Substring "tool mention" scoring rewarded the model for echoing
+        tool names, not for producing usable tool/code output, so it was fake
+        signal that the A-cycle optimized against.
+        """
+        if evaluator is None:
+            if self._default_evaluator is None:
+                self._default_evaluator = SWEBenchToolEvaluator(
+                    data_path=self.swe_bench_data_path,
+                    max_tasks=self.max_eval_tasks,
+                    tokenizer=tokenizer,
+                    allow_synthetic_tasks=self.allow_synthetic_eval,
+                )
+            evaluator = self._default_evaluator
+        return evaluator.evaluate(model)
 
     def _bake_tool_prompt(self, model: nn.Module, prompt: str, tokenizer: Any) -> nn.Module:
         """Bake a tool-use prompt into the model."""
