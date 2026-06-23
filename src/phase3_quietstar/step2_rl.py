@@ -182,13 +182,17 @@ class REINFORCETrainer:
         Returns:
             Reward tensor (batch,)
         """
-        # Predictions
-        predictions_with = logits_with_thoughts.argmax(dim=-1)
-        predictions_without = logits_without_thoughts.argmax(dim=-1)
+        # Next-token alignment: the logits at position t predict token t+1, which
+        # is how the model's cross-entropy is computed (shift_logits[:-1] vs
+        # shift_labels[1:]). Comparing unshifted argmax to labels measured
+        # accuracy at the wrong offset, so the reward signal was misaligned.
+        predictions_with = logits_with_thoughts[:, :-1, :].argmax(dim=-1)
+        predictions_without = logits_without_thoughts[:, :-1, :].argmax(dim=-1)
+        shift_labels = labels[:, 1:]
 
         # Accuracy
-        correct_with = (predictions_with == labels).float().mean(dim=-1)
-        correct_without = (predictions_without == labels).float().mean(dim=-1)
+        correct_with = (predictions_with == shift_labels).float().mean(dim=-1)
+        correct_without = (predictions_without == shift_labels).float().mean(dim=-1)
 
         # Reward: binary (1.0 if improved, 0.0 otherwise)
         reward = (correct_with > correct_without).float()
@@ -235,18 +239,14 @@ class REINFORCETrainer:
         Returns:
             advantages: (batch,) GAE advantages
         """
-        advantages = torch.zeros_like(rewards)
-        gae = 0
-
-        for t in reversed(range(len(rewards))):
-            if t == len(rewards) - 1:
-                next_value = next_values[t]
-            else:
-                next_value = values[t + 1]
-
-            delta = rewards[t] + self.config.rl.gamma * next_value * (1 - dones[t]) - values[t]
-            gae = delta + self.config.rl.gamma * self.config.rl.gae_lambda * (1 - dones[t]) * gae
-            advantages[t] = gae
+        # Single-step LM episodes: each batch entry is its OWN independent
+        # episode, not a timestep in one trajectory. The old reversed loop ran
+        # the GAE recursion over the batch dimension, so sample t's advantage
+        # leaked into sample t-1 (e.g. a high reward on one example inflated an
+        # unrelated example's advantage). With a single step the GAE recursion
+        # has nothing to accumulate, so it reduces to the per-sample TD residual,
+        # computed vectorized with no cross-sample coupling.
+        advantages = rewards + self.config.rl.gamma * next_values * (1 - dones) - values
 
         return advantages
 
@@ -422,9 +422,9 @@ class REINFORCETrainer:
             # Forward with thoughts
             outputs = self.model(input_ids=input_ids, labels=labels, use_thoughts=True)
 
-            # Compute accuracy
-            predictions = outputs["logits"].argmax(dim=-1)
-            accuracy = (predictions == labels).float().mean().item()
+            # Compute accuracy with next-token alignment (match the shifted CE).
+            predictions = outputs["logits"][:, :-1, :].argmax(dim=-1)
+            accuracy = (predictions == labels[:, 1:]).float().mean().item()
 
             # Thought metrics (from QuietSTaRModel)
             thought_positions = outputs.get("thought_positions", [])
