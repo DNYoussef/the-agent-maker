@@ -3,6 +3,15 @@ Long-Term Memory Module (LMM)
 
 Factorized long-range memory with exponential decay.
 Compresses state to d_mem dimension, maintains memory, expands back.
+
+HONESTY (do not overclaim): this is an EMA-decayed memory pool, NOT the
+"Titans" neural long-term memory of Behrouz et al. (2024). Real Titans updates
+its memory by gradient descent at test time, gated by a "surprise" signal
+(gradient of the loss w.r.t. the memory) with momentum and a forget gate. This
+module has none of that - it is a fixed linear recurrence
+(memory_t = decay*memory_{t-1} + (1-decay)*W_down x_t) read out through W_up.
+The surrounding backbone is still named "Titans-MAG" for back-compat; a real
+surprise-based memory is a Wave-2 feature.
 """
 
 import torch

@@ -14,6 +14,8 @@ import random
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from src.cross_phase.evaluation.evaluator import matches
+
 import torch
 import torch.nn as nn
 
@@ -317,18 +319,24 @@ class EdgeOfChaosAssessment:
         )
 
     def _check_correctness(self, question: Dict, response: str) -> bool:
-        """Check if response is correct."""
-        # Simplified correctness check
-        # Full implementation would:
-        # 1. Extract code from response
-        # 2. Execute in sandbox
-        # 3. Run test cases
-        # 4. Check outputs
+        """Check whether the response matches the question's expected answer(s).
 
-        # Placeholder: random based on difficulty
-        level = question["level"]
-        base_success_rate = max(0.1, 1.0 - (level / 100))
-        return random.random() < base_success_rate
+        Replaces the previous `random.random()` placeholder with a real, deterministic
+        match (shared evaluator logic) against the question's expected outputs. The
+        curriculum's test-case generation is itself still placeholder (Wave 1), so
+        this yields honest-but-low accuracy until real expected answers are wired -
+        which is correct behavior, NOT random noise. With no ground truth it returns
+        False (fail-closed) rather than inventing a success probability.
+        """
+        expecteds = []
+        for tc in question.get("test_cases", []) or []:
+            if isinstance(tc, dict) and tc.get("expected") is not None:
+                expecteds.append(str(tc["expected"]))
+        if question.get("answer") is not None:
+            expecteds.append(str(question["answer"]))
+        if not expecteds:
+            return False
+        return any(matches(response, e) for e in expecteds)
 
     def _find_threshold_level(self, level_accuracies: Dict[int, float]) -> int:
         """Find level closest to threshold accuracy."""

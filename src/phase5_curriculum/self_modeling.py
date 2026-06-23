@@ -1,9 +1,11 @@
 """
 Phase 5: Self-Modeling System
 
-Implements temperature-range self-prediction training.
-Model learns to predict its own outputs at different temperatures,
-developing meta-cognitive awareness.
+Implements temperature-range self-prediction training: the model is trained
+(masked-token self-distillation) to predict its own sampled outputs at different
+temperatures. Honesty: this is self-distillation on the model's own generations;
+it does not by itself establish "meta-cognitive awareness" - that is an open
+research claim, not a property this loop measures or guarantees.
 
 Based on: "Unexpected Benefits of Self-Modeling in Neural Systems"
 Key insight: Models that predict their own outputs develop better
@@ -12,6 +14,8 @@ internal representations and confidence calibration.
 Enhanced with meta-calculus spectral gap monitoring to prevent representation collapse.
 """
 
+import copy
+import logging
 import random
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
@@ -19,6 +23,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+# Module logger: optimize_temperature_ranges() calls logger.warning/.info but the
+# name was never defined -> NameError the moment that path ran (Wave-0 crash fix).
+logger = logging.getLogger(__name__)
 
 # Import meta-calculus for spectral gap monitoring
 try:
@@ -47,7 +55,7 @@ class SelfModelingTrainer:
     1. Generate outputs at various temperatures
     2. Mask portions of generated text
     3. Train model to predict masked tokens (knowing it generated them)
-    4. Repeat until model "groks" itself (>95% self-prediction accuracy)
+    4. Repeat until self-prediction accuracy reaches the configured target
     """
 
     def __init__(
@@ -563,7 +571,9 @@ class MOOSelfModelingTrainer(SelfModelingTrainer):
 
         # Run training
         try:
-            model_copy = model  # In full impl, would clone
+            # Deep-copy: _quick_evaluate is called per Pareto candidate; training
+            # the real model in place corrupted it across generations.
+            model_copy = copy.deepcopy(model)
             self.train(model_copy, tokenizer)
 
             # Estimate accuracy from gap history

@@ -112,8 +112,10 @@ class ThoughtGenerator(nn.Module):
 
         # Aggregate
         thought_hidden = outputs.last_hidden_state[:, -thought_length:, :]
-        # ISS-005: Sum log probs per batch, then reduce to scalar for compatibility
-        log_prob_sum = torch.stack(log_probs_list).sum(dim=0).squeeze(-1).mean()
+        # Sum token log-probs per sample. Keep the batch dimension (do NOT mean
+        # over it) so REINFORCE can give each sample its own advantage; averaging
+        # here lets one sample's reward reinforce another sample's thoughts.
+        log_prob_sum = torch.stack(log_probs_list).sum(dim=0).squeeze(-1)  # (batch,)
 
         return thought_hidden, log_prob_sum, generated_ids
 

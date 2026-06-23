@@ -80,6 +80,7 @@ class QuietSTaRModel(nn.Module):
         thought_positions = []
         coherence_scores_list = []
         thought_records = []
+        thought_log_probs_list = []  # sampled-thought log probs for REINFORCE
         last_injection = -self.thought_injector.min_interval
 
         for pos in range(seq_len - 1):
@@ -117,6 +118,9 @@ class QuietSTaRModel(nn.Module):
                 thought_positions.append(pos)
                 coherence_scores_list.append(coherence.composite.mean().item())
                 thought_records.append({"position": pos, "thought_ids": thought_output.thought_ids})
+                # (num_thoughts, batch) -> (batch,): per-sample log-prob at this
+                # position, averaged over the parallel thoughts.
+                thought_log_probs_list.append(thought_output.log_probs.mean(dim=0))
 
         # Final logits from enhanced hidden states
         final_logits = self.base_model.lm_head(enhanced_hidden)
@@ -124,11 +128,23 @@ class QuietSTaRModel(nn.Module):
         # Compute loss
         loss = self._compute_loss(final_logits, labels) if labels is not None else None
 
+        # Per-sample log probs of the sampled thought tokens, averaged over the
+        # injected positions -> shape (batch,). These are the REINFORCE action
+        # log-probs; the trainer reinforces them by each sample's advantage. Kept
+        # graph-connected (do NOT detach) so the policy gradient flows to the
+        # thought generator. None when no thoughts were injected.
+        thought_log_probs = (
+            torch.stack(thought_log_probs_list, dim=0).mean(dim=0)
+            if thought_log_probs_list
+            else None
+        )
+
         return {
             "logits": final_logits,
             "loss": loss,
             "thought_positions": thought_positions,
             "thought_records": thought_records,
+            "thought_log_probs": thought_log_probs,
             "avg_coherence": (
                 sum(coherence_scores_list) / len(coherence_scores_list)
                 if coherence_scores_list

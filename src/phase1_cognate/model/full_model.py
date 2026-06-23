@@ -90,6 +90,7 @@ class TRMTitansMAGModel(nn.Module):
         # 3. Compute outputs for each step
         step_logits = []
         halt_probs = []
+        step_q = []  # full [batch, seq, 1] halt probs, kept for the ACT loss
 
         for t, (y_t, z_t) in enumerate(zip(y_history, z_history)):
             # Compute logits
@@ -98,6 +99,7 @@ class TRMTitansMAGModel(nn.Module):
 
             # Compute ACT halt probability
             q_t = self.act_head(z_t)
+            step_q.append(q_t)
             halt_probs.append(q_t.mean(dim=[1, 2]))  # [batch]
 
         # 4. Determine halting (for inference)
@@ -137,8 +139,18 @@ class TRMTitansMAGModel(nn.Module):
                     logits.view(-1, vocab_size), labels.view(-1), reduction="mean"
                 )
 
-            # Add ACT loss (encourage halting at appropriate time)
-            loss_act = self.config.act_config.act_loss_weight * (halting_steps.float().mean())
+            # Differentiable ACT loss so the halt head actually trains. The old
+            # `halting_steps.float().mean()` was built from a non-differentiable
+            # integer tensor, so the ACT head got zero gradient. compute_act_loss
+            # (BCE-to-target + entropy + diversity reg) is differentiable w.r.t.
+            # the halt probabilities, and is calibrated against per-step token
+            # accuracy vs its EMA so the target is correctness-driven, not a flat
+            # 0.5 prior (which would collapse all halt probs to 0.5).
+            act_step_losses = []
+            for t, q_t in enumerate(step_q):
+                is_correct = (step_logits[t].argmax(dim=-1) == labels).float().mean(dim=1)
+                act_step_losses.append(self.act_head.compute_act_loss(q_t, t, is_correct))
+            loss_act = self.config.act_config.act_loss_weight * torch.stack(act_step_losses).mean()
 
             # Total loss
             loss_total = loss_ce + loss_act + loss_gate

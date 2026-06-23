@@ -49,7 +49,10 @@ class VPTQConfig:
     target_retention: float = 0.95
     preserve_layers: List[str] = None
     # Residual quantization settings
-    use_residual: bool = True  # Enable multi-codebook residual quantization
+    # Wave-0: default OFF. The residual path (_pack_residual_result) returns dicts
+    # while size/decompress code assumes tensors, crashing on any real 2D layer.
+    # Re-enable once that path is unified and has a round-trip test (Wave 1).
+    use_residual: bool = False  # Enable multi-codebook residual quantization
     residual_scale: float = 1.0  # Scale factor for residuals
     shared_codebooks: bool = False  # Share codebooks across layers
 

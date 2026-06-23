@@ -11,6 +11,7 @@ ISS-025: Added QK-Clip implementation for attention score clipping
 """
 
 import logging
+import math
 from typing import Any, Dict, List, Optional, Union
 
 import torch
@@ -25,7 +26,7 @@ class MuonGrokfast(Optimizer):
     Unified optimizer combining Grokfast + Muon + QK-Clip
 
     Features:
-    - Parameter routing: 2-D params → Muon, 1-D params → fallback (AdamW)
+    - Parameter routing: 2-D params -> Muon, 1-D params -> fallback (AdamW)
     - Phase-specific presets
     - STE compatibility (for Phase 5 BitNet)
     - QK-Clip for RL stability (Phases 3, 6)
@@ -45,6 +46,10 @@ class MuonGrokfast(Optimizer):
         momentum: float = 0.95,
         nesterov: bool = True,
         ns_steps: int = 5,  # Newton-Schulz iterations
+        adamw_beta1: float = 0.9,
+        adamw_beta2: float = 0.999,
+        adamw_eps: float = 1e-8,
+        weight_decay: float = 0.0,
     ):
         # ISS-003: If config provided, use its values (backwards compatible)
         if config is not None:
@@ -58,6 +63,11 @@ class MuonGrokfast(Optimizer):
             momentum = config.momentum
             nesterov = config.nesterov
             ns_steps = config.ns_steps
+            # getattr fallbacks: older configs predate these AdamW fields.
+            adamw_beta1 = getattr(config, "adamw_beta1", adamw_beta1)
+            adamw_beta2 = getattr(config, "adamw_beta2", adamw_beta2)
+            adamw_eps = getattr(config, "adamw_eps", adamw_eps)
+            weight_decay = getattr(config, "weight_decay", weight_decay)
 
         # ISS-003: Store config for attribute access
         self.config = config
@@ -73,6 +83,10 @@ class MuonGrokfast(Optimizer):
             momentum=momentum,
             nesterov=nesterov,
             ns_steps=ns_steps,
+            adamw_beta1=adamw_beta1,
+            adamw_beta2=adamw_beta2,
+            adamw_eps=adamw_eps,
+            weight_decay=weight_decay,
         )
         super().__init__(params, defaults)
 
@@ -85,7 +99,7 @@ class MuonGrokfast(Optimizer):
                 state = self.state[p]
                 state["step"] = 0
                 state["ema_grad"] = torch.zeros_like(p.data)
-                if len(p.shape) >= 2:  # Muon params
+                if len(p.shape) == 2:  # Muon params (matrix-only; rank>2 -> fallback)
                     state["momentum_buffer"] = torch.zeros_like(p.data)
 
     @torch.no_grad()
@@ -116,11 +130,11 @@ class MuonGrokfast(Optimizer):
                 filtered_grad = grad + lambda_ * (grad - state["ema_grad"])
 
                 # ===== PARAMETER ROUTING =====
-                if len(p.shape) >= 2:
-                    # 2-D params → Muon (orthogonalization)
+                if len(p.shape) == 2:
+                    # 2-D params -> Muon (orthogonalization)
                     self._muon_update(p, filtered_grad, state, group)
                 else:
-                    # 1-D params → AdamW fallback
+                    # 1-D params -> AdamW fallback
                     self._adamw_update(p, filtered_grad, state, group)
 
         return loss
@@ -142,38 +156,26 @@ class MuonGrokfast(Optimizer):
             # Quantized forward, full-precision backward
             G = grad.clone()
 
-        # For Newton-Schulz, we need approximately square matrices
-        # For non-square matrices, use a simpler orthogonalization approach
-
-        if min(G.shape) < 128 or G.shape[0] == G.shape[1]:
-            # Square or small matrices: use standard Newton-Schulz
-            # Normalize first to avoid numerical issues
-            scale = G.norm() + 1e-8
-            G_norm = G / scale
-
-            for _ in range(ns_steps):
-                if G.shape[0] <= G.shape[1]:
-                    # Wide or square: G @ G.T
-                    A = G_norm @ G_norm.T
-                    G_norm = 1.5 * G_norm - 0.5 * G_norm @ A
-                else:
-                    # Tall: G.T @ G
-                    A = G_norm.T @ G_norm
-                    G_norm = 1.5 * G_norm - 0.5 * A @ G_norm.T
-                    G_norm = G_norm.T
-
-            G = G_norm * scale
-        else:
-            # Large non-square matrices: use simpler row/column normalization
-            # This preserves gradient direction while preventing low-rank collapse
-            if G.shape[0] > G.shape[1]:
-                # Normalize columns
-                col_norms = G.norm(dim=0, keepdim=True) + 1e-8
-                G = G / col_norms
-            else:
-                # Normalize rows
-                row_norms = G.norm(dim=1, keepdim=True) + 1e-8
-                G = G / row_norms
+        # Newton-Schulz orthogonalization (canonical Muon form).
+        # Operate on a wide matrix (rows <= cols) by transposing tall inputs, then
+        # iterate X <- 1.5 X - 0.5 (X X^T) X and transpose back. The previous code
+        # used the wrong operand order (G_norm @ A with A=[m,m]) which raised a
+        # shape error on every non-square 2D param (e.g. 64x100): A@X is the only
+        # shape-correct product. This form works for any 2D shape.
+        # ponytail: Wave-0 fix is crash-freedom on any 2D shape; spectral-norm
+        # scaling + optimal quintic coefficients are a Wave-1 orthogonality upgrade.
+        transposed = False
+        X = G
+        if X.shape[0] > X.shape[1]:
+            X = X.T
+            transposed = True
+        scale = X.norm() + 1e-8
+        X = X / scale
+        for _ in range(ns_steps):
+            A = X @ X.T  # [m, m] where m = min(rows, cols)
+            X = 1.5 * X - 0.5 * (A @ X)
+        X = X * scale
+        G = X.T if transposed else X
 
         # Momentum
         if momentum > 0:
@@ -188,11 +190,44 @@ class MuonGrokfast(Optimizer):
         param.add_(G, alpha=-lr)
 
     def _adamw_update(self, param, grad, state, group) -> None:
-        """AdamW fallback for 1-D params"""
-        lr = group["fallback_lr"]
+        """Real AdamW update for 1-D params (biases, layer-norm weights).
 
-        # Simple SGD for 1-D params (embeddings, layer norms)
-        param.add_(grad, alpha=-lr)
+        First/second moment estimates with bias correction and decoupled weight
+        decay (Loshchilov & Hutter 2019). Replaces the prior plain-SGD body that
+        was mislabeled AdamW. (2-D params, including embeddings, route to Muon.)
+        """
+        lr = group["fallback_lr"]
+        # group.get with defaults: optimizer state restored from a checkpoint
+        # saved before these keys existed would otherwise KeyError on resume.
+        beta1 = group.get("adamw_beta1", 0.9)
+        beta2 = group.get("adamw_beta2", 0.999)
+        eps = group.get("adamw_eps", 1e-8)
+        weight_decay = group.get("weight_decay", 0.0)
+
+        if "exp_avg" not in state:
+            state["exp_avg"] = torch.zeros_like(param.data)
+            state["exp_avg_sq"] = torch.zeros_like(param.data)
+
+        exp_avg = state["exp_avg"]
+        exp_avg_sq = state["exp_avg_sq"]
+        # Dedicated AdamW timestep, counted from when the moments first exist.
+        # Using the shared "step" would mis-bias-correct when upgrading an old
+        # SGD checkpoint (nonzero global step but zero-initialized moments).
+        state["adamw_step"] = state.get("adamw_step", 0) + 1
+        step = state["adamw_step"]
+
+        # Decoupled weight decay: applied to the parameter, not the gradient.
+        if weight_decay != 0:
+            param.mul_(1 - lr * weight_decay)
+
+        exp_avg.mul_(beta1).add_(grad, alpha=1 - beta1)
+        exp_avg_sq.mul_(beta2).addcmul_(grad, grad, value=1 - beta2)
+
+        bias_correction1 = 1 - beta1**step
+        bias_correction2 = 1 - beta2**step
+        denom = (exp_avg_sq.sqrt() / math.sqrt(bias_correction2)).add_(eps)
+        step_size = lr / bias_correction1
+        param.addcdiv_(exp_avg, denom, value=-step_size)
 
     def get_muon_lr(self) -> float:
         """Get current Muon learning rate"""
@@ -220,17 +255,20 @@ class MuonGrokfast(Optimizer):
 
 class QKClipHook:
     """
-    QK-Clip: Attention Score Safety Rails (ISS-025)
+    QK-Clip: Attention Score MONITOR (ISS-025)
 
-    Clips query-key dot products to prevent exploding attention scores
-    during RL training. Particularly important for Phases 3 and 6.
+    Honesty: this is a forward hook, which runs AFTER the module computes its
+    output, so it cannot modify pre-softmax attention scores. It only COUNTS how
+    often a module output exceeds the threshold (get_clip_count). It does not
+    clip and does not prevent gradient explosions.
+
+    Real QK-Clip requires clipping pre-softmax scores INSIDE the attention
+    forward via apply_qk_clip(); wiring that into each attention implementation
+    is a Wave-2 model change. Use this hook only as a diagnostic.
 
     Usage:
-        hook = QKClipHook(threshold=25.0)
-        hook.register(model)  # Auto-registers on attention modules
-
-    The hook intercepts attention scores before softmax and clips them
-    to [-threshold, +threshold], preventing gradient explosions.
+        monitor = QKClipHook(threshold=25.0)
+        monitor.register(model)  # counts threshold exceedances per attention module
     """
 
     def __init__(self, threshold: float = 25.0):

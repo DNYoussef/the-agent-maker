@@ -16,6 +16,7 @@ Training Flow:
 Duration: ~8-12 hours (10K episodes × 3-4s/episode)
 """
 
+import copy
 import json
 
 # ISS-004: Secure checkpoint utilities
@@ -181,13 +182,17 @@ class REINFORCETrainer:
         Returns:
             Reward tensor (batch,)
         """
-        # Predictions
-        predictions_with = logits_with_thoughts.argmax(dim=-1)
-        predictions_without = logits_without_thoughts.argmax(dim=-1)
+        # Next-token alignment: the logits at position t predict token t+1, which
+        # is how the model's cross-entropy is computed (shift_logits[:-1] vs
+        # shift_labels[1:]). Comparing unshifted argmax to labels measured
+        # accuracy at the wrong offset, so the reward signal was misaligned.
+        predictions_with = logits_with_thoughts[:, :-1, :].argmax(dim=-1)
+        predictions_without = logits_without_thoughts[:, :-1, :].argmax(dim=-1)
+        shift_labels = labels[:, 1:]
 
         # Accuracy
-        correct_with = (predictions_with == labels).float().mean(dim=-1)
-        correct_without = (predictions_without == labels).float().mean(dim=-1)
+        correct_with = (predictions_with == shift_labels).float().mean(dim=-1)
+        correct_without = (predictions_without == shift_labels).float().mean(dim=-1)
 
         # Reward: binary (1.0 if improved, 0.0 otherwise)
         reward = (correct_with > correct_without).float()
@@ -234,18 +239,14 @@ class REINFORCETrainer:
         Returns:
             advantages: (batch,) GAE advantages
         """
-        advantages = torch.zeros_like(rewards)
-        gae = 0
-
-        for t in reversed(range(len(rewards))):
-            if t == len(rewards) - 1:
-                next_value = next_values[t]
-            else:
-                next_value = values[t + 1]
-
-            delta = rewards[t] + self.config.rl.gamma * next_value * (1 - dones[t]) - values[t]
-            gae = delta + self.config.rl.gamma * self.config.rl.gae_lambda * (1 - dones[t]) * gae
-            advantages[t] = gae
+        # Single-step LM episodes: each batch entry is its OWN independent
+        # episode, not a timestep in one trajectory. The old reversed loop ran
+        # the GAE recursion over the batch dimension, so sample t's advantage
+        # leaked into sample t-1 (e.g. a high reward on one example inflated an
+        # unrelated example's advantage). With a single step the GAE recursion
+        # has nothing to accumulate, so it reduces to the per-sample TD residual,
+        # computed vectorized with no cross-sample coupling.
+        advantages = rewards + self.config.rl.gamma * next_values * (1 - dones) - values
 
         return advantages
 
@@ -326,9 +327,20 @@ class REINFORCETrainer:
         # Compute KL divergence (prevent drift from baked baseline)
         kl_div = self.compute_kl_divergence(outputs_with["logits"], baked_outputs.logits)
 
-        # ISS-007: REINFORCE loss with advantages
-        log_prob = -outputs_with["loss"]  # Negative CE loss as log prob
-        policy_loss = -(log_prob * advantages.detach().mean())
+        # REINFORCE loss with advantages. The action being reinforced is the
+        # sampled thought, so the policy log-prob must be the thought-token log
+        # probs (graph-connected to the thought generator), NOT the model's
+        # full-sequence CE loss. Using -CE as a proxy only scaled the supervised
+        # gradient and never trained the thought-sampling distribution.
+        # thought_log_probs is per-sample (batch,), so each sample is reinforced
+        # by its OWN advantage (no cross-sample credit leakage). When no thoughts
+        # were injected there is no action to reinforce -> zero policy loss (the
+        # value/entropy/KL terms still apply); we do NOT fall back to the CE proxy.
+        thought_log_probs = outputs_with.get("thought_log_probs", None)
+        if thought_log_probs is not None:
+            policy_loss = -(thought_log_probs * advantages.detach()).mean()
+        else:
+            policy_loss = torch.zeros((), device=advantages.device)
 
         # ISS-007: Value loss for baseline network
         value_targets = reward  # Target is actual reward
@@ -410,9 +422,9 @@ class REINFORCETrainer:
             # Forward with thoughts
             outputs = self.model(input_ids=input_ids, labels=labels, use_thoughts=True)
 
-            # Compute accuracy
-            predictions = outputs["logits"].argmax(dim=-1)
-            accuracy = (predictions == labels).float().mean().item()
+            # Compute accuracy with next-token alignment (match the shifted CE).
+            predictions = outputs["logits"][:, :-1, :].argmax(dim=-1)
+            accuracy = (predictions == labels[:, 1:]).float().mean().item()
 
             # Thought metrics (from QuietSTaRModel)
             thought_positions = outputs.get("thought_positions", [])
@@ -724,10 +736,16 @@ def run_step2_rl(
     print(f"   Thinking tokens: {len(thinking_tokens)}")
     print(f"   Strategy accuracies: {strategy_accuracies}")
 
+    # The baked baseline must be a frozen SNAPSHOT, not the same object: the
+    # trainer freezes baked_model's parameters, and model is also the base model
+    # inside QuietSTaRModel, so passing `model` here would freeze the policy and
+    # train nothing. Deepcopy the just-loaded baked weights as the KL reference.
+    baked_model = copy.deepcopy(model)
+
     # Initialize trainer
     trainer = REINFORCETrainer(
         model=model,
-        baked_model=model,  # Use same model as baseline
+        baked_model=baked_model,
         tokenizer=tokenizer,
         config=config,
         device=device,

@@ -88,16 +88,17 @@ class ACTHead(nn.Module):
             acc = is_correct.float().mean()
             self.update_ema_step_acc(step, acc)
 
-        # Target halt probability based on EMA
-        # Halt if current step is better than EMA
-        target_halt = (
-            (is_correct.float().mean() > self.ema_step_acc[step])
-            if is_correct is not None
-            else torch.ones(batch_size, device=q.device) * 0.5
-        )
+        # Target halt probability based on EMA. With correctness, halt (target 1)
+        # on the samples that are already at least as good as this step's running
+        # EMA, per sample; otherwise a neutral 0.5 prior. Per-sample (not a
+        # scalar) so batch_size > 1 does not crash on the view/expand below.
+        if is_correct is not None:
+            target_halt = (is_correct.float() > self.ema_step_acc[step]).float()
+        else:
+            target_halt = torch.full((batch_size,), 0.5, device=q.device)
 
-        # BCE loss
-        target_halt = target_halt.view(batch_size, 1, 1).expand_as(q)
+        # BCE loss (match q dtype so fp16/bf16 forward passes do not error)
+        target_halt = target_halt.view(batch_size, 1, 1).expand_as(q).to(q.dtype)
         loss_bce = F.binary_cross_entropy(q, target_halt)
 
         # Entropy regularization (prevent saturation)

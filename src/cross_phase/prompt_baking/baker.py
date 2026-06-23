@@ -6,6 +6,8 @@ Based on: Prompt Baking paper (arXiv:2409.13697v1)
 Core Algorithm: θ_u = argmin D_KL(P_θ(·|u) || P_θu(·))
 """
 
+import contextlib
+import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -13,6 +15,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -47,7 +51,7 @@ class PromptBaker:
         model: nn.Module,
         prompt: str,
         tokenizer,
-        calibration_data: list,
+        calibration_data: Optional[list] = None,
         half_bake: bool = False,
     ) -> nn.Module:
         """
@@ -63,13 +67,24 @@ class PromptBaker:
         Returns:
             Baked model
         """
+        # Wave-0: callers (phase5 curriculum_engine) invoked this without
+        # calibration_data, raising an opaque TypeError. Fail honestly instead:
+        # without calibration data there is nothing to bake, so warn loudly and
+        # return the model unchanged. (The KL objective itself is fixed in Wave 1.)
+        if not calibration_data:
+            logger.warning(
+                "bake_prompt called without calibration_data; skipping bake and "
+                "returning model unchanged (Wave-0 honest no-op)."
+            )
+            return model
+
         # Add LoRA adapters
         model_with_lora = self._add_lora_adapters(model)
 
-        # Generate prompted responses for KL target
-        prompted_responses = self._generate_prompted_responses(
-            model, prompt, tokenizer, calibration_data
-        )
+        # Each calibration text tokenized twice: with the prompt (teacher
+        # context) and without it (student context).
+        device = next(model_with_lora.parameters()).device
+        batches = self._prepare_calibration_batches(prompt, tokenizer, calibration_data, device)
 
         # Train LoRA to match prompted behavior
         optimizer = torch.optim.AdamW(model_with_lora.parameters(), lr=self.config.learning_rate)
@@ -79,18 +94,12 @@ class PromptBaker:
             num_epochs = int(num_epochs * self.config.half_baking_factor)
 
         for epoch in range(num_epochs):
-            for batch in prompted_responses:
-                # KL divergence loss
-                base_logits = model(batch["input_ids"])
-                lora_logits = model_with_lora(batch["input_ids"])
-
-                # D_KL(P_θ(·|u) || P_θu(·))
-                kl_loss = F.kl_div(
-                    F.log_softmax(lora_logits, dim=-1),
-                    F.softmax(base_logits, dim=-1),
-                    reduction="batchmean",
+            for batch in batches:
+                kl_loss = self._compute_bake_loss(
+                    model_with_lora,
+                    batch["prompted_input_ids"],
+                    batch["unprompted_input_ids"],
                 )
-
                 kl_loss.backward()
                 optimizer.step()
                 optimizer.zero_grad()
@@ -177,60 +186,72 @@ class PromptBaker:
 
         return get_peft_model(model, lora_config)
 
-    def _generate_prompted_responses(
-        self, model: nn.Module, prompt: str, tokenizer, calibration_data: list
+    def _prepare_calibration_batches(
+        self, prompt: str, tokenizer, calibration_data: list, device
     ) -> list:
-        """Generate responses with prompt prepended for KL divergence targets.
-
-        Args:
-            model: Base model to generate with
-            prompt: System prompt to prepend
-            tokenizer: Tokenizer for encoding/decoding
-            calibration_data: List of input texts for calibration
-
-        Returns:
-            List of batched response dictionaries with input_ids
+        """Tokenize each calibration text twice: with the prompt prepended (the
+        teacher's context, P_theta(.|u)) and without it (the student's context,
+        P_theta_u(.)). The KL is taken over the next-token distribution at the
+        final position, so no generation is needed - one example per batch keeps
+        the two contexts' differing lengths trivially aligned.
         """
-        responses = []
-        model.eval()
+        # Tokenize the prompt prefix once, then reuse the SAME text tokens in
+        # both contexts: unprompted = text_ids, prompted = [prompt_ids, text_ids].
+        # Both therefore end with identical text tokens, so the final-position
+        # next-token distributions are aligned. (Tokenizing prompt+text and text
+        # independently would truncate text differently once the prompt eats the
+        # length budget, misaligning teacher and student.)
+        prompt_ids = tokenizer(
+            f"{prompt}\n\n", return_tensors="pt", truncation=True, max_length=256
+        )["input_ids"]
+        text_budget = max(1, 512 - prompt_ids.shape[1])
 
-        with torch.no_grad():
-            for text in calibration_data:
-                # Prepend prompt to each calibration example
-                prompted_text = f"{prompt}\n\n{text}"
+        batches = []
+        for text in calibration_data:
+            text_ids = tokenizer(
+                text, return_tensors="pt", truncation=True, max_length=text_budget
+            )["input_ids"]
+            prompted_input_ids = torch.cat([prompt_ids, text_ids], dim=1)
+            batches.append(
+                {
+                    "prompted_input_ids": prompted_input_ids.to(device),
+                    "unprompted_input_ids": text_ids.to(device),
+                }
+            )
+        return batches
 
-                inputs = tokenizer(
-                    prompted_text,
-                    return_tensors="pt",
-                    padding=True,
-                    truncation=True,
-                    max_length=512,
-                )
+    @staticmethod
+    def _extract_logits(output):
+        """Models may return a tensor or a ModelOutput with .logits."""
+        return output.logits if hasattr(output, "logits") else output
 
-                # Move to model device
-                device = next(model.parameters()).device
-                inputs = {k: v.to(device) for k, v in inputs.items()}
+    def _compute_bake_loss(
+        self,
+        model_with_lora: nn.Module,
+        prompted_input_ids: torch.Tensor,
+        unprompted_input_ids: torch.Tensor,
+    ) -> torch.Tensor:
+        """Prompt-baking KL: D_KL(P_theta(.|u) || P_theta_u(.)).
 
-                # Generate response
-                outputs = model.generate(
-                    **inputs,
-                    max_new_tokens=128,
-                    temperature=0.7,
-                    top_p=0.9,
-                    do_sample=True,
-                    pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
-                )
+        Teacher = the ORIGINAL model with the prompt in context (LoRA adapter
+        disabled), detached so no gradient leaks into the shared base weights.
+        Student = the LoRA weights WITHOUT the prompt. Minimizing this KL pushes
+        the unprompted student to behave as if the prompt were present, i.e.
+        bakes the prompt into the weights. KL is over the next-token distribution
+        at the final position.
+        """
+        disable = getattr(model_with_lora, "disable_adapter", None)
+        teacher_ctx = disable() if callable(disable) else contextlib.nullcontext()
+        with torch.no_grad(), teacher_ctx:
+            teacher_logits = self._extract_logits(model_with_lora(prompted_input_ids))[:, -1, :]
 
-                responses.append({"input_ids": outputs, "attention_mask": torch.ones_like(outputs)})
+        student_logits = self._extract_logits(model_with_lora(unprompted_input_ids))[:, -1, :]
 
-        # Batch responses
-        batched = []
-        for i in range(0, len(responses), self.config.batch_size):
-            batch = responses[i : i + self.config.batch_size]
-            if batch:
-                batched.append({"input_ids": torch.cat([r["input_ids"] for r in batch], dim=0)})
-
-        return batched
+        return F.kl_div(
+            F.log_softmax(student_logits, dim=-1),
+            F.softmax(teacher_logits, dim=-1),
+            reduction="batchmean",
+        )
 
     def _merge_lora(self, model_with_lora: nn.Module) -> nn.Module:
         """Merge LoRA adapters into base model weights.

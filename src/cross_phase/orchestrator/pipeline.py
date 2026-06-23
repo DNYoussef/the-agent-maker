@@ -18,7 +18,7 @@ class PipelineOrchestrator:
     Main pipeline controller that sequences phases and manages handoffs
 
     Features:
-    - Phase sequencing (Phase 1 → 2 → 3 → ... → 8)
+    - Phase sequencing (Phase 1 -> 2 -> 3 -> ... -> 8)
     - Handoff validation between phases
     - Error recovery and rollback
     - Progress tracking via model registry
@@ -139,7 +139,7 @@ class PipelineOrchestrator:
             else:
                 current_models = [result.model] if result.model else None
 
-            print(f"\n✅ {phase_name.upper()} Complete")
+            print(f"\n[OK] {phase_name.upper()} Complete")
             print(f"   Duration: {duration/60:.1f} minutes")
             print(f"   Metrics: {result.metrics}\n")
 
@@ -285,13 +285,13 @@ class PipelineOrchestrator:
         Args:
             phase_num: Phase to rollback to (1-7)
         """
-        print(f"🔄 Rolling back to Phase {phase_num}...")
+        print(f"[rollback] Rolling back to Phase {phase_num}...")
 
         # Load checkpoint from registry
         phase_name = f"phase{phase_num}"
         model_info = self.registry.get_model(session_id=self.session_id, phase_name=phase_name)
 
-        print(f"✅ Loaded checkpoint from {model_info['created_at']}")
+        print(f"[OK] Loaded checkpoint from {model_info['created_at']}")
         print(f"   Model: {model_info['model_path']}")
 
         return model_info

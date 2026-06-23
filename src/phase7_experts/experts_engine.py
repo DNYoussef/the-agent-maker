@@ -9,12 +9,15 @@ Main orchestrator for the 3-stage expert training pipeline:
 Research: Transformer^2 SVF, NSGA-II ADAS
 """
 
+import logging
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
+
+logger = logging.getLogger(__name__)
 
 from src.cross_phase.monitoring.wandb_integration import WandBIntegration
 from .adas_optimizer import ADASConfig, ADASOptimizer
@@ -187,9 +190,19 @@ class ExpertsEngine:
             )
 
             adas = ADASOptimizer(config=adas_config)
-            optimized_model, adas_result = adas.optimize(
-                model=current_model, experts=expert_profiles, tokenizer=tokenizer
-            )
+            try:
+                optimized_model, adas_result = adas.optimize(
+                    model=current_model, experts=expert_profiles, tokenizer=tokenizer
+                )
+            except RuntimeError as exc:
+                # Wave-0: ADAS fitness needs a real evaluator ("measurement truth",
+                # Wave 1). evaluation.py correctly refuses synthetic scores and
+                # raises. Until an evaluator is wired, skip ADAS HONESTLY (keep the
+                # SVF-optimized model) instead of letting the broad except below
+                # swallow it into a silent success=False.
+                logger.warning("Phase 7 ADAS skipped (no fitness evaluator): %s", exc)
+                optimized_model = current_model
+                adas_result = {"adas_skipped": True, "reason": str(exc)}
             self.metrics["adas_time"] = time.time() - stage3_start
             if self.wandb:
                 self.wandb.log_metrics({"phase7/adas_time": self.metrics["adas_time"]})

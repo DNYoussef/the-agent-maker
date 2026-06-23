@@ -9,6 +9,7 @@ Implements: 50-generation evolutionary optimization using 6 merge techniques.
 
 import copy
 import importlib
+import inspect
 import random
 import time
 from dataclasses import dataclass, field
@@ -117,6 +118,30 @@ class Phase2Pipeline:
 
         return mergers
 
+    @staticmethod
+    def _merge_models(merger, models: List[nn.Module]) -> nn.Module:
+        """Call a merge operator with its correct signature.
+
+        Operators have heterogeneous merge() signatures: Linear/SLERP take a list
+        of models, DARE takes (model_finetuned, model_base) two single models, and
+        DFS/TIES/Franken take (model_target, models_ref: List). The evolutionary
+        path called them all with a single list, raising TypeError for the 2-arg
+        operators. Dispatch by inspecting the signature so every operator is fed
+        correctly.
+        """
+        required = [
+            p
+            for name, p in inspect.signature(merger.merge).parameters.items()
+            if name != "self"
+            and p.default is inspect.Parameter.empty
+            and p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+        ]
+        if len(required) <= 1:
+            return merger.merge(models)  # list-taking (Linear/SLERP)
+        if "List" in str(required[1].annotation):
+            return merger.merge(models[0], models[1:])  # (target, refs) DFS/TIES/Franken
+        return merger.merge(models[0], models[1])  # (finetuned, base) DARE
+
     def run(
         self,
         input_models: List[nn.Module],
@@ -139,6 +164,10 @@ class Phase2Pipeline:
         """
         if len(input_models) != 3:
             raise ValueError(f"Phase 2 requires 3 input models, got {len(input_models)}")
+
+        # Store for _evaluate_population so the standard path can honor
+        # use_real_fitness (previously only the hybrid path used it).
+        self.tokenizer = tokenizer
 
         print("\n" + "=" * 60)
         print("PHASE 2: EVOMERGE - EVOLUTIONARY OPTIMIZATION")
@@ -242,7 +271,7 @@ class Phase2Pipeline:
             parents = random.sample(input_models, 2)
             technique = random.choice(list(self._mergers.keys()))
             if technique in self._mergers:
-                child = self._mergers[technique].merge(parents)
+                child = self._merge_models(self._mergers[technique], parents)
                 self.population.append(child)
             else:
                 # Fallback: copy random parent
@@ -252,11 +281,18 @@ class Phase2Pipeline:
         """Evaluate fitness of all population members. Returns best fitness."""
         from phase2_evomerge.fitness.composite import compute_composite_fitness
 
+        # Honor use_real_fitness on the standard path (not just the hybrid path):
+        # use the real benchmark fitness when configured and a tokenizer is present,
+        # otherwise the proxy approximation.
+        use_real = self.config.use_real_fitness and getattr(self, "tokenizer", None) is not None
+        real_fitness_fn = self._create_real_fitness_fn(self.tokenizer) if use_real else None
+
         best_fitness = 0.0
         for i, model in enumerate(self.population):
-            # Quick fitness approximation (full eval is expensive)
-            fitness_result = self._quick_fitness(model)
-            model._fitness = fitness_result["composite"]
+            if real_fitness_fn is not None:
+                model._fitness = real_fitness_fn(model)
+            else:
+                model._fitness = self._quick_fitness(model)["composite"]
             if model._fitness > best_fitness:
                 best_fitness = model._fitness
 
@@ -307,7 +343,9 @@ class Phase2Pipeline:
                 # Select random merge technique
                 technique = random.choice(list(self._mergers.keys()))
                 if technique in self._mergers:
-                    child = self._mergers[technique].merge([parents[i], parents[i + 1]])
+                    child = self._merge_models(
+                        self._mergers[technique], [parents[i], parents[i + 1]]
+                    )
                     offspring.append(child)
                 else:
                     offspring.append(copy.deepcopy(parents[i]))
