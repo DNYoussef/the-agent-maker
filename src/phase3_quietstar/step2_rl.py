@@ -326,9 +326,20 @@ class REINFORCETrainer:
         # Compute KL divergence (prevent drift from baked baseline)
         kl_div = self.compute_kl_divergence(outputs_with["logits"], baked_outputs.logits)
 
-        # ISS-007: REINFORCE loss with advantages
-        log_prob = -outputs_with["loss"]  # Negative CE loss as log prob
-        policy_loss = -(log_prob * advantages.detach().mean())
+        # REINFORCE loss with advantages. The action being reinforced is the
+        # sampled thought, so the policy log-prob must be the thought-token log
+        # probs (graph-connected to the thought generator), NOT the model's
+        # full-sequence CE loss. Using -CE as a proxy only scaled the supervised
+        # gradient and never trained the thought-sampling distribution.
+        # thought_log_probs is per-sample (batch,), so each sample is reinforced
+        # by its OWN advantage (no cross-sample credit leakage). When no thoughts
+        # were injected there is no action to reinforce -> zero policy loss (the
+        # value/entropy/KL terms still apply); we do NOT fall back to the CE proxy.
+        thought_log_probs = outputs_with.get("thought_log_probs", None)
+        if thought_log_probs is not None:
+            policy_loss = -(thought_log_probs * advantages.detach()).mean()
+        else:
+            policy_loss = torch.zeros((), device=advantages.device)
 
         # ISS-007: Value loss for baseline network
         value_targets = reward  # Target is actual reward
