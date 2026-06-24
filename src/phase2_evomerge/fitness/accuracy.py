@@ -22,6 +22,20 @@ except ImportError:
     BENCHMARKS_AVAILABLE = False
 
 
+def _unpack_batch(batch: Any, device: str):
+    """Unpack a batch into (input_ids, labels) moved onto device."""
+    if isinstance(batch, dict):
+        input_ids = batch["input_ids"].to(device)
+        labels = batch["labels"].to(device)
+    elif isinstance(batch, (list, tuple)):
+        input_ids, labels = batch
+        input_ids = input_ids.to(device)
+        labels = labels.to(device)
+    else:
+        raise ValueError(f"Unsupported batch format: {type(batch)}")
+    return input_ids, labels
+
+
 def calculate_accuracy(
     model: nn.Module,
     test_dataset: Optional[DataLoader] = None,
@@ -104,15 +118,7 @@ def calculate_accuracy(
                 break
 
             # Unpack batch
-            if isinstance(batch, dict):
-                input_ids = batch["input_ids"].to(device)
-                labels = batch["labels"].to(device)
-            elif isinstance(batch, (list, tuple)):
-                input_ids, labels = batch
-                input_ids = input_ids.to(device)
-                labels = labels.to(device)
-            else:
-                raise ValueError(f"Unsupported batch format: {type(batch)}")
+            input_ids, labels = _unpack_batch(batch, device)
 
             # Forward pass
             logits = model(input_ids)

@@ -140,35 +140,24 @@ class ValidationSchema:
     custom_validators: Dict[str, Callable[[Any], Optional[str]]] = field(default_factory=dict)
     required_fields_either: List[List[str]] = field(default_factory=list)
 
-    def validate_data(
-        self,
-        data: Dict[str, Any],
-        prefix: str = "",
-    ) -> tuple[List[str], List[str]]:
-        """
-        Validate data against this schema.
-
-        Args:
-            data: Dictionary to validate
-            prefix: Prefix for error messages (for nested validation)
-
-        Returns:
-            Tuple of (errors, warnings) lists
-        """
-        errors: List[str] = []
-        warnings: List[str] = []
-
-        # Check required fields
+    def _check_required(self, data: Dict[str, Any], prefix: str, errors: List[str]) -> None:
+        """Check required fields and either-groups are present."""
         for req_field in self.required_fields:
             if req_field not in data:
                 errors.append(f"{prefix}Missing required field: {req_field}")
 
-        # Check required_fields_either (at least one from each group)
         for group in self.required_fields_either:
             if not any(f in data for f in group):
                 errors.append(f"{prefix}Missing one of required fields: {', '.join(group)}")
 
-        # Check allowed values
+    def _check_values(
+        self,
+        data: Dict[str, Any],
+        prefix: str,
+        errors: List[str],
+        warnings: List[str],
+    ) -> None:
+        """Check allowed values and run custom field validators."""
         for field_name, allowed in self.allowed_values.items():
             if field_name not in data:
                 continue
@@ -176,14 +165,20 @@ class ValidationSchema:
                 continue
             warnings.append(f"{prefix}Unknown value for {field_name}: {data[field_name]}")
 
-        # Run custom validators
         for field_name, validator_fn in self.custom_validators.items():
             if field_name in data:
                 error = validator_fn(data[field_name])
                 if error:
                     errors.append(f"{prefix}{field_name}: {error}")
 
-        # Validate nested schemas
+    def _check_nested(
+        self,
+        data: Dict[str, Any],
+        prefix: str,
+        errors: List[str],
+        warnings: List[str],
+    ) -> None:
+        """Validate nested schemas for dict and list-of-dict fields."""
         for field_name, nested_schema in self.nested_schemas.items():
             if field_name not in data:
                 continue
@@ -205,6 +200,28 @@ class ValidationSchema:
                 )
                 errors.extend(item_errors)
                 warnings.extend(item_warnings)
+
+    def validate_data(
+        self,
+        data: Dict[str, Any],
+        prefix: str = "",
+    ) -> tuple[List[str], List[str]]:
+        """
+        Validate data against this schema.
+
+        Args:
+            data: Dictionary to validate
+            prefix: Prefix for error messages (for nested validation)
+
+        Returns:
+            Tuple of (errors, warnings) lists
+        """
+        errors: List[str] = []
+        warnings: List[str] = []
+
+        self._check_required(data, prefix, errors)
+        self._check_values(data, prefix, errors, warnings)
+        self._check_nested(data, prefix, errors, warnings)
 
         return errors, warnings
 
@@ -1030,6 +1047,33 @@ class ImplementationPlanValidator(BaseValidator):
             "implementation_plan", errors=errors, warnings=warnings, fixes=fixes
         )
 
+    @staticmethod
+    def _validate_subtasks(
+        phase_id: Any,
+        subtasks: List[Dict[str, Any]],
+        subtask_schema: "ValidationSchema",
+        errors: List[str],
+        warnings: List[str],
+    ) -> None:
+        """Validate a phase's subtasks for required fields and allowed status."""
+        for j, subtask in enumerate(subtasks):
+            subtask_id = subtask.get("id", f"subtask_{j}")
+            for req_field in subtask_schema.required_fields:
+                if req_field not in subtask:
+                    errors.append(
+                        f"Phase {phase_id}, Subtask {subtask_id}: "
+                        f"Missing required field '{req_field}'"
+                    )
+
+            # Validate status
+            if "status" in subtask:
+                allowed_status = subtask_schema.allowed_values.get("status", [])
+                if allowed_status and subtask["status"] not in allowed_status:
+                    warnings.append(
+                        f"Phase {phase_id}, Subtask {subtask_id}: "
+                        f"Unknown status '{subtask['status']}'"
+                    )
+
     def _validate_phases(
         self,
         phases: List[Dict[str, Any]],
@@ -1069,23 +1113,7 @@ class ImplementationPlanValidator(BaseValidator):
             if "subtasks" not in phase or not subtask_schema:
                 continue
 
-            for j, subtask in enumerate(phase["subtasks"]):
-                subtask_id = subtask.get("id", f"subtask_{j}")
-                for req_field in subtask_schema.required_fields:
-                    if req_field not in subtask:
-                        errors.append(
-                            f"Phase {phase_id}, Subtask {subtask_id}: "
-                            f"Missing required field '{req_field}'"
-                        )
-
-                # Validate status
-                if "status" in subtask:
-                    allowed_status = subtask_schema.allowed_values.get("status", [])
-                    if allowed_status and subtask["status"] not in allowed_status:
-                        warnings.append(
-                            f"Phase {phase_id}, Subtask {subtask_id}: "
-                            f"Unknown status '{subtask['status']}'"
-                        )
+            self._validate_subtasks(phase_id, phase["subtasks"], subtask_schema, errors, warnings)
 
 
 # ============================================================================

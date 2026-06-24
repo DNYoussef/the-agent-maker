@@ -27,6 +27,102 @@ class MuGrokConfig:
     adamw_eps: float = 1e-8
 
     @classmethod
+    def _preset_phase1(cls) -> "MuGrokConfig":
+        """Phase 1: Cognate (Pretraining)."""
+        return cls(
+            muon_lr=1e-3,
+            fallback_lr=1e-3,
+            grokfast_alpha=0.98,
+            grokfast_lambda=0.3,  # Gentle filtering
+            qk_clip_threshold=30.0,
+            kl_coefficient=0.0,  # No KL (pretraining from scratch)
+            muon_ste_mode=False,
+            momentum=0.95,
+            nesterov=True,
+            ns_steps=5,
+            weight_decay=0.0,
+        )
+
+    @classmethod
+    def _preset_phase3(cls) -> "MuGrokConfig":
+        """Phase 3: Quiet-STaR (RL)."""
+        return cls(
+            muon_lr=5e-4,  # HIGHER for RL exploration
+            fallback_lr=5e-4,
+            grokfast_alpha=0.98,
+            grokfast_lambda=0.1,  # LOWER for RL noise
+            qk_clip_threshold=25.0,  # TIGHTER for RL attention spikes
+            kl_coefficient=0.1,  # NEW: Prevent drift from baked baseline
+            muon_ste_mode=False,
+            momentum=0.95,
+            nesterov=True,
+            ns_steps=5,
+            weight_decay=0.0,
+        )
+
+    @classmethod
+    def _preset_phase5(cls) -> "MuGrokConfig":
+        """Phase 5: Curriculum Learning (BitNet STE)."""
+        return cls(
+            muon_lr=1e-3,
+            fallback_lr=1e-3,
+            grokfast_alpha=0.98,
+            grokfast_lambda=2.0,  # AGGRESSIVE filtering
+            qk_clip_threshold=30.0,
+            kl_coefficient=0.0,
+            muon_ste_mode=True,  # CRITICAL: STE mode for BitNet
+            momentum=0.95,
+            nesterov=True,
+            ns_steps=5,
+            weight_decay=0.0,
+        )
+
+    @classmethod
+    def _preset_phase6(cls) -> "MuGrokConfig":
+        """Phase 6: Tool & Persona Baking."""
+        return cls(
+            muon_lr=1e-4,  # Lower for fine-tuning
+            fallback_lr=1e-4,
+            grokfast_alpha=0.98,
+            grokfast_lambda=0.2,  # Moderate filtering
+            qk_clip_threshold=30.0,
+            kl_coefficient=0.0,  # No KL (we WANT to change model)
+            muon_ste_mode=False,
+            momentum=0.95,
+            nesterov=True,
+            ns_steps=5,
+            weight_decay=0.0,
+        )
+
+    @classmethod
+    def _preset_phase7(cls) -> "MuGrokConfig":
+        """Phase 7: Self-Guided Experts (SVF Training)."""
+        return cls(
+            muon_lr=5e-4,
+            fallback_lr=5e-4,
+            grokfast_alpha=0.98,
+            grokfast_lambda=0.15,
+            qk_clip_threshold=28.0,
+            kl_coefficient=0.05,
+            muon_ste_mode=False,
+            momentum=0.95,
+            nesterov=True,
+            ns_steps=5,
+            weight_decay=0.0,
+        )
+
+    @classmethod
+    def _phase_presets(cls) -> "dict":
+        """Build the phase-specific preset table (from V1 implementation)."""
+        return {
+            1: cls._preset_phase1(),
+            3: cls._preset_phase3(),
+            5: cls._preset_phase5(),
+            6: cls._preset_phase6(),
+            7: cls._preset_phase7(),
+        }
+
+    @classmethod
     def from_phase(cls, phase_num: int) -> "MuGrokConfig":
         """
         Get phase-specific preset configuration
@@ -37,74 +133,7 @@ class MuGrokConfig:
         Returns:
             MuGrokConfig with optimal settings for that phase
         """
-        # Phase-specific presets (from V1 implementation)
-        presets = {
-            1: cls(  # Phase 1: Cognate (Pretraining)
-                muon_lr=1e-3,
-                fallback_lr=1e-3,
-                grokfast_alpha=0.98,
-                grokfast_lambda=0.3,  # Gentle filtering
-                qk_clip_threshold=30.0,
-                kl_coefficient=0.0,  # No KL (pretraining from scratch)
-                muon_ste_mode=False,
-                momentum=0.95,
-                nesterov=True,
-                ns_steps=5,
-                weight_decay=0.0,
-            ),
-            3: cls(  # Phase 3: Quiet-STaR (RL)
-                muon_lr=5e-4,  # HIGHER for RL exploration
-                fallback_lr=5e-4,
-                grokfast_alpha=0.98,
-                grokfast_lambda=0.1,  # LOWER for RL noise
-                qk_clip_threshold=25.0,  # TIGHTER for RL attention spikes
-                kl_coefficient=0.1,  # NEW: Prevent drift from baked baseline
-                muon_ste_mode=False,
-                momentum=0.95,
-                nesterov=True,
-                ns_steps=5,
-                weight_decay=0.0,
-            ),
-            5: cls(  # Phase 5: Curriculum Learning (BitNet STE)
-                muon_lr=1e-3,
-                fallback_lr=1e-3,
-                grokfast_alpha=0.98,
-                grokfast_lambda=2.0,  # AGGRESSIVE filtering
-                qk_clip_threshold=30.0,
-                kl_coefficient=0.0,
-                muon_ste_mode=True,  # CRITICAL: STE mode for BitNet
-                momentum=0.95,
-                nesterov=True,
-                ns_steps=5,
-                weight_decay=0.0,
-            ),
-            6: cls(  # Phase 6: Tool & Persona Baking
-                muon_lr=1e-4,  # Lower for fine-tuning
-                fallback_lr=1e-4,
-                grokfast_alpha=0.98,
-                grokfast_lambda=0.2,  # Moderate filtering
-                qk_clip_threshold=30.0,
-                kl_coefficient=0.0,  # No KL (we WANT to change model)
-                muon_ste_mode=False,
-                momentum=0.95,
-                nesterov=True,
-                ns_steps=5,
-                weight_decay=0.0,
-            ),
-            7: cls(  # Phase 7: Self-Guided Experts (SVF Training)
-                muon_lr=5e-4,
-                fallback_lr=5e-4,
-                grokfast_alpha=0.98,
-                grokfast_lambda=0.15,
-                qk_clip_threshold=28.0,
-                kl_coefficient=0.05,
-                muon_ste_mode=False,
-                momentum=0.95,
-                nesterov=True,
-                ns_steps=5,
-                weight_decay=0.0,
-            ),
-        }
+        presets = cls._phase_presets()
 
         if phase_num not in presets:
             raise ValueError(

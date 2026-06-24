@@ -159,6 +159,36 @@ def measure_memory(model: nn.Module) -> float:
     return total_bytes / (1024**2)
 
 
+def _benchmark_quantized_model(
+    base_model: nn.Module,
+    config: Phase4Config,
+    input_ids: torch.Tensor,
+    num_warmup: int,
+    num_runs: int,
+    device: str,
+) -> Tuple[float, float]:
+    """Quantize the model and measure its latency and effective memory."""
+    print("Quantizing model...")
+    quantizer = BitNetQuantizer(config)
+    compressed_model = CompressedModel(base_model, quantizer, config)
+    compressed_model.compress()
+    compressed_model = compressed_model.to(device)
+    compressed_model.eval()
+
+    # Measure quantized performance
+    print("Benchmarking quantized model...")
+    quant_latency, quant_std = measure_latency(
+        compressed_model, input_ids, num_warmup=num_warmup, num_runs=num_runs
+    )
+    quant_memory = measure_memory(compressed_model)
+
+    # Get compression stats for accurate memory comparison
+    compression_stats = compressed_model.get_compression_stats()
+    actual_quantized_mb = compression_stats.get("quantized_size_mb", quant_memory)
+
+    return quant_latency, actual_quantized_mb
+
+
 def benchmark_model(
     base_model: nn.Module,
     config: Optional[Phase4Config] = None,
@@ -200,24 +230,10 @@ def benchmark_model(
     )
     fp32_memory = measure_memory(base_model)
 
-    # Create and compress model
-    print("Quantizing model...")
-    quantizer = BitNetQuantizer(config)
-    compressed_model = CompressedModel(base_model, quantizer, config)
-    compressed_model.compress()
-    compressed_model = compressed_model.to(device)
-    compressed_model.eval()
-
-    # Measure quantized performance
-    print("Benchmarking quantized model...")
-    quant_latency, quant_std = measure_latency(
-        compressed_model, input_ids, num_warmup=num_warmup, num_runs=num_runs
+    # Create, compress, and measure quantized model
+    quant_latency, actual_quantized_mb = _benchmark_quantized_model(
+        base_model, config, input_ids, num_warmup, num_runs, device
     )
-    quant_memory = measure_memory(compressed_model)
-
-    # Get compression stats for accurate memory comparison
-    compression_stats = compressed_model.get_compression_stats()
-    actual_quantized_mb = compression_stats.get("quantized_size_mb", quant_memory)
 
     # Calculate metrics
     speedup = fp32_latency / quant_latency if quant_latency > 0 else 0

@@ -509,9 +509,39 @@ class QuietSTaRModel(nn.Module):
             return {"logits": base_logits, "loss": loss}
 
         # Generate thoughts at difficult positions
+        enhanced_hidden, thought_positions, coherence_scores_list = self._inject_thoughts(
+            input_ids, base_logits, base_hidden, seq_len
+        )
+
+        # Final logits from enhanced hidden states
+        final_logits = self.base_model.lm_head(enhanced_hidden)
+
+        # Compute loss
+        loss = self._compute_loss(final_logits, labels) if labels is not None else None
+
+        return {
+            "logits": final_logits,
+            "loss": loss,
+            "thought_positions": thought_positions,
+            "avg_coherence": (
+                sum(coherence_scores_list) / len(coherence_scores_list)
+                if coherence_scores_list
+                else 0.0
+            ),
+            "num_thoughts_used": len(thought_positions),
+        }
+
+    def _inject_thoughts(
+        self,
+        input_ids: torch.Tensor,
+        base_logits: torch.Tensor,
+        base_hidden: torch.Tensor,
+        seq_len: int,
+    ) -> Tuple[torch.Tensor, List[int], List[float]]:
+        """Generate and mix thoughts at difficult positions, returning enhanced hidden states."""
         enhanced_hidden = base_hidden.clone()
-        thought_positions = []
-        coherence_scores_list = []
+        thought_positions: List[int] = []
+        coherence_scores_list: List[float] = []
         last_injection = -self.thought_injector.min_interval
 
         for pos in range(seq_len - 1):
@@ -549,23 +579,7 @@ class QuietSTaRModel(nn.Module):
                 thought_positions.append(pos)
                 coherence_scores_list.append(coherence.composite.mean().item())
 
-        # Final logits from enhanced hidden states
-        final_logits = self.base_model.lm_head(enhanced_hidden)
-
-        # Compute loss
-        loss = self._compute_loss(final_logits, labels) if labels is not None else None
-
-        return {
-            "logits": final_logits,
-            "loss": loss,
-            "thought_positions": thought_positions,
-            "avg_coherence": (
-                sum(coherence_scores_list) / len(coherence_scores_list)
-                if coherence_scores_list
-                else 0.0
-            ),
-            "num_thoughts_used": len(thought_positions),
-        }
+        return enhanced_hidden, thought_positions, coherence_scores_list
 
     def _compute_loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         """Compute cross-entropy loss."""

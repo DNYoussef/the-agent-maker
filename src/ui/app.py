@@ -565,56 +565,102 @@ st.sidebar.markdown(
     unsafe_allow_html=True,
 )
 
+
 # Load selected page
-if page == "Pipeline Overview":
+def _load_pipeline_overview() -> None:
     from pages import pipeline_overview
 
     pipeline_overview.render()
-elif page == "Phase 1: Cognate":
+
+
+def _load_phase1_cognate() -> None:
     from pages import phase1_cognate
 
     phase1_cognate.render_phase1_cognate()
-elif page == "Phase 2: EvoMerge":
+
+
+def _load_phase2_evomerge() -> None:
     from pages import phase2_evomerge
 
     phase2_evomerge.render_phase2_dashboard()
-elif page == "Phase 3: Quiet-STaR":
+
+
+def _load_phase3_quietstar() -> None:
     from pages import phase3_quietstar
 
     phase3_quietstar.render_phase3_dashboard()
-elif page == "Phase 4: BitNet":
+
+
+def _load_phase4_bitnet() -> None:
     from pages import phase4_bitnet
 
     phase4_bitnet.render_phase4_dashboard()
-elif page == "Phase 5: Curriculum":
+
+
+def _load_phase5_curriculum() -> None:
     from pages import phase5_curriculum
 
     phase5_curriculum.render_phase5_dashboard()
-elif page == "Phase 6: Baking":
+
+
+def _load_phase6_baking() -> None:
     from pages import phase6_baking
 
     phase6_baking.render_phase6_dashboard()
-elif page == "Phase 7: Experts":
+
+
+def _load_phase7_experts() -> None:
     from pages import phase7_experts
 
     phase7_experts.render_phase7_dashboard()
-elif page == "Phase 8: Compression":
+
+
+def _load_phase8_compression() -> None:
     from pages import phase8_compression
 
     phase8_compression.render()
-elif page == "W&B Monitor":
+
+
+def _load_wandb_monitor() -> None:
     from pages import wandb_monitor
 
     wandb_monitor.render()
-elif page == "Model Browser":
+
+
+def _load_model_browser() -> None:
     from pages import model_browser
 
     model_browser.render()
-elif page == "System Monitor":
+
+
+def _load_system_monitor() -> None:
     from pages import system_monitor
 
     system_monitor.render()
-elif page == "Configuration":
+
+
+def _load_config_editor() -> None:
     from pages import config_editor
 
     config_editor.render()
+
+
+_PAGE_LOADERS = {
+    "Pipeline Overview": _load_pipeline_overview,
+    "Phase 1: Cognate": _load_phase1_cognate,
+    "Phase 2: EvoMerge": _load_phase2_evomerge,
+    "Phase 3: Quiet-STaR": _load_phase3_quietstar,
+    "Phase 4: BitNet": _load_phase4_bitnet,
+    "Phase 5: Curriculum": _load_phase5_curriculum,
+    "Phase 6: Baking": _load_phase6_baking,
+    "Phase 7: Experts": _load_phase7_experts,
+    "Phase 8: Compression": _load_phase8_compression,
+    "W&B Monitor": _load_wandb_monitor,
+    "Model Browser": _load_model_browser,
+    "System Monitor": _load_system_monitor,
+    "Configuration": _load_config_editor,
+}
+
+_page_loader = _PAGE_LOADERS.get(page)
+if _page_loader is not None:
+    _page_loader()

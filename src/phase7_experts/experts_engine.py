@@ -94,6 +94,142 @@ class ExpertsEngine:
         self.wandb = wandb_integration
         self.session_id = session_id
 
+    def _init_wandb_run(self) -> None:
+        """Initialize the wandb run for Phase 7 if enabled."""
+        if self.wandb:
+            self.wandb.init_phase_run(
+                phase_name="phase7",
+                config={
+                    "min_experts": self.config.min_experts,
+                    "max_experts": self.config.max_experts,
+                    "svf_epochs": self.config.svf_epochs,
+                    "adas_generations": self.config.adas_generations,
+                },
+                session_id=self.session_id or "phase7",
+            )
+
+    def _run_discovery(self, model: nn.Module, tokenizer: Any):
+        """Stage 1: discover experts and record discovery metrics."""
+        stage1_start = time.time()
+        discovery_config = DiscoveryConfig(
+            min_experts=self.config.min_experts,
+            max_experts=self.config.max_experts,
+            discovery_samples=self.config.discovery_samples,
+        )
+        discovery = ExpertDiscovery(config=discovery_config)
+
+        num_experts, expert_profiles = discovery.discover(model, tokenizer)
+        self.metrics["discovery_time"] = time.time() - stage1_start
+        if self.wandb:
+            self.wandb.log_metrics(
+                {
+                    "phase7/discovery_time": self.metrics["discovery_time"],
+                    "phase7/num_experts": num_experts,
+                }
+            )
+        return num_experts, expert_profiles, discovery
+
+    def _run_svf_training(self, model: nn.Module, tokenizer: Any, expert_profiles):
+        """Stage 2: train each expert via SVF and record SVF metrics."""
+        stage2_start = time.time()
+        svf_config = SVFConfig(
+            num_singular_values=self.config.num_singular_values,
+            num_epochs=self.config.svf_epochs,
+            learning_rate=self.config.svf_learning_rate,
+        )
+
+        print("\nStage 2: SVF Expert Training")
+        print("-" * 40)
+
+        current_model = model
+        svf_results = []
+
+        for expert in expert_profiles:
+            trainer = SVFTrainer(config=svf_config)
+            trained_model, result = trainer.train_expert(
+                model=current_model,
+                expert_id=expert.id,
+                expert_capabilities=expert.capabilities,
+                tokenizer=tokenizer,
+            )
+
+            if result.success:
+                current_model = trained_model
+                svf_results.append(result)
+                self.metrics["expert_metrics"].append(
+                    {
+                        "expert_id": expert.id,
+                        "final_loss": result.final_loss,
+                        "sv_changes": result.sv_changes,
+                    }
+                )
+
+        self.metrics["svf_time"] = time.time() - stage2_start
+        if self.wandb:
+            self.wandb.log_metrics({"phase7/svf_time": self.metrics["svf_time"]})
+        return current_model, svf_results
+
+    def _run_adas(self, current_model: nn.Module, expert_profiles, tokenizer: Any):
+        """Stage 3: optimize routing via ADAS and record ADAS metrics."""
+        stage3_start = time.time()
+        adas_config = ADASConfig(
+            population_size=self.config.adas_population,
+            num_generations=self.config.adas_generations,
+            mutation_rate=self.config.mutation_rate,
+        )
+
+        adas = ADASOptimizer(config=adas_config)
+        try:
+            optimized_model, adas_result = adas.optimize(
+                model=current_model, experts=expert_profiles, tokenizer=tokenizer
+            )
+        except RuntimeError as exc:
+            # Wave-0: ADAS fitness needs a real evaluator ("measurement truth",
+            # Wave 1). evaluation.py correctly refuses synthetic scores and
+            # raises. Until an evaluator is wired, skip ADAS HONESTLY (keep the
+            # SVF-optimized model) instead of letting the broad except below
+            # swallow it into a silent success=False.
+            logger.warning("Phase 7 ADAS skipped (no fitness evaluator): %s", exc)
+            optimized_model = current_model
+            adas_result = {"adas_skipped": True, "reason": str(exc)}
+        self.metrics["adas_time"] = time.time() - stage3_start
+        if self.wandb:
+            self.wandb.log_metrics({"phase7/adas_time": self.metrics["adas_time"]})
+        return optimized_model, adas_result
+
+    def _build_success_result(
+        self,
+        optimized_model,
+        num_experts,
+        expert_profiles,
+        routing_config,
+        svf_results,
+        adas_result,
+        discovery,
+        total_duration,
+    ) -> Phase7Result:
+        """Print the completion summary and assemble the success result."""
+        print("\nPhase 7 Complete:")
+        print(f"  Discovered experts: {num_experts}")
+        print(f"  SVF training: {len(svf_results)} experts trained")
+        print(f"  ADAS generations: {self.config.adas_generations}")
+        print(f"  Total time: {total_duration:.1f}s")
+
+        return Phase7Result(
+            success=True,
+            model=optimized_model,
+            num_experts=num_experts,
+            expert_profiles=expert_profiles,
+            routing_config=routing_config,
+            metrics=self.metrics,
+            artifacts={
+                "svf_results": svf_results,
+                "adas_result": adas_result,
+                "discovery": discovery,
+            },
+            duration=total_duration,
+        )
+
     def run(self, model: nn.Module, tokenizer: Any) -> Phase7Result:
         """
         Execute Phase 7 expert training pipeline.
@@ -112,100 +248,16 @@ class ExpertsEngine:
         start_time = time.time()
 
         try:
-            if self.wandb:
-                self.wandb.init_phase_run(
-                    phase_name="phase7",
-                    config={
-                        "min_experts": self.config.min_experts,
-                        "max_experts": self.config.max_experts,
-                        "svf_epochs": self.config.svf_epochs,
-                        "adas_generations": self.config.adas_generations,
-                    },
-                    session_id=self.session_id or "phase7",
-                )
+            self._init_wandb_run()
 
             # Stage 1: Expert Discovery
-            stage1_start = time.time()
-            discovery_config = DiscoveryConfig(
-                min_experts=self.config.min_experts,
-                max_experts=self.config.max_experts,
-                discovery_samples=self.config.discovery_samples,
-            )
-            discovery = ExpertDiscovery(config=discovery_config)
-
-            num_experts, expert_profiles = discovery.discover(model, tokenizer)
-            self.metrics["discovery_time"] = time.time() - stage1_start
-            if self.wandb:
-                self.wandb.log_metrics(
-                    {
-                        "phase7/discovery_time": self.metrics["discovery_time"],
-                        "phase7/num_experts": num_experts,
-                    }
-                )
+            num_experts, expert_profiles, discovery = self._run_discovery(model, tokenizer)
 
             # Stage 2: SVF Training
-            stage2_start = time.time()
-            svf_config = SVFConfig(
-                num_singular_values=self.config.num_singular_values,
-                num_epochs=self.config.svf_epochs,
-                learning_rate=self.config.svf_learning_rate,
-            )
-
-            print("\nStage 2: SVF Expert Training")
-            print("-" * 40)
-
-            current_model = model
-            svf_results = []
-
-            for expert in expert_profiles:
-                trainer = SVFTrainer(config=svf_config)
-                trained_model, result = trainer.train_expert(
-                    model=current_model,
-                    expert_id=expert.id,
-                    expert_capabilities=expert.capabilities,
-                    tokenizer=tokenizer,
-                )
-
-                if result.success:
-                    current_model = trained_model
-                    svf_results.append(result)
-                    self.metrics["expert_metrics"].append(
-                        {
-                            "expert_id": expert.id,
-                            "final_loss": result.final_loss,
-                            "sv_changes": result.sv_changes,
-                        }
-                    )
-
-            self.metrics["svf_time"] = time.time() - stage2_start
-            if self.wandb:
-                self.wandb.log_metrics({"phase7/svf_time": self.metrics["svf_time"]})
+            current_model, svf_results = self._run_svf_training(model, tokenizer, expert_profiles)
 
             # Stage 3: ADAS Optimization
-            stage3_start = time.time()
-            adas_config = ADASConfig(
-                population_size=self.config.adas_population,
-                num_generations=self.config.adas_generations,
-                mutation_rate=self.config.mutation_rate,
-            )
-
-            adas = ADASOptimizer(config=adas_config)
-            try:
-                optimized_model, adas_result = adas.optimize(
-                    model=current_model, experts=expert_profiles, tokenizer=tokenizer
-                )
-            except RuntimeError as exc:
-                # Wave-0: ADAS fitness needs a real evaluator ("measurement truth",
-                # Wave 1). evaluation.py correctly refuses synthetic scores and
-                # raises. Until an evaluator is wired, skip ADAS HONESTLY (keep the
-                # SVF-optimized model) instead of letting the broad except below
-                # swallow it into a silent success=False.
-                logger.warning("Phase 7 ADAS skipped (no fitness evaluator): %s", exc)
-                optimized_model = current_model
-                adas_result = {"adas_skipped": True, "reason": str(exc)}
-            self.metrics["adas_time"] = time.time() - stage3_start
-            if self.wandb:
-                self.wandb.log_metrics({"phase7/adas_time": self.metrics["adas_time"]})
+            optimized_model, adas_result = self._run_adas(current_model, expert_profiles, tokenizer)
 
             # Extract routing configuration
             routing_config = {}
@@ -214,25 +266,15 @@ class ExpertsEngine:
 
             total_duration = time.time() - start_time
 
-            print("\nPhase 7 Complete:")
-            print(f"  Discovered experts: {num_experts}")
-            print(f"  SVF training: {len(svf_results)} experts trained")
-            print(f"  ADAS generations: {self.config.adas_generations}")
-            print(f"  Total time: {total_duration:.1f}s")
-
-            return Phase7Result(
-                success=True,
-                model=optimized_model,
-                num_experts=num_experts,
-                expert_profiles=expert_profiles,
-                routing_config=routing_config,
-                metrics=self.metrics,
-                artifacts={
-                    "svf_results": svf_results,
-                    "adas_result": adas_result,
-                    "discovery": discovery,
-                },
-                duration=total_duration,
+            return self._build_success_result(
+                optimized_model,
+                num_experts,
+                expert_profiles,
+                routing_config,
+                svf_results,
+                adas_result,
+                discovery,
+                total_duration,
             )
 
         except Exception as e:

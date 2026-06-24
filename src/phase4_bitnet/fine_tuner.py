@@ -175,30 +175,8 @@ class FineTuner:
             # Store history
             self.training_history.append(epoch_stats)
 
-            # ISS-008: Save checkpoint
-            if (epoch + 1) % self.config.save_every_n_epochs == 0:
-                checkpoint_path = self.checkpoint_dir / f"checkpoint_epoch_{epoch + 1}.pt"
-                self.save_checkpoint(checkpoint_path)
-                print(f"Saved checkpoint: {checkpoint_path}")
-
-            # Log
-            print(
-                f"Epoch {epoch + 1}/{self.config.fine_tune_epochs}: "
-                f"Loss={epoch_stats['loss']:.4f}"
-            )
-
-            if "perplexity" in epoch_stats:
-                print(f"  Perplexity: {epoch_stats['perplexity']:.2f}")
-
-            # ISS-008: W&B epoch logging
-            if self.wandb_enabled:
-                wandb.log(
-                    {
-                        "fine_tune/epoch_loss": epoch_stats["loss"],
-                        "fine_tune/epoch": epoch + 1,
-                        "fine_tune/best_perplexity": self.best_perplexity,
-                    }
-                )
+            # Checkpoint and log this epoch's results
+            self._finalize_epoch(epoch, epoch_stats)
 
         # Prepare results
         results = {
@@ -213,7 +191,38 @@ class FineTuner:
 
         return results
 
-    def _train_epoch(self, dataloader: DataLoader, log_callback: Optional[Callable] = None) -> Dict:
+    def _finalize_epoch(self, epoch: int, epoch_stats: Dict) -> None:
+        """Save periodic checkpoint and log epoch metrics (console + W&B)."""
+        # ISS-008: Save checkpoint
+        if (epoch + 1) % self.config.save_every_n_epochs == 0:
+            checkpoint_path = self.checkpoint_dir / f"checkpoint_epoch_{epoch + 1}.pt"
+            self.save_checkpoint(checkpoint_path)
+            print(f"Saved checkpoint: {checkpoint_path}")
+
+        # Log
+        print(
+            f"Epoch {epoch + 1}/{self.config.fine_tune_epochs}: " f"Loss={epoch_stats['loss']:.4f}"
+        )
+
+        if "perplexity" in epoch_stats:
+            print(f"  Perplexity: {epoch_stats['perplexity']:.2f}")
+
+        # ISS-008: W&B epoch logging
+        if self.wandb_enabled:
+            wandb.log(
+                {
+                    "fine_tune/epoch_loss": epoch_stats["loss"],
+                    "fine_tune/epoch": epoch + 1,
+                    "fine_tune/best_perplexity": self.best_perplexity,
+                }
+            )
+
+    # pot10: allow - one BitNet QAT training epoch (forward, loss, backward,
+    # STE/grad handling, logging); a coherent gradient loop kept intact per the
+    # core-ML carve-out.
+    def _train_epoch(  # noqa: C901
+        self, dataloader: DataLoader, log_callback: Optional[Callable] = None
+    ) -> Dict:
         """
         Train one epoch
 

@@ -30,28 +30,9 @@ class Phase3Controller(PhaseController):
         print("=" * 60 + "\n")
 
         try:
-            # Validate input
-            self.validate_input(input_models)
-            champion_model = input_models[0]
-
-            # Get tokenizer (try to load, fall back to mock)
-            tokenizer = self._get_tokenizer()
-
-            # Step 1: Prompt Baking
-            print("--- Step 1: Prompt Baking ---")
-            baked_model = self._run_prompt_baking(champion_model, tokenizer)
-
-            # Step 2: Quiet-STaR RL
-            # AGM-004: Returns tuple (model, rl_completed) for honest reporting
-            print("\n--- Step 2: Quiet-STaR RL ---")
-            enhanced_model, rl_completed = self._run_quietstar_rl(
-                baked_model, champion_model, tokenizer
+            enhanced_model, baked_model, rl_completed, anti_theater_results = self._run_phase(
+                input_models
             )
-
-            # Step 3: Anti-theater validation
-            print("\n--- Step 3: Anti-Theater Validation ---")
-            anti_theater_results = self._validate_anti_theater(enhanced_model, tokenizer)
-
             duration = time.time() - start_time
 
             return PhaseResult(
@@ -85,6 +66,36 @@ class Phase3Controller(PhaseController):
                 config=self.config,
                 error=str(e),
             )
+
+    def _run_phase(self, input_models: Optional[List[Any]]) -> tuple:
+        """Run the 3 reasoning-enhancement steps and return their outputs.
+
+        Returns:
+            (enhanced_model, baked_model, rl_completed, anti_theater_results)
+        """
+        # Validate input
+        self.validate_input(input_models)
+        champion_model = input_models[0]
+
+        # Get tokenizer (try to load, fall back to mock)
+        tokenizer = self._get_tokenizer()
+
+        # Step 1: Prompt Baking
+        print("--- Step 1: Prompt Baking ---")
+        baked_model = self._run_prompt_baking(champion_model, tokenizer)
+
+        # Step 2: Quiet-STaR RL
+        # AGM-004: Returns tuple (model, rl_completed) for honest reporting
+        print("\n--- Step 2: Quiet-STaR RL ---")
+        enhanced_model, rl_completed = self._run_quietstar_rl(
+            baked_model, champion_model, tokenizer
+        )
+
+        # Step 3: Anti-theater validation
+        print("\n--- Step 3: Anti-Theater Validation ---")
+        anti_theater_results = self._validate_anti_theater(enhanced_model, tokenizer)
+
+        return enhanced_model, baked_model, rl_completed, anti_theater_results
 
     def _get_tokenizer(self) -> Any:
         """Get tokenizer using unified utility (ISS-016)."""

@@ -422,17 +422,7 @@ class DreamQualityGate:
                 )
 
         # Check if in ideal range
-        if self.ideal_gap_range[0] <= gap_value <= self.ideal_gap_range[1]:
-            status = "optimal"
-            recommendation = "Consolidation quality is optimal."
-        elif gap_value > self.ideal_gap_range[1]:
-            status = "high_diversity"
-            recommendation = (
-                "Gap above ideal range - good diversity but may need more consolidation."
-            )
-        else:
-            status = "acceptable"
-            recommendation = "Consolidation quality is acceptable."
+        status, recommendation = self._classify_gap_status(gap_value)
 
         return QualityGateResult(
             passed=True,
@@ -441,6 +431,17 @@ class DreamQualityGate:
             recommendation=recommendation,
             metadata={"status": status, "in_ideal_range": status == "optimal"},
         )
+
+    def _classify_gap_status(self, gap_value: float) -> Tuple[str, str]:
+        """Classify a passing gap value into a status and recommendation."""
+        if self.ideal_gap_range[0] <= gap_value <= self.ideal_gap_range[1]:
+            return "optimal", "Consolidation quality is optimal."
+        if gap_value > self.ideal_gap_range[1]:
+            return (
+                "high_diversity",
+                "Gap above ideal range - good diversity but may need more consolidation.",
+            )
+        return "acceptable", "Consolidation quality is acceptable."
 
     def should_continue_consolidation(
         self, model: nn.Module, current_rounds: int, max_rounds: int = 5
@@ -520,17 +521,35 @@ class DreamQualityGate:
             "target_gap_range": self.ideal_gap_range,
         }
 
+    def _collect_weight_matrices(self, model: nn.Module) -> List[torch.Tensor]:
+        """Collect 2D weight matrices (capped at 256x256) from model params."""
+        weight_matrices = []
+        for name, param in model.named_parameters():
+            if "weight" in name and param.dim() >= 2:
+                w = param.data
+                if w.dim() > 2:
+                    w = w.view(w.size(0), -1)
+                if w.size(0) >= 2 and w.size(1) >= 2:
+                    weight_matrices.append(w[: min(256, w.size(0)), : min(256, w.size(1))])
+        return weight_matrices
+
+    def _spectral_gap_from_matrix(self, w: torch.Tensor) -> float:
+        """Compute spectral gap from a single weight matrix via SVD."""
+        with torch.no_grad():
+            try:
+                # SVD for spectral gap
+                U, S, Vh = torch.linalg.svd(w.float(), full_matrices=False)
+                if len(S) >= 2:
+                    gap = 1.0 - (S[1] / S[0]).item()
+                    return max(0.0, min(1.0, gap))
+            except Exception:
+                pass
+        return 0.5
+
     def _compute_spectral_gap(self, model: nn.Module) -> float:
         """Compute spectral gap from model weight matrices."""
         try:
-            weight_matrices = []
-            for name, param in model.named_parameters():
-                if "weight" in name and param.dim() >= 2:
-                    w = param.data
-                    if w.dim() > 2:
-                        w = w.view(w.size(0), -1)
-                    if w.size(0) >= 2 and w.size(1) >= 2:
-                        weight_matrices.append(w[: min(256, w.size(0)), : min(256, w.size(1))])
+            weight_matrices = self._collect_weight_matrices(model)
 
             if not weight_matrices:
                 return 0.5
@@ -538,17 +557,7 @@ class DreamQualityGate:
             # Use largest weight matrix
             w = max(weight_matrices, key=lambda x: x.numel())
 
-            with torch.no_grad():
-                try:
-                    # SVD for spectral gap
-                    U, S, Vh = torch.linalg.svd(w.float(), full_matrices=False)
-                    if len(S) >= 2:
-                        gap = 1.0 - (S[1] / S[0]).item()
-                        return max(0.0, min(1.0, gap))
-                except Exception:
-                    pass
-
-            return 0.5
+            return self._spectral_gap_from_matrix(w)
 
         except Exception:
             return 0.5

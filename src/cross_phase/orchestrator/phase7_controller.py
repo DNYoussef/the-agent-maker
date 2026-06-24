@@ -26,42 +26,7 @@ class Phase7Controller(PhaseController):
         print("=" * 60 + "\n")
 
         try:
-            # Validate input
-            self.validate_input(input_models)
-            if not input_models:
-                raise ValueError("input_models cannot be None")
-            baked_model = input_models[0]
-
-            # Get tokenizer
-            tokenizer = self._get_tokenizer()
-
-            # Create experts config
-            from cross_phase.monitoring.wandb_integration import WandBIntegration
-            from phase7_experts import ExpertsConfig, ExpertsEngine
-
-            config = ExpertsConfig(
-                min_experts=self.config.get("min_experts", 3) if self.config else 3,
-                max_experts=self.config.get("max_experts", 10) if self.config else 10,
-                svf_epochs=self.config.get("svf_epochs", 5) if self.config else 5,
-                adas_population=self.config.get("adas_population", 50) if self.config else 50,
-                adas_generations=self.config.get("adas_generations", 100) if self.config else 100,
-            )
-
-            # Run experts engine
-            wandb_integration = WandBIntegration(
-                project_name=(
-                    self.config.get("wandb_project", "agent-forge-v2")
-                    if self.config
-                    else "agent-forge-v2"
-                ),
-                mode=(self.config.get("wandb_mode", "auto") if self.config else "auto"),
-            )
-            engine = ExpertsEngine(
-                config=config,
-                wandb_integration=wandb_integration,
-                session_id=self.session_id,
-            )
-            result = engine.run(model=baked_model, tokenizer=tokenizer)
+            result = self._run_experts(input_models)
 
             duration = time.time() - start_time
 
@@ -93,6 +58,49 @@ class Phase7Controller(PhaseController):
                 config=self.config,
                 error=str(e),
             )
+
+    def _run_experts(self, input_models: Optional[List[Any]]) -> Any:
+        """Validate input, build the experts engine and run it.
+
+        Returns:
+            The engine's ExpertsResult.
+        """
+        from cross_phase.monitoring.wandb_integration import WandBIntegration
+        from phase7_experts import ExpertsConfig, ExpertsEngine
+
+        # Validate input
+        self.validate_input(input_models)
+        if not input_models:
+            raise ValueError("input_models cannot be None")
+        baked_model = input_models[0]
+
+        # Get tokenizer
+        tokenizer = self._get_tokenizer()
+
+        # Create experts config
+        config = ExpertsConfig(
+            min_experts=self.config.get("min_experts", 3) if self.config else 3,
+            max_experts=self.config.get("max_experts", 10) if self.config else 10,
+            svf_epochs=self.config.get("svf_epochs", 5) if self.config else 5,
+            adas_population=self.config.get("adas_population", 50) if self.config else 50,
+            adas_generations=self.config.get("adas_generations", 100) if self.config else 100,
+        )
+
+        # Run experts engine
+        wandb_integration = WandBIntegration(
+            project_name=(
+                self.config.get("wandb_project", "agent-forge-v2")
+                if self.config
+                else "agent-forge-v2"
+            ),
+            mode=(self.config.get("wandb_mode", "auto") if self.config else "auto"),
+        )
+        engine = ExpertsEngine(
+            config=config,
+            wandb_integration=wandb_integration,
+            session_id=self.session_id,
+        )
+        return engine.run(model=baked_model, tokenizer=tokenizer)
 
     def _get_tokenizer(self) -> Any:
         """Get tokenizer using unified utility (ISS-016)."""

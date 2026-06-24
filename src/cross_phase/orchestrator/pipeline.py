@@ -66,51 +66,8 @@ class PipelineOrchestrator:
         current_models = None
 
         for phase_num in range(1, 9):
+            result, duration = self._run_phase_iteration(phase_num, current_models)
             phase_name = f"phase{phase_num}"
-
-            print(f"\n{'='*60}")
-            print(f"Starting {phase_name.upper()}")
-            print(f"{'='*60}\n")
-
-            # Get phase controller
-            controller = self._get_phase_controller(phase_num)
-
-            # Validate input
-            if not controller.validate_input(current_models):
-                raise ValueError(f"{phase_name} input validation failed")
-
-            # Execute phase
-            start_time = time.time()
-            result = controller.execute(current_models)
-            duration = time.time() - start_time
-
-            # Validate output
-            if not controller.validate_output(result):
-                raise ValueError(f"{phase_name} output validation failed")
-
-            # Update progress
-            progress_percent = (phase_num / 8) * 100
-            self.registry.update_session_progress(self.session_id, phase_name, progress_percent)
-
-            # AGM-002: Register model in registry for rollback support
-            if result.model is not None:
-                model_path = result.artifacts.get(
-                    "model_path", f"./checkpoints/{phase_name}/model.safetensors"
-                )
-                try:
-                    self.registry.register_model(
-                        session_id=self.session_id,
-                        phase_name=phase_name,
-                        model_name=f"{phase_name}_output",
-                        model_path=str(model_path),
-                        metadata={
-                            "metrics": result.metrics,
-                            "duration": duration,
-                            "parameters": result.artifacts.get("parameters", 0),
-                        },
-                    )
-                except Exception as e:
-                    print(f"  Warning: Failed to register model in registry: {e}")
 
             # Store results
             results[phase_name] = {
@@ -119,20 +76,7 @@ class PipelineOrchestrator:
                 "metrics": result.metrics,
             }
 
-            # Log phase metrics to W&B
-            try:
-                self.wandb.init_phase_run(
-                    phase_name=phase_name,
-                    config=self.config.get("phases", {}).get(phase_name, {}),
-                    session_id=self.session_id,
-                )
-                if isinstance(result.metrics, dict):
-                    self.wandb.log_metrics(
-                        {f"{phase_name}/{k}": v for k, v in result.metrics.items()}
-                    )
-                self.wandb.finish()
-            except Exception:
-                pass
+            self._log_phase_to_wandb(phase_name, result)
 
             # Pass model(s) to next phase
             if isinstance(result.model, list):
@@ -154,6 +98,79 @@ class PipelineOrchestrator:
 
         return results
 
+    def _run_phase_iteration(self, phase_num: int, current_models) -> tuple:
+        """Run one full-pipeline phase: validate, execute, register, progress.
+
+        Returns:
+            (result, duration)
+        """
+        phase_name = f"phase{phase_num}"
+
+        print(f"\n{'='*60}")
+        print(f"Starting {phase_name.upper()}")
+        print(f"{'='*60}\n")
+
+        # Get phase controller
+        controller = self._get_phase_controller(phase_num)
+
+        # Validate input
+        if not controller.validate_input(current_models):
+            raise ValueError(f"{phase_name} input validation failed")
+
+        # Execute phase
+        start_time = time.time()
+        result = controller.execute(current_models)
+        duration = time.time() - start_time
+
+        # Validate output
+        if not controller.validate_output(result):
+            raise ValueError(f"{phase_name} output validation failed")
+
+        # Update progress
+        progress_percent = (phase_num / 8) * 100
+        self.registry.update_session_progress(self.session_id, phase_name, progress_percent)
+
+        # AGM-002: Register model in registry for rollback support
+        self._register_phase_model(phase_name, result, duration)
+
+        return result, duration
+
+    def _register_phase_model(self, phase_name: str, result: PhaseResult, duration: float) -> None:
+        """AGM-002: Register a phase's output model in the registry (if any)."""
+        if result.model is None:
+            return
+        model_path = result.artifacts.get(
+            "model_path", f"./checkpoints/{phase_name}/model.safetensors"
+        )
+        try:
+            self.registry.register_model(
+                session_id=self.session_id,
+                phase_name=phase_name,
+                model_name=f"{phase_name}_output",
+                model_path=str(model_path),
+                metadata={
+                    "metrics": result.metrics,
+                    "duration": duration,
+                    "parameters": result.artifacts.get("parameters", 0),
+                },
+            )
+        except Exception as e:
+            print(f"  Warning: Failed to register model in registry: {e}")
+
+    def _log_phase_to_wandb(self, phase_name: str, result: PhaseResult) -> None:
+        """Log a phase's metrics to W&B (best-effort, never raises)."""
+        try:
+            self.wandb.init_phase_run(
+                phase_name=phase_name,
+                config=self.config.get("phases", {}).get(phase_name, {}),
+                session_id=self.session_id,
+            )
+            if isinstance(result.metrics, dict):
+                self.wandb.log_metrics({f"{phase_name}/{k}": v for k, v in result.metrics.items()})
+            self.wandb.finish()
+        except Exception:
+            pass
+
     def run_single_phase(self, phase_num: int, input_models: list = None) -> PhaseResult:
         """
         Run a single phase (for testing or resuming)
@@ -174,38 +191,10 @@ class PipelineOrchestrator:
 
         # AGM-002: Register model in registry for rollback support
         phase_name = f"phase{phase_num}"
-        if result.model is not None:
-            model_path = result.artifacts.get(
-                "model_path", f"./checkpoints/{phase_name}/model.safetensors"
-            )
-            try:
-                self.registry.register_model(
-                    session_id=self.session_id,
-                    phase_name=phase_name,
-                    model_name=f"{phase_name}_output",
-                    model_path=str(model_path),
-                    metadata={
-                        "metrics": result.metrics,
-                        "duration": result.duration,
-                        "parameters": result.artifacts.get("parameters", 0),
-                    },
-                )
-            except Exception as e:
-                print(f"  Warning: Failed to register model in registry: {e}")
+        self._register_phase_model(phase_name, result, result.duration)
 
         # Log phase metrics to W&B
-        try:
-            phase_name = f"phase{phase_num}"
-            self.wandb.init_phase_run(
-                phase_name=phase_name,
-                config=self.config.get("phases", {}).get(phase_name, {}),
-                session_id=self.session_id,
-            )
-            if isinstance(result.metrics, dict):
-                self.wandb.log_metrics({f"{phase_name}/{k}": v for k, v in result.metrics.items()})
-            self.wandb.finish()
-        except Exception:
-            pass
+        self._log_phase_to_wandb(phase_name, result)
 
         if not controller.validate_output(result):
             raise ValueError(f"Phase {phase_num} output validation failed")

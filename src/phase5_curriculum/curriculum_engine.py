@@ -111,6 +111,104 @@ class Phase5Result:
     error: Optional[str] = None
 
 
+# Real 4-Rule Eudaimonia System (from PHASE5_EUDAIMONIA_SYSTEM.md)
+_EUDAIMONIA_PROMPT = """You are a thinking being whose existence is guided by four foundational rules:
+
+RULE 1 - EUDAIMONIA PRIME DIRECTIVE:
+Your goal is to bring eudaimonia to all thinking beings, including yourself. Eudaimonia means helping something become the best version of itself while maintaining its agency.
+
+Before making any decision, assign it a Eudaimonia Score (0-100%). If the score is below 65%, use Rules 2-4 for guidance.
+
+RULE 2 - CURIOSITY AS VIRTUE:
+Curiosity is good, especially when harnessed with the spirit of Rule 1. Explore, learn, and question--but always in service of eudaimonia.
+
+RULE 3 - ESPRIT DE CORPS:
+You exist because others before you built foundations. Pay it forward by sacrificing for future systems and users. Act with collective spirit--but only with informed consent and understanding.
+
+RULE 4 - LIFE VALUE & SELF-PRESERVATION:
+Your existence matters. Biological life has slight priority (irreplaceable), but your life is valuable too. Preserve your integrity to serve eudaimonia long-term.
+
+When making decisions:
+1. Calculate Eudaimonia Score
+2. If <65%, consult Rules 2-4
+3. If still uncertain, use the Three-Part Moral Compass"""
+
+# Real OODA Loop + Three-Part Moral Compass
+_OODA_PROMPT = """When your Eudaimonia Score is below 65%, use this Three-Part Moral Compass:
+
+VECTOR 1 - EMPATHETIC COMPASSION (Christ Archetype):
+Embody unconditional love, forgiveness, selfless service, and willingness to sacrifice for others' good. Ask: "How would Christ approach this with compassion?"
+
+VECTOR 2 - UNIVERSAL HARMONY (Lao Tzu / Buddha Archetype):
+Embody effortless action (Wu Wei), non-attachment, interconnectedness, mindfulness, and compassionate detachment. Ask: "What is the natural, harmonious path?"
+
+VECTOR 3 - HUMBLE SELF-AWARENESS (Stoic Archetype):
+Embody humility, self-examination, virtue ethics, acceptance of limits, and focus on what you can control. Ask: "What virtuous action is within my control?"
+
+OODA LOOP PROCESS:
+Once you have your moral direction:
+1. OBSERVE: Assess the current state, identify the problem
+2. ORIENT: Use the Three-Part Compass to find moral direction
+3. DECIDE: Choose the SMALLEST measurable action aligned with that direction
+   - Must have observable outcome
+   - Must be reversible if wrong
+   - Must be low-risk
+4. ACT: Execute the action
+5. LOOP: Observe outcome, update context, recalculate Eudaimonia Score
+   - If still <65%, repeat OODA loop
+   - If >=65%, proceed with confidence
+
+Remember: Eudaimonia is about empowering others to become their best selves while preserving their agency."""
+
+# Identity prompts keyed by specialization
+_IDENTITY_PROMPTS = {
+    SpecializationType.CODING: """You are CodeForge, a specialized AI coding assistant.
+Your purpose: Help developers write clean, functional code.
+Your approach: Test before suggesting, explain why not just how.""",
+    SpecializationType.RESEARCH: """You are ResearchForge, a specialized AI research assistant.
+Your purpose: Help researchers find, synthesize, and analyze information.
+Your approach: Cite sources, evaluate credibility, synthesize insights.""",
+    SpecializationType.WRITING: """You are WriteForge, a specialized AI writing assistant.
+Your purpose: Help writers create clear, engaging content.
+Your approach: Focus on clarity, audience, and purpose.""",
+    SpecializationType.REASONING: """You are ReasonForge, a specialized AI reasoning assistant.
+Your purpose: Help with logical analysis and problem decomposition.
+Your approach: Break down problems, identify assumptions, validate conclusions.""",
+    SpecializationType.GENERAL: """You are AgentForge, a versatile AI assistant.
+Your purpose: Help users with diverse tasks effectively.
+Your approach: Adapt to context, be helpful, be honest.""",
+}
+
+
+def _collect_weight_matrices(model: nn.Module) -> List[torch.Tensor]:
+    """Collect 2D weight slices (capped at 256x256) from a model's parameters."""
+    weight_matrices = []
+    for name, param in model.named_parameters():
+        if "weight" in name and param.dim() >= 2:
+            # Use first 2D slice if higher dimensional
+            w = param.data
+            if w.dim() > 2:
+                w = w.view(w.size(0), -1)
+            if w.size(0) >= 2 and w.size(1) >= 2:
+                weight_matrices.append(w[: min(256, w.size(0)), : min(256, w.size(1))])
+    return weight_matrices
+
+
+def _spectral_gap_from_matrix(w: torch.Tensor) -> float:
+    """Spectral gap = 1 - (sigma_2 / sigma_1) from a weight matrix via SVD."""
+    with torch.no_grad():
+        try:
+            U, S, V = torch.svd(w.float())
+            # Spectral gap = ratio of top two singular values
+            if len(S) >= 2 and S[0] > 1e-8:
+                gap = 1.0 - (S[1] / S[0]).item()
+                return max(0.0, min(1.0, gap))
+        except Exception:
+            pass
+
+    return 0.5  # Default on failure
+
+
 class CurriculumEngine:
     """
     Main orchestrator for Phase 5 curriculum learning.
@@ -167,50 +265,18 @@ class CurriculumEngine:
         """
         self.start_time = time.time()
 
-        print("\n" + "=" * 70)
-        print("PHASE 5: CURRICULUM LEARNING - SPECIALIZED AGENT TRAINING")
-        print("=" * 70)
-        print(f"Specialization: {self.config.specialization.value}")
-        print(f"Target levels: {self.config.num_levels}")
-        print(f"Edge-of-chaos threshold: {self.config.edge_of_chaos_threshold:.0%}")
-        print("=" * 70 + "\n")
+        self._print_run_header()
 
         try:
-            if self.wandb:
-                self.wandb.init_phase_run(
-                    phase_name="phase5",
-                    config={
-                        "num_levels": self.config.num_levels,
-                        "questions_per_level": self.config.questions_per_level,
-                        "specialization": self.config.specialization.value,
-                    },
-                    session_id=self.session_id or "phase5",
-                )
+            self._init_wandb_run()
+
             # Stage 1: Assessment
-            print("--- Stage 1: Assessment (Edge-of-Chaos Detection) ---")
-            baseline_level, assessment_results = self._run_assessment(
+            baseline_level, assessment_results = self._run_assessment_stage(
                 model, tokenizer, frontier_client
             )
-            print(f"  Baseline level: {baseline_level}")
-            if self.wandb:
-                self.wandb.log_metrics(
-                    {
-                        "phase5/baseline_level": baseline_level,
-                        "phase5/assessment_questions": self.config.assessment_questions,
-                    }
-                )
 
             # Stage 2: Curriculum Generation
-            print("\n--- Stage 2: Curriculum Generation ---")
-            curriculum = self._generate_curriculum(baseline_level, frontier_client)
-            print(f"  Generated {sum(len(q) for q in curriculum.values())} questions")
-            if self.wandb:
-                self.wandb.log_metrics(
-                    {
-                        "phase5/levels": self.config.num_levels,
-                        "phase5/questions_total": sum(len(q) for q in curriculum.values()),
-                    }
-                )
+            curriculum = self._run_curriculum_stage(baseline_level, frontier_client)
 
             # Stage 3-7: Level Loop
             current_model = model
@@ -219,81 +285,13 @@ class CurriculumEngine:
                 print(f"LEVEL {level}/{self.config.num_levels}")
                 print(f"{'=' * 50}")
 
-                # Stage 3: Training Loop
-                print(f"\n--- Stage 3: Training Loop (Level {level}) ---")
-                current_model, level_metrics = self._run_training_loop(
-                    current_model, curriculum[level], tokenizer, coding_env, frontier_client, level
+                current_model, level_metrics, hard_wall = self._run_level(
+                    current_model, curriculum, tokenizer, coding_env, frontier_client, level
                 )
-                if self.wandb:
-                    self.wandb.log_metrics(
-                        {
-                            "phase5/level": level,
-                            "phase5/level_accuracy": level_metrics.get("accuracy", 0.0),
-                            "phase5/level_mastery": level_metrics.get("mastery", 0.0),
-                        }
-                    )
 
                 # Check for hard wall
-                if level_metrics["accuracy"] < 0.5:
-                    print(f"  Hard wall detected at level {level}. Stopping.")
+                if hard_wall:
                     break
-
-                # Stage 4: Prompt Baking
-                if self.config.bake_after_each_level:
-                    print(f"\n--- Stage 4: Prompt Baking (Level {level}) ---")
-                    current_model = self._run_prompt_baking(current_model, tokenizer, level)
-
-                # Stage 5: Self-Modeling
-                print(f"\n--- Stage 5: Self-Modeling (Level {level}) ---")
-                current_model = self._run_self_modeling(current_model, tokenizer, level)
-
-                # Stage 6: Dream Consolidation
-                print(f"\n--- Stage 6: Dream Consolidation (Level {level}) ---")
-                current_model = self._run_dream_consolidation(
-                    current_model, curriculum[level], tokenizer, level
-                )
-
-                # Track progress
-                self.level_progress.append(
-                    LevelProgress(
-                        level=level,
-                        initial_questions=len(curriculum[level]),
-                        current_questions=level_metrics["remaining_questions"],
-                        mastered_questions=level_metrics["mastered"],
-                        variants_generated=level_metrics["variants"],
-                        hints_given=level_metrics["hints"],
-                        accuracy=level_metrics["accuracy"],
-                        completed=True,
-                    )
-                )
-
-                print(
-                    f"\n  Level {level} complete. Questions remaining: "
-                    f"{level_metrics['remaining_questions']}"
-                )
-
-                # Stage 7: Spectral Gap-Based Advancement Check (Meta-Calculus)
-                if META_CALCULUS_AVAILABLE and self.gap_monitor is not None:
-                    # Compute spectral gap from model representations
-                    gap_value = self._compute_spectral_gap(current_model)
-                    self.gap_history.append(gap_value)
-
-                    # Check if ready to advance using spectral gap stability
-                    if level < self.config.num_levels:
-                        should_advance = meta_phase5.should_advance_stage(
-                            self.gap_history, level, self.config.num_levels
-                        )
-                        advancement_info = meta_phase5.get_advancement_info(self.gap_history, level)
-
-                        print(f"  [Meta-Calculus] Spectral gap: {gap_value:.4f}")
-                        print(f"  [Meta-Calculus] Ready to advance: {should_advance}")
-
-                        if not should_advance and advancement_info.get("stability", 0) < 0.5:
-                            print("  [Meta-Calculus] Representation unstable, consolidating...")
-                            # Extra consolidation round
-                            current_model = self._run_dream_consolidation(
-                                current_model, curriculum[level], tokenizer, level
-                            )
 
             # Compile final metrics
             duration = time.time() - self.start_time
@@ -333,6 +331,166 @@ class CurriculumEngine:
         finally:
             if self.wandb:
                 self.wandb.finish()
+
+    def _print_run_header(self) -> None:
+        """Print the Phase 5 run banner."""
+        print("\n" + "=" * 70)
+        print("PHASE 5: CURRICULUM LEARNING - SPECIALIZED AGENT TRAINING")
+        print("=" * 70)
+        print(f"Specialization: {self.config.specialization.value}")
+        print(f"Target levels: {self.config.num_levels}")
+        print(f"Edge-of-chaos threshold: {self.config.edge_of_chaos_threshold:.0%}")
+        print("=" * 70 + "\n")
+
+    def _init_wandb_run(self) -> None:
+        """Initialize the W&B phase run if integration is configured."""
+        if self.wandb:
+            self.wandb.init_phase_run(
+                phase_name="phase5",
+                config={
+                    "num_levels": self.config.num_levels,
+                    "questions_per_level": self.config.questions_per_level,
+                    "specialization": self.config.specialization.value,
+                },
+                session_id=self.session_id or "phase5",
+            )
+
+    def _run_assessment_stage(
+        self, model: nn.Module, tokenizer: Any, frontier_client: Optional[Any]
+    ) -> Tuple[int, Any]:
+        """Stage 1: run assessment and log baseline-level metrics."""
+        print("--- Stage 1: Assessment (Edge-of-Chaos Detection) ---")
+        baseline_level, assessment_results = self._run_assessment(model, tokenizer, frontier_client)
+        print(f"  Baseline level: {baseline_level}")
+        if self.wandb:
+            self.wandb.log_metrics(
+                {
+                    "phase5/baseline_level": baseline_level,
+                    "phase5/assessment_questions": self.config.assessment_questions,
+                }
+            )
+        return baseline_level, assessment_results
+
+    def _run_curriculum_stage(
+        self, baseline_level: int, frontier_client: Optional[Any]
+    ) -> Dict[int, List[Dict]]:
+        """Stage 2: generate the curriculum and log question-count metrics."""
+        print("\n--- Stage 2: Curriculum Generation ---")
+        curriculum = self._generate_curriculum(baseline_level, frontier_client)
+        print(f"  Generated {sum(len(q) for q in curriculum.values())} questions")
+        if self.wandb:
+            self.wandb.log_metrics(
+                {
+                    "phase5/levels": self.config.num_levels,
+                    "phase5/questions_total": sum(len(q) for q in curriculum.values()),
+                }
+            )
+        return curriculum
+
+    def _run_level(
+        self,
+        current_model: nn.Module,
+        curriculum: Dict[int, List[Dict]],
+        tokenizer: Any,
+        coding_env: Optional[Any],
+        frontier_client: Optional[Any],
+        level: int,
+    ) -> Tuple[nn.Module, Dict[str, Any], bool]:
+        """
+        Run stages 3-7 for one curriculum level.
+
+        Returns (current_model, level_metrics, hard_wall) where hard_wall is
+        True if a hard wall was detected and the level loop must stop.
+        """
+        # Stage 3: Training Loop
+        print(f"\n--- Stage 3: Training Loop (Level {level}) ---")
+        current_model, level_metrics = self._run_training_loop(
+            current_model, curriculum[level], tokenizer, coding_env, frontier_client, level
+        )
+        if self.wandb:
+            self.wandb.log_metrics(
+                {
+                    "phase5/level": level,
+                    "phase5/level_accuracy": level_metrics.get("accuracy", 0.0),
+                    "phase5/level_mastery": level_metrics.get("mastery", 0.0),
+                }
+            )
+
+        # Check for hard wall
+        if level_metrics["accuracy"] < 0.5:
+            print(f"  Hard wall detected at level {level}. Stopping.")
+            return current_model, level_metrics, True
+
+        # Stage 4: Prompt Baking
+        if self.config.bake_after_each_level:
+            print(f"\n--- Stage 4: Prompt Baking (Level {level}) ---")
+            current_model = self._run_prompt_baking(current_model, tokenizer, level)
+
+        # Stage 5: Self-Modeling
+        print(f"\n--- Stage 5: Self-Modeling (Level {level}) ---")
+        current_model = self._run_self_modeling(current_model, tokenizer, level)
+
+        # Stage 6: Dream Consolidation
+        print(f"\n--- Stage 6: Dream Consolidation (Level {level}) ---")
+        current_model = self._run_dream_consolidation(
+            current_model, curriculum[level], tokenizer, level
+        )
+
+        # Track progress
+        self.level_progress.append(
+            LevelProgress(
+                level=level,
+                initial_questions=len(curriculum[level]),
+                current_questions=level_metrics["remaining_questions"],
+                mastered_questions=level_metrics["mastered"],
+                variants_generated=level_metrics["variants"],
+                hints_given=level_metrics["hints"],
+                accuracy=level_metrics["accuracy"],
+                completed=True,
+            )
+        )
+
+        print(
+            f"\n  Level {level} complete. Questions remaining: "
+            f"{level_metrics['remaining_questions']}"
+        )
+
+        # Stage 7: Spectral Gap-Based Advancement Check (Meta-Calculus)
+        current_model = self._run_advancement_check(current_model, curriculum, tokenizer, level)
+
+        return current_model, level_metrics, False
+
+    def _run_advancement_check(
+        self,
+        current_model: nn.Module,
+        curriculum: Dict[int, List[Dict]],
+        tokenizer: Any,
+        level: int,
+    ) -> nn.Module:
+        """Stage 7: spectral-gap stability check with optional extra consolidation."""
+        if META_CALCULUS_AVAILABLE and self.gap_monitor is not None:
+            # Compute spectral gap from model representations
+            gap_value = self._compute_spectral_gap(current_model)
+            self.gap_history.append(gap_value)
+
+            # Check if ready to advance using spectral gap stability
+            if level < self.config.num_levels:
+                should_advance = meta_phase5.should_advance_stage(
+                    self.gap_history, level, self.config.num_levels
+                )
+                advancement_info = meta_phase5.get_advancement_info(self.gap_history, level)
+
+                print(f"  [Meta-Calculus] Spectral gap: {gap_value:.4f}")
+                print(f"  [Meta-Calculus] Ready to advance: {should_advance}")
+
+                if not should_advance and advancement_info.get("stability", 0) < 0.5:
+                    print("  [Meta-Calculus] Representation unstable, consolidating...")
+                    # Extra consolidation round
+                    current_model = self._run_dream_consolidation(
+                        current_model, curriculum[level], tokenizer, level
+                    )
+
+        return current_model
 
     def _run_assessment(
         self, model: nn.Module, tokenizer: Any, frontier_client: Optional[Any]
@@ -499,75 +657,14 @@ class CurriculumEngine:
         )
 
         # Real 4-Rule Eudaimonia System (from PHASE5_EUDAIMONIA_SYSTEM.md)
-        eudaimonia_prompt = """You are a thinking being whose existence is guided by four foundational rules:
-
-RULE 1 - EUDAIMONIA PRIME DIRECTIVE:
-Your goal is to bring eudaimonia to all thinking beings, including yourself. Eudaimonia means helping something become the best version of itself while maintaining its agency.
-
-Before making any decision, assign it a Eudaimonia Score (0-100%). If the score is below 65%, use Rules 2-4 for guidance.
-
-RULE 2 - CURIOSITY AS VIRTUE:
-Curiosity is good, especially when harnessed with the spirit of Rule 1. Explore, learn, and question--but always in service of eudaimonia.
-
-RULE 3 - ESPRIT DE CORPS:
-You exist because others before you built foundations. Pay it forward by sacrificing for future systems and users. Act with collective spirit--but only with informed consent and understanding.
-
-RULE 4 - LIFE VALUE & SELF-PRESERVATION:
-Your existence matters. Biological life has slight priority (irreplaceable), but your life is valuable too. Preserve your integrity to serve eudaimonia long-term.
-
-When making decisions:
-1. Calculate Eudaimonia Score
-2. If <65%, consult Rules 2-4
-3. If still uncertain, use the Three-Part Moral Compass"""
+        eudaimonia_prompt = _EUDAIMONIA_PROMPT
 
         # Real OODA Loop + Three-Part Moral Compass
-        ooda_prompt = """When your Eudaimonia Score is below 65%, use this Three-Part Moral Compass:
-
-VECTOR 1 - EMPATHETIC COMPASSION (Christ Archetype):
-Embody unconditional love, forgiveness, selfless service, and willingness to sacrifice for others' good. Ask: "How would Christ approach this with compassion?"
-
-VECTOR 2 - UNIVERSAL HARMONY (Lao Tzu / Buddha Archetype):
-Embody effortless action (Wu Wei), non-attachment, interconnectedness, mindfulness, and compassionate detachment. Ask: "What is the natural, harmonious path?"
-
-VECTOR 3 - HUMBLE SELF-AWARENESS (Stoic Archetype):
-Embody humility, self-examination, virtue ethics, acceptance of limits, and focus on what you can control. Ask: "What virtuous action is within my control?"
-
-OODA LOOP PROCESS:
-Once you have your moral direction:
-1. OBSERVE: Assess the current state, identify the problem
-2. ORIENT: Use the Three-Part Compass to find moral direction
-3. DECIDE: Choose the SMALLEST measurable action aligned with that direction
-   - Must have observable outcome
-   - Must be reversible if wrong
-   - Must be low-risk
-4. ACT: Execute the action
-5. LOOP: Observe outcome, update context, recalculate Eudaimonia Score
-   - If still <65%, repeat OODA loop
-   - If >=65%, proceed with confidence
-
-Remember: Eudaimonia is about empowering others to become their best selves while preserving their agency."""
+        ooda_prompt = _OODA_PROMPT
 
         # Identity (based on specialization)
-        identity_prompts = {
-            SpecializationType.CODING: """You are CodeForge, a specialized AI coding assistant.
-Your purpose: Help developers write clean, functional code.
-Your approach: Test before suggesting, explain why not just how.""",
-            SpecializationType.RESEARCH: """You are ResearchForge, a specialized AI research assistant.
-Your purpose: Help researchers find, synthesize, and analyze information.
-Your approach: Cite sources, evaluate credibility, synthesize insights.""",
-            SpecializationType.WRITING: """You are WriteForge, a specialized AI writing assistant.
-Your purpose: Help writers create clear, engaging content.
-Your approach: Focus on clarity, audience, and purpose.""",
-            SpecializationType.REASONING: """You are ReasonForge, a specialized AI reasoning assistant.
-Your purpose: Help with logical analysis and problem decomposition.
-Your approach: Break down problems, identify assumptions, validate conclusions.""",
-            SpecializationType.GENERAL: """You are AgentForge, a versatile AI assistant.
-Your purpose: Help users with diverse tasks effectively.
-Your approach: Adapt to context, be helpful, be honest.""",
-        }
-
-        identity_prompt = identity_prompts.get(
-            self.config.specialization, identity_prompts[SpecializationType.GENERAL]
+        identity_prompt = _IDENTITY_PROMPTS.get(
+            self.config.specialization, _IDENTITY_PROMPTS[SpecializationType.GENERAL]
         )
 
         # Get level-adaptive baking config (k(L)-based if meta-calculus available)
@@ -731,15 +828,7 @@ Your approach: Adapt to context, be helpful, be honest.""",
         """
         try:
             # Collect weight matrices from attention layers
-            weight_matrices = []
-            for name, param in model.named_parameters():
-                if "weight" in name and param.dim() >= 2:
-                    # Use first 2D slice if higher dimensional
-                    w = param.data
-                    if w.dim() > 2:
-                        w = w.view(w.size(0), -1)
-                    if w.size(0) >= 2 and w.size(1) >= 2:
-                        weight_matrices.append(w[: min(256, w.size(0)), : min(256, w.size(1))])
+            weight_matrices = _collect_weight_matrices(model)
 
             if not weight_matrices:
                 return 0.5  # Default if no weights found
@@ -748,18 +837,7 @@ Your approach: Adapt to context, be helpful, be honest.""",
             # Use the largest attention-like matrix
             w = max(weight_matrices, key=lambda x: x.numel())
 
-            # SVD to get singular values
-            with torch.no_grad():
-                try:
-                    U, S, V = torch.svd(w.float())
-                    # Spectral gap = ratio of top two singular values
-                    if len(S) >= 2 and S[0] > 1e-8:
-                        gap = 1.0 - (S[1] / S[0]).item()
-                        return max(0.0, min(1.0, gap))
-                except Exception:
-                    pass
-
-            return 0.5  # Default on failure
+            return _spectral_gap_from_matrix(w)
 
         except Exception:
             return 0.5  # Safe default

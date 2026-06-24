@@ -145,16 +145,7 @@ class CMAESOptimizer:
 
         # Create objective function for Optuna
         def optuna_objective(trial: optuna.Trial) -> float:
-            # Suggest coefficients in [0, 1] range
-            coeffs = np.array(
-                [
-                    trial.suggest_float(f"coeff_{i}", self.config.bounds[0], self.config.bounds[1])
-                    for i in range(n_dimensions)
-                ]
-            )
-
-            # Normalize coefficients to sum to 1 (for proper merging)
-            coeffs = coeffs / (np.sum(coeffs) + 1e-8)
+            coeffs = self._suggest_coeffs(trial, n_dimensions)
 
             # Evaluate fitness
             try:
@@ -163,28 +154,8 @@ class CMAESOptimizer:
                 logger.warning(f"Fitness evaluation failed: {e}")
                 return float("-inf")
 
-            # Track best
-            if fitness > self.best_fitness:
-                self.best_fitness = fitness
-                self.best_params = coeffs.copy()
-                self.stagnation_count = 0
-                if verbose:
-                    logger.info(f"New best fitness: {fitness:.4f} " f"at coeffs: {coeffs.round(3)}")
-            else:
-                self.stagnation_count += 1
-
-            # Track history
-            self.fitness_history.append(fitness)
-            self.generation_count += 1
-
-            # Early stopping check
-            if self.config.target_fitness and fitness >= self.config.target_fitness:
-                logger.info(f"Target fitness {self.config.target_fitness} reached!")
-                study.stop()
-
-            if self.stagnation_count >= self.config.patience:
-                logger.info(f"Early stopping: No improvement for {self.config.patience} trials")
-                study.stop()
+            self._record_trial(fitness, coeffs, verbose)
+            self._maybe_stop(study, fitness)
 
             return fitness
 
@@ -196,6 +167,51 @@ class CMAESOptimizer:
             catch=(Exception,),
         )
 
+        self._finalize_best_params(study, n_dimensions, verbose)
+
+        return self.best_params, self.best_fitness
+
+    def _suggest_coeffs(self, trial: "optuna.Trial", n_dimensions: int) -> np.ndarray:
+        """Suggest coefficients in bounds and normalize them to sum to 1."""
+        coeffs = np.array(
+            [
+                trial.suggest_float(f"coeff_{i}", self.config.bounds[0], self.config.bounds[1])
+                for i in range(n_dimensions)
+            ]
+        )
+        # Normalize coefficients to sum to 1 (for proper merging)
+        return coeffs / (np.sum(coeffs) + 1e-8)
+
+    def _record_trial(self, fitness: float, coeffs: np.ndarray, verbose: bool) -> None:
+        """Update best params, stagnation counter, and history for one trial."""
+        # Track best
+        if fitness > self.best_fitness:
+            self.best_fitness = fitness
+            self.best_params = coeffs.copy()
+            self.stagnation_count = 0
+            if verbose:
+                logger.info(f"New best fitness: {fitness:.4f} " f"at coeffs: {coeffs.round(3)}")
+        else:
+            self.stagnation_count += 1
+
+        # Track history
+        self.fitness_history.append(fitness)
+        self.generation_count += 1
+
+    def _maybe_stop(self, study: "optuna.Study", fitness: float) -> None:
+        """Stop the study if target fitness reached or patience exhausted."""
+        if self.config.target_fitness and fitness >= self.config.target_fitness:
+            logger.info(f"Target fitness {self.config.target_fitness} reached!")
+            study.stop()
+
+        if self.stagnation_count >= self.config.patience:
+            logger.info(f"Early stopping: No improvement for {self.config.patience} trials")
+            study.stop()
+
+    def _finalize_best_params(
+        self, study: "optuna.Study", n_dimensions: int, verbose: bool
+    ) -> None:
+        """Fill best params from the study if none recorded, then log a summary."""
         # Extract best parameters
         if self.best_params is None:
             # Fallback: use best trial from study
@@ -211,8 +227,6 @@ class CMAESOptimizer:
             logger.info(f"  Best fitness: {self.best_fitness:.4f}")
             logger.info(f"  Best coefficients: {self.best_params.round(3)}")
             logger.info(f"  Total generations: {self.generation_count}")
-
-        return self.best_params, self.best_fitness
 
     def get_history(self) -> List[float]:
         """Return fitness history."""

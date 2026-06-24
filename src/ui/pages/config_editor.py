@@ -31,147 +31,165 @@ def render() -> None:
         ["W&B Settings", "Phase Configurations", "Hardware Settings", "Cleanup Policies"]
     )
 
-    # Tab 1: W&B Settings
     with tab1:
-        st.subheader("Weights & Biases Configuration")
+        _render_wandb_tab(config)
 
-        wandb_config = config.get("wandb", {})
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            wandb_enabled = st.checkbox(
-                "Enable W&B Tracking", value=wandb_config.get("enabled", True)
-            )
-
-            wandb_mode = st.selectbox(
-                "Mode",
-                ["offline", "online", "disabled"],
-                index=["offline", "online", "disabled"].index(wandb_config.get("mode", "offline")),
-            )
-
-        with col2:
-            wandb_project = st.text_input(
-                "Project Name", value=wandb_config.get("project", "agent-forge-v2")
-            )
-
-            wandb_entity = st.text_input("Entity (optional)", value=wandb_config.get("entity", ""))
-
-        # Update config
-        config["wandb"] = {
-            "enabled": wandb_enabled,
-            "mode": wandb_mode,
-            "project": wandb_project,
-            "entity": wandb_entity,
-        }
-
-    # Tab 2: Phase Configurations
     with tab2:
-        st.subheader("Phase-Specific Settings")
+        _render_phase_tab(config)
 
-        phase_selection = st.selectbox("Select Phase", [f"Phase {i}" for i in range(1, 9)])
-
-        phase_num = int(phase_selection.split(" ")[1])
-        phase_key = f"phase{phase_num}"
-
-        phases_config = config.get("phases", {})
-        phase_config = phases_config.get(phase_key, {})
-
-        if phase_num == 1:
-            _render_phase1_config(phase_config)
-        elif phase_num == 2:
-            _render_phase2_config(phase_config)
-        elif phase_num == 3:
-            _render_phase3_config(phase_config)
-        elif phase_num == 4:
-            _render_phase4_config(phase_config)
-        else:
-            st.info(f"Phase {phase_num} configuration coming soon...")
-
-    # Tab 3: Hardware Settings
     with tab3:
-        st.subheader("Hardware Configuration")
+        _render_hardware_tab(config)
 
-        hardware_config = config.get("hardware", {})
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.markdown("**GPU Settings**")
-            device_vram_gb = st.slider(
-                "Device VRAM (GB)",
-                min_value=4,
-                max_value=24,
-                value=int(hardware_config.get("device_vram_gb", 6)),
-                step=2,
-            )
-
-            max_batch_size = st.number_input(
-                "Max Batch Size",
-                min_value=1,
-                max_value=128,
-                value=int(hardware_config.get("max_batch_size", 32)),
-            )
-
-        with col2:
-            st.markdown("**System Settings**")
-            num_workers = st.slider(
-                "DataLoader Workers",
-                min_value=0,
-                max_value=16,
-                value=int(hardware_config.get("num_workers", 4)),
-            )
-
-            mixed_precision = st.checkbox(
-                "Enable Mixed Precision (FP16)", value=hardware_config.get("mixed_precision", True)
-            )
-
-        config["hardware"] = {
-            "device_vram_gb": device_vram_gb,
-            "max_batch_size": max_batch_size,
-            "num_workers": num_workers,
-            "mixed_precision": mixed_precision,
-        }
-
-    # Tab 4: Cleanup Policies
     with tab4:
-        st.subheader("Cleanup Policies")
+        _render_cleanup_tab(config)
 
-        cleanup_config = config.get("cleanup", {})
+    _render_save_section(config, config_path)
 
-        max_session_age_days = st.slider(
-            "Max Session Age (days)",
-            min_value=7,
-            max_value=90,
-            value=int(cleanup_config.get("max_session_age_days", 30)),
+
+def _render_wandb_tab(config: dict) -> None:
+    """Render the W&B settings tab"""
+    st.subheader("Weights & Biases Configuration")
+
+    wandb_config = config.get("wandb", {})
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        wandb_enabled = st.checkbox("Enable W&B Tracking", value=wandb_config.get("enabled", True))
+
+        wandb_mode = st.selectbox(
+            "Mode",
+            ["offline", "online", "disabled"],
+            index=["offline", "online", "disabled"].index(wandb_config.get("mode", "offline")),
         )
 
-        max_sessions_total = st.number_input(
-            "Max Total Sessions",
-            min_value=10,
-            max_value=500,
-            value=int(cleanup_config.get("max_sessions_total", 100)),
+    with col2:
+        wandb_project = st.text_input(
+            "Project Name", value=wandb_config.get("project", "agent-forge-v2")
         )
 
-        keep_last_n_checkpoints = st.slider(
-            "Keep Last N Checkpoints",
+        wandb_entity = st.text_input("Entity (optional)", value=wandb_config.get("entity", ""))
+
+    # Update config
+    config["wandb"] = {
+        "enabled": wandb_enabled,
+        "mode": wandb_mode,
+        "project": wandb_project,
+        "entity": wandb_entity,
+    }
+
+
+def _render_phase_tab(config: dict) -> None:
+    """Render the phase-specific settings tab"""
+    st.subheader("Phase-Specific Settings")
+
+    phase_selection = st.selectbox("Select Phase", [f"Phase {i}" for i in range(1, 9)])
+
+    phase_num = int(phase_selection.split(" ")[1])
+    phase_key = f"phase{phase_num}"
+
+    phases_config = config.get("phases", {})
+    phase_config = phases_config.get(phase_key, {})
+
+    if phase_num == 1:
+        _render_phase1_config(phase_config)
+    elif phase_num == 2:
+        _render_phase2_config(phase_config)
+    elif phase_num == 3:
+        _render_phase3_config(phase_config)
+    elif phase_num == 4:
+        _render_phase4_config(phase_config)
+    else:
+        st.info(f"Phase {phase_num} configuration coming soon...")
+
+
+def _render_hardware_tab(config: dict) -> None:
+    """Render the hardware settings tab"""
+    st.subheader("Hardware Configuration")
+
+    hardware_config = config.get("hardware", {})
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("**GPU Settings**")
+        device_vram_gb = st.slider(
+            "Device VRAM (GB)",
+            min_value=4,
+            max_value=24,
+            value=int(hardware_config.get("device_vram_gb", 6)),
+            step=2,
+        )
+
+        max_batch_size = st.number_input(
+            "Max Batch Size",
             min_value=1,
-            max_value=20,
-            value=int(cleanup_config.get("keep_last_n_checkpoints", 5)),
+            max_value=128,
+            value=int(hardware_config.get("max_batch_size", 32)),
         )
 
-        auto_cleanup_enabled = st.checkbox(
-            "Enable Auto-Cleanup", value=cleanup_config.get("auto_cleanup_enabled", True)
+    with col2:
+        st.markdown("**System Settings**")
+        num_workers = st.slider(
+            "DataLoader Workers",
+            min_value=0,
+            max_value=16,
+            value=int(hardware_config.get("num_workers", 4)),
         )
 
-        config["cleanup"] = {
-            "max_session_age_days": max_session_age_days,
-            "max_sessions_total": max_sessions_total,
-            "keep_last_n_checkpoints": keep_last_n_checkpoints,
-            "auto_cleanup_enabled": auto_cleanup_enabled,
-        }
+        mixed_precision = st.checkbox(
+            "Enable Mixed Precision (FP16)", value=hardware_config.get("mixed_precision", True)
+        )
 
-    # Save button
+    config["hardware"] = {
+        "device_vram_gb": device_vram_gb,
+        "max_batch_size": max_batch_size,
+        "num_workers": num_workers,
+        "mixed_precision": mixed_precision,
+    }
+
+
+def _render_cleanup_tab(config: dict) -> None:
+    """Render the cleanup policies tab"""
+    st.subheader("Cleanup Policies")
+
+    cleanup_config = config.get("cleanup", {})
+
+    max_session_age_days = st.slider(
+        "Max Session Age (days)",
+        min_value=7,
+        max_value=90,
+        value=int(cleanup_config.get("max_session_age_days", 30)),
+    )
+
+    max_sessions_total = st.number_input(
+        "Max Total Sessions",
+        min_value=10,
+        max_value=500,
+        value=int(cleanup_config.get("max_sessions_total", 100)),
+    )
+
+    keep_last_n_checkpoints = st.slider(
+        "Keep Last N Checkpoints",
+        min_value=1,
+        max_value=20,
+        value=int(cleanup_config.get("keep_last_n_checkpoints", 5)),
+    )
+
+    auto_cleanup_enabled = st.checkbox(
+        "Enable Auto-Cleanup", value=cleanup_config.get("auto_cleanup_enabled", True)
+    )
+
+    config["cleanup"] = {
+        "max_session_age_days": max_session_age_days,
+        "max_sessions_total": max_sessions_total,
+        "keep_last_n_checkpoints": keep_last_n_checkpoints,
+        "auto_cleanup_enabled": auto_cleanup_enabled,
+    }
+
+
+def _render_save_section(config: dict, config_path: Path) -> None:
+    """Render the save / reset controls and YAML preview"""
     st.markdown("---")
 
     col1, col2, col3 = st.columns([1, 1, 4])

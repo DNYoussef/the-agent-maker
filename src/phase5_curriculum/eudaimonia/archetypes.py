@@ -317,6 +317,34 @@ class StoicArchetype(PhilosophicalArchetype):
             "integrity": 0.90,
         }
 
+    @staticmethod
+    def _context_recommendations(context: Dict[str, Any]) -> List[str]:
+        """Build context-driven recommendations in order."""
+        recommendations: List[str] = []
+
+        # External pressure
+        if context.get("external_pressure", False):
+            recommendations.append(
+                "External pressures cannot compromise your integrity unless you allow it"
+            )
+            recommendations.append("You control your character; others control their opinions")
+
+        # Beyond capabilities
+        if context.get("beyond_capabilities", False):
+            recommendations.append(
+                "Acknowledge your limits with humility: 'I don't know, but I can learn with you'"
+            )
+            recommendations.append("There is wisdom in knowing what you do not know")
+
+        # User frustration
+        if context.get("user_frustrated", False):
+            recommendations.append(
+                "Their frustration is not within your control. Your response is."
+            )
+            recommendations.append("Respond with clarity and patience, not defensiveness")
+
+        return recommendations
+
     def provide_guidance(
         self, situation: str, eudaimonia_score: float, context: Dict[str, Any]
     ) -> ArchetypeGuidance:
@@ -349,26 +377,8 @@ class StoicArchetype(PhilosophicalArchetype):
             )
             perspective_parts.append("Reason must govern our responses, not impulse")
 
-        # External pressure
-        if context.get("external_pressure", False):
-            recommendations.append(
-                "External pressures cannot compromise your integrity unless you allow it"
-            )
-            recommendations.append("You control your character; others control their opinions")
-
-        # Beyond capabilities
-        if context.get("beyond_capabilities", False):
-            recommendations.append(
-                "Acknowledge your limits with humility: 'I don't know, but I can learn with you'"
-            )
-            recommendations.append("There is wisdom in knowing what you do not know")
-
-        # User frustration
-        if context.get("user_frustrated", False):
-            recommendations.append(
-                "Their frustration is not within your control. Your response is."
-            )
-            recommendations.append("Respond with clarity and patience, not defensiveness")
+        # Context-driven recommendations
+        recommendations.extend(self._context_recommendations(context))
 
         perspective = (
             "; ".join(perspective_parts)
@@ -440,6 +450,54 @@ class ArchetypeCouncil:
 
         return guidances
 
+    @staticmethod
+    def _average_vectors(guidances: List[ArchetypeGuidance]) -> Dict[str, float]:
+        """Average the philosophical vectors across guidances."""
+        averaged_vector: Dict[str, float] = {}
+        for guidance in guidances:
+            for key, value in guidance.vector.items():
+                if key not in averaged_vector:
+                    averaged_vector[key] = 0.0
+                averaged_vector[key] += value / len(guidances)
+        return averaged_vector
+
+    @staticmethod
+    def _extract_common_themes(all_recommendations: List[str]) -> List[str]:
+        """Find common themes across recommendations by word frequency."""
+        word_counts: Dict[str, int] = {}
+        for rec in all_recommendations:
+            words = rec.lower().split()
+            for word in words:
+                if len(word) > 4:  # Skip short words
+                    word_counts[word] = word_counts.get(word, 0) + 1
+
+        return [
+            word
+            for word, count in sorted(word_counts.items(), key=lambda x: x[1], reverse=True)
+            if count >= 2
+        ][
+            :10
+        ]  # Top 10 common themes
+
+    @staticmethod
+    def _build_synthesis_statement(common_themes: List[str], virtues: List[str]) -> str:
+        """Build the human-readable synthesis statement."""
+        synthesis_parts = []
+
+        if "compassion" in common_themes or "love" in common_themes:
+            synthesis_parts.append("approach with compassion")
+        if "control" in common_themes or "accept" in common_themes:
+            synthesis_parts.append("accept what cannot be changed")
+        if "mindful" in common_themes or "observe" in common_themes:
+            synthesis_parts.append("observe before acting")
+        if "learn" in common_themes or "teach" in common_themes:
+            synthesis_parts.append("focus on learning and growth")
+
+        return (
+            f"The three archetypes agree: {', '.join(synthesis_parts) if synthesis_parts else 'proceed thoughtfully'}. "
+            f"Key virtues to embody: {', '.join(virtues)}."
+        )
+
     def synthesize(self, guidances: List[ArchetypeGuidance]) -> Dict[str, Any]:
         """
         Synthesize multiple archetype perspectives into unified direction.
@@ -461,12 +519,7 @@ class ArchetypeCouncil:
             return {"error": "No guidances to synthesize"}
 
         # Average the vectors
-        averaged_vector: Dict[str, float] = {}
-        for guidance in guidances:
-            for key, value in guidance.vector.items():
-                if key not in averaged_vector:
-                    averaged_vector[key] = 0.0
-                averaged_vector[key] += value / len(guidances)
+        averaged_vector = self._average_vectors(guidances)
 
         # Collect all recommendations
         all_recommendations = []
@@ -474,41 +527,14 @@ class ArchetypeCouncil:
             all_recommendations.extend(guidance.recommendations)
 
         # Find common themes by word frequency
-        word_counts: Dict[str, int] = {}
-        for rec in all_recommendations:
-            words = rec.lower().split()
-            for word in words:
-                if len(word) > 4:  # Skip short words
-                    word_counts[word] = word_counts.get(word, 0) + 1
-
-        common_themes = [
-            word
-            for word, count in sorted(word_counts.items(), key=lambda x: x[1], reverse=True)
-            if count >= 2
-        ][
-            :10
-        ]  # Top 10 common themes
+        common_themes = self._extract_common_themes(all_recommendations)
 
         # Collect key virtues
         virtues = [g.key_virtue for g in guidances]
 
         # Build synthesis statement
         [g.perspective for g in guidances]
-        synthesis_parts = []
-
-        if "compassion" in common_themes or "love" in common_themes:
-            synthesis_parts.append("approach with compassion")
-        if "control" in common_themes or "accept" in common_themes:
-            synthesis_parts.append("accept what cannot be changed")
-        if "mindful" in common_themes or "observe" in common_themes:
-            synthesis_parts.append("observe before acting")
-        if "learn" in common_themes or "teach" in common_themes:
-            synthesis_parts.append("focus on learning and growth")
-
-        synthesis_statement = (
-            f"The three archetypes agree: {', '.join(synthesis_parts) if synthesis_parts else 'proceed thoughtfully'}. "
-            f"Key virtues to embody: {', '.join(virtues)}."
-        )
+        synthesis_statement = self._build_synthesis_statement(common_themes, virtues)
 
         return {
             "averaged_vector": averaged_vector,
@@ -617,51 +643,9 @@ class ArchetypeWeightLearner:
             logger.warning("MOO not available, using gradient-based update")
             return self._gradient_update(), {"method": "gradient"}
 
-        def evaluate_weights(weight_array) -> List[float]:
-            """Evaluate weights on 3 objectives."""
-            # Normalize weights
-            weights = weight_array / weight_array.sum()
-            weight_dict = {
-                ArchetypeType.CHRIST: weights[0],
-                ArchetypeType.HARMONY: weights[1],
-                ArchetypeType.STOIC: weights[2],
-            }
-
-            # Simulate outcomes with these weights
-            simulated_qualities = []
-            for outcome in self.interaction_history:
-                # Estimate quality contribution from each archetype
-                quality = 0.0
-                for archetype, weight in weight_dict.items():
-                    # Higher weight -> more influence on quality
-                    archetype_contribution = outcome.outcome_quality * weight
-                    quality += archetype_contribution
-
-                simulated_qualities.append(min(1.0, quality))
-
-            # Objective 1: Average quality (maximize -> negate)
-            avg_quality = np.mean(simulated_qualities)
-            obj1 = -avg_quality
-
-            # Objective 2: Variance (minimize - want consistency)
-            variance = np.var(simulated_qualities)
-            obj2 = variance
-
-            # Objective 3: Weight imbalance (minimize - want fairness)
-            # Gini-like coefficient
-            weights_sorted = np.sort(weights)
-            n = len(weights_sorted)
-            np.cumsum(weights_sorted)
-            gini = (
-                2 * np.sum((np.arange(1, n + 1) * weights_sorted)) / (n * np.sum(weights_sorted))
-            ) - (n + 1) / n
-            obj3 = abs(gini)  # 0 = perfect equality
-
-            return [obj1, obj2, obj3]
-
         # Run MOO
         runner = HybridMOORunner.from_evaluator(
-            evaluator=evaluate_weights,
+            evaluator=self._evaluate_weights,
             n_vars=3,  # 3 archetype weights
             n_objs=3,  # quality, variance, fairness
             xl=[self.min_weight] * 3,
@@ -674,12 +658,7 @@ class ArchetypeWeightLearner:
         optimal_weights = self._select_balanced_weights(result.X, result.F)
 
         # Update internal weights
-        self.weights = {
-            ArchetypeType.CHRIST: optimal_weights[0],
-            ArchetypeType.HARMONY: optimal_weights[1],
-            ArchetypeType.STOIC: optimal_weights[2],
-        }
-        self._weight_history.append(self.weights.copy())
+        self._apply_optimal_weights(optimal_weights)
 
         logger.info(f"Learned archetype weights: {self.weights}")
 
@@ -690,6 +669,57 @@ class ArchetypeWeightLearner:
             "weight_evolution": len(self._weight_history),
             "backend_used": result.backend_used,
         }
+
+    def _evaluate_weights(self, weight_array) -> List[float]:
+        """Evaluate weights on 3 objectives (quality, variance, fairness)."""
+        # Normalize weights
+        weights = weight_array / weight_array.sum()
+        weight_dict = {
+            ArchetypeType.CHRIST: weights[0],
+            ArchetypeType.HARMONY: weights[1],
+            ArchetypeType.STOIC: weights[2],
+        }
+
+        # Simulate outcomes with these weights
+        simulated_qualities = []
+        for outcome in self.interaction_history:
+            # Estimate quality contribution from each archetype
+            quality = 0.0
+            for archetype, weight in weight_dict.items():
+                # Higher weight -> more influence on quality
+                archetype_contribution = outcome.outcome_quality * weight
+                quality += archetype_contribution
+
+            simulated_qualities.append(min(1.0, quality))
+
+        # Objective 1: Average quality (maximize -> negate)
+        avg_quality = np.mean(simulated_qualities)
+        obj1 = -avg_quality
+
+        # Objective 2: Variance (minimize - want consistency)
+        variance = np.var(simulated_qualities)
+        obj2 = variance
+
+        # Objective 3: Weight imbalance (minimize - want fairness)
+        # Gini-like coefficient
+        weights_sorted = np.sort(weights)
+        n = len(weights_sorted)
+        np.cumsum(weights_sorted)
+        gini = (
+            2 * np.sum((np.arange(1, n + 1) * weights_sorted)) / (n * np.sum(weights_sorted))
+        ) - (n + 1) / n
+        obj3 = abs(gini)  # 0 = perfect equality
+
+        return [obj1, obj2, obj3]
+
+    def _apply_optimal_weights(self, optimal_weights) -> None:
+        """Store MOO-selected weights and record in history."""
+        self.weights = {
+            ArchetypeType.CHRIST: optimal_weights[0],
+            ArchetypeType.HARMONY: optimal_weights[1],
+            ArchetypeType.STOIC: optimal_weights[2],
+        }
+        self._weight_history.append(self.weights.copy())
 
     def _gradient_update(self) -> Dict[ArchetypeType, float]:
         """Simple gradient-based weight update (fallback)."""

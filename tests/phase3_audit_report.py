@@ -67,7 +67,7 @@ class AuditReport:
     def add_fix(self, fix_description):
         self.results["fixes"].append(fix_description)
 
-    def print_report(self):
+    def print_report(self):  # noqa: C901
         """Print formatted audit report."""
         print("\n" + "=" * 80)
         print("PHASE 3 QUIET-STAR FUNCTIONALITY AUDIT REPORT")
@@ -263,7 +263,7 @@ def test_instantiation(report):
     assert not failures, f"instantiation failures: {failures}; bugs={report.results['bugs']}"
 
 
-def test_methods(report):
+def test_methods(report):  # noqa: C901
     """Test key methods."""
     print("\nTesting methods...")
 

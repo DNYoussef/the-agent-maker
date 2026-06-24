@@ -122,127 +122,28 @@ class CompressionEngine:
         try:
             # Stage 1: SeedLM
             if self.config.seedlm_enabled:
-                print("\n--- Stage 1: SeedLM ---")
-                from .seedlm import SeedLMCompressor, SeedLMConfig
-
-                seedlm_config = SeedLMConfig(
-                    seed_bits=self.config.seed_bits, block_size=self.config.seed_block_size
+                current_model, rollback_model, rollback_stage = self._stage_seedlm(
+                    current_model, rollback_model, rollback_stage, stage_results, tokenizer
                 )
-                compressor = SeedLMCompressor(config=seedlm_config)
-                current_model, result = compressor.compress(current_model, tokenizer=tokenizer)
-
-                stage_results["seedlm"] = {
-                    "compression_ratio": result.compression_ratio,
-                    "retention": result.retention_score,
-                    "size_mb": result.compressed_size_mb,
-                }
-
-                # Quality gate
-                if result.retention_score < self.config.min_retention_seedlm:
-                    print(
-                        f"  WARNING: SeedLM retention {result.retention_score:.2%} below threshold"
-                    )
-                    rollback_stage = "seedlm"
-                else:
-                    rollback_model = current_model
-
-                self.metrics["seedlm"] = stage_results["seedlm"]
 
             # Stage 2: VPTQ
             if self.config.vptq_enabled and rollback_stage is None:
-                print("\n--- Stage 2: VPTQ ---")
-                from .vptq import VPTQCompressor, VPTQConfig
-
-                vptq_config = VPTQConfig(
-                    codebook_size=self.config.codebook_size, vector_dim=self.config.vector_dim
+                current_model, rollback_model, rollback_stage = self._stage_vptq(
+                    current_model, rollback_model, rollback_stage, stage_results, tokenizer
                 )
-                compressor = VPTQCompressor(config=vptq_config)
-                current_model, result = compressor.compress(current_model, tokenizer=tokenizer)
-
-                stage_results["vptq"] = {
-                    "compression_ratio": result.compression_ratio,
-                    "retention": result.retention_score,
-                    "size_mb": result.compressed_size_mb,
-                }
-
-                # Quality gate
-                if result.retention_score < self.config.min_retention_vptq:
-                    print(f"  WARNING: VPTQ retention {result.retention_score:.2%} below threshold")
-                    current_model = rollback_model
-                    rollback_stage = "vptq"
-                else:
-                    rollback_model = current_model
-
-                self.metrics["vptq"] = stage_results["vptq"]
 
             # Stage 3: Hypercompression
             if self.config.hyper_enabled and rollback_stage is None:
-                print("\n--- Stage 3: Hypercompression ---")
-                from .hypercompression import HyperCompressor, HyperConfig
+                current_model = self._stage_hyper(current_model, stage_results, tokenizer)
 
-                hyper_config = HyperConfig(
-                    num_params=self.config.num_curve_params, curve_type=self.config.curve_type
-                )
-                compressor = HyperCompressor(config=hyper_config)
-                current_model, result = compressor.compress(current_model, tokenizer=tokenizer)
-
-                stage_results["hyper"] = {
-                    "compression_ratio": result.compression_ratio,
-                    "retention": result.retention_score,
-                    "size_mb": result.compressed_size_mb,
-                }
-
-                self.metrics["hyper"] = stage_results["hyper"]
-
-            # Calculate final metrics
-            final_size = self._get_model_size(current_model)
-            total_compression = original_size / max(final_size, 0.01)
-
-            # Calculate cumulative retention
-            cumulative_retention = 1.0
-            for stage, stats in stage_results.items():
-                cumulative_retention *= stats.get("retention", 1.0)
-
-            # Final quality gate
-            if cumulative_retention < self.config.min_retention_final:
-                print(
-                    f"\n  WARNING: Final retention {cumulative_retention:.2%} below {self.config.min_retention_final:.2%}"
-                )
-                # Rollback to VPTQ if available
-                if "vptq" in stage_results:
-                    print("  Rolling back to VPTQ stage")
-                    rollback_stage = "hyper"
-
-            # Run benchmarks
-            benchmark_results = {}
-            if self.config.run_benchmarks:
-                print("\n--- Benchmark Testing ---")
-                benchmark_results = self._run_benchmarks(current_model, tokenizer, benchmark_data)
-                self.metrics["benchmarks"] = benchmark_results
-
-            duration = time.time() - start_time
-
-            print("\nPhase 8 Complete:")
-            print(f"  Original size: {original_size:.2f} MB")
-            print(f"  Final size: {final_size:.2f} MB")
-            print(f"  Total compression: {total_compression:.1f}x")
-            print(f"  Cumulative retention: {cumulative_retention:.2%}")
-            print(f"  Total time: {duration:.1f}s")
-
-            if rollback_stage:
-                print(f"  Note: Rolled back from {rollback_stage}")
-
-            return Phase8Result(
-                success=True,
-                model=current_model,
-                original_size_mb=original_size,
-                final_size_mb=final_size,
-                total_compression=total_compression,
-                retention_score=cumulative_retention,
-                stage_results=stage_results,
-                benchmark_results=benchmark_results,
-                duration=duration,
-                rollback_stage=rollback_stage,
+            return self._finalize(
+                current_model,
+                original_size,
+                stage_results,
+                rollback_stage,
+                tokenizer,
+                benchmark_data,
+                start_time,
             )
 
         except Exception as e:
@@ -259,6 +160,145 @@ class CompressionEngine:
                 duration=duration,
                 error=str(e),
             )
+
+    def _stage_seedlm(
+        self, current_model, rollback_model, rollback_stage, stage_results, tokenizer
+    ):
+        """Stage 1: SeedLM seed-based projection with quality gate."""
+        print("\n--- Stage 1: SeedLM ---")
+        from .seedlm import SeedLMCompressor, SeedLMConfig
+
+        seedlm_config = SeedLMConfig(
+            seed_bits=self.config.seed_bits, block_size=self.config.seed_block_size
+        )
+        compressor = SeedLMCompressor(config=seedlm_config)
+        current_model, result = compressor.compress(current_model, tokenizer=tokenizer)
+
+        stage_results["seedlm"] = {
+            "compression_ratio": result.compression_ratio,
+            "retention": result.retention_score,
+            "size_mb": result.compressed_size_mb,
+        }
+
+        # Quality gate
+        if result.retention_score < self.config.min_retention_seedlm:
+            print(f"  WARNING: SeedLM retention {result.retention_score:.2%} below threshold")
+            rollback_stage = "seedlm"
+        else:
+            rollback_model = current_model
+
+        self.metrics["seedlm"] = stage_results["seedlm"]
+        return current_model, rollback_model, rollback_stage
+
+    def _stage_vptq(self, current_model, rollback_model, rollback_stage, stage_results, tokenizer):
+        """Stage 2: VPTQ vector quantization with quality gate."""
+        print("\n--- Stage 2: VPTQ ---")
+        from .vptq import VPTQCompressor, VPTQConfig
+
+        vptq_config = VPTQConfig(
+            codebook_size=self.config.codebook_size, vector_dim=self.config.vector_dim
+        )
+        compressor = VPTQCompressor(config=vptq_config)
+        current_model, result = compressor.compress(current_model, tokenizer=tokenizer)
+
+        stage_results["vptq"] = {
+            "compression_ratio": result.compression_ratio,
+            "retention": result.retention_score,
+            "size_mb": result.compressed_size_mb,
+        }
+
+        # Quality gate
+        if result.retention_score < self.config.min_retention_vptq:
+            print(f"  WARNING: VPTQ retention {result.retention_score:.2%} below threshold")
+            current_model = rollback_model
+            rollback_stage = "vptq"
+        else:
+            rollback_model = current_model
+
+        self.metrics["vptq"] = stage_results["vptq"]
+        return current_model, rollback_model, rollback_stage
+
+    def _stage_hyper(self, current_model, stage_results, tokenizer):
+        """Stage 3: Hypercompression parametric curve fitting."""
+        print("\n--- Stage 3: Hypercompression ---")
+        from .hypercompression import HyperCompressor, HyperConfig
+
+        hyper_config = HyperConfig(
+            num_params=self.config.num_curve_params, curve_type=self.config.curve_type
+        )
+        compressor = HyperCompressor(config=hyper_config)
+        current_model, result = compressor.compress(current_model, tokenizer=tokenizer)
+
+        stage_results["hyper"] = {
+            "compression_ratio": result.compression_ratio,
+            "retention": result.retention_score,
+            "size_mb": result.compressed_size_mb,
+        }
+
+        self.metrics["hyper"] = stage_results["hyper"]
+        return current_model
+
+    def _finalize(
+        self,
+        current_model,
+        original_size,
+        stage_results,
+        rollback_stage,
+        tokenizer,
+        benchmark_data,
+        start_time,
+    ) -> Phase8Result:
+        """Compute final metrics, run benchmarks, and build the success result."""
+        # Calculate final metrics
+        final_size = self._get_model_size(current_model)
+        total_compression = original_size / max(final_size, 0.01)
+
+        # Calculate cumulative retention
+        cumulative_retention = 1.0
+        for stage, stats in stage_results.items():
+            cumulative_retention *= stats.get("retention", 1.0)
+
+        # Final quality gate
+        if cumulative_retention < self.config.min_retention_final:
+            print(
+                f"\n  WARNING: Final retention {cumulative_retention:.2%} below {self.config.min_retention_final:.2%}"
+            )
+            # Rollback to VPTQ if available
+            if "vptq" in stage_results:
+                print("  Rolling back to VPTQ stage")
+                rollback_stage = "hyper"
+
+        # Run benchmarks
+        benchmark_results = {}
+        if self.config.run_benchmarks:
+            print("\n--- Benchmark Testing ---")
+            benchmark_results = self._run_benchmarks(current_model, tokenizer, benchmark_data)
+            self.metrics["benchmarks"] = benchmark_results
+
+        duration = time.time() - start_time
+
+        print("\nPhase 8 Complete:")
+        print(f"  Original size: {original_size:.2f} MB")
+        print(f"  Final size: {final_size:.2f} MB")
+        print(f"  Total compression: {total_compression:.1f}x")
+        print(f"  Cumulative retention: {cumulative_retention:.2%}")
+        print(f"  Total time: {duration:.1f}s")
+
+        if rollback_stage:
+            print(f"  Note: Rolled back from {rollback_stage}")
+
+        return Phase8Result(
+            success=True,
+            model=current_model,
+            original_size_mb=original_size,
+            final_size_mb=final_size,
+            total_compression=total_compression,
+            retention_score=cumulative_retention,
+            stage_results=stage_results,
+            benchmark_results=benchmark_results,
+            duration=duration,
+            rollback_stage=rollback_stage,
+        )
 
     def _get_model_size(self, model: nn.Module) -> float:
         """Calculate model size in MB."""
@@ -292,75 +332,85 @@ class CompressionEngine:
             ]
 
         latencies = []
-        total_loss = 0.0
-        loss_count = 0
-        correct_predictions = 0
-        total_predictions = 0
+        accumulator = {
+            "total_loss": 0.0,
+            "loss_count": 0,
+            "correct_predictions": 0,
+            "total_predictions": 0,
+        }
 
         with torch.no_grad():
             for i, prompt in enumerate(benchmark_data[: self.config.benchmark_samples]):
                 try:
-                    start = time.time()
-
-                    if hasattr(tokenizer, "__call__"):
-                        inputs = tokenizer(
-                            prompt,
-                            return_tensors="pt",
-                            max_length=128,
-                            truncation=True,
-                            padding=True,
-                        )
-                    else:
-                        inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
-
-                    inputs = {
-                        k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)
-                    }
-
-                    outputs = model(**inputs)
-
-                    latency = (time.time() - start) * 1000
-                    latencies.append(latency)
-
-                    # AGM-006: Compute actual metrics from model outputs
-                    # Perplexity from loss (if available)
-                    if hasattr(outputs, "loss") and outputs.loss is not None:
-                        total_loss += outputs.loss.item()
-                        loss_count += 1
-
-                    # Accuracy from logits vs labels (next-token prediction)
-                    if hasattr(outputs, "logits") and "input_ids" in inputs:
-                        logits = outputs.logits[:, :-1, :]  # Shift for next-token
-                        labels = inputs["input_ids"][:, 1:]  # Shift labels
-                        predictions = logits.argmax(dim=-1)
-                        correct_predictions += (predictions == labels).sum().item()
-                        total_predictions += labels.numel()
-
+                    self._benchmark_prompt(model, tokenizer, device, prompt, latencies, accumulator)
                 except Exception:
                     continue
 
+        self._finalize_benchmark_results(results, latencies, accumulator)
+
+        print(f"    Average latency: {results['latency_ms']:.1f}ms")
+        print(f"    Samples tested: {len(latencies)}")
+
+        return results
+
+    def _benchmark_prompt(self, model, tokenizer, device, prompt, latencies, accumulator):
+        """Run one benchmark prompt and accumulate latency/loss/accuracy stats."""
+        start = time.time()
+
+        if hasattr(tokenizer, "__call__"):
+            inputs = tokenizer(
+                prompt,
+                return_tensors="pt",
+                max_length=128,
+                truncation=True,
+                padding=True,
+            )
+        else:
+            inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
+
+        inputs = {k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)}
+
+        outputs = model(**inputs)
+
+        latency = (time.time() - start) * 1000
+        latencies.append(latency)
+
+        # AGM-006: Compute actual metrics from model outputs
+        # Perplexity from loss (if available)
+        if hasattr(outputs, "loss") and outputs.loss is not None:
+            accumulator["total_loss"] += outputs.loss.item()
+            accumulator["loss_count"] += 1
+
+        # Accuracy from logits vs labels (next-token prediction)
+        if hasattr(outputs, "logits") and "input_ids" in inputs:
+            logits = outputs.logits[:, :-1, :]  # Shift for next-token
+            labels = inputs["input_ids"][:, 1:]  # Shift labels
+            predictions = logits.argmax(dim=-1)
+            accumulator["correct_predictions"] += (predictions == labels).sum().item()
+            accumulator["total_predictions"] += labels.numel()
+
+    @staticmethod
+    def _finalize_benchmark_results(results, latencies, accumulator):
+        """Reduce accumulated benchmark stats into latency/perplexity/accuracy."""
         if latencies:
             results["latency_ms"] = sum(latencies) / len(latencies)
 
             # AGM-006: Compute actual perplexity from accumulated loss
-            if loss_count > 0:
-                avg_loss = total_loss / loss_count
+            if accumulator["loss_count"] > 0:
+                avg_loss = accumulator["total_loss"] / accumulator["loss_count"]
                 results["perplexity"] = min(float(torch.exp(torch.tensor(avg_loss)).item()), 1000.0)
             else:
                 # Fallback: estimate from latency variance as proxy for model uncertainty
                 results["perplexity"] = 50.0  # Conservative estimate when loss unavailable
 
             # AGM-006: Compute actual accuracy from predictions
-            if total_predictions > 0:
-                results["accuracy"] = correct_predictions / total_predictions
+            if accumulator["total_predictions"] > 0:
+                results["accuracy"] = (
+                    accumulator["correct_predictions"] / accumulator["total_predictions"]
+                )
             else:
                 # Fallback: model ran but no predictions to compare
                 results["accuracy"] = 0.0  # Unknown accuracy when no predictions
-
-        print(f"    Average latency: {results['latency_ms']:.1f}ms")
-        print(f"    Samples tested: {len(latencies)}")
-
-        return results
 
 
 __all__ = ["CompressionEngine", "CompressionConfig", "Phase8Result"]

@@ -3,7 +3,7 @@
 Interactive 3D scatter plot for comparing models across 8 phases
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -36,173 +36,254 @@ GRID_COLOR = "#1B263B"
 TEXT_COLOR = "#E0E1DD"
 
 
-def create_model_comparison_3d(
+def _build_phase_hover_text(
+    phase_data: pd.DataFrame,
+    phase: str,
+    highlighted_ids: Optional[List[str]],
+) -> List[str]:
+    """Build per-row hover text strings for a single phase."""
+    hover_text = []
+    for _, row in phase_data.iterrows():
+        is_highlighted = highlighted_ids and row["id"] in highlighted_ids
+        champion_badge = " [CHAMPION]" if is_highlighted else ""
+
+        text = (
+            f"<b>{row['name']}{champion_badge}</b><br>"
+            f"ID: {row['id']}<br>"
+            f"Phase: {phase.upper()}<br>"
+            f"<br>"
+            f"Parameters: {row['params']:,}<br>"
+            f"Accuracy: {row['accuracy']:.2f}%<br>"
+            f"Latency: {row['latency']:.1f} ms<br>"
+        )
+
+        if "compression" in row:
+            text += f"Compression: {row['compression']:.2f}x<br>"
+
+        text += f"<br>Status: {row['status']}"
+        hover_text.append(text)
+    return hover_text
+
+
+def _add_non_highlighted_trace(
+    fig: go.Figure,
+    phase: str,
+    phase_data: pd.DataFrame,
+    highlighted_mask: pd.Series,
+    x_data: pd.Series,
+    y_data: pd.Series,
+    z_data: pd.Series,
+    sizes: Any,
+    color: str,
+    hover_text: List[str],
+) -> None:
+    """Add the non-highlighted markers trace for a phase, in place."""
+    non_highlighted = phase_data[~highlighted_mask]
+    fig.add_trace(
+        go.Scatter3d(
+            x=x_data[~highlighted_mask],
+            y=y_data[~highlighted_mask],
+            z=z_data[~highlighted_mask],
+            mode="markers",
+            name=f"{phase.upper()}",
+            marker=dict(
+                size=sizes if isinstance(sizes, int) else sizes[~highlighted_mask],
+                color=color,
+                opacity=0.6,
+                symbol=[STATUS_SYMBOLS.get(s, "circle") for s in non_highlighted["status"]],
+                line=dict(color=BACKGROUND_COLOR, width=0.5),
+            ),
+            text=[hover_text[i] for i in range(len(hover_text)) if not highlighted_mask.iloc[i]],
+            hovertemplate="%{text}<extra></extra>",
+            showlegend=True,
+        )
+    )
+
+
+def _add_highlighted_trace(
+    fig: go.Figure,
+    phase: str,
+    phase_data: pd.DataFrame,
+    highlighted_mask: pd.Series,
+    x_data: pd.Series,
+    y_data: pd.Series,
+    z_data: pd.Series,
+    sizes: Any,
+    color: str,
+    hover_text: List[str],
+) -> None:
+    """Add the highlighted (champion) markers trace for a phase, in place."""
+    highlighted = phase_data[highlighted_mask]
+    fig.add_trace(
+        go.Scatter3d(
+            x=x_data[highlighted_mask],
+            y=y_data[highlighted_mask],
+            z=z_data[highlighted_mask],
+            mode="markers",
+            name=f"{phase.upper()} (Champion)",
+            marker=dict(
+                size=sizes if isinstance(sizes, int) else sizes[highlighted_mask] * 1.5,
+                color=color,
+                opacity=1.0,
+                symbol=[STATUS_SYMBOLS.get(s, "circle") for s in highlighted["status"]],
+                line=dict(color="#FFFFFF", width=3),
+            ),
+            text=[hover_text[i] for i in range(len(hover_text)) if highlighted_mask.iloc[i]],
+            hovertemplate="%{text}<extra></extra>",
+            showlegend=True,
+        )
+    )
+
+
+def _add_plain_phase_trace(
+    fig: go.Figure,
+    phase: str,
+    x_data: pd.Series,
+    y_data: pd.Series,
+    z_data: pd.Series,
+    sizes: Any,
+    color: str,
+    symbols: List[str],
+    hover_text: List[str],
+) -> None:
+    """Add a single markers trace for a phase with no highlighting, in place."""
+    fig.add_trace(
+        go.Scatter3d(
+            x=x_data,
+            y=y_data,
+            z=z_data,
+            mode="markers",
+            name=f"{phase.upper()}",
+            marker=dict(
+                size=sizes,
+                color=color,
+                opacity=0.7,
+                symbol=symbols,
+                line=dict(color=BACKGROUND_COLOR, width=0.5),
+            ),
+            text=hover_text,
+            hovertemplate="%{text}<extra></extra>",
+            showlegend=True,
+        )
+    )
+
+
+def _add_highlighted_phase_traces(
+    fig: go.Figure,
+    phase: str,
+    phase_data: pd.DataFrame,
+    highlighted_ids: List[str],
+    x_data: pd.Series,
+    y_data: pd.Series,
+    z_data: pd.Series,
+    sizes: Any,
+    color: str,
+    hover_text: List[str],
+) -> None:
+    """Add non-highlighted then highlighted traces for one phase, in order."""
+    highlighted_mask = phase_data["id"].isin(highlighted_ids)
+
+    # Add non-highlighted models first
+    if (~highlighted_mask).any():
+        _add_non_highlighted_trace(
+            fig,
+            phase,
+            phase_data,
+            highlighted_mask,
+            x_data,
+            y_data,
+            z_data,
+            sizes,
+            color,
+            hover_text,
+        )
+
+    # Add highlighted models with emphasis
+    if highlighted_mask.any():
+        _add_highlighted_trace(
+            fig,
+            phase,
+            phase_data,
+            highlighted_mask,
+            x_data,
+            y_data,
+            z_data,
+            sizes,
+            color,
+            hover_text,
+        )
+
+
+def _add_single_phase_traces(
+    fig: go.Figure,
+    phase_data: pd.DataFrame,
+    phase: str,
+    highlighted_ids: Optional[List[str]],
+) -> None:
+    """Add the scatter trace(s) for one phase, preserving add order."""
+    # Get phase-specific data
+    x_data = phase_data["params"] / 1_000_000  # Convert to millions
+    y_data = phase_data["accuracy"]
+    z_data = phase_data["latency"]
+
+    # Size based on compression ratio (if available)
+    if "compression" in phase_data.columns:
+        sizes = phase_data["compression"] * 5 + 5  # Scale for visibility
+    else:
+        sizes = 10
+
+    # Color for this phase
+    color = PHASE_COLORS.get(phase, "#FFFFFF")
+
+    # Symbol based on status
+    symbols = [STATUS_SYMBOLS.get(s, "circle") for s in phase_data["status"]]
+
+    # Hover text with full details
+    hover_text = _build_phase_hover_text(phase_data, phase, highlighted_ids)
+
+    # Determine if any models in this phase are highlighted
+    if highlighted_ids:
+        _add_highlighted_phase_traces(
+            fig,
+            phase,
+            phase_data,
+            highlighted_ids,
+            x_data,
+            y_data,
+            z_data,
+            sizes,
+            color,
+            hover_text,
+        )
+    else:
+        # No highlighting - add all models for this phase
+        _add_plain_phase_trace(
+            fig,
+            phase,
+            x_data,
+            y_data,
+            z_data,
+            sizes,
+            color,
+            symbols,
+            hover_text,
+        )
+
+
+def _add_phase_traces(
+    fig: go.Figure,
     models_df: pd.DataFrame,
-    highlighted_ids: Optional[List[str]] = None,
-    show_phases: Optional[List[str]] = None,
-    show_pareto: bool = False,
-    animate: bool = True,
-) -> go.Figure:
-    """
-    Create 3D model comparison scatter plot.
-
-    Args:
-        models_df: DataFrame with columns:
-            - id: Model identifier
-            - name: Model name
-            - phase: Phase identifier (phase1-phase8)
-            - params: Model size in parameters (millions)
-            - accuracy: Accuracy/performance metric (0-100%)
-            - latency: Inference speed (milliseconds)
-            - compression: Compression ratio (optional)
-            - status: Model status (complete/running/failed/pending)
-        highlighted_ids: List of model IDs to highlight (champion models)
-        show_phases: List of phases to display (1-8), None for all
-        show_pareto: Draw Pareto frontier surface
-        animate: Enable entrance animation
-
-    Returns:
-        plotly.graph_objects.Figure
-    """
-    # Filter by phases if specified
-    if show_phases:
-        models_df = models_df[models_df["phase"].isin(show_phases)]
-
-    # Create figure
-    fig = go.Figure()
-
-    # Add traces for each phase
+    highlighted_ids: Optional[List[str]],
+) -> None:
+    """Add all per-phase scatter traces to the figure, preserving order."""
     for phase in sorted(models_df["phase"].unique()):
         phase_data = models_df[models_df["phase"] == phase]
+        _add_single_phase_traces(fig, phase_data, phase, highlighted_ids)
 
-        # Get phase-specific data
-        x_data = phase_data["params"] / 1_000_000  # Convert to millions
-        y_data = phase_data["accuracy"]
-        z_data = phase_data["latency"]
 
-        # Size based on compression ratio (if available)
-        if "compression" in phase_data.columns:
-            sizes = phase_data["compression"] * 5 + 5  # Scale for visibility
-        else:
-            sizes = 10
-
-        # Color for this phase
-        color = PHASE_COLORS.get(phase, "#FFFFFF")
-
-        # Symbol based on status
-        symbols = [STATUS_SYMBOLS.get(s, "circle") for s in phase_data["status"]]
-
-        # Hover text with full details
-        hover_text = []
-        for _, row in phase_data.iterrows():
-            is_highlighted = highlighted_ids and row["id"] in highlighted_ids
-            champion_badge = " [CHAMPION]" if is_highlighted else ""
-
-            text = (
-                f"<b>{row['name']}{champion_badge}</b><br>"
-                f"ID: {row['id']}<br>"
-                f"Phase: {phase.upper()}<br>"
-                f"<br>"
-                f"Parameters: {row['params']:,}<br>"
-                f"Accuracy: {row['accuracy']:.2f}%<br>"
-                f"Latency: {row['latency']:.1f} ms<br>"
-            )
-
-            if "compression" in row:
-                text += f"Compression: {row['compression']:.2f}x<br>"
-
-            text += f"<br>Status: {row['status']}"
-            hover_text.append(text)
-
-        # Determine if any models in this phase are highlighted
-        if highlighted_ids:
-            highlighted_mask = phase_data["id"].isin(highlighted_ids)
-
-            # Add non-highlighted models first
-            if (~highlighted_mask).any():
-                non_highlighted = phase_data[~highlighted_mask]
-                fig.add_trace(
-                    go.Scatter3d(
-                        x=x_data[~highlighted_mask],
-                        y=y_data[~highlighted_mask],
-                        z=z_data[~highlighted_mask],
-                        mode="markers",
-                        name=f"{phase.upper()}",
-                        marker=dict(
-                            size=sizes if isinstance(sizes, int) else sizes[~highlighted_mask],
-                            color=color,
-                            opacity=0.6,
-                            symbol=[
-                                STATUS_SYMBOLS.get(s, "circle") for s in non_highlighted["status"]
-                            ],
-                            line=dict(color=BACKGROUND_COLOR, width=0.5),
-                        ),
-                        text=[
-                            hover_text[i]
-                            for i in range(len(hover_text))
-                            if not highlighted_mask.iloc[i]
-                        ],
-                        hovertemplate="%{text}<extra></extra>",
-                        showlegend=True,
-                    )
-                )
-
-            # Add highlighted models with emphasis
-            if highlighted_mask.any():
-                highlighted = phase_data[highlighted_mask]
-                fig.add_trace(
-                    go.Scatter3d(
-                        x=x_data[highlighted_mask],
-                        y=y_data[highlighted_mask],
-                        z=z_data[highlighted_mask],
-                        mode="markers",
-                        name=f"{phase.upper()} (Champion)",
-                        marker=dict(
-                            size=sizes if isinstance(sizes, int) else sizes[highlighted_mask] * 1.5,
-                            color=color,
-                            opacity=1.0,
-                            symbol=[STATUS_SYMBOLS.get(s, "circle") for s in highlighted["status"]],
-                            line=dict(color="#FFFFFF", width=3),
-                        ),
-                        text=[
-                            hover_text[i]
-                            for i in range(len(hover_text))
-                            if highlighted_mask.iloc[i]
-                        ],
-                        hovertemplate="%{text}<extra></extra>",
-                        showlegend=True,
-                    )
-                )
-        else:
-            # No highlighting - add all models for this phase
-            fig.add_trace(
-                go.Scatter3d(
-                    x=x_data,
-                    y=y_data,
-                    z=z_data,
-                    mode="markers",
-                    name=f"{phase.upper()}",
-                    marker=dict(
-                        size=sizes,
-                        color=color,
-                        opacity=0.7,
-                        symbol=symbols,
-                        line=dict(color=BACKGROUND_COLOR, width=0.5),
-                    ),
-                    text=hover_text,
-                    hovertemplate="%{text}<extra></extra>",
-                    showlegend=True,
-                )
-            )
-
-    # Add Pareto frontier surface (optional)
-    if show_pareto and len(models_df) > 3:
-        pareto_surface = _compute_pareto_surface(models_df)
-        if pareto_surface is not None:
-            fig.add_trace(pareto_surface)
-
-    # Layout configuration
-    layout_kwargs = dict(
+def _build_layout_kwargs() -> dict:
+    """Build the static 3D scene/layout configuration."""
+    return dict(
         scene=dict(
             xaxis=dict(
                 title="Model Size (M params)",
@@ -247,66 +328,217 @@ def create_model_comparison_3d(
         margin=dict(l=0, r=0, b=0, t=30),
     )
 
+
+def _build_animation_frames(fig: go.Figure, models_df: pd.DataFrame) -> List[go.Frame]:
+    """Build entrance-animation frames that reveal points from the center."""
+    n_frames = 30
+    frames = []
+
+    for i in range(n_frames + 1):
+        frame_data = []
+        progress = (i / n_frames) ** 2  # Ease-out quadratic
+
+        for trace in fig.data:
+            # Gradually reveal points by scaling from center
+            frame_trace = go.Scatter3d(
+                x=trace.x * progress,
+                y=trace.y * progress + (1 - progress) * 50,  # Start from middle
+                z=trace.z * progress
+                + (1 - progress) * (models_df["latency"].mean() if len(models_df) > 0 else 100),
+                mode=trace.mode,
+                marker=dict(**trace.marker, opacity=trace.marker.opacity * progress),
+                text=trace.text,
+                hovertemplate=trace.hovertemplate,
+                showlegend=trace.showlegend,
+                name=trace.name,
+            )
+            frame_data.append(frame_trace)
+
+        frames.append(go.Frame(data=frame_data, name=str(i)))
+
+    return frames
+
+
+def _animation_updatemenus() -> list:
+    """Build the play-button animation controls for the layout."""
+    return [
+        dict(
+            type="buttons",
+            showactive=False,
+            buttons=[
+                dict(
+                    label="Play",
+                    method="animate",
+                    args=[
+                        None,
+                        dict(
+                            frame=dict(duration=50, redraw=True),
+                            fromcurrent=True,
+                            mode="immediate",
+                            transition=dict(duration=0),
+                        ),
+                    ],
+                )
+            ],
+            x=0.1,
+            xanchor="right",
+            y=1.0,
+            yanchor="top",
+        )
+    ]
+
+
+def create_model_comparison_3d(
+    models_df: pd.DataFrame,
+    highlighted_ids: Optional[List[str]] = None,
+    show_phases: Optional[List[str]] = None,
+    show_pareto: bool = False,
+    animate: bool = True,
+) -> go.Figure:
+    """
+    Create 3D model comparison scatter plot.
+
+    Args:
+        models_df: DataFrame with columns:
+            - id: Model identifier
+            - name: Model name
+            - phase: Phase identifier (phase1-phase8)
+            - params: Model size in parameters (millions)
+            - accuracy: Accuracy/performance metric (0-100%)
+            - latency: Inference speed (milliseconds)
+            - compression: Compression ratio (optional)
+            - status: Model status (complete/running/failed/pending)
+        highlighted_ids: List of model IDs to highlight (champion models)
+        show_phases: List of phases to display (1-8), None for all
+        show_pareto: Draw Pareto frontier surface
+        animate: Enable entrance animation
+
+    Returns:
+        plotly.graph_objects.Figure
+    """
+    # Filter by phases if specified
+    if show_phases:
+        models_df = models_df[models_df["phase"].isin(show_phases)]
+
+    # Create figure
+    fig = go.Figure()
+
+    # Add traces for each phase
+    _add_phase_traces(fig, models_df, highlighted_ids)
+
+    # Add Pareto frontier surface (optional)
+    if show_pareto and len(models_df) > 3:
+        pareto_surface = _compute_pareto_surface(models_df)
+        if pareto_surface is not None:
+            fig.add_trace(pareto_surface)
+
+    # Layout configuration
+    layout_kwargs = _build_layout_kwargs()
+
     # Add entrance animation
     if animate and len(models_df) > 0:
-        # Create frames for animation
-        n_frames = 30
-        frames = []
-
-        for i in range(n_frames + 1):
-            frame_data = []
-            progress = (i / n_frames) ** 2  # Ease-out quadratic
-
-            for trace in fig.data:
-                # Gradually reveal points by scaling from center
-                frame_trace = go.Scatter3d(
-                    x=trace.x * progress,
-                    y=trace.y * progress + (1 - progress) * 50,  # Start from middle
-                    z=trace.z * progress
-                    + (1 - progress) * (models_df["latency"].mean() if len(models_df) > 0 else 100),
-                    mode=trace.mode,
-                    marker=dict(**trace.marker, opacity=trace.marker.opacity * progress),
-                    text=trace.text,
-                    hovertemplate=trace.hovertemplate,
-                    showlegend=trace.showlegend,
-                    name=trace.name,
-                )
-                frame_data.append(frame_trace)
-
-            frames.append(go.Frame(data=frame_data, name=str(i)))
-
-        fig.frames = frames
-
-        # Add animation controls
-        layout_kwargs["updatemenus"] = [
-            dict(
-                type="buttons",
-                showactive=False,
-                buttons=[
-                    dict(
-                        label="Play",
-                        method="animate",
-                        args=[
-                            None,
-                            dict(
-                                frame=dict(duration=50, redraw=True),
-                                fromcurrent=True,
-                                mode="immediate",
-                                transition=dict(duration=0),
-                            ),
-                        ],
-                    )
-                ],
-                x=0.1,
-                xanchor="right",
-                y=1.0,
-                yanchor="top",
-            )
-        ]
+        fig.frames = _build_animation_frames(fig, models_df)
+        layout_kwargs["updatemenus"] = _animation_updatemenus()
 
     fig.update_layout(**layout_kwargs)
 
     return fig
+
+
+def _normalize_metrics(
+    models_df: pd.DataFrame,
+) -> Tuple[pd.Series, pd.Series, pd.Series]:
+    """Normalize params, accuracy and latency to [0, 1] for Pareto computation."""
+    params_norm = (models_df["params"] - models_df["params"].min()) / (
+        models_df["params"].max() - models_df["params"].min() + 1e-8
+    )
+    accuracy_norm = (models_df["accuracy"] - models_df["accuracy"].min()) / (
+        models_df["accuracy"].max() - models_df["accuracy"].min() + 1e-8
+    )
+    latency_norm = (models_df["latency"] - models_df["latency"].min()) / (
+        models_df["latency"].max() - models_df["latency"].min() + 1e-8
+    )
+    return params_norm, accuracy_norm, latency_norm
+
+
+def _dominates(
+    accuracy_norm: pd.Series,
+    latency_norm: pd.Series,
+    params_norm: pd.Series,
+    j: int,
+    i: int,
+) -> bool:
+    """Return True if point j dominates point i in the Pareto sense."""
+    return (
+        accuracy_norm.iloc[j] >= accuracy_norm.iloc[i]
+        and latency_norm.iloc[j] <= latency_norm.iloc[i]
+        and params_norm.iloc[j] <= params_norm.iloc[i]
+        and (
+            accuracy_norm.iloc[j] > accuracy_norm.iloc[i]
+            or latency_norm.iloc[j] < latency_norm.iloc[i]
+            or params_norm.iloc[j] < params_norm.iloc[i]
+        )
+    )
+
+
+def _compute_pareto_mask(
+    models_df: pd.DataFrame,
+    accuracy_norm: pd.Series,
+    latency_norm: pd.Series,
+    params_norm: pd.Series,
+) -> np.ndarray:
+    """Flag Pareto-optimal points (not dominated by any other point)."""
+    is_pareto = np.ones(len(models_df), dtype=bool)
+
+    for i in range(len(models_df)):
+        for j in range(len(models_df)):
+            if i != j:
+                # Check if j dominates i
+                # Better: higher accuracy, lower latency, lower params
+                if _dominates(accuracy_norm, latency_norm, params_norm, j, i):
+                    is_pareto[i] = False
+                    break
+
+    return is_pareto
+
+
+def _build_pareto_surface(pareto_points: pd.DataFrame) -> go.Surface:
+    """Interpolate a mesh surface through the Pareto-optimal points."""
+    # Create a mesh surface through Pareto points
+    # Use convex hull or interpolation
+    x = pareto_points["params"].values / 1_000_000
+    y = pareto_points["accuracy"].values
+    z = pareto_points["latency"].values
+
+    # Sort by x-axis for surface creation
+    sorted_idx = np.argsort(x)
+    x = x[sorted_idx]
+    y = y[sorted_idx]
+    z = z[sorted_idx]
+
+    # Create grid for surface
+    xi = np.linspace(x.min(), x.max(), 20)
+    yi = np.linspace(y.min(), y.max(), 20)
+    xi_grid, yi_grid = np.meshgrid(xi, yi)
+
+    # Interpolate z values
+    from scipy.interpolate import griddata
+
+    zi_grid = griddata((x, y), z, (xi_grid, yi_grid), method="linear")
+
+    # Create surface trace
+    surface = go.Surface(
+        x=xi_grid,
+        y=yi_grid,
+        z=zi_grid,
+        colorscale=[[0, "rgba(0, 245, 212, 0.1)"], [1, "rgba(0, 245, 212, 0.3)"]],
+        showscale=False,
+        name="Pareto Frontier",
+        hoverinfo="skip",
+        opacity=0.3,
+    )
+
+    return surface
 
 
 def _compute_pareto_surface(models_df: pd.DataFrame) -> Optional[go.Surface]:
@@ -327,38 +559,12 @@ def _compute_pareto_surface(models_df: pd.DataFrame) -> Optional[go.Surface]:
 
     try:
         # Normalize metrics to [0, 1] for Pareto computation
-        params_norm = (models_df["params"] - models_df["params"].min()) / (
-            models_df["params"].max() - models_df["params"].min() + 1e-8
-        )
-        accuracy_norm = (models_df["accuracy"] - models_df["accuracy"].min()) / (
-            models_df["accuracy"].max() - models_df["accuracy"].min() + 1e-8
-        )
-        latency_norm = (models_df["latency"] - models_df["latency"].min()) / (
-            models_df["latency"].max() - models_df["latency"].min() + 1e-8
-        )
+        params_norm, accuracy_norm, latency_norm = _normalize_metrics(models_df)
 
         # Find Pareto-optimal points
         # A point is Pareto-optimal if no other point dominates it
         # (better in at least one objective, not worse in others)
-        is_pareto = np.ones(len(models_df), dtype=bool)
-
-        for i in range(len(models_df)):
-            for j in range(len(models_df)):
-                if i != j:
-                    # Check if j dominates i
-                    # Better: higher accuracy, lower latency, lower params
-                    if (
-                        accuracy_norm.iloc[j] >= accuracy_norm.iloc[i]
-                        and latency_norm.iloc[j] <= latency_norm.iloc[i]
-                        and params_norm.iloc[j] <= params_norm.iloc[i]
-                        and (
-                            accuracy_norm.iloc[j] > accuracy_norm.iloc[i]
-                            or latency_norm.iloc[j] < latency_norm.iloc[i]
-                            or params_norm.iloc[j] < params_norm.iloc[i]
-                        )
-                    ):
-                        is_pareto[i] = False
-                        break
+        is_pareto = _compute_pareto_mask(models_df, accuracy_norm, latency_norm, params_norm)
 
         # Get Pareto points
         pareto_points = models_df[is_pareto]
@@ -366,41 +572,7 @@ def _compute_pareto_surface(models_df: pd.DataFrame) -> Optional[go.Surface]:
         if len(pareto_points) < 3:
             return None
 
-        # Create a mesh surface through Pareto points
-        # Use convex hull or interpolation
-        x = pareto_points["params"].values / 1_000_000
-        y = pareto_points["accuracy"].values
-        z = pareto_points["latency"].values
-
-        # Sort by x-axis for surface creation
-        sorted_idx = np.argsort(x)
-        x = x[sorted_idx]
-        y = y[sorted_idx]
-        z = z[sorted_idx]
-
-        # Create grid for surface
-        xi = np.linspace(x.min(), x.max(), 20)
-        yi = np.linspace(y.min(), y.max(), 20)
-        xi_grid, yi_grid = np.meshgrid(xi, yi)
-
-        # Interpolate z values
-        from scipy.interpolate import griddata
-
-        zi_grid = griddata((x, y), z, (xi_grid, yi_grid), method="linear")
-
-        # Create surface trace
-        surface = go.Surface(
-            x=xi_grid,
-            y=yi_grid,
-            z=zi_grid,
-            colorscale=[[0, "rgba(0, 245, 212, 0.1)"], [1, "rgba(0, 245, 212, 0.3)"]],
-            showscale=False,
-            name="Pareto Frontier",
-            hoverinfo="skip",
-            opacity=0.3,
-        )
-
-        return surface
+        return _build_pareto_surface(pareto_points)
 
     except Exception as e:
         # Silently fail if Pareto computation fails
@@ -408,24 +580,10 @@ def _compute_pareto_surface(models_df: pd.DataFrame) -> Optional[go.Surface]:
         return None
 
 
-def render_model_browser_3d(models: List[Dict[str, Any]], key: str = "model_browser_3d") -> None:
-    """
-    Streamlit component for 3D model browser.
-
-    Args:
-        models: List of model dictionaries with required fields:
-            - model_id or id
-            - name
-            - phase
-            - params
-            - accuracy
-            - latency (ms)
-            - status
-            - compression (optional)
-        key: Unique key for Streamlit component
-    """
-    st.markdown("### 3D Model Space")
-
+def _prepare_browser_dataframe(
+    models: List[Dict[str, Any]],
+) -> Optional[pd.DataFrame]:
+    """Build and validate the model DataFrame; render an error and return None on failure."""
     # Convert to DataFrame
     df = pd.DataFrame(models)
 
@@ -439,13 +597,17 @@ def render_model_browser_3d(models: List[Dict[str, Any]], key: str = "model_brow
 
     if missing_cols:
         st.error(f"Missing required columns: {missing_cols}")
-        return
+        return None
 
     # Add default compression if not present
     if "compression" not in df.columns:
         df["compression"] = 1.0
 
-    # Controls
+    return df
+
+
+def _render_browser_controls(key: str) -> Tuple[List[str], bool, bool]:
+    """Render the phase/champion/pareto controls and return their values."""
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -462,24 +624,11 @@ def render_model_browser_3d(models: List[Dict[str, Any]], key: str = "model_brow
     with col3:
         show_pareto = st.checkbox("Show Pareto Frontier", value=False, key=f"{key}_pareto")
 
-    # Find champion models (best accuracy per phase)
-    highlighted_ids = None
-    if highlight_champions:
-        champions = df.loc[df.groupby("phase")["accuracy"].idxmax()]
-        highlighted_ids = champions["id"].tolist()
+    return show_phases, highlight_champions, show_pareto
 
-    # Create 3D plot
-    fig = create_model_comparison_3d(
-        models_df=df,
-        highlighted_ids=highlighted_ids,
-        show_phases=show_phases if show_phases else None,
-        show_pareto=show_pareto,
-        animate=True,
-    )
 
-    # Render
-    st.plotly_chart(fig, use_container_width=True, key=f"{key}_chart")
-
+def _render_browser_stats(df: pd.DataFrame, show_phases: List[str]) -> None:
+    """Render the summary metrics and per-phase breakdown table."""
     # Summary stats
     st.markdown("---")
     st.markdown("#### Model Space Statistics")
@@ -511,6 +660,52 @@ def render_model_browser_3d(models: List[Dict[str, Any]], key: str = "model_brow
     phase_stats.columns = ["Avg Accuracy (%)", "Avg Latency (ms)", "Model Count"]
 
     st.dataframe(phase_stats, use_container_width=True)
+
+
+def render_model_browser_3d(models: List[Dict[str, Any]], key: str = "model_browser_3d") -> None:
+    """
+    Streamlit component for 3D model browser.
+
+    Args:
+        models: List of model dictionaries with required fields:
+            - model_id or id
+            - name
+            - phase
+            - params
+            - accuracy
+            - latency (ms)
+            - status
+            - compression (optional)
+        key: Unique key for Streamlit component
+    """
+    st.markdown("### 3D Model Space")
+
+    df = _prepare_browser_dataframe(models)
+    if df is None:
+        return
+
+    # Controls
+    show_phases, highlight_champions, show_pareto = _render_browser_controls(key)
+
+    # Find champion models (best accuracy per phase)
+    highlighted_ids = None
+    if highlight_champions:
+        champions = df.loc[df.groupby("phase")["accuracy"].idxmax()]
+        highlighted_ids = champions["id"].tolist()
+
+    # Create 3D plot
+    fig = create_model_comparison_3d(
+        models_df=df,
+        highlighted_ids=highlighted_ids,
+        show_phases=show_phases if show_phases else None,
+        show_pareto=show_pareto,
+        animate=True,
+    )
+
+    # Render
+    st.plotly_chart(fig, use_container_width=True, key=f"{key}_chart")
+
+    _render_browser_stats(df, show_phases)
 
 
 def get_sample_data() -> List[Dict[str, Any]]:

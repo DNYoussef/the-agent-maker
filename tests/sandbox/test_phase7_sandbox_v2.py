@@ -348,7 +348,7 @@ def verify_158bit(model, stage_name):
     return True
 
 
-def main():
+def main():  # noqa: C901
     """Run Phase 7 sandbox test."""
     print("\n" + "=" * 70)
     print("PHASE 7 SANDBOX TEST V2")

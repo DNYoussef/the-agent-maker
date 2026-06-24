@@ -163,99 +163,42 @@ class CurriculumTrainingLoop:
             Tuple of (trained_model, metrics)
         """
         # Track statistics
-        total_correct = 0
-        total_attempts = 0
-        variants_generated = 0
-        hints_given = 0
-        mastered_count = 0
+        stats = {
+            "total_correct": 0,
+            "total_attempts": 0,
+            "variants_generated": 0,
+            "hints_given": 0,
+            "mastered_count": 0,
+        }
 
         # Working copy of questions
         active_questions = copy.deepcopy(questions)
 
-        # Use MetaGrokfast if available, fallback to AdamW
-        if META_CALCULUS_AVAILABLE:
-            optimizer = meta_phase5.create_optimizer(model, lr=1e-5)
-            logger.info("Using MetaGrokfast optimizer with bigeometric gradient filtering")
-        else:
-            optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5)
+        optimizer = self._make_optimizer(model)
 
         print(f"  Starting with {len(active_questions)} questions")
 
+        avg_loss = 0.0
+        epoch = 0
         for epoch in range(self.max_epochs):
             # Shuffle questions each epoch
             random.shuffle(active_questions)
 
-            epoch_correct = 0
-            epoch_total = 0
-            epoch_loss = 0.0
-
-            questions_to_remove = []
-            questions_to_add = []
-
-            for question in active_questions:
-                # Attempt question
-                result = self._attempt_question(model, question, tokenizer, coding_env)
-
-                epoch_total += 1
-                total_attempts += 1
-
-                if result["success"]:
-                    # Success path
-                    epoch_correct += 1
-                    total_correct += 1
-                    question.success_count += 1
-
-                    mastery_threshold = self._get_mastery_threshold(question)
-                    if question.success_count >= mastery_threshold:
-                        # Mastered - remove (threshold adapts to difficulty)
-                        questions_to_remove.append(question)
-                        mastered_count += 1
-                    elif self.enable_variants:
-                        # Generate variant
-                        variant = self._generate_variant(question, frontier_client)
-                        if variant:
-                            questions_to_remove.append(question)
-                            questions_to_add.append(variant)
-                            variants_generated += 1
-
-                    # Train on successful response
-                    loss = self._train_step(model, optimizer, question, result, tokenizer)
-                    epoch_loss += loss
-
-                else:
-                    # Failure path
-                    question.success_count = 0  # Reset streak
-                    question.attempt_count += 1
-
-                    max_hints_allowed = self._get_max_hints(question)
-                    if len(question.hints) < max_hints_allowed:
-                        # Generate hint (limit adapts to difficulty)
-                        hint = self._generate_hint(question, result, frontier_client)
-                        if hint:
-                            question.hints.append(hint)
-                            hints_given += 1
-
-                    # Train on corrected response
-                    loss = self._train_step(
-                        model, optimizer, question, result, tokenizer, include_hints=True
-                    )
-                    epoch_loss += loss
-
-            # Update question list
-            for q in questions_to_remove:
-                if q in active_questions:
-                    active_questions.remove(q)
-            active_questions.extend(questions_to_add)
-
-            # Calculate epoch accuracy
-            epoch_accuracy = epoch_correct / max(1, epoch_total)
-            avg_loss = epoch_loss / max(1, epoch_total)
+            avg_loss = self._run_epoch(
+                model,
+                optimizer,
+                active_questions,
+                tokenizer,
+                coding_env,
+                frontier_client,
+                stats,
+            )
 
             # Progress update
             if (epoch + 1) % 5 == 0 or epoch == 0:
                 print(
-                    f"    Epoch {epoch + 1}: accuracy={epoch_accuracy:.1%}, "
-                    f"remaining={len(active_questions)}, mastered={mastered_count}"
+                    f"    Epoch {epoch + 1}: accuracy={stats['last_epoch_accuracy']:.1%}, "
+                    f"remaining={len(active_questions)}, mastered={stats['mastered_count']}"
                 )
 
             # Check convergence
@@ -264,17 +207,142 @@ class CurriculumTrainingLoop:
                 break
 
         # Final metrics
-        final_accuracy = total_correct / max(1, total_attempts)
+        final_accuracy = stats["total_correct"] / max(1, stats["total_attempts"])
 
         return model, TrainingMetrics(
             accuracy=final_accuracy,
-            mastered=mastered_count,
+            mastered=stats["mastered_count"],
             remaining_questions=len(active_questions),
-            variants=variants_generated,
-            hints=hints_given,
+            variants=stats["variants_generated"],
+            hints=stats["hints_given"],
             epochs=epoch + 1,
             loss=avg_loss,
         )
+
+    def _make_optimizer(self, model: nn.Module) -> "torch.optim.Optimizer":
+        """Create the optimizer (MetaGrokfast if available, else AdamW)."""
+        if META_CALCULUS_AVAILABLE:
+            optimizer = meta_phase5.create_optimizer(model, lr=1e-5)
+            logger.info("Using MetaGrokfast optimizer with bigeometric gradient filtering")
+        else:
+            optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5)
+        return optimizer
+
+    def _run_epoch(
+        self,
+        model: nn.Module,
+        optimizer: "torch.optim.Optimizer",
+        active_questions: List[Question],
+        tokenizer: Any,
+        coding_env: Optional[Any],
+        frontier_client: Optional[Any],
+        stats: Dict[str, Any],
+    ) -> float:
+        """
+        Run one training epoch over active_questions in place.
+
+        Mutates active_questions (removals/additions) and stats, and records
+        stats["last_epoch_accuracy"]. Returns this epoch's average loss.
+        """
+        epoch_correct = 0
+        epoch_total = 0
+        epoch_loss = 0.0
+
+        questions_to_remove: List[Question] = []
+        questions_to_add: List[Question] = []
+
+        for question in active_questions:
+            # Attempt question
+            result = self._attempt_question(model, question, tokenizer, coding_env)
+
+            epoch_total += 1
+            stats["total_attempts"] += 1
+
+            if result["success"]:
+                epoch_correct += 1
+                stats["total_correct"] += 1
+                loss = self._handle_success(
+                    model,
+                    optimizer,
+                    question,
+                    result,
+                    tokenizer,
+                    frontier_client,
+                    questions_to_remove,
+                    questions_to_add,
+                    stats,
+                )
+            else:
+                loss = self._handle_failure(
+                    model, optimizer, question, result, tokenizer, frontier_client, stats
+                )
+            epoch_loss += loss
+
+        # Update question list
+        for q in questions_to_remove:
+            if q in active_questions:
+                active_questions.remove(q)
+        active_questions.extend(questions_to_add)
+
+        # Calculate epoch accuracy
+        stats["last_epoch_accuracy"] = epoch_correct / max(1, epoch_total)
+        return epoch_loss / max(1, epoch_total)
+
+    def _handle_success(
+        self,
+        model: nn.Module,
+        optimizer: "torch.optim.Optimizer",
+        question: Question,
+        result: Dict[str, Any],
+        tokenizer: Any,
+        frontier_client: Optional[Any],
+        questions_to_remove: List[Question],
+        questions_to_add: List[Question],
+        stats: Dict[str, Any],
+    ) -> float:
+        """Success path: mastery/variant bookkeeping plus a train step."""
+        question.success_count += 1
+
+        mastery_threshold = self._get_mastery_threshold(question)
+        if question.success_count >= mastery_threshold:
+            # Mastered - remove (threshold adapts to difficulty)
+            questions_to_remove.append(question)
+            stats["mastered_count"] += 1
+        elif self.enable_variants:
+            # Generate variant
+            variant = self._generate_variant(question, frontier_client)
+            if variant:
+                questions_to_remove.append(question)
+                questions_to_add.append(variant)
+                stats["variants_generated"] += 1
+
+        # Train on successful response
+        return self._train_step(model, optimizer, question, result, tokenizer)
+
+    def _handle_failure(
+        self,
+        model: nn.Module,
+        optimizer: "torch.optim.Optimizer",
+        question: Question,
+        result: Dict[str, Any],
+        tokenizer: Any,
+        frontier_client: Optional[Any],
+        stats: Dict[str, Any],
+    ) -> float:
+        """Failure path: reset streak, optionally add a hint, then a train step."""
+        question.success_count = 0  # Reset streak
+        question.attempt_count += 1
+
+        max_hints_allowed = self._get_max_hints(question)
+        if len(question.hints) < max_hints_allowed:
+            # Generate hint (limit adapts to difficulty)
+            hint = self._generate_hint(question, result, frontier_client)
+            if hint:
+                question.hints.append(hint)
+                stats["hints_given"] += 1
+
+        # Train on corrected response
+        return self._train_step(model, optimizer, question, result, tokenizer, include_hints=True)
 
     def _attempt_question(
         self, model: nn.Module, question: Question, tokenizer: Any, coding_env: Optional[Any]
@@ -364,6 +432,51 @@ class CurriculumTrainingLoop:
 
         return response  # type: ignore[no-any-return]
 
+    @staticmethod
+    def _score_test_cases(response: str, code: str, question: Question) -> Tuple[float, float]:
+        """Score the response against the question's test cases (expected output,
+        input handling, description keywords). Returns (score, checks)."""
+        score = 0.0
+        checks = 0.0
+        for test_case in question.test_cases:
+            checks += 1
+            expected = test_case.get("expected", "")
+            if expected:
+                expected_str = str(expected)
+                if expected_str in response or expected_str in code:
+                    score += 1
+                    continue
+            test_input = test_case.get("input", "")
+            if test_input and str(test_input) in code:
+                score += 0.5
+            description = test_case.get("description", "")
+            keywords = [w for w in description.lower().split() if len(w) > 3]
+            keyword_matches = sum(1 for kw in keywords if kw in response.lower())
+            if keyword_matches >= len(keywords) * 0.5:
+                score += 0.5
+        return score, checks
+
+    @staticmethod
+    def _score_code_structure(code: str) -> Tuple[float, float]:
+        """Score basic code structure (function def, return, indentation).
+        Returns (score, checks)."""
+        score = 0.0
+        checks = 0.0
+        if "def " in code:
+            score += 0.5
+            checks += 0.5
+        if "return " in code:
+            score += 0.5
+            checks += 0.5
+        lines = code.split("\n")
+        indented_lines = [
+            line for line in lines if line.startswith("    ") or line.startswith("\t")
+        ]
+        if len(indented_lines) > 0:
+            score += 0.25
+            checks += 0.25
+        return score, checks
+
     def _validate_response_heuristic(
         self, response: str, question: Question
     ) -> Tuple[bool, Optional[str]]:
@@ -391,53 +504,13 @@ class CurriculumTrainingLoop:
         code = self._extract_code(response)
         has_code = code != response and len(code) > 10
 
-        # Validate test cases
-        validation_score = 0
-        total_checks = 0
-
-        for test_case in question.test_cases:
-            total_checks += 1
-
-            # Check if expected output appears in response
-            expected = test_case.get("expected", "")
-            if expected:
-                expected_str = str(expected)
-                if expected_str in response or expected_str in code:
-                    validation_score += 1
-                    continue
-
-            # Check for input handling
-            test_input = test_case.get("input", "")
-            if test_input and str(test_input) in code:
-                validation_score += 0.5
-
-            # Check description keywords
-            description = test_case.get("description", "")
-            keywords = [w for w in description.lower().split() if len(w) > 3]
-            keyword_matches = sum(1 for kw in keywords if kw in response.lower())
-            if keyword_matches >= len(keywords) * 0.5:
-                validation_score += 0.5
-
-        # Code structure checks for coding questions
+        # Validate against the test cases, plus code-structure checks when code
+        # is present.
+        validation_score, total_checks = self._score_test_cases(response, code, question)
         if has_code:
-            # Check for function definition
-            if "def " in code:
-                validation_score += 0.5
-                total_checks += 0.5
-
-            # Check for return statement
-            if "return " in code:
-                validation_score += 0.5
-                total_checks += 0.5
-
-            # Check for proper indentation
-            lines = code.split("\n")
-            indented_lines = [
-                line for line in lines if line.startswith("    ") or line.startswith("\t")
-            ]
-            if len(indented_lines) > 0:
-                validation_score += 0.25
-                total_checks += 0.25
+            code_score, code_checks = self._score_code_structure(code)
+            validation_score += code_score
+            total_checks += code_checks
 
         # If no test cases, use basic quality checks
         if total_checks == 0:
