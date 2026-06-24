@@ -178,7 +178,7 @@ class TestQuietSTaRRLConfig:
         assert config.num_thoughts == 4
         assert config.max_thought_length == 20
         assert config.min_thought_length == 10
-        assert config.temperature == 1.0
+        assert config.temperature == 3.0  # M7: High temp for exploration
         assert config.top_p == 0.9
 
     def test_default_coherence_weights(self):

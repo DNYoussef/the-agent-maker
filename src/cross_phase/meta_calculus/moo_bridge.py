@@ -24,6 +24,10 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+# Fallback parameter-count proxy (100M) used for the description-length objective
+# when a result does not report its own param_count.
+_DEFAULT_PARAM_COUNT_PROXY = 1e8
+
 try:
     from pymoo.algorithms.moo.nsga2 import NSGA2
     from pymoo.core.problem import Problem
@@ -407,7 +411,9 @@ class EvoMergeProblem(AgentForgeMOOProblem):
                         description_length_bits(
                             active_components=int((technique_weights > 1e-3).sum()),
                             total_components=self.n_techniques,
-                            param_count=float(results.get("param_count", 1e8)),
+                            param_count=float(
+                                results.get("param_count", _DEFAULT_PARAM_COUNT_PROXY)
+                            ),
                         ),
                     )
             else:

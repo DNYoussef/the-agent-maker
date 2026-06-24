@@ -98,6 +98,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+asyncio_mode = "strict"  # async tests use explicit @pytest.mark.asyncio
 addopts = [
     "-v",
     "--tb=short",
@@ -106,10 +107,15 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=html:htmlcov",
     "--cov-report=xml",
-    "--cov-fail-under=60",  # Require >=60% source coverage
+    # NOTE: no --cov-fail-under here. A hard coverage gate in the GLOBAL addopts
+    # is applied to EVERY pytest invocation, including the CI subset steps
+    # (integration-only, performance-only) which can never cover 60% of all src
+    # and so failed unconditionally (actual coverage ~25%). The repo's intended
+    # coverage gate is the dedicated "Check coverage threshold" CI step.
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "asyncio: marks async tests run via pytest-asyncio",
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
     "gpu: marks tests requiring GPU",

@@ -15,9 +15,42 @@ from cross_phase.monitoring.wandb_integration import WandBIntegration
 from cross_phase.utils import MockTokenizer
 from phase4_bitnet.config import Phase4Config
 from phase4_bitnet.phase_controller import Phase4Controller
-from phase4_bitnet.utils import load_compression_metadata, test_gradient_flow
+
+# Imported under an alias: pytest would otherwise collect the `test_`-prefixed
+# utility function as a test case and fail with "fixture 'model' not found".
+from phase4_bitnet.utils import load_compression_metadata
+from phase4_bitnet.utils import test_gradient_flow as check_gradient_flow
 
 # Add src to path for imports
+
+
+def _save_tiny_hf_model(path):
+    """Persist a genuinely reloadable tiny HF model + tokenizer.
+
+    The controller's _load_phase3_model() reloads the Phase 3 output via
+    transformers AutoModel/AutoTokenizer, which require a real config.json
+    (with a model_type) and a real tokenizer vocabulary. A bare state_dict
+    dump is not loadable, so we save a minimal real BERT instead.
+    """
+    from transformers import BertConfig, BertModel, BertTokenizer
+
+    path = Path(path)
+    path.mkdir(parents=True, exist_ok=True)
+
+    config = BertConfig(
+        hidden_size=32,
+        num_hidden_layers=1,
+        num_attention_heads=2,
+        intermediate_size=64,
+        vocab_size=30,
+        max_position_embeddings=64,
+    )
+    BertModel(config).save_pretrained(path)
+
+    vocab = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"] + [f"tok{i}" for i in range(25)]
+    vocab_file = path / "vocab.txt"
+    vocab_file.write_text("\n".join(vocab))
+    BertTokenizer(str(vocab_file)).save_pretrained(path)
 
 
 class MockTransformerModel(nn.Module):
@@ -44,18 +77,17 @@ class MockTransformerModel(nn.Module):
         return output
 
     def save_pretrained(self, path):
-        """Save model"""
-        Path(path).mkdir(parents=True, exist_ok=True)
-        torch.save(self.state_dict(), Path(path) / "pytorch_model.bin")
+        """Save a reloadable tiny HF model (so AutoModel.from_pretrained works)."""
+        _save_tiny_hf_model(path)
 
 
 class MockTokenizerWithSave(MockTokenizer):
     """MockTokenizer with save_pretrained for testing"""
 
     def save_pretrained(self, path):
+        # The real tokenizer is written alongside the model in
+        # MockTransformerModel.save_pretrained; nothing extra needed here.
         Path(path).mkdir(parents=True, exist_ok=True)
-        # Create dummy files
-        (Path(path) / "tokenizer_config.json").write_text("{}")
 
     @classmethod
     def from_pretrained(cls, path):
@@ -155,11 +187,13 @@ class TestPhase4To5Handoff:
 
     def test_gradient_flow_validation(self):
         """Test gradient flow through dequantized model"""
-        # Create simple model
-        model = nn.Linear(10, 10)
+        # The gradient-flow probe feeds a (1, 512) float input, so the model
+        # under test must accept a 512-dim feature vector (matches how the
+        # controller exercises a real transformer's hidden states).
+        model = nn.Linear(512, 100)
 
         # Test gradient flow
-        passed, error = test_gradient_flow(model, device="cpu")
+        passed, error = check_gradient_flow(model, device="cpu")
 
         # Should pass for normal model
         assert passed is True
@@ -340,7 +374,7 @@ class TestEndToEndPipeline:
         config = Phase4Config(
             model_path=phase3_dir,
             output_path=phase4_dir,
-            calibration_samples=10,  # Minimal for testing
+            calibration_samples=100,  # Minimum allowed by Phase4Config validation
             fine_tune_epochs=1,
             enable_fine_tuning=False,  # Skip for faster test
             wandb_enabled=False,

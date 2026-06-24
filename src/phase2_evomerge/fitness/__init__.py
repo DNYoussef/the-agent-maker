@@ -80,6 +80,7 @@ class FitnessEvaluator:
         max_batches: Optional[int] = None,
         benchmark_batch_size: int = 32,
         benchmark_seq_len: int = 512,
+        benchmark_vocab_size: int = 1000,
     ):
         """
         Initialize fitness evaluator with datasets and configuration.
@@ -95,6 +96,8 @@ class FitnessEvaluator:
             max_batches: Limit evaluation to N batches per dataset
             benchmark_batch_size: Batch size for speed/memory benchmarks
             benchmark_seq_len: Sequence length for benchmarks
+            benchmark_vocab_size: Vocabulary upper bound for synthetic
+                benchmark token ids (default: 1000)
         """
         self.validation_dataset = validation_dataset
         self.test_dataset = test_dataset or validation_dataset
@@ -104,9 +107,15 @@ class FitnessEvaluator:
         self.mixed_precision = mixed_precision
         self.max_batches = max_batches
 
-        # Create benchmark batch for speed/memory tests
-        self.benchmark_batch = torch.randn(
-            benchmark_batch_size, benchmark_seq_len, dtype=torch.float32, device=device
+        # Create benchmark batch of synthetic token ids for speed/memory tests.
+        # The model embeds these via nn.Embedding, so they must be integer
+        # token indices (Long), not floats.
+        self.benchmark_batch = torch.randint(
+            0,
+            benchmark_vocab_size,
+            (benchmark_batch_size, benchmark_seq_len),
+            dtype=torch.long,
+            device=device,
         )
 
         # Initialize cache
