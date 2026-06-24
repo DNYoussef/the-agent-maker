@@ -26,29 +26,7 @@ class Phase8Controller(PhaseController):
         print("=" * 60 + "\n")
 
         try:
-            # Validate input
-            self.validate_input(input_models)
-            if not input_models:
-                raise ValueError("input_models cannot be None")
-            expert_model = input_models[0]
-
-            # Get tokenizer
-            tokenizer = self._get_tokenizer()
-
-            # Create compression config
-            from phase8_compression import CompressionConfig, CompressionEngine
-
-            config = CompressionConfig(
-                seedlm_enabled=self.config.get("seedlm_enabled", True) if self.config else True,
-                vptq_enabled=self.config.get("vptq_enabled", True) if self.config else True,
-                hyper_enabled=self.config.get("hyper_enabled", True) if self.config else True,
-                min_retention_final=self.config.get("min_retention", 0.84) if self.config else 0.84,
-                run_benchmarks=self.config.get("run_benchmarks", True) if self.config else True,
-            )
-
-            # Run compression engine
-            engine = CompressionEngine(config=config)
-            result = engine.run(model=expert_model, tokenizer=tokenizer)
+            result = self._run_compression(input_models)
 
             duration = time.time() - start_time
 
@@ -83,6 +61,36 @@ class Phase8Controller(PhaseController):
                 config=self.config,
                 error=str(e),
             )
+
+    def _run_compression(self, input_models: Optional[List[Any]]) -> Any:
+        """Validate input, build the compression engine and run it.
+
+        Returns:
+            The engine's CompressionResult.
+        """
+        from phase8_compression import CompressionConfig, CompressionEngine
+
+        # Validate input
+        self.validate_input(input_models)
+        if not input_models:
+            raise ValueError("input_models cannot be None")
+        expert_model = input_models[0]
+
+        # Get tokenizer
+        tokenizer = self._get_tokenizer()
+
+        # Create compression config
+        config = CompressionConfig(
+            seedlm_enabled=self.config.get("seedlm_enabled", True) if self.config else True,
+            vptq_enabled=self.config.get("vptq_enabled", True) if self.config else True,
+            hyper_enabled=self.config.get("hyper_enabled", True) if self.config else True,
+            min_retention_final=self.config.get("min_retention", 0.84) if self.config else 0.84,
+            run_benchmarks=self.config.get("run_benchmarks", True) if self.config else True,
+        )
+
+        # Run compression engine
+        engine = CompressionEngine(config=config)
+        return engine.run(model=expert_model, tokenizer=tokenizer)
 
     def _get_tokenizer(self) -> Any:
         """Get tokenizer using unified utility (ISS-016)."""

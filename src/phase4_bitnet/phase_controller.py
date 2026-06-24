@@ -87,51 +87,9 @@ class Phase4Controller:
         print("=" * 60)
 
         try:
-            # Step 1: Load Phase 3 model
-            print("\n[1/7] Loading Phase 3 model...")
-            self._load_phase3_model(phase3_output_path)
-
-            # Step 2: Pre-compression evaluation
-            print("\n[2/7] Pre-compression evaluation...")
-            pre_metrics = self._evaluate_pre_compression()
-
-            # Log to W&B
-            if wandb_logger:
-                wandb_logger.log_phase4_pre_compression(pre_metrics)
-
-            # Step 3: Calibration
-            print("\n[3/7] Calibration...")
-            self._run_calibration()
-
-            # Step 4: Compression
-            print("\n[4/7] Compressing model...")
-            compression_start = time.time()
-            self._compress_model()
-            self.compression_time = time.time() - compression_start
-
-            # Step 5: Post-compression evaluation
-            print("\n[5/7] Post-compression evaluation...")
-            post_metrics = self._evaluate_post_compression()
-
-            # Log to W&B
-            if wandb_logger:
-                wandb_logger.log_phase4_compression(post_metrics)
-
-            # Step 6: Fine-tuning (if needed)
-            fine_tune_needed = self._check_fine_tuning_needed(pre_metrics, post_metrics)
-
-            if fine_tune_needed:
-                print("\n[6/7] Fine-tuning (quality recovery)...")
-                fine_tune_start = time.time()
-                fine_tune_results = self._fine_tune_model()
-                self.fine_tune_time = time.time() - fine_tune_start
-
-                # Log to W&B
-                if wandb_logger:
-                    wandb_logger.log_phase4_fine_tuning(fine_tune_results)
-            else:
-                print("\n[6/7] Skipping fine-tuning (quality acceptable)")
-                fine_tune_results = None
+            pre_metrics, post_metrics, fine_tune_results = self._run_compression_pipeline(
+                phase3_output_path, wandb_logger
+            )
 
             # Step 7: Save outputs (dual models)
             print("\n[7/7] Saving outputs...")
@@ -141,27 +99,14 @@ class Phase4Controller:
             print("\nValidating gradient flow...")
             gradient_test_passed, gradient_error = self._validate_gradient_flow()
 
-            # Prepare final results
-            total_time = time.time() - self.start_time
-
-            results = {
-                "success": True,
-                "phase": "phase4_bitnet",
-                "output_paths": output_paths,
-                "pre_compression": pre_metrics,
-                "post_compression": post_metrics,
-                "fine_tuning": fine_tune_results,
-                "gradient_flow_test": {
-                    "passed": gradient_test_passed,
-                    "error": gradient_error,
-                },
-                "timing": {
-                    "total_seconds": total_time,
-                    "compression_seconds": self.compression_time,
-                    "fine_tune_seconds": self.fine_tune_time,
-                },
-                "metrics": self.metrics,
-            }
+            results = self._assemble_results(
+                output_paths,
+                pre_metrics,
+                post_metrics,
+                fine_tune_results,
+                gradient_test_passed,
+                gradient_error,
+            )
 
             # Log phase summary to W&B
             if wandb_logger:
@@ -183,6 +128,97 @@ class Phase4Controller:
                 "phase": "phase4_bitnet",
                 "error": str(e),
             }
+
+    def _run_compression_pipeline(
+        self, phase3_output_path: str, wandb_logger: Optional[object]
+    ) -> Tuple[Dict, Dict, Optional[Dict]]:
+        """Run load, evaluate, compress, and fine-tune steps (1-6)."""
+        # Step 1: Load Phase 3 model
+        print("\n[1/7] Loading Phase 3 model...")
+        self._load_phase3_model(phase3_output_path)
+
+        # Step 2: Pre-compression evaluation
+        print("\n[2/7] Pre-compression evaluation...")
+        pre_metrics = self._evaluate_pre_compression()
+
+        # Log to W&B
+        if wandb_logger:
+            wandb_logger.log_phase4_pre_compression(pre_metrics)
+
+        # Step 3: Calibration
+        print("\n[3/7] Calibration...")
+        self._run_calibration()
+
+        # Step 4: Compression
+        print("\n[4/7] Compressing model...")
+        compression_start = time.time()
+        self._compress_model()
+        self.compression_time = time.time() - compression_start
+
+        # Step 5: Post-compression evaluation
+        print("\n[5/7] Post-compression evaluation...")
+        post_metrics = self._evaluate_post_compression()
+
+        # Log to W&B
+        if wandb_logger:
+            wandb_logger.log_phase4_compression(post_metrics)
+
+        # Step 6: Fine-tuning (if needed)
+        fine_tune_results = self._maybe_fine_tune(pre_metrics, post_metrics, wandb_logger)
+
+        return pre_metrics, post_metrics, fine_tune_results
+
+    def _maybe_fine_tune(
+        self, pre_metrics: Dict, post_metrics: Dict, wandb_logger: Optional[object]
+    ) -> Optional[Dict]:
+        """Run fine-tuning step (6) when quality gate requires it."""
+        fine_tune_needed = self._check_fine_tuning_needed(pre_metrics, post_metrics)
+
+        if fine_tune_needed:
+            print("\n[6/7] Fine-tuning (quality recovery)...")
+            fine_tune_start = time.time()
+            fine_tune_results = self._fine_tune_model()
+            self.fine_tune_time = time.time() - fine_tune_start
+
+            # Log to W&B
+            if wandb_logger:
+                wandb_logger.log_phase4_fine_tuning(fine_tune_results)
+        else:
+            print("\n[6/7] Skipping fine-tuning (quality acceptable)")
+            fine_tune_results = None
+
+        return fine_tune_results
+
+    def _assemble_results(
+        self,
+        output_paths: Dict[str, str],
+        pre_metrics: Dict,
+        post_metrics: Dict,
+        fine_tune_results: Optional[Dict],
+        gradient_test_passed: bool,
+        gradient_error: Optional[str],
+    ) -> Dict:
+        """Assemble the Phase 4 results dictionary."""
+        total_time = time.time() - self.start_time
+
+        return {
+            "success": True,
+            "phase": "phase4_bitnet",
+            "output_paths": output_paths,
+            "pre_compression": pre_metrics,
+            "post_compression": post_metrics,
+            "fine_tuning": fine_tune_results,
+            "gradient_flow_test": {
+                "passed": gradient_test_passed,
+                "error": gradient_error,
+            },
+            "timing": {
+                "total_seconds": total_time,
+                "compression_seconds": self.compression_time,
+                "fine_tune_seconds": self.fine_tune_time,
+            },
+            "metrics": self.metrics,
+        }
 
     def _load_phase3_model(self, phase3_path: str):
         """Load model and tokenizer from Phase 3"""

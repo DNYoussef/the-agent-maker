@@ -224,6 +224,42 @@ def create_calibration_dataloader(
     return dataloader
 
 
+def _make_activation_hook(activation_stats: Dict, name: str):
+    """Create a forward hook that records activation statistics under ``name``."""
+
+    def hook_fn(module, input, output):
+        if name not in activation_stats:
+            activation_stats[name] = {
+                "mean": [],
+                "std": [],
+                "max": [],
+                "min": [],
+            }
+
+        # Collect statistics
+        if isinstance(output, torch.Tensor):
+            activation_stats[name]["mean"].append(output.detach().mean().cpu())
+            activation_stats[name]["std"].append(output.detach().std().cpu())
+            activation_stats[name]["max"].append(output.detach().max().cpu())
+            activation_stats[name]["min"].append(output.detach().min().cpu())
+
+    return hook_fn
+
+
+def _aggregate_activation_statistics(activation_stats: Dict) -> Dict:
+    """Reduce collected per-batch activation tensors to scalar summary statistics."""
+    aggregated_stats = {}
+    for name, stats in activation_stats.items():
+        aggregated_stats[name] = {
+            "mean": torch.stack(stats["mean"]).mean().item(),
+            "std": torch.stack(stats["std"]).mean().item(),
+            "max": torch.stack(stats["max"]).max().item(),
+            "min": torch.stack(stats["min"]).min().item(),
+        }
+
+    return aggregated_stats
+
+
 def collect_activation_statistics(
     model: torch.nn.Module, dataloader: DataLoader, device: str = "cuda"
 ) -> Dict[str, Dict[str, torch.Tensor]]:
@@ -244,31 +280,10 @@ def collect_activation_statistics(
     activation_stats = {}
     hooks = []
 
-    def create_hook(name: str):
-        """Create activation collection hook"""
-
-        def hook_fn(module, input, output):
-            if name not in activation_stats:
-                activation_stats[name] = {
-                    "mean": [],
-                    "std": [],
-                    "max": [],
-                    "min": [],
-                }
-
-            # Collect statistics
-            if isinstance(output, torch.Tensor):
-                activation_stats[name]["mean"].append(output.detach().mean().cpu())
-                activation_stats[name]["std"].append(output.detach().std().cpu())
-                activation_stats[name]["max"].append(output.detach().max().cpu())
-                activation_stats[name]["min"].append(output.detach().min().cpu())
-
-        return hook_fn
-
     # Register hooks on all modules
     for name, module in model.named_modules():
         if isinstance(module, (torch.nn.Linear, torch.nn.Conv1d)):
-            hook = module.register_forward_hook(create_hook(name))
+            hook = module.register_forward_hook(_make_activation_hook(activation_stats, name))
             hooks.append(hook)
 
     # Run calibration
@@ -288,13 +303,4 @@ def collect_activation_statistics(
         hook.remove()
 
     # Aggregate statistics
-    aggregated_stats = {}
-    for name, stats in activation_stats.items():
-        aggregated_stats[name] = {
-            "mean": torch.stack(stats["mean"]).mean().item(),
-            "std": torch.stack(stats["std"]).mean().item(),
-            "max": torch.stack(stats["max"]).max().item(),
-            "min": torch.stack(stats["min"]).min().item(),
-        }
-
-    return aggregated_stats
+    return _aggregate_activation_statistics(activation_stats)

@@ -26,43 +26,7 @@ class Phase6Controller(PhaseController):
         print("=" * 60 + "\n")
 
         try:
-            # Validate input
-            self.validate_input(input_models)
-            if not input_models:
-                raise ValueError("input_models cannot be None")
-            specialized_model = input_models[0]
-
-            # Get tokenizer
-            tokenizer = self._get_tokenizer()
-
-            # Create baking config
-            from cross_phase.monitoring.wandb_integration import WandBIntegration
-            from phase6_baking import BakingConfig, BakingEngine
-
-            config = BakingConfig(
-                a_cycle_iterations=self.config.get("a_cycle_iterations", 5) if self.config else 5,
-                b_cycle_iterations=self.config.get("b_cycle_iterations", 5) if self.config else 5,
-                half_bake_strength=self.config.get("half_bake_strength", 0.5)
-                if self.config
-                else 0.5,
-                max_total_iterations=self.config.get("max_iterations", 20) if self.config else 20,
-            )
-
-            # Run baking engine
-            wandb_integration = WandBIntegration(
-                project_name=(
-                    self.config.get("wandb_project", "agent-forge-v2")
-                    if self.config
-                    else "agent-forge-v2"
-                ),
-                mode=(self.config.get("wandb_mode", "auto") if self.config else "auto"),
-            )
-            engine = BakingEngine(
-                config=config,
-                wandb_integration=wandb_integration,
-                session_id=self.session_id,
-            )
-            result = engine.run(model=specialized_model, tokenizer=tokenizer)
+            result = self._run_baking(input_models)
 
             duration = time.time() - start_time
 
@@ -96,6 +60,48 @@ class Phase6Controller(PhaseController):
                 config=self.config,
                 error=str(e),
             )
+
+    def _run_baking(self, input_models: Optional[List[Any]]) -> Any:
+        """Validate input, build the baking engine and run it.
+
+        Returns:
+            The engine's BakingResult.
+        """
+        from cross_phase.monitoring.wandb_integration import WandBIntegration
+        from phase6_baking import BakingConfig, BakingEngine
+
+        # Validate input
+        self.validate_input(input_models)
+        if not input_models:
+            raise ValueError("input_models cannot be None")
+        specialized_model = input_models[0]
+
+        # Get tokenizer
+        tokenizer = self._get_tokenizer()
+
+        # Create baking config
+        config = BakingConfig(
+            a_cycle_iterations=self.config.get("a_cycle_iterations", 5) if self.config else 5,
+            b_cycle_iterations=self.config.get("b_cycle_iterations", 5) if self.config else 5,
+            half_bake_strength=self.config.get("half_bake_strength", 0.5) if self.config else 0.5,
+            max_total_iterations=self.config.get("max_iterations", 20) if self.config else 20,
+        )
+
+        # Run baking engine
+        wandb_integration = WandBIntegration(
+            project_name=(
+                self.config.get("wandb_project", "agent-forge-v2")
+                if self.config
+                else "agent-forge-v2"
+            ),
+            mode=(self.config.get("wandb_mode", "auto") if self.config else "auto"),
+        )
+        engine = BakingEngine(
+            config=config,
+            wandb_integration=wandb_integration,
+            session_id=self.session_id,
+        )
+        return engine.run(model=specialized_model, tokenizer=tokenizer)
 
     def _get_tokenizer(self) -> Any:
         """Get tokenizer using unified utility (ISS-016)."""

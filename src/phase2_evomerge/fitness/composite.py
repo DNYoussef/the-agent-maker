@@ -26,6 +26,54 @@ DEFAULT_EXPECTED = {
 }
 
 
+def _validate_fitness_weights(weights: Dict[str, float]) -> None:
+    """Validate fitness weights contain exactly the required metrics and sum to 1.0."""
+    missing_weights = REQUIRED_METRICS - set(weights)
+    extra_weights = set(weights) - REQUIRED_METRICS
+    if missing_weights or extra_weights:
+        raise ValueError(
+            f"Weights must contain exactly {sorted(REQUIRED_METRICS)}; "
+            f"missing={sorted(missing_weights)}, extra={sorted(extra_weights)}"
+        )
+
+    weight_sum = sum(weights.values())
+    if abs(weight_sum - 1.0) > 1e-6:
+        raise ValueError(f"Weights must sum to 1.0, got {weight_sum:.6f}")
+
+
+def _validate_expected_values(expected_values: Dict[str, float]) -> None:
+    """Validate expected normalization baselines are present and positive."""
+    missing_expected = REQUIRED_EXPECTED - set(expected_values)
+    if missing_expected:
+        raise ValueError(f"Missing expected value(s): {sorted(missing_expected)}")
+
+    for key in REQUIRED_EXPECTED:
+        if expected_values[key] <= 0:
+            raise ValueError(f"Expected value for {key} must be positive")
+
+
+def _validate_fitness_inputs(
+    perplexity: float,
+    accuracy: float,
+    speed: float,
+    memory: float,
+) -> None:
+    """Validate raw metric inputs are non-negative, non-zero where required, bounded."""
+    if perplexity < 0 or accuracy < 0 or speed < 0 or memory < 0:
+        raise ValueError(
+            f"All values must be non-negative: "
+            f"ppl={perplexity}, acc={accuracy}, "
+            f"speed={speed}, memory={memory}"
+        )
+
+    if perplexity == 0:
+        raise ValueError("Perplexity cannot be zero")
+    if memory == 0:
+        raise ValueError("Memory cannot be zero")
+    if accuracy > 1:
+        raise ValueError("Accuracy must be between 0.0 and 1.0")
+
+
 def compute_composite_fitness(
     perplexity: float,
     accuracy: float,
@@ -82,42 +130,10 @@ def compute_composite_fitness(
     if expected_values is None:
         expected_values = DEFAULT_EXPECTED
 
-    # Validate weights sum to 1.0
-    missing_weights = REQUIRED_METRICS - set(weights)
-    extra_weights = set(weights) - REQUIRED_METRICS
-    if missing_weights or extra_weights:
-        raise ValueError(
-            f"Weights must contain exactly {sorted(REQUIRED_METRICS)}; "
-            f"missing={sorted(missing_weights)}, extra={sorted(extra_weights)}"
-        )
-
-    weight_sum = sum(weights.values())
-    if abs(weight_sum - 1.0) > 1e-6:
-        raise ValueError(f"Weights must sum to 1.0, got {weight_sum:.6f}")
-
-    missing_expected = REQUIRED_EXPECTED - set(expected_values)
-    if missing_expected:
-        raise ValueError(f"Missing expected value(s): {sorted(missing_expected)}")
-
-    for key in REQUIRED_EXPECTED:
-        if expected_values[key] <= 0:
-            raise ValueError(f"Expected value for {key} must be positive")
-
-    # Validate no negative values
-    if perplexity < 0 or accuracy < 0 or speed < 0 or memory < 0:
-        raise ValueError(
-            f"All values must be non-negative: "
-            f"ppl={perplexity}, acc={accuracy}, "
-            f"speed={speed}, memory={memory}"
-        )
-
-    # Validate no zero division
-    if perplexity == 0:
-        raise ValueError("Perplexity cannot be zero")
-    if memory == 0:
-        raise ValueError("Memory cannot be zero")
-    if accuracy > 1:
-        raise ValueError("Accuracy must be between 0.0 and 1.0")
+    # Validate inputs
+    _validate_fitness_weights(weights)
+    _validate_expected_values(expected_values)
+    _validate_fitness_inputs(perplexity, accuracy, speed, memory)
 
     # Compute bounded component scores so nominal weights control contribution.
     perplexity_score = min(expected_values["perplexity"] / perplexity, 1.0)

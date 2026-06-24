@@ -68,7 +68,7 @@ class FunctionalityAuditReport:
         """Record test result."""
         self.test_results[test_name] = {"passed": passed, "details": details}
 
-    def generate_report(self) -> str:
+    def generate_report(self) -> str:  # noqa: C901
         """Generate formatted audit report."""
         report_lines = [
             "=" * 80,

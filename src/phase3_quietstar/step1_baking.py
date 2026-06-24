@@ -232,8 +232,20 @@ class PromptBakingTrainer:
 
             self.global_step += 1
 
-        # Compute epoch metrics
-        avg_loss = total_loss / len(dataloader)
+        # Compute and store epoch metrics
+        return self._finalize_epoch_metrics(
+            total_loss, strategy_correct, strategy_total, len(dataloader)
+        )
+
+    def _finalize_epoch_metrics(
+        self,
+        total_loss: float,
+        strategy_correct: Dict[str, int],
+        strategy_total: Dict[str, int],
+        num_batches: int,
+    ) -> Dict[str, float]:
+        """Compute epoch averages, store per-strategy accuracies, and assemble metrics."""
+        avg_loss = total_loss / num_batches
         strategy_accs = {
             s: strategy_correct[s] / max(strategy_total[s], 1) for s in self._get_strategies()
         }

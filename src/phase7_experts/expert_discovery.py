@@ -163,6 +163,22 @@ class ExpertDiscovery:
 
         return prompts
 
+    @staticmethod
+    def _tokenize_prompt(tokenizer: Any, prompt: str, device) -> Dict:
+        """Tokenize a single discovery prompt and move tensors to device."""
+        if hasattr(tokenizer, "__call__"):
+            inputs = tokenizer(
+                prompt,
+                return_tensors="pt",
+                max_length=128,
+                truncation=True,
+                padding=True,
+            )
+        else:
+            inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
+
+        return {k: v.to(device) for k, v in inputs.items() if isinstance(v, torch.Tensor)}
+
     def _collect_activations(
         self, model: nn.Module, tokenizer: Any, prompts: Dict[str, List[str]]
     ) -> Dict[str, List[Dict]]:
@@ -174,10 +190,7 @@ class ExpertDiscovery:
         layer_activations = []
 
         def activation_hook(module, input, output):
-            if isinstance(output, tuple):
-                out = output[0]
-            else:
-                out = output
+            out = output[0] if isinstance(output, tuple) else output
             # Store mean activation per layer
             if hasattr(out, "mean"):
                 layer_activations.append(out.mean().item())
@@ -186,8 +199,7 @@ class ExpertDiscovery:
         hooks = []
         for name, module in model.named_modules():
             if "layer" in name.lower() or "block" in name.lower():
-                hook = module.register_forward_hook(activation_hook)
-                hooks.append(hook)
+                hooks.append(module.register_forward_hook(activation_hook))
 
         device = next(model.parameters()).device
 
@@ -196,28 +208,11 @@ class ExpertDiscovery:
                 activations[category] = []
 
                 for prompt in prompt_list:
-                    layer_activations = []  # Reset
+                    layer_activations.clear()  # Reset
 
                     try:
-                        if hasattr(tokenizer, "__call__"):
-                            inputs = tokenizer(
-                                prompt,
-                                return_tensors="pt",
-                                max_length=128,
-                                truncation=True,
-                                padding=True,
-                            )
-                        else:
-                            inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
-
-                        inputs = {
-                            k: v.to(device)
-                            for k, v in inputs.items()
-                            if isinstance(v, torch.Tensor)
-                        }
-
+                        inputs = self._tokenize_prompt(tokenizer, prompt, device)
                         _ = model(**inputs)
-
                         activations[category].append(
                             {
                                 "prompt": prompt,
@@ -225,7 +220,6 @@ class ExpertDiscovery:
                                 "category": category,
                             }
                         )
-
                     except Exception:
                         continue
 

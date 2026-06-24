@@ -13,14 +13,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.cross_phase.storage.model_registry import ModelRegistry  # noqa: E402
 
 
-def render() -> None:
-    """Render model browser page"""
-    st.markdown('<h1 class="main-header">Model Browser</h1>', unsafe_allow_html=True)
-
-    # Initialize registry
-    registry = ModelRegistry()
-
-    # Filters
+def _render_filters() -> tuple:
+    """Render filter controls; return (phase_filter, size_filter, search)"""
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -39,98 +33,121 @@ def render() -> None:
     with col3:
         search = st.text_input("Search by name or ID", "")
 
-    st.markdown("---")
+    return phase_filter, size_filter, search
 
-    # Get all models from registry with filters
+
+def _apply_size_filter(models: list, size_filter: str) -> list:
+    """Filter models by parameter-count size bucket"""
+    bounds = {
+        "Tiny (<50M)": (0, 50_000_000),
+        "Small (50-500M)": (50_000_000, 500_000_000),
+        "Medium (500M-2B)": (500_000_000, 2_000_000_000),
+        "Large (>2B)": (2_000_000_000, float("inf")),
+    }
+    if size_filter not in bounds:
+        return models
+    low, high = bounds[size_filter]
+    return [m for m in models if low <= m["params"] < high]
+
+
+def _apply_search_filter(models: list, search: str) -> list:
+    """Filter models by name or ID substring match"""
+    if not search:
+        return models
+    needle = search.lower()
+    return [m for m in models if needle in m["name"].lower() or needle in m["model_id"].lower()]
+
+
+def _load_models(registry, phase_filter: list, size_filter: str, search: str) -> list:
+    """Load and filter models, falling back to example data on error"""
     try:
         models = registry.get_all_models(
             phase_filter=phase_filter if phase_filter else None, limit=100
         )
-
-        # Apply size filter
-        if size_filter != "All":
-            if size_filter == "Tiny (<50M)":
-                models = [m for m in models if m["params"] < 50_000_000]
-            elif size_filter == "Small (50-500M)":
-                models = [m for m in models if 50_000_000 <= m["params"] < 500_000_000]
-            elif size_filter == "Medium (500M-2B)":
-                models = [m for m in models if 500_000_000 <= m["params"] < 2_000_000_000]
-            elif size_filter == "Large (>2B)":
-                models = [m for m in models if m["params"] >= 2_000_000_000]
-
-        # Apply search filter
-        if search:
-            models = [
-                m
-                for m in models
-                if search.lower() in m["name"].lower() or search.lower() in m["model_id"].lower()
-            ]
-
+        models = _apply_size_filter(models, size_filter)
+        return _apply_search_filter(models, search)
     except Exception as e:
         st.warning(f"Could not load models from registry: {e}")
         st.info("Showing example data instead")
         models = _get_example_models()
-
-        # Apply filters to example data
         if phase_filter:
             models = [m for m in models if m["phase"] in phase_filter]
-        if search:
-            models = [
-                m
-                for m in models
-                if search.lower() in m["name"].lower() or search.lower() in m["model_id"].lower()
-            ]
+        return _apply_search_filter(models, search)
 
-    # Display models
+
+def _render_model_info(model: dict) -> None:
+    """Render the details/performance/metadata columns for a model"""
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown("**Model Details**")
+        st.text(f"ID: {model['model_id']}")
+        st.text(f"Phase: {model['phase']}")
+        st.text(f"Parameters: {model['params']:,}")
+        st.text(f"Size: {model['size_mb']:.1f} MB")
+
+    with col2:
+        st.markdown("**Performance**")
+        st.text(f"Loss: {model['loss']:.3f}")
+        st.text(f"Accuracy: {model['accuracy']:.1f}%")
+        st.text(f"Perplexity: {model['perplexity']:.2f}")
+
+    with col3:
+        st.markdown("**Metadata**")
+        st.text(f"Created: {model['created']}")
+        st.text(f"Session: {model['session_id']}")
+        st.text(f"Status: {model['status']}")
+
+
+def _render_model_actions(registry, model: dict) -> None:
+    """Render the action buttons for a model"""
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        if st.button(f"Load {model['model_id'][:8]}", key=f"load_{model['model_id']}"):
+            st.success(f"Loaded {model['name']}")
+
+    with col2:
+        if st.button(f"Export {model['model_id'][:8]}", key=f"export_{model['model_id']}"):
+            st.info("Export functionality coming soon")
+
+    with col3:
+        if st.button(f"Compare {model['model_id'][:8]}", key=f"compare_{model['model_id']}"):
+            st.info("Comparison view coming soon")
+
+    with col4:
+        if st.button(f"Delete {model['model_id'][:8]}", key=f"delete_{model['model_id']}"):
+            if registry.delete_model(model["model_id"]):
+                st.success(f"Deleted {model['name']}")
+                st.rerun()
+            else:
+                st.error(f"Failed to delete {model['name']}")
+
+
+def _render_model_list(registry, models: list) -> None:
+    """Render the found-models header and per-model expanders"""
     st.subheader(f"Models Found: {len(models)}")
 
     for model in models:
         with st.expander(f"📦 {model['name']} ({model['phase']})"):
-            col1, col2, col3 = st.columns(3)
+            _render_model_info(model)
+            _render_model_actions(registry, model)
 
-            with col1:
-                st.markdown("**Model Details**")
-                st.text(f"ID: {model['model_id']}")
-                st.text(f"Phase: {model['phase']}")
-                st.text(f"Parameters: {model['params']:,}")
-                st.text(f"Size: {model['size_mb']:.1f} MB")
 
-            with col2:
-                st.markdown("**Performance**")
-                st.text(f"Loss: {model['loss']:.3f}")
-                st.text(f"Accuracy: {model['accuracy']:.1f}%")
-                st.text(f"Perplexity: {model['perplexity']:.2f}")
+def render() -> None:
+    """Render model browser page"""
+    st.markdown('<h1 class="main-header">Model Browser</h1>', unsafe_allow_html=True)
 
-            with col3:
-                st.markdown("**Metadata**")
-                st.text(f"Created: {model['created']}")
-                st.text(f"Session: {model['session_id']}")
-                st.text(f"Status: {model['status']}")
+    # Initialize registry
+    registry = ModelRegistry()
 
-            # Action buttons
-            col1, col2, col3, col4 = st.columns(4)
+    phase_filter, size_filter, search = _render_filters()
 
-            with col1:
-                if st.button(f"Load {model['model_id'][:8]}", key=f"load_{model['model_id']}"):
-                    st.success(f"Loaded {model['name']}")
+    st.markdown("---")
 
-            with col2:
-                if st.button(f"Export {model['model_id'][:8]}", key=f"export_{model['model_id']}"):
-                    st.info("Export functionality coming soon")
+    models = _load_models(registry, phase_filter, size_filter, search)
 
-            with col3:
-                if st.button(
-                    f"Compare {model['model_id'][:8]}", key=f"compare_{model['model_id']}"
-                ):
-                    st.info("Comparison view coming soon")
-
-            with col4:
-                if st.button(f"Delete {model['model_id'][:8]}", key=f"delete_{model['model_id']}"):
-                    if registry.delete_model(model["model_id"]):
-                        st.success(f"Deleted {model['name']}")
-                        st.rerun()
-                    else:
-                        st.error(f"Failed to delete {model['name']}")
+    _render_model_list(registry, models)
 
     registry.close()
 

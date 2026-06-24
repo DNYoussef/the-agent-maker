@@ -250,6 +250,111 @@ class OpenRouterClient:
 
         return input_cost + output_cost
 
+    def _build_request(
+        self,
+        prompt: str,
+        system_prompt: Optional[str],
+        max_tokens: int,
+        temperature: float,
+        config: ModelConfig,
+    ) -> tuple:
+        """Build the request payload and headers for a completion call."""
+        # Build messages
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        payload = {
+            "model": config.model_id,
+            "messages": messages,
+            "max_tokens": min(max_tokens, config.max_tokens),
+            "temperature": temperature,
+        }
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://agent-maker.local",
+            "X-Title": "Agent Maker Phase 5",
+        }
+
+        return payload, headers
+
+    def _handle_success_response(
+        self,
+        model: ModelProvider,
+        config: ModelConfig,
+        response: httpx.Response,
+        start_time: float,
+    ) -> CompletionResponse:
+        """Parse a 200 response, update tracking, and build the result."""
+        data = response.json()
+        latency_ms = (time.perf_counter() - start_time) * 1000
+
+        usage = data.get("usage", {})
+        cost = self._estimate_cost(model, usage)
+
+        # Update tracking
+        self._total_cost += cost
+        self._total_input_tokens += usage.get("prompt_tokens", 0)
+        self._total_output_tokens += usage.get("completion_tokens", 0)
+        self._request_count += 1
+
+        content = ""
+        if data.get("choices"):
+            content = data["choices"][0].get("message", {}).get("content", "")
+
+        return CompletionResponse(
+            content=content,
+            model=config.model_id,
+            usage=usage,
+            cost_usd=cost,
+            latency_ms=latency_ms,
+            success=True,
+        )
+
+    async def _handle_response(
+        self,
+        response: httpx.Response,
+        model: ModelProvider,
+        config: ModelConfig,
+        start_time: float,
+        attempt: int,
+    ) -> Any:
+        """Process one HTTP response.
+
+        Returns a CompletionResponse for terminal outcomes (success or a
+        non-retryable client error), or a str last_error after backing off
+        for retryable (429 / 5xx) outcomes.
+        """
+        if response.status_code == 200:
+            return self._handle_success_response(model, config, response, start_time)
+
+        elif response.status_code == 429:
+            # Rate limited - exponential backoff
+            delay = 2**attempt
+            logger.warning(f"Rate limited, retrying in {delay}s (attempt {attempt + 1})")
+            await asyncio.sleep(delay)
+            return "Rate limited (429)"
+
+        elif response.status_code >= 500:
+            # Server error - retry
+            delay = 2**attempt
+            logger.warning(f"Server error {response.status_code}, retrying in {delay}s")
+            await asyncio.sleep(delay)
+            return f"Server error ({response.status_code})"
+
+        else:
+            # Client error - don't retry
+            error_text = response.text
+            return CompletionResponse(
+                content="",
+                model=config.model_id,
+                success=False,
+                error=f"API error {response.status_code}: {error_text[:200]}",
+            )
+
     async def complete(
         self,
         prompt: str,
@@ -283,25 +388,10 @@ class OpenRouterClient:
                 content="", model=model.value, success=False, error=f"Unknown model: {model}"
             )
 
-        # Build messages
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
-
-        payload = {
-            "model": config.model_id,
-            "messages": messages,
-            "max_tokens": min(max_tokens, config.max_tokens),
-            "temperature": temperature,
-        }
-
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://agent-maker.local",
-            "X-Title": "Agent Maker Phase 5",
-        }
+        # Build request payload and headers
+        payload, headers = self._build_request(
+            prompt, system_prompt, max_tokens, temperature, config
+        )
 
         # Retry loop with exponential backoff
         last_error = None
@@ -311,55 +401,10 @@ class OpenRouterClient:
 
                 response = await self._client.post(self.BASE_URL, json=payload, headers=headers)
 
-                if response.status_code == 200:
-                    data = response.json()
-                    latency_ms = (time.perf_counter() - start_time) * 1000
-
-                    usage = data.get("usage", {})
-                    cost = self._estimate_cost(model, usage)
-
-                    # Update tracking
-                    self._total_cost += cost
-                    self._total_input_tokens += usage.get("prompt_tokens", 0)
-                    self._total_output_tokens += usage.get("completion_tokens", 0)
-                    self._request_count += 1
-
-                    content = ""
-                    if data.get("choices"):
-                        content = data["choices"][0].get("message", {}).get("content", "")
-
-                    return CompletionResponse(
-                        content=content,
-                        model=config.model_id,
-                        usage=usage,
-                        cost_usd=cost,
-                        latency_ms=latency_ms,
-                        success=True,
-                    )
-
-                elif response.status_code == 429:
-                    # Rate limited - exponential backoff
-                    delay = 2**attempt
-                    logger.warning(f"Rate limited, retrying in {delay}s (attempt {attempt + 1})")
-                    await asyncio.sleep(delay)
-                    last_error = "Rate limited (429)"
-
-                elif response.status_code >= 500:
-                    # Server error - retry
-                    delay = 2**attempt
-                    logger.warning(f"Server error {response.status_code}, retrying in {delay}s")
-                    await asyncio.sleep(delay)
-                    last_error = f"Server error ({response.status_code})"
-
-                else:
-                    # Client error - don't retry
-                    error_text = response.text
-                    return CompletionResponse(
-                        content="",
-                        model=config.model_id,
-                        success=False,
-                        error=f"API error {response.status_code}: {error_text[:200]}",
-                    )
+                outcome = await self._handle_response(response, model, config, start_time, attempt)
+                if isinstance(outcome, CompletionResponse):
+                    return outcome
+                last_error = outcome
 
             except httpx.TimeoutException:
                 delay = 2**attempt

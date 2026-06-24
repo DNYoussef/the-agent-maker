@@ -32,46 +32,8 @@ class Phase4Controller(PhaseController):
         print("=" * 60 + "\n")
 
         try:
-            # Validate input
-            self.validate_input(input_models)
-            enhanced_model = input_models[0]
-
-            # Phase 4 BitNet compression using core implementation
-            from phase4_bitnet.compressed_model import CompressedModel
-            from phase4_bitnet.config import Phase4Config
-            from phase4_bitnet.quantizer import BitNetQuantizer
-
-            phase4_config = (
-                Phase4Config.from_dict(self.config)
-                if isinstance(self.config, dict)
-                else Phase4Config()
-            )
-            quantizer = BitNetQuantizer(phase4_config)
-
-            # Get model size before quantization
-            original_size = self._get_model_size(enhanced_model)
-            print(f"Original model size: {original_size['size_mb']:.2f} MB")
-            print(f"Original parameters: {original_size['params']:,}")
-
-            # Step 1: Quantize model (BitLinear replacement)
-            print("\n--- Step 1: Ternary Quantization ---")
-            compressed_model = CompressedModel(
-                base_model=enhanced_model,
-                quantizer=quantizer,
-                config=phase4_config,
-                use_bitlinear=True,
-            )
-            compressed_model.compress()
-
-            # Step 2: Validate compression
-            print("\n--- Step 2: Validation ---")
-            stats = compressed_model.get_compression_stats()
+            compressed_model, original_size, stats = self._run_phase(input_models)
             compression_ratio = stats.get("compression_ratio", 1.0)
-
-            print(f"Compressed model size: {stats.get('quantized_size_mb', 0):.2f} MB")
-            print(f"Compression ratio: {compression_ratio:.1f}x")
-            print(f"Sparsity ratio: {stats.get('sparsity_ratio', 0):.2%}")
-
             validation_passed = compression_ratio >= self.config.get("min_compression", 4.0)
 
             duration = time.time() - start_time
@@ -108,6 +70,51 @@ class Phase4Controller(PhaseController):
                 config=self.config,
                 error=str(e),
             )
+
+    def _run_phase(self, input_models: Optional[List[Any]]) -> tuple:
+        """Validate input, quantize the model and gather compression stats.
+
+        Returns:
+            (compressed_model, original_size, stats)
+        """
+        # Phase 4 BitNet compression using core implementation
+        from phase4_bitnet.compressed_model import CompressedModel
+        from phase4_bitnet.config import Phase4Config
+        from phase4_bitnet.quantizer import BitNetQuantizer
+
+        # Validate input
+        self.validate_input(input_models)
+        enhanced_model = input_models[0]
+
+        phase4_config = (
+            Phase4Config.from_dict(self.config) if isinstance(self.config, dict) else Phase4Config()
+        )
+        quantizer = BitNetQuantizer(phase4_config)
+
+        # Get model size before quantization
+        original_size = self._get_model_size(enhanced_model)
+        print(f"Original model size: {original_size['size_mb']:.2f} MB")
+        print(f"Original parameters: {original_size['params']:,}")
+
+        # Step 1: Quantize model (BitLinear replacement)
+        print("\n--- Step 1: Ternary Quantization ---")
+        compressed_model = CompressedModel(
+            base_model=enhanced_model,
+            quantizer=quantizer,
+            config=phase4_config,
+            use_bitlinear=True,
+        )
+        compressed_model.compress()
+
+        # Step 2: Validate compression
+        print("\n--- Step 2: Validation ---")
+        stats = compressed_model.get_compression_stats()
+
+        print(f"Compressed model size: {stats.get('quantized_size_mb', 0):.2f} MB")
+        print(f"Compression ratio: {stats.get('compression_ratio', 1.0):.1f}x")
+        print(f"Sparsity ratio: {stats.get('sparsity_ratio', 0):.2%}")
+
+        return compressed_model, original_size, stats
 
     def _get_model_size(self, model) -> dict:
         """Calculate model size in MB and parameter count."""
@@ -164,23 +171,7 @@ class Phase4Controller(PhaseController):
                 scale_factors[name] = torch.tensor(1.0)
                 stats["layers_preserved"] += 1
             else:
-                # Quantize to ternary {-1, 0, +1}
-                # Step 1: Calculate scale (mean absolute value)
-                if len(param.shape) >= 2:
-                    scale = param.abs().mean(dim=list(range(1, len(param.shape))), keepdim=True)
-                else:
-                    scale = param.abs().mean()
-                scale = torch.clamp(scale, min=1e-8)
-
-                # Step 2: Normalize and apply threshold
-                normalized = param / scale
-                sparsity_mask = param.abs() < (scale * threshold)
-
-                # Step 3: Quantize
-                quantized = torch.sign(normalized)
-                quantized[sparsity_mask] = 0
-                quantized_int8 = quantized.to(torch.int8)
-
+                quantized_int8, scale = self._quantize_layer(param, threshold)
                 quantized_state[name] = quantized_int8
                 scale_factors[name] = scale
                 stats["layers_quantized"] += 1
@@ -196,6 +187,33 @@ class Phase4Controller(PhaseController):
         print(f"  Sparsity: {stats['sparsity_ratio']:.2%}")
 
         return quantized_state, scale_factors, stats
+
+    @staticmethod
+    def _quantize_layer(param, threshold) -> Any:
+        """Quantize one weight tensor to ternary {-1, 0, +1}.
+
+        Returns:
+            (quantized_int8, scale)
+        """
+        import torch
+
+        # Step 1: Calculate scale (mean absolute value)
+        if len(param.shape) >= 2:
+            scale = param.abs().mean(dim=list(range(1, len(param.shape))), keepdim=True)
+        else:
+            scale = param.abs().mean()
+        scale = torch.clamp(scale, min=1e-8)
+
+        # Step 2: Normalize and apply threshold
+        normalized = param / scale
+        sparsity_mask = param.abs() < (scale * threshold)
+
+        # Step 3: Quantize
+        quantized = torch.sign(normalized)
+        quantized[sparsity_mask] = 0
+        quantized_int8 = quantized.to(torch.int8)
+
+        return quantized_int8, scale
 
     def _create_compressed_model(self, original_model, quantized_state, scale_factors) -> Any:
         """Create compressed model from quantized state dict."""

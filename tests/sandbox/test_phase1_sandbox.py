@@ -29,7 +29,7 @@ from phase1_cognate.model.full_model import TRMTitansMAGModel  # noqa: E402
 from phase1_cognate.model.model_config import Phase1Config  # noqa: E402
 
 
-def test_phase1_cognate_sandbox():
+def test_phase1_cognate_sandbox():  # noqa: C901
     """
     Complete Phase 1 Cognate sandbox test
 

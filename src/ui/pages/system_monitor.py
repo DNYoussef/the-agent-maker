@@ -13,11 +13,8 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
-def render() -> None:
-    """Render system monitor page"""
-    st.markdown('<h1 class="main-header">System Monitor</h1>', unsafe_allow_html=True)
-
-    # Real-time metrics
+def _render_resource_metrics() -> None:
+    """Render CPU, RAM, and disk usage metrics"""
     col1, col2, col3 = st.columns(3)
 
     # CPU Usage
@@ -46,45 +43,49 @@ def render() -> None:
         st.metric("Disk Usage", f"{disk_used_gb:.1f} / {disk_total_gb:.1f} GB")
         st.progress(disk_percent / 100.0)
 
-    st.markdown("---")
 
-    # GPU Information (if available)
+def _render_gpu_device(i: int) -> None:
+    """Render a single GPU device expander"""
+    import torch
+
+    gpu_name = torch.cuda.get_device_name(i)
+    gpu_memory = torch.cuda.get_device_properties(i).total_memory / (1024**3)
+    gpu_memory_allocated = torch.cuda.memory_allocated(i) / (1024**3)
+    gpu_memory_percent = (gpu_memory_allocated / gpu_memory) * 100
+
+    with st.expander(f"🎮 GPU {i}: {gpu_name}"):
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.metric("VRAM Usage", f"{gpu_memory_allocated:.1f} / {gpu_memory:.1f} GB")
+            st.progress(gpu_memory_percent / 100.0)
+
+        with col2:
+            st.metric("Temperature", "N/A")
+            st.metric("Utilization", "N/A")
+
+        st.markdown("**Processes on GPU**")
+        st.info("No active training processes")
+
+
+def _render_gpu_status() -> None:
+    """Render GPU status section"""
     st.subheader("GPU Status")
 
     try:
         import torch
 
         if torch.cuda.is_available():
-            gpu_count = torch.cuda.device_count()
-
-            for i in range(gpu_count):
-                gpu_name = torch.cuda.get_device_name(i)
-                gpu_memory = torch.cuda.get_device_properties(i).total_memory / (1024**3)
-                gpu_memory_allocated = torch.cuda.memory_allocated(i) / (1024**3)
-                gpu_memory_percent = (gpu_memory_allocated / gpu_memory) * 100
-
-                with st.expander(f"🎮 GPU {i}: {gpu_name}"):
-                    col1, col2 = st.columns(2)
-
-                    with col1:
-                        st.metric("VRAM Usage", f"{gpu_memory_allocated:.1f} / {gpu_memory:.1f} GB")
-                        st.progress(gpu_memory_percent / 100.0)
-
-                    with col2:
-                        st.metric("Temperature", "N/A")
-                        st.metric("Utilization", "N/A")
-
-                    st.markdown("**Processes on GPU**")
-                    st.info("No active training processes")
-
+            for i in range(torch.cuda.device_count()):
+                _render_gpu_device(i)
         else:
             st.warning("No CUDA-capable GPU detected")
     except ImportError:
         st.warning("PyTorch not installed - GPU monitoring unavailable")
 
-    st.markdown("---")
 
-    # Process list
+def _render_process_list() -> None:
+    """Render Agent Forge process list"""
     st.subheader("Agent Forge Processes")
 
     processes = []
@@ -106,12 +107,9 @@ def render() -> None:
     else:
         st.info("No active Agent Forge processes")
 
-    st.markdown("---")
 
-    # Storage usage breakdown
-    st.subheader("Storage Breakdown")
-
-    # Get actual storage stats from registry
+def _get_model_storage_stats() -> tuple:
+    """Return (model_count, total_size_mb, checkpoint_count) from registry"""
     try:
         from cross_phase.storage.model_registry import ModelRegistry
 
@@ -119,19 +117,19 @@ def render() -> None:
         storage_stats = registry.get_storage_stats()
         registry.close()
 
-        model_count = storage_stats["model_count"]
-        total_size_mb = storage_stats["total_size_mb"]
-        checkpoint_count = storage_stats["checkpoint_count"]
+        return (
+            storage_stats["model_count"],
+            storage_stats["total_size_mb"],
+            storage_stats["checkpoint_count"],
+        )
     except Exception:
         # Fallback to defaults if registry unavailable
-        model_count = 0
-        total_size_mb = 0.0
-        checkpoint_count = 0
+        return 0, 0.0, 0
 
-    # Calculate dataset cache size (scan directories)
+
+def _get_dataset_cache_stats() -> tuple:
+    """Return (dataset_size_gb, dataset_count) for the dataset cache"""
     dataset_cache_path = Path("./data/cache")
-    wandb_path = Path("./wandb")
-
     try:
         dataset_size_gb = (
             sum(f.stat().st_size for f in dataset_cache_path.rglob("*") if f.is_file())
@@ -142,18 +140,31 @@ def render() -> None:
         dataset_count = (
             len(list(dataset_cache_path.glob("*"))) if dataset_cache_path.exists() else 0
         )
+        return dataset_size_gb, dataset_count
     except Exception:
-        dataset_size_gb = 0
-        dataset_count = 0
+        return 0, 0
 
+
+def _get_wandb_size_mb() -> float:
+    """Return total size of the wandb directory in MB"""
+    wandb_path = Path("./wandb")
     try:
-        wandb_size_mb = (
+        return (
             sum(f.stat().st_size for f in wandb_path.rglob("*") if f.is_file()) / (1024**2)
             if wandb_path.exists()
             else 0
         )
     except Exception:
-        wandb_size_mb = 0
+        return 0
+
+
+def _render_storage_breakdown() -> None:
+    """Render storage usage breakdown section"""
+    st.subheader("Storage Breakdown")
+
+    model_count, total_size_mb, checkpoint_count = _get_model_storage_stats()
+    dataset_size_gb, dataset_count = _get_dataset_cache_stats()
+    wandb_size_mb = _get_wandb_size_mb()
 
     col1, col2 = st.columns(2)
 
@@ -169,8 +180,9 @@ def render() -> None:
         st.metric("Total Size", f"{dataset_size_gb:.2f} GB")
         st.metric("W&B Logs", f"{wandb_size_mb:.0f} MB")
 
-    # Cleanup recommendations
-    st.markdown("---")
+
+def _render_cleanup_recommendations() -> None:
+    """Render cleanup recommendations section"""
     st.subheader("Cleanup Recommendations")
 
     cleanup_items = [
@@ -195,10 +207,33 @@ def render() -> None:
             if st.button(f"Clean {item['type'][:5]}", key=f"clean_{item['type']}"):
                 st.success(f"Cleaned {item['type']}")
 
-    # Auto-refresh
+
+def _render_auto_refresh() -> None:
+    """Render auto-refresh control"""
     if st.sidebar.checkbox("Auto-refresh (2s)", value=False, key="monitor_refresh"):
         time.sleep(2)
         st.rerun()
+
+
+def render() -> None:
+    """Render system monitor page"""
+    st.markdown('<h1 class="main-header">System Monitor</h1>', unsafe_allow_html=True)
+
+    _render_resource_metrics()
+
+    st.markdown("---")
+    _render_gpu_status()
+
+    st.markdown("---")
+    _render_process_list()
+
+    st.markdown("---")
+    _render_storage_breakdown()
+
+    st.markdown("---")
+    _render_cleanup_recommendations()
+
+    _render_auto_refresh()
 
 
 # Auto-run when accessed directly via Streamlit multipage

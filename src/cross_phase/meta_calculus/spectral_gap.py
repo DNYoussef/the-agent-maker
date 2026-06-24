@@ -58,24 +58,8 @@ class SpectralGapMonitor:
         self.config = config or SpectralGapConfig()
         self.history: Dict[str, List[float]] = {}
 
-    def compute_gap(self, matrix: torch.Tensor, name: Optional[str] = None) -> Dict[str, float]:
-        """
-        Compute spectral gap of a matrix.
-
-        Args:
-            matrix: 2D tensor (weight matrix or embedding matrix)
-            name: Optional name for tracking
-
-        Returns:
-            Dictionary with gap metrics
-        """
-        if matrix.dim() == 1:
-            matrix = matrix.unsqueeze(0)
-
-        if matrix.dim() > 2:
-            # Flatten to 2D
-            matrix = matrix.reshape(matrix.size(0), -1)
-
+    def _compute_eigenvalues(self, matrix: torch.Tensor) -> torch.Tensor:
+        """Compute sorted (descending), optionally normalized eigenvalues of matrix."""
         # Compute singular values (more stable than eigenvalues)
         if self.config.use_svd:
             try:
@@ -99,19 +83,52 @@ class SpectralGapMonitor:
         if self.config.normalize and eigenvalues[0] > 0:
             eigenvalues = eigenvalues / eigenvalues[0]
 
+        return eigenvalues
+
+    @staticmethod
+    def _effective_rank(eigenvalues: torch.Tensor) -> float:
+        """Compute effective rank from eigenvalue spectrum via entropy."""
+        if len(eigenvalues) > 0 and eigenvalues.sum() > 0:
+            p = eigenvalues / eigenvalues.sum()
+            p = p[p > 1e-10]  # Filter zeros
+            entropy = -(p * torch.log(p)).sum().item()
+            return np.exp(entropy)
+        return 0
+
+    def _track_gap_history(self, name: str, gap: float) -> None:
+        """Append a gap value to the rolling history window for name."""
+        if name not in self.history:
+            self.history[name] = []
+        self.history[name].append(gap)
+        if len(self.history[name]) > self.config.history_window:
+            self.history[name] = self.history[name][-self.config.history_window :]
+
+    def compute_gap(self, matrix: torch.Tensor, name: Optional[str] = None) -> Dict[str, float]:
+        """
+        Compute spectral gap of a matrix.
+
+        Args:
+            matrix: 2D tensor (weight matrix or embedding matrix)
+            name: Optional name for tracking
+
+        Returns:
+            Dictionary with gap metrics
+        """
+        if matrix.dim() == 1:
+            matrix = matrix.unsqueeze(0)
+
+        if matrix.dim() > 2:
+            # Flatten to 2D
+            matrix = matrix.reshape(matrix.size(0), -1)
+
+        eigenvalues = self._compute_eigenvalues(matrix)
+
         # Compute metrics
         lambda_1 = eigenvalues[0].item() if len(eigenvalues) > 0 else 0
         lambda_2 = eigenvalues[1].item() if len(eigenvalues) > 1 else 0
         gap = lambda_1 - lambda_2
 
-        # Effective rank (using entropy)
-        if len(eigenvalues) > 0 and eigenvalues.sum() > 0:
-            p = eigenvalues / eigenvalues.sum()
-            p = p[p > 1e-10]  # Filter zeros
-            entropy = -(p * torch.log(p)).sum().item()
-            effective_rank = np.exp(entropy)
-        else:
-            effective_rank = 0
+        effective_rank = self._effective_rank(eigenvalues)
 
         result = {
             "gap": gap,
@@ -125,11 +142,7 @@ class SpectralGapMonitor:
 
         # Track history
         if name and self.config.track_history:
-            if name not in self.history:
-                self.history[name] = []
-            self.history[name].append(gap)
-            if len(self.history[name]) > self.config.history_window:
-                self.history[name] = self.history[name][-self.config.history_window :]
+            self._track_gap_history(name, gap)
 
         return result
 

@@ -196,6 +196,66 @@ def save_checkpoint(
     return safetensors_path
 
 
+def _resolve_checkpoint_base(checkpoint_path: Path) -> Path:
+    """Strip a known checkpoint suffix to get the base path."""
+    # Handle extension variations
+    if checkpoint_path.suffix == ".safetensors":
+        return checkpoint_path.with_suffix("")
+    elif checkpoint_path.suffix == ".json":
+        return checkpoint_path.with_suffix("")
+    return checkpoint_path
+
+
+def _split_loaded_tensors(
+    all_tensors: Dict[str, torch.Tensor]
+) -> "tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]":
+    """Separate model weights from extra tensors by key prefix."""
+    model_state = {}
+    extra_tensors = {}
+
+    for key, tensor in all_tensors.items():
+        if key.startswith("extra_"):
+            extra_tensors[key[6:]] = tensor  # Remove "extra_" prefix
+        else:
+            model_state[key] = tensor
+
+    return model_state, extra_tensors
+
+
+def _load_checkpoint_json(json_path: Path) -> "tuple[Dict[str, Any], Dict[str, Any], bool]":
+    """Load config/metadata/has_optimizer flag from the JSON sidecar."""
+    config: Dict[str, Any] = {}
+    metadata: Dict[str, Any] = {}
+    has_optimizer = False
+
+    if json_path.exists():
+        with open(json_path, "r", encoding="utf-8") as f:
+            json_data = json.load(f)
+        config = json_data.get("config", {})
+        metadata = json_data.get("metadata", {})
+        has_optimizer = json_data.get("has_optimizer", False)
+
+    return config, metadata, has_optimizer
+
+
+def _load_optimizer_state(base_path: Path, device: str) -> Dict[str, Any]:
+    """Load and reconstruct optimizer state from its sidecar files."""
+    opt_tensors_path = base_path.with_suffix(".optimizer.safetensors")
+    opt_json_path = base_path.with_suffix(".optimizer.json")
+
+    opt_tensors = {}
+    opt_metadata = {}
+
+    if opt_tensors_path.exists():
+        opt_tensors = load_file(str(opt_tensors_path), device=device)
+
+    if opt_json_path.exists():
+        with open(opt_json_path, "r", encoding="utf-8") as f:
+            opt_metadata = json.load(f)
+
+    return _reconstruct_optimizer_state(opt_tensors, opt_metadata)
+
+
 def load_checkpoint(
     model: nn.Module,
     checkpoint_path: Union[str, Path],
@@ -231,14 +291,7 @@ def load_checkpoint(
         )
 
     checkpoint_path = Path(checkpoint_path)
-
-    # Handle extension variations
-    if checkpoint_path.suffix == ".safetensors":
-        base_path = checkpoint_path.with_suffix("")
-    elif checkpoint_path.suffix == ".json":
-        base_path = checkpoint_path.with_suffix("")
-    else:
-        base_path = checkpoint_path
+    base_path = _resolve_checkpoint_base(checkpoint_path)
 
     safetensors_path = base_path.with_suffix(".safetensors")
     json_path = base_path.with_suffix(".json")
@@ -248,30 +301,11 @@ def load_checkpoint(
 
     # Load model weights
     all_tensors = load_file(str(safetensors_path), device=device)
-
-    # Separate model weights from extra tensors
-    model_state = {}
-    extra_tensors = {}
-
-    for key, tensor in all_tensors.items():
-        if key.startswith("extra_"):
-            extra_tensors[key[6:]] = tensor  # Remove "extra_" prefix
-        else:
-            model_state[key] = tensor
-
+    model_state, extra_tensors = _split_loaded_tensors(all_tensors)
     model.load_state_dict(model_state, strict=strict)
 
     # Load JSON metadata
-    config = {}
-    metadata = {}
-    has_optimizer = False
-
-    if json_path.exists():
-        with open(json_path, "r", encoding="utf-8") as f:
-            json_data = json.load(f)
-        config = json_data.get("config", {})
-        metadata = json_data.get("metadata", {})
-        has_optimizer = json_data.get("has_optimizer", False)
+    config, metadata, has_optimizer = _load_checkpoint_json(json_path)
 
     result = {
         "config": config,
@@ -281,22 +315,35 @@ def load_checkpoint(
 
     # Load optimizer state if requested
     if load_optimizer and has_optimizer:
-        opt_tensors_path = base_path.with_suffix(".optimizer.safetensors")
-        opt_json_path = base_path.with_suffix(".optimizer.json")
-
-        opt_tensors = {}
-        opt_metadata = {}
-
-        if opt_tensors_path.exists():
-            opt_tensors = load_file(str(opt_tensors_path), device=device)
-
-        if opt_json_path.exists():
-            with open(opt_json_path, "r", encoding="utf-8") as f:
-                opt_metadata = json.load(f)
-
-        result["optimizer_state_dict"] = _reconstruct_optimizer_state(opt_tensors, opt_metadata)
+        result["optimizer_state_dict"] = _load_optimizer_state(base_path, device)
 
     return result
+
+
+def _extract_legacy_components(
+    checkpoint: Any,
+) -> "tuple[Any, Dict[str, Any], Dict[str, Any], Optional[Dict[str, Any]]]":
+    """Extract (model_state, config, metadata, optimizer_state) from a legacy load."""
+    if isinstance(checkpoint, dict):
+        model_state = checkpoint.get("model_state_dict", checkpoint.get("state_dict"))
+        config = checkpoint.get("config", {})
+        metadata = checkpoint.get("metadata", {})
+        optimizer_state = checkpoint.get("optimizer_state_dict")
+
+        # Handle case where checkpoint IS the state dict
+        if model_state is None and any(k.endswith(".weight") for k in checkpoint.keys()):
+            model_state = checkpoint
+            config = {}
+            metadata = {}
+            optimizer_state = None
+    else:
+        # Checkpoint is just a state dict
+        model_state = checkpoint
+        config = {}
+        metadata = {}
+        optimizer_state = None
+
+    return model_state, config, metadata, optimizer_state
 
 
 def migrate_legacy_checkpoint(
@@ -333,25 +380,7 @@ def migrate_legacy_checkpoint(
 
     checkpoint = torch.load(legacy_path, map_location="cpu", weights_only=False)
 
-    # Extract components
-    if isinstance(checkpoint, dict):
-        model_state = checkpoint.get("model_state_dict", checkpoint.get("state_dict"))
-        config = checkpoint.get("config", {})
-        metadata = checkpoint.get("metadata", {})
-        optimizer_state = checkpoint.get("optimizer_state_dict")
-
-        # Handle case where checkpoint IS the state dict
-        if model_state is None and any(k.endswith(".weight") for k in checkpoint.keys()):
-            model_state = checkpoint
-            config = {}
-            metadata = {}
-            optimizer_state = None
-    else:
-        # Checkpoint is just a state dict
-        model_state = checkpoint
-        config = {}
-        metadata = {}
-        optimizer_state = None
+    model_state, config, metadata, optimizer_state = _extract_legacy_components(checkpoint)
 
     # Validate against model if provided
     if model is not None:

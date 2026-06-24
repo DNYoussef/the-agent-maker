@@ -120,6 +120,74 @@ class Phase3HandoffValidator:
             "model_type": metadata.get("model_type", "champion"),
         }
 
+    @staticmethod
+    def _validate_thinking_tokens(config: Dict, metadata: Dict) -> list:
+        """Extract and validate thinking tokens from config/metadata."""
+        thinking_tokens = config.get("thinking_tokens", [])
+        if not thinking_tokens:
+            thinking_tokens = metadata.get("thinking_tokens", [])
+
+        if len(thinking_tokens) < 8:
+            print(f"[!] Warning: Expected >=8 thinking tokens, " f"got {len(thinking_tokens)}")
+        else:
+            print(f"[OK] Thinking tokens: {len(thinking_tokens)}")
+
+        return thinking_tokens
+
+    @staticmethod
+    def _validate_baking_results(baked_path: Path) -> float:
+        """Load Step 1 baked checkpoint and validate baking accuracy."""
+        baking_acc = 0.0
+        baked_safetensors = baked_path.with_suffix(".safetensors")
+        if baked_safetensors.exists() or baked_path.exists():
+            try:
+                _, _, baked_meta = _secure_load_checkpoint_metadata(baked_path)
+                baking_acc = baked_meta.get("strategy_accuracies", {})
+                if isinstance(baking_acc, dict):
+                    baking_acc = sum(baking_acc.values()) / len(baking_acc) if baking_acc else 0.0
+
+                if baking_acc < 0.85:
+                    print(f"[!] Warning: Baking accuracy {baking_acc:.2%} " f"< 85% threshold")
+                else:
+                    print(f"[OK] Baking accuracy: {baking_acc:.2%}")
+            except Exception:
+                print("[!] Warning: Could not load baked checkpoint for validation")
+
+        return baking_acc
+
+    @staticmethod
+    def _validate_rl_results(rl_path: Path) -> float:
+        """Load Step 2 RL checkpoint and validate average reward."""
+        avg_reward = 0.0
+        rl_safetensors = rl_path.with_suffix(".safetensors")
+        if rl_safetensors.exists() or rl_path.exists():
+            try:
+                _, _, rl_meta = _secure_load_checkpoint_metadata(rl_path)
+                reward_history = rl_meta.get("reward_history", [])
+
+                if reward_history:
+                    avg_reward = sum(reward_history[-100:]) / min(100, len(reward_history))
+                    print(f"[OK] Avg reward (last 100): {avg_reward:.4f}")
+            except Exception:
+                print("[!] Warning: Could not load RL checkpoint for validation")
+
+        return avg_reward
+
+    @staticmethod
+    def _validate_anti_theater(metadata: Dict) -> Dict:
+        """Report anti-theater test results from metadata (if present)."""
+        anti_theater = metadata.get("anti_theater_results", {})
+        if anti_theater:
+            all_passed = anti_theater.get("all_passed", False)
+            if not all_passed:
+                print("⚠️  Warning: Anti-theater tests failed")
+                print(f"   Divergence: {anti_theater.get('divergence', 0):.3f}")
+                print(f"   Ablation: {anti_theater.get('ablation', 0):.3f}")
+            else:
+                print("✅ Anti-theater: All tests passed")
+
+        return anti_theater
+
     def validate_phase3_output(
         self, model_path: Path, baked_path: Path, rl_path: Path
     ) -> Tuple[bool, Dict[str, any]]:
@@ -151,57 +219,11 @@ class Phase3HandoffValidator:
             print(f"Failed to load model: {e}")
             return False, {}
 
-        # Validate thinking tokens (from config or metadata)
-        thinking_tokens = config.get("thinking_tokens", [])
-        if not thinking_tokens:
-            thinking_tokens = metadata.get("thinking_tokens", [])
-
-        if len(thinking_tokens) < 8:
-            print(f"[!] Warning: Expected >=8 thinking tokens, " f"got {len(thinking_tokens)}")
-        else:
-            print(f"[OK] Thinking tokens: {len(thinking_tokens)}")
-
-        # Validate Step 1 (baking) results - secure loading (ISS-004)
-        baking_acc = 0.0
-        baked_safetensors = baked_path.with_suffix(".safetensors")
-        if baked_safetensors.exists() or baked_path.exists():
-            try:
-                _, _, baked_meta = _secure_load_checkpoint_metadata(baked_path)
-                baking_acc = baked_meta.get("strategy_accuracies", {})
-                if isinstance(baking_acc, dict):
-                    baking_acc = sum(baking_acc.values()) / len(baking_acc) if baking_acc else 0.0
-
-                if baking_acc < 0.85:
-                    print(f"[!] Warning: Baking accuracy {baking_acc:.2%} " f"< 85% threshold")
-                else:
-                    print(f"[OK] Baking accuracy: {baking_acc:.2%}")
-            except Exception:
-                print("[!] Warning: Could not load baked checkpoint for validation")
-
-        # Validate Step 2 (RL) results - secure loading (ISS-004)
-        avg_reward = 0.0
-        rl_safetensors = rl_path.with_suffix(".safetensors")
-        if rl_safetensors.exists() or rl_path.exists():
-            try:
-                _, _, rl_meta = _secure_load_checkpoint_metadata(rl_path)
-                reward_history = rl_meta.get("reward_history", [])
-
-                if reward_history:
-                    avg_reward = sum(reward_history[-100:]) / min(100, len(reward_history))
-                    print(f"[OK] Avg reward (last 100): {avg_reward:.4f}")
-            except Exception:
-                print("[!] Warning: Could not load RL checkpoint for validation")
-
-        # Validate anti-theater results (if available in metadata)
-        anti_theater = metadata.get("anti_theater_results", {})
-        if anti_theater:
-            all_passed = anti_theater.get("all_passed", False)
-            if not all_passed:
-                print("⚠️  Warning: Anti-theater tests failed")
-                print(f"   Divergence: {anti_theater.get('divergence', 0):.3f}")
-                print(f"   Ablation: {anti_theater.get('ablation', 0):.3f}")
-            else:
-                print("✅ Anti-theater: All tests passed")
+        # Validate each output component (order preserved)
+        thinking_tokens = self._validate_thinking_tokens(config, metadata)
+        baking_acc = self._validate_baking_results(baked_path)
+        avg_reward = self._validate_rl_results(rl_path)
+        anti_theater = self._validate_anti_theater(metadata)
 
         print("✅ Phase 3 → Phase 4 handoff validated")
 

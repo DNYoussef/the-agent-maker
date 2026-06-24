@@ -176,18 +176,23 @@ class SelfModelingTrainer:
 
         return model
 
+    @staticmethod
+    def _collect_weight_matrices(model: nn.Module) -> List[torch.Tensor]:
+        """Collect 2-D (capped 256x256) weight matrices for spectral analysis."""
+        weight_matrices = []
+        for name, param in model.named_parameters():
+            if "weight" in name and param.dim() >= 2:
+                w = param.data
+                if w.dim() > 2:
+                    w = w.view(w.size(0), -1)
+                if w.size(0) >= 2 and w.size(1) >= 2:
+                    weight_matrices.append(w[: min(256, w.size(0)), : min(256, w.size(1))])
+        return weight_matrices
+
     def _compute_spectral_gap(self, model: nn.Module) -> float:
         """Compute spectral gap from model weight matrices."""
         try:
-            weight_matrices = []
-            for name, param in model.named_parameters():
-                if "weight" in name and param.dim() >= 2:
-                    w = param.data
-                    if w.dim() > 2:
-                        w = w.view(w.size(0), -1)
-                    if w.size(0) >= 2 and w.size(1) >= 2:
-                        weight_matrices.append(w[: min(256, w.size(0)), : min(256, w.size(1))])
-
+            weight_matrices = self._collect_weight_matrices(model)
             if not weight_matrices:
                 return 0.5
 

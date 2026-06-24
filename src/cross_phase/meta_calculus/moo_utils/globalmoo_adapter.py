@@ -392,6 +392,32 @@ class HybridMOORunner:
             else:
                 raise ValueError("No MOO backend available")
 
+    def _dispatch_backend(self, backend: str) -> Tuple[str, np.ndarray, np.ndarray, int]:
+        """Run the selected backend, falling back to pymoo on GlobalMOO error if enabled."""
+        if backend == "globalmoo":
+            try:
+                X, F, n_evals = self._run_globalmoo()
+            except Exception as e:
+                if self.config.fallback_on_error:
+                    print(f"GlobalMOO failed ({e}), falling back to pymoo")
+                    backend = "pymoo"
+                    X, F, n_evals = self._run_pymoo()
+                else:
+                    raise
+        else:
+            X, F, n_evals = self._run_pymoo()
+        return backend, X, F, n_evals
+
+    def _apply_objective_signs(self, F: np.ndarray) -> np.ndarray:
+        """Flip the sign of maximization objectives back to original orientation."""
+        minimize = self.config.objective_minimize
+        if minimize and len(minimize) == F.shape[1]:
+            F = F.copy()
+            for j, is_minimize in enumerate(minimize):
+                if not is_minimize:
+                    F[:, j] = -F[:, j]
+        return F
+
     def run(
         self,
         n_generations: Optional[int] = None,
@@ -419,25 +445,9 @@ class HybridMOORunner:
         backend = self._select_backend()
         start_time = time.time()
 
-        if backend == "globalmoo":
-            try:
-                X, F, n_evals = self._run_globalmoo()
-            except Exception as e:
-                if self.config.fallback_on_error:
-                    print(f"GlobalMOO failed ({e}), falling back to pymoo")
-                    backend = "pymoo"
-                    X, F, n_evals = self._run_pymoo()
-                else:
-                    raise
-        else:
-            X, F, n_evals = self._run_pymoo()
+        backend, X, F, n_evals = self._dispatch_backend(backend)
 
-        minimize = self.config.objective_minimize
-        if minimize and len(minimize) == F.shape[1]:
-            F = F.copy()
-            for j, is_minimize in enumerate(minimize):
-                if not is_minimize:
-                    F[:, j] = -F[:, j]
+        F = self._apply_objective_signs(F)
 
         runtime = time.time() - start_time
 

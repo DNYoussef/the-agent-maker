@@ -510,7 +510,7 @@ def test_158bit_preservation(model: Mock158BitModel, name: str) -> bool:
     return True
 
 
-def main():
+def main():  # noqa: C901
     """Run Phase 7 sandbox test."""
     print("\n" + "=" * 70)
     print("PHASE 7 SANDBOX TEST: SELF-GUIDED EXPERT DISCOVERY")

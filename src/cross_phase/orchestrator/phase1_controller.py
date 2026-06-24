@@ -70,8 +70,9 @@ class Phase1Controller(PhaseController):
 
     def _train_models(self, processed_datasets, tokenizer):
         """Train one foundation model per specialization."""
-        import torch
         from pathlib import Path
+
+        import torch
 
         from phase1_cognate.model.full_model import TRMTitansMAGModel
         from phase1_cognate.model.model_config import Phase1Config

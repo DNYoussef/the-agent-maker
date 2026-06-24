@@ -16,13 +16,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from typing import Any  # noqa: E402
 
-
-def render() -> None:
-    """Render W&B monitoring dashboard page"""
-
-    # Custom CSS for W&B theme
-    st.markdown(
-        """
+_WANDB_STYLES = """
         <style>
         /* W&B Brand Colors */
         :root {
@@ -209,11 +203,16 @@ def render() -> None:
             margin: 0.2rem;
         }
         </style>
-    """,
-        unsafe_allow_html=True,
-    )
+    """
 
-    # Hero Section
+
+def _render_styles() -> None:
+    """Render custom CSS for the W&B theme."""
+    st.markdown(_WANDB_STYLES, unsafe_allow_html=True)
+
+
+def _render_hero() -> None:
+    """Render the hero header section."""
     st.markdown(
         """
         <div class="wandb-header">
@@ -224,17 +223,14 @@ def render() -> None:
         unsafe_allow_html=True,
     )
 
-    # Connection Panel
-    st.markdown('<div class="section-header">CONNECTION STATUS</div>', unsafe_allow_html=True)
 
-    # Real W&B connection state (offline-first)
-    wandb_connected = bool(os.getenv("WANDB_API_KEY"))
-    project_name = "agent-forge-v2"
-    storage_root = Path(__file__).parent.parent.parent / "storage" / "wandb"
-    run_dirs = sorted(storage_root.glob("*")) if storage_root.exists() else []
-    latest_run = run_dirs[-1].name if run_dirs else "none"
-    local_runs_count = len(run_dirs)
-
+def _render_connection_panel(
+    wandb_connected: bool,
+    project_name: str,
+    latest_run: str,
+    local_runs_count: int,
+) -> None:
+    """Render the connection status columns."""
     col1, col2 = st.columns([3, 1])
 
     with col1:
@@ -281,12 +277,39 @@ def render() -> None:
         st.markdown("### Actions")
         st.write("Set `WANDB_API_KEY` to enable cloud sync.")
 
-    # Phase Metrics Overview
-    st.markdown('<div class="section-header">PHASE METRICS OVERVIEW</div>', unsafe_allow_html=True)
-    st.markdown("**Total Metrics Tracked: 7,800+** across 8 phases")
 
-    # Phase data
-    phases = [
+def _render_connection_status() -> bool:
+    """Render connection status section. Returns wandb_connected flag."""
+    st.markdown('<div class="section-header">CONNECTION STATUS</div>', unsafe_allow_html=True)
+
+    # Real W&B connection state (offline-first)
+    wandb_connected = bool(os.getenv("WANDB_API_KEY"))
+    project_name = "agent-forge-v2"
+    storage_root = Path(__file__).parent.parent.parent / "storage" / "wandb"
+    run_dirs = sorted(storage_root.glob("*")) if storage_root.exists() else []
+    latest_run = run_dirs[-1].name if run_dirs else "none"
+    local_runs_count = len(run_dirs)
+
+    _render_connection_panel(wandb_connected, project_name, latest_run, local_runs_count)
+    return wandb_connected
+
+
+def _phase_card_html(phase: dict) -> str:
+    """Build the HTML for a single phase card."""
+    return f"""
+        <div class="phase-card">
+            <div class="phase-title">{phase['phase']}</div>
+            <div class="phase-description">{phase['description']}</div>
+            <div class="metric-count">{phase['metrics']:,}</div>
+            <div class="metric-label">Metrics Tracked</div>
+            <div class="phase-description" style="margin-top: 1rem;">{phase['details']}</div>
+        </div>
+    """
+
+
+def _phase_overview_data() -> list:
+    """Return the phase metric overview card data."""
+    return [
         {
             "phase": "Phase 1: Cognate",
             "description": "TRM x Titans-MAG - 3 model training",
@@ -337,42 +360,128 @@ def render() -> None:
         },
     ]
 
+
+def _render_phase_overview() -> None:
+    """Render the phase metrics overview cards."""
+    st.markdown('<div class="section-header">PHASE METRICS OVERVIEW</div>', unsafe_allow_html=True)
+    st.markdown("**Total Metrics Tracked: 7,800+** across 8 phases")
+
+    phases = _phase_overview_data()
+
     # Display phase cards in 2 columns
     for i in range(0, len(phases), 2):
         col1, col2 = st.columns(2)
 
         with col1:
-            phase = phases[i]
-            st.markdown(
-                f"""
-                <div class="phase-card">
-                    <div class="phase-title">{phase['phase']}</div>
-                    <div class="phase-description">{phase['description']}</div>
-                    <div class="metric-count">{phase['metrics']:,}</div>
-                    <div class="metric-label">Metrics Tracked</div>
-                    <div class="phase-description" style="margin-top: 1rem;">{phase['details']}</div>
-                </div>
-            """,
-                unsafe_allow_html=True,
-            )
+            st.markdown(_phase_card_html(phases[i]), unsafe_allow_html=True)
 
         if i + 1 < len(phases):
             with col2:
-                phase = phases[i + 1]
-                st.markdown(
-                    f"""
-                    <div class="phase-card">
-                        <div class="phase-title">{phase['phase']}</div>
-                        <div class="phase-description">{phase['description']}</div>
-                        <div class="metric-count">{phase['metrics']:,}</div>
-                        <div class="metric-label">Metrics Tracked</div>
-                        <div class="phase-description" style="margin-top: 1rem;">{phase['details']}</div>
-                    </div>
-                """,
-                    unsafe_allow_html=True,
-                )
+                st.markdown(_phase_card_html(phases[i + 1]), unsafe_allow_html=True)
 
-    # Live Metrics Dashboard
+
+def _phase_metric_map() -> dict:
+    """Return the mapping of phase name to its tracked metrics."""
+    return {
+        "Phase 1: Cognate": [
+            "train/loss",
+            "train/accuracy",
+            "val/loss",
+            "val/accuracy",
+            "learning_rate",
+        ],
+        "Phase 2: EvoMerge": [
+            "fitness/best",
+            "fitness/mean",
+            "fitness/std",
+            "diversity_score",
+            "generation",
+        ],
+        "Phase 3: Quiet-STaR": [
+            "thought/coherence",
+            "reasoning/quality",
+            "semantic_score",
+            "syntactic_score",
+        ],
+        "Phase 4: BitNet": [
+            "compression_ratio",
+            "inference_speedup",
+            "quantization_error",
+            "model_size_mb",
+        ],
+        "Phase 5: Curriculum": [
+            "curriculum/level",
+            "accuracy",
+            "edge_of_chaos_score",
+            "tool_use/success_rate",
+        ],
+        "Phase 6: Baking": [
+            "tool_performance",
+            "persona_plateau",
+            "ab_cycle",
+            "baking_strength",
+        ],
+        "Phase 7: Experts": [
+            "expert/count",
+            "svf/performance",
+            "adas/fitness",
+            "architecture_score",
+        ],
+        "Phase 8: Compression": [
+            "final_compression",
+            "seedlm_ratio",
+            "vptq_ratio",
+            "quality_retention",
+        ],
+    }
+
+
+def _metric_series(selected_metric: str, num_points: int) -> "np.ndarray":
+    """Generate realistic simulated metric data based on metric type."""
+    if "loss" in selected_metric:
+        return np.exp(-np.linspace(0, 3, num_points)) + np.random.normal(0, 0.05, num_points)
+    elif "accuracy" in selected_metric:
+        return (1 - np.exp(-np.linspace(0, 3, num_points))) * 0.95 + np.random.normal(
+            0, 0.02, num_points
+        )
+    elif "fitness" in selected_metric:
+        return np.linspace(0.5, 0.9, num_points) + np.random.normal(0, 0.03, num_points)
+    elif "compression" in selected_metric:
+        return np.linspace(1, 8.2, num_points) + np.random.normal(0, 0.2, num_points)
+    return np.random.randn(num_points).cumsum() + 50
+
+
+def _render_metric_chart(wandb_connected: bool, selected_metric: str) -> None:
+    """Render the live metric chart for the selected metric."""
+    st.markdown('<div class="metric-chart">', unsafe_allow_html=True)
+
+    if wandb_connected:
+        # Generate simulated time series data
+        num_points = 100
+        timestamps = pd.date_range(end=datetime.now(), periods=num_points, freq="1min")
+
+        values = _metric_series(selected_metric, num_points)
+
+        df = pd.DataFrame({"timestamp": timestamps, selected_metric: values})
+
+        st.line_chart(df.set_index("timestamp"))
+
+        # Current value display
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Current Value", f"{values[-1]:.4f}")
+        with col2:
+            st.metric("Mean", f"{values.mean():.4f}")
+        with col3:
+            st.metric("Std Dev", f"{values.std():.4f}")
+    else:
+        st.info("Connect to W&B to view live metrics")
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def _render_live_metrics(wandb_connected: bool) -> tuple:
+    """Render the live metrics dashboard. Returns (selected_phase, phase_metrics)."""
     st.markdown('<div class="section-header">LIVE METRICS DASHBOARD</div>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([2, 2, 1])
@@ -393,60 +502,7 @@ def render() -> None:
         )
 
     with col2:
-        # Get metrics for selected phase
-        phase_metrics = {
-            "Phase 1: Cognate": [
-                "train/loss",
-                "train/accuracy",
-                "val/loss",
-                "val/accuracy",
-                "learning_rate",
-            ],
-            "Phase 2: EvoMerge": [
-                "fitness/best",
-                "fitness/mean",
-                "fitness/std",
-                "diversity_score",
-                "generation",
-            ],
-            "Phase 3: Quiet-STaR": [
-                "thought/coherence",
-                "reasoning/quality",
-                "semantic_score",
-                "syntactic_score",
-            ],
-            "Phase 4: BitNet": [
-                "compression_ratio",
-                "inference_speedup",
-                "quantization_error",
-                "model_size_mb",
-            ],
-            "Phase 5: Curriculum": [
-                "curriculum/level",
-                "accuracy",
-                "edge_of_chaos_score",
-                "tool_use/success_rate",
-            ],
-            "Phase 6: Baking": [
-                "tool_performance",
-                "persona_plateau",
-                "ab_cycle",
-                "baking_strength",
-            ],
-            "Phase 7: Experts": [
-                "expert/count",
-                "svf/performance",
-                "adas/fitness",
-                "architecture_score",
-            ],
-            "Phase 8: Compression": [
-                "final_compression",
-                "seedlm_ratio",
-                "vptq_ratio",
-                "quality_retention",
-            ],
-        }
-
+        phase_metrics = _phase_metric_map()
         selected_metric = st.selectbox(
             "Select Metric", phase_metrics.get(selected_phase, ["No metrics available"])
         )
@@ -454,46 +510,14 @@ def render() -> None:
     with col3:
         _ = st.selectbox("Time Window", ["1 hour", "6 hours", "24 hours", "7 days", "All time"])
 
-    # Metric chart (simulated data)
-    st.markdown('<div class="metric-chart">', unsafe_allow_html=True)
+    _render_metric_chart(wandb_connected, selected_metric)
+    return selected_phase, phase_metrics
 
-    if wandb_connected:
-        # Generate simulated time series data
-        num_points = 100
-        timestamps = pd.date_range(end=datetime.now(), periods=num_points, freq="1min")
 
-        # Generate realistic metric data based on metric type
-        if "loss" in selected_metric:
-            values = np.exp(-np.linspace(0, 3, num_points)) + np.random.normal(0, 0.05, num_points)
-        elif "accuracy" in selected_metric:
-            values = (1 - np.exp(-np.linspace(0, 3, num_points))) * 0.95 + np.random.normal(
-                0, 0.02, num_points
-            )
-        elif "fitness" in selected_metric:
-            values = np.linspace(0.5, 0.9, num_points) + np.random.normal(0, 0.03, num_points)
-        elif "compression" in selected_metric:
-            values = np.linspace(1, 8.2, num_points) + np.random.normal(0, 0.2, num_points)
-        else:
-            values = np.random.randn(num_points).cumsum() + 50
-
-        df = pd.DataFrame({"timestamp": timestamps, selected_metric: values})
-
-        st.line_chart(df.set_index("timestamp"))
-
-        # Current value display
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Current Value", f"{values[-1]:.4f}")
-        with col2:
-            st.metric("Mean", f"{values.mean():.4f}")
-        with col3:
-            st.metric("Std Dev", f"{values.std():.4f}")
-    else:
-        st.info("Connect to W&B to view live metrics")
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # Metric Comparison View
+def _render_metric_comparison(
+    wandb_connected: bool, selected_phase: str, phase_metrics: dict
+) -> None:
+    """Render the metric comparison view."""
     st.markdown("### Metric Comparison")
 
     col1, col2 = st.columns(2)
@@ -521,13 +545,9 @@ def render() -> None:
 
         st.line_chart(df_compare.set_index("step"))
 
-    # Experiment Tracking
-    st.markdown('<div class="section-header">EXPERIMENT TRACKING</div>', unsafe_allow_html=True)
 
-    # Run History Table
-    st.markdown("### Run History")
-
-    # Simulated run data
+def _build_runs_dataframe() -> "pd.DataFrame":
+    """Build the simulated run history DataFrame."""
     runs_data = []
     for i in range(10):
         run_date = datetime.now() - timedelta(days=i)
@@ -541,8 +561,12 @@ def render() -> None:
                 "Created": run_date.strftime("%Y-%m-%d %H:%M"),
             }
         )
+    return pd.DataFrame(runs_data)
 
-    df_runs = pd.DataFrame(runs_data)
+
+def _render_run_history(df_runs: "pd.DataFrame") -> None:
+    """Render the run history table with status color coding."""
+    st.markdown("### Run History")
 
     # Color code status
     def color_status(val: Any) -> str:
@@ -559,11 +583,15 @@ def render() -> None:
         height=400,
     )
 
-    # Run Comparison
+
+def _render_run_comparison(df_runs: "pd.DataFrame") -> None:
+    """Render the run comparison charts."""
     st.markdown("### Run Comparison")
 
     selected_runs = st.multiselect(
-        "Select runs to compare", df_runs["Run ID"].tolist(), default=df_runs["Run ID"].tolist()[:3]
+        "Select runs to compare",
+        df_runs["Run ID"].tolist(),
+        default=df_runs["Run ID"].tolist()[:3],
     )
 
     if selected_runs:
@@ -583,7 +611,9 @@ def render() -> None:
             )
             st.bar_chart(comparison_data.set_index("Run ID")["Duration (min)"])
 
-    # Hyperparameter Tracking
+
+def _render_hyperparameters() -> None:
+    """Render the hyperparameter tracking section."""
     st.markdown("### Hyperparameter Tracking")
 
     col1, col2, col3 = st.columns(3)
@@ -612,7 +642,9 @@ def render() -> None:
 
     st.json(hyperparams)
 
-    # Artifact Management
+
+def _render_artifacts() -> None:
+    """Render the artifact management section."""
     st.markdown("### Artifact Management")
 
     artifacts = [
@@ -651,9 +683,39 @@ def render() -> None:
             if st.button("Download", key=f"download_{artifact['name']}"):
                 st.info(f"Downloading {artifact['name']}...")
 
-    # Cross-Phase Continuity
-    st.markdown('<div class="section-header">CROSS-PHASE CONTINUITY</div>', unsafe_allow_html=True)
 
+def _render_experiment_tracking() -> None:
+    """Render the experiment tracking section."""
+    st.markdown('<div class="section-header">EXPERIMENT TRACKING</div>', unsafe_allow_html=True)
+
+    df_runs = _build_runs_dataframe()
+    _render_run_history(df_runs)
+    _render_run_comparison(df_runs)
+    _render_hyperparameters()
+    _render_artifacts()
+
+
+def _handoff_card_html(handoff: dict) -> str:
+    """Build the HTML for a single phase-handoff card."""
+    return f"""
+        <div class="continuity-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong style="color: var(--wandb-orange);">{handoff['from']} → {handoff['to']}</strong>
+                    <div class="continuity-success">Status: {handoff['status'].upper()}</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="color: #B0B0B0;">Validation: <span class="continuity-success">{handoff['validation']}</span></div>
+                    <div style="color: #B0B0B0;">Transfer: {handoff['transfer_time']}</div>
+                    <div style="color: #B0B0B0;">Metadata: {handoff['metadata']}</div>
+                </div>
+            </div>
+        </div>
+    """
+
+
+def _render_handoffs() -> None:
+    """Render the phase handoff metric cards."""
     st.markdown("### Phase Handoff Metrics")
 
     handoffs = [
@@ -692,26 +754,11 @@ def render() -> None:
     ]
 
     for handoff in handoffs:
-        st.markdown(
-            f"""
-            <div class="continuity-card">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <strong style="color: var(--wandb-orange);">{handoff['from']} → {handoff['to']}</strong>
-                        <div class="continuity-success">Status: {handoff['status'].upper()}</div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="color: #B0B0B0;">Validation: <span class="continuity-success">{handoff['validation']}</span></div>
-                        <div style="color: #B0B0B0;">Transfer: {handoff['transfer_time']}</div>
-                        <div style="color: #B0B0B0;">Metadata: {handoff['metadata']}</div>
-                    </div>
-                </div>
-            </div>
-        """,
-            unsafe_allow_html=True,
-        )
+        st.markdown(_handoff_card_html(handoff), unsafe_allow_html=True)
 
-    # Continuity Validation
+
+def _render_continuity_validation() -> None:
+    """Render the continuity validation metrics and lineage."""
     st.markdown("### Continuity Validation")
 
     col1, col2, col3 = st.columns(3)
@@ -739,7 +786,69 @@ def render() -> None:
 
     st.json(lineage_data)
 
-    # Dashboard Configuration
+
+def _render_cross_phase_continuity() -> None:
+    """Render the cross-phase continuity section."""
+    st.markdown('<div class="section-header">CROSS-PHASE CONTINUITY</div>', unsafe_allow_html=True)
+    _render_handoffs()
+    _render_continuity_validation()
+
+
+def _render_config_metric_column() -> tuple:
+    """Render the metric/chart config column. Returns (custom_metrics, chart_type)."""
+    st.markdown("### Metric Selection")
+
+    custom_metrics = st.multiselect(
+        "Select metrics to display",
+        [
+            "train/loss",
+            "train/accuracy",
+            "val/loss",
+            "val/accuracy",
+            "fitness/best",
+            "compression_ratio",
+            "inference_speedup",
+            "tool_use/success_rate",
+            "expert/count",
+        ],
+        default=["train/loss", "train/accuracy"],
+    )
+
+    st.markdown("### Chart Type")
+
+    chart_type = st.selectbox(
+        "Default chart type", ["Line Chart", "Area Chart", "Bar Chart", "Scatter Plot"]
+    )
+    return custom_metrics, chart_type
+
+
+def _render_config_refresh_column() -> tuple:
+    """Render the refresh/export config column. Returns config values."""
+    st.markdown("### Refresh Settings")
+
+    auto_refresh = st.checkbox("Enable auto-refresh", value=False)
+
+    refresh_rate = st.slider(
+        "Refresh rate (seconds)",
+        min_value=5,
+        max_value=60,
+        value=10,
+        step=5,
+        disabled=not auto_refresh,
+    )
+
+    st.markdown("### Export Options")
+
+    export_format = st.selectbox("Export format", ["CSV", "JSON", "Parquet", "Excel"])
+
+    if st.button("Export Current View", use_container_width=True):
+        st.success(f"Exporting data as {export_format}...")
+
+    return auto_refresh, refresh_rate, export_format
+
+
+def _render_dashboard_config() -> tuple:
+    """Render dashboard configuration. Returns the config values."""
     st.markdown('<div class="section-header">DASHBOARD CONFIGURATION</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="config-panel">', unsafe_allow_html=True)
@@ -747,54 +856,25 @@ def render() -> None:
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("### Metric Selection")
-
-        custom_metrics = st.multiselect(
-            "Select metrics to display",
-            [
-                "train/loss",
-                "train/accuracy",
-                "val/loss",
-                "val/accuracy",
-                "fitness/best",
-                "compression_ratio",
-                "inference_speedup",
-                "tool_use/success_rate",
-                "expert/count",
-            ],
-            default=["train/loss", "train/accuracy"],
-        )
-
-        st.markdown("### Chart Type")
-
-        chart_type = st.selectbox(
-            "Default chart type", ["Line Chart", "Area Chart", "Bar Chart", "Scatter Plot"]
-        )
+        custom_metrics, chart_type = _render_config_metric_column()
 
     with col2:
-        st.markdown("### Refresh Settings")
-
-        auto_refresh = st.checkbox("Enable auto-refresh", value=False)
-
-        refresh_rate = st.slider(
-            "Refresh rate (seconds)",
-            min_value=5,
-            max_value=60,
-            value=10,
-            step=5,
-            disabled=not auto_refresh,
-        )
-
-        st.markdown("### Export Options")
-
-        export_format = st.selectbox("Export format", ["CSV", "JSON", "Parquet", "Excel"])
-
-        if st.button("Export Current View", use_container_width=True):
-            st.success(f"Exporting data as {export_format}...")
+        auto_refresh, refresh_rate, export_format = _render_config_refresh_column()
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Save Configuration
+    return custom_metrics, chart_type, auto_refresh, refresh_rate, export_format
+
+
+def _render_save_and_refresh(
+    wandb_connected: bool,
+    custom_metrics: list,
+    chart_type: str,
+    auto_refresh: bool,
+    refresh_rate: int,
+    export_format: str,
+) -> None:
+    """Render the save-config button and auto-refresh trigger."""
     if st.button("Save Dashboard Configuration", use_container_width=True):
         config = {
             "custom_metrics": custom_metrics,
@@ -811,7 +891,9 @@ def render() -> None:
         time.sleep(refresh_rate)
         st.rerun()
 
-    # Footer
+
+def _render_footer() -> None:
+    """Render the page footer."""
     st.markdown("---")
     st.markdown(
         """
@@ -823,6 +905,39 @@ def render() -> None:
     """,
         unsafe_allow_html=True,
     )
+
+
+def render() -> None:
+    """Render W&B monitoring dashboard page"""
+    _render_styles()
+    _render_hero()
+
+    wandb_connected = _render_connection_status()
+    _render_phase_overview()
+
+    selected_phase, phase_metrics = _render_live_metrics(wandb_connected)
+    _render_metric_comparison(wandb_connected, selected_phase, phase_metrics)
+
+    _render_experiment_tracking()
+    _render_cross_phase_continuity()
+
+    (
+        custom_metrics,
+        chart_type,
+        auto_refresh,
+        refresh_rate,
+        export_format,
+    ) = _render_dashboard_config()
+    _render_save_and_refresh(
+        wandb_connected,
+        custom_metrics,
+        chart_type,
+        auto_refresh,
+        refresh_rate,
+        export_format,
+    )
+
+    _render_footer()
 
 
 # Auto-run when accessed directly via Streamlit multipage

@@ -559,7 +559,7 @@ def test_end_to_end_ab_cycles(model: nn.Module, tokenizer: Any):
 # ============================================================================
 
 
-def main():
+def main():  # noqa: C901
     """Run all Phase 6 sandbox tests."""
     print("\n" + "=" * 70)
     print("PHASE 6 SANDBOX TEST SUITE")

@@ -36,63 +36,7 @@ class Phase5Controller(PhaseController):
         print("=" * 60 + "\n")
 
         try:
-            # Validate input
-            self.validate_input(input_models)
-            if not input_models:
-                raise ValueError("input_models cannot be None")
-            quantized_model = input_models[0]
-
-            # Get tokenizer
-            tokenizer = self._get_tokenizer()
-
-            # Create curriculum config
-            from phase5_curriculum import (
-                CurriculumConfig,
-                CurriculumEngine,
-                OpenRouterClient,
-                SpecializationType,
-            )
-            from phase5_curriculum.docker_sandbox import DockerSandbox
-
-            specialization = (
-                self.config.get("specialization", "coding") if self.config else "coding"
-            )
-            spec_type = SpecializationType(specialization)
-
-            config = CurriculumConfig(
-                num_levels=self.config.get("num_levels", 10) if self.config else 10,
-                questions_per_level=self.config.get("questions_per_level", 2000)
-                if self.config
-                else 2000,
-                specialization=spec_type,
-            )
-
-            # Initialize OpenRouter and Docker sandbox
-            frontier_client = OpenRouterClient()
-            coding_env = DockerSandbox()
-
-            # Create and run engine
-            from cross_phase.monitoring.wandb_integration import WandBIntegration
-
-            wandb_integration = WandBIntegration(
-                project_name=(
-                    self.config.get("wandb_project", "agent-forge-v2")
-                    if self.config
-                    else "agent-forge-v2"
-                ),
-                mode=(self.config.get("wandb_mode", "auto") if self.config else "auto"),
-            )
-            engine = CurriculumEngine(
-                config=config,
-                wandb_integration=wandb_integration,
-                session_id=self.session_id,
-            )
-            result = engine.run(
-                model=quantized_model,
-                tokenizer=tokenizer,
-                frontier_client=frontier_client,
-                coding_env=coding_env,
-            )
+            result = self._run_curriculum(input_models)
 
             duration = time.time() - start_time
 
@@ -124,6 +68,71 @@ class Phase5Controller(PhaseController):
                 config=self.config,
                 error=str(e),
             )
+
+    def _run_curriculum(self, input_models: Optional[List[Any]]) -> Any:
+        """Validate input, build the curriculum engine and run it.
+
+        Returns:
+            The engine's CurriculumResult.
+        """
+        from phase5_curriculum import (
+            CurriculumConfig,
+            CurriculumEngine,
+            OpenRouterClient,
+            SpecializationType,
+        )
+        from phase5_curriculum.docker_sandbox import DockerSandbox
+
+        # Validate input
+        self.validate_input(input_models)
+        if not input_models:
+            raise ValueError("input_models cannot be None")
+        quantized_model = input_models[0]
+
+        # Get tokenizer
+        tokenizer = self._get_tokenizer()
+
+        # Create curriculum config
+        specialization = self.config.get("specialization", "coding") if self.config else "coding"
+        spec_type = SpecializationType(specialization)
+
+        config = CurriculumConfig(
+            num_levels=self.config.get("num_levels", 10) if self.config else 10,
+            questions_per_level=self.config.get("questions_per_level", 2000)
+            if self.config
+            else 2000,
+            specialization=spec_type,
+        )
+
+        # Initialize OpenRouter and Docker sandbox
+        frontier_client = OpenRouterClient()
+        coding_env = DockerSandbox()
+
+        # Create and run engine
+        engine = CurriculumEngine(
+            config=config,
+            wandb_integration=self._build_wandb_integration(),
+            session_id=self.session_id,
+        )
+        return engine.run(
+            model=quantized_model,
+            tokenizer=tokenizer,
+            frontier_client=frontier_client,
+            coding_env=coding_env,
+        )
+
+    def _build_wandb_integration(self) -> Any:
+        """Build a WandBIntegration from this phase's config."""
+        from cross_phase.monitoring.wandb_integration import WandBIntegration
+
+        return WandBIntegration(
+            project_name=(
+                self.config.get("wandb_project", "agent-forge-v2")
+                if self.config
+                else "agent-forge-v2"
+            ),
+            mode=(self.config.get("wandb_mode", "auto") if self.config else "auto"),
+        )
 
     def _get_tokenizer(self) -> Any:
         """Get tokenizer using unified utility (ISS-016)."""
