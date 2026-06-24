@@ -70,12 +70,19 @@ class LatentRefiner(nn.Module):
         Returns:
             z_refined: [batch, seq_len, d_model]
         """
+        # Causal mask: query position i may attend only to key positions j <= i.
+        # Without it the TRM cross-attends over the whole sequence and leaks future
+        # tokens into y_t -> the next-token logits (the same bug as the backbone).
+        seq_len = z.size(1)
+        causal = torch.triu(
+            torch.full((seq_len, seq_len), float("-inf"), device=z.device), diagonal=1
+        )
         for _ in range(n_steps):
-            # Attend to features
-            feat_context, _ = self.feature_attn(z, features, features)
+            # Attend to features (causal)
+            feat_context, _ = self.feature_attn(z, features, features, attn_mask=causal)
 
-            # Attend to answer
-            ans_context, _ = self.answer_attn(z, y, y)
+            # Attend to answer (causal)
+            ans_context, _ = self.answer_attn(z, y, y, attn_mask=causal)
 
             # Combine contexts
             combined = torch.cat([z, feat_context, ans_context], dim=-1)

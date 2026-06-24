@@ -4,7 +4,7 @@ Verifies the phase1 Cognate (TRM x Titans-MAG) resize to a ~222M flagship and th
 properties the resize must hold. Codex-audited: asserts EXACT geometry + a tight
 param window (a loose band would pass wrong architectures), both TRM attention
 modules, and a REAL on-GPU memory probe at the honestly-measured trainable config
-(b2/s128 fp32). Causal (no-future-leak) is xfail until the masking phase.
+(b2/s128 fp32). Causal (no-future-leak) is enforced across seeds/positions (Phase 2).
 
 Hermetic: builds a fresh model from config, no checkpoints, no shared state.
 """
@@ -96,17 +96,26 @@ def test_trains_on_8gb_at_measured_config():
     ), f"train step peak {peak/1e9:.2f}GB exceeds cap {TRAIN_VRAM_CAP/1e9:.1f}GB"
 
 
-@pytest.mark.xfail(reason="causal masking is a later phase; bidirectional attention leaks future")
 def test_no_future_token_leakage():
+    # Causality, proven across several seeds and perturbation positions (not one
+    # black-box poke): perturbing token j must never change logits at any position < j.
+    # Memory is reset per forward to isolate WITHIN-sequence causality; the cross-forward
+    # memory-state leak is a separate Phase-3 bug (#10).
     cfg, m = _model()
     m.eval()
     vocab = cfg.titans_config.vocab_size
-    torch.manual_seed(1)
-    ids = torch.randint(0, vocab, (1, 12))
-    with torch.no_grad():
-        base = m(ids)["logits"]
-        ids2 = ids.clone()
-        ids2[0, -1] = (ids2[0, -1] + 7) % vocab
-        pert = m(ids2)["logits"]
-    delta = (base[0, :-1] - pert[0, :-1]).abs().max().item()
-    assert delta < 1e-5, f"future token changed earlier logits by {delta} (not causal)"
+    for seed in (1, 7, 42):
+        for j in (4, 8, 11):  # perturb an interior and the last position
+            torch.manual_seed(seed)
+            ids = torch.randint(0, vocab, (1, 12))
+            with torch.no_grad():
+                m.reset_memory()
+                base = m(ids)["logits"]
+                ids2 = ids.clone()
+                ids2[0, j] = (ids2[0, j] + 7) % vocab
+                m.reset_memory()
+                pert = m(ids2)["logits"]
+            delta = (base[0, :j] - pert[0, :j]).abs().max().item() if j > 0 else 0.0
+            assert (
+                delta < 1e-5
+            ), f"seed{seed} perturb@{j}: earlier logits moved by {delta} (not causal)"
