@@ -13,6 +13,7 @@ from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
+import torch.utils.checkpoint
 
 from .components import LongTermMemory, MAGGate, RMSNorm, SlidingWindowAttention, SwiGLUMLP
 from .model_config import TitansMAGConfig
@@ -143,9 +144,15 @@ class TitansMAGBackbone(nn.Module):
         pos_emb = self.pos_emb(pos_ids).unsqueeze(0).expand(batch, -1, -1)
         x = token_emb + pos_emb
 
-        # Pass through transformer layers
+        # Pass through transformer layers. Gradient checkpointing recomputes each
+        # layer's activations in backward instead of storing them - a large activation-
+        # memory saving (output-identical) during training only.
+        use_ckpt = getattr(self.config, "gradient_checkpointing", False) and self.training
         for layer in self.layers:
-            x = layer(x, mask)
+            if use_ckpt:
+                x = torch.utils.checkpoint.checkpoint(layer, x, mask, use_reentrant=False)
+            else:
+                x = layer(x, mask)
 
         # Normalize
         y = self.norm(x)
