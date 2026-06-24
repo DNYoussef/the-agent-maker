@@ -178,11 +178,19 @@ class ThinkingVocabulary:
                 return False
         return True
 
-    def get_stats(self) -> Dict[str, int]:
-        """Get vocabulary statistics."""
+    def get_stats(self, new_vocab_size: Optional[int] = None) -> Dict[str, int]:
+        """Get vocabulary statistics.
+
+        Args:
+            new_vocab_size: Pre-computed resized vocab size. If None, read it
+                from the tokenizer (avoids a redundant len() call when the
+                caller already knows the resized size).
+        """
+        if new_vocab_size is None:
+            new_vocab_size = len(self.tokenizer)
         return {
             "original_vocab_size": self.original_vocab_size,
-            "new_vocab_size": len(self.tokenizer),
+            "new_vocab_size": new_vocab_size,
             "thinking_tokens_added": len(self.thinking_tokens),
             "core_tokens": len(self.CORE_TOKENS),
             "extended_tokens": (len(self.EXTENDED_TOKENS) if self.use_extended else 0),
@@ -282,16 +290,17 @@ def prepare_model_for_phase3(
     num_added = vocab.add_tokens()
     print(f"Added {num_added} thinking tokens to vocabulary")
 
-    # Resize embeddings
-    vocab.resize_embeddings(model)
-    print(f"Resized embeddings: {vocab.original_vocab_size} → {len(tokenizer)}")
+    # Resize embeddings (reuse the resized size to avoid an extra len(tokenizer) call)
+    new_embeddings, _ = vocab.resize_embeddings(model)
+    new_vocab_size = new_embeddings.weight.size(0)
+    print(f"Resized embeddings: {vocab.original_vocab_size} -> {new_vocab_size}")
 
     # Validate
     if not vocab.validate_tokens():
         raise ValueError("Failed to add all thinking tokens")
 
     # Print stats
-    stats = vocab.get_stats()
+    stats = vocab.get_stats(new_vocab_size=new_vocab_size)
     print(f"Vocabulary stats: {stats}")
 
     return model, tokenizer, vocab

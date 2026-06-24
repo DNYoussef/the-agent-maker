@@ -140,6 +140,42 @@ class BitNetQuantizer:
         # Default: don't quantize
         return False
 
+    def _is_quantizable_weight(self, name: str, param: torch.Tensor) -> bool:
+        """
+        Shape-based fallback for layers the name matcher misses.
+
+        BitNet quantizes the 2D weight matrices of linear/matmul layers. Plain
+        nn.Linear and nn.Sequential modules produce parameter names like
+        "weight" or "layers.0.0.weight" that contain none of the substrings
+        should_quantize_layer() looks for, so without this fallback they were
+        silently left in full precision.
+
+        Args:
+            name: Parameter name
+            param: Parameter tensor
+
+        Returns:
+            True if this is a quantizable 2D weight matrix not on a preserve list
+        """
+        # Only quantize weight matrices (biases / 1D params stay full precision)
+        if not name.endswith("weight") or param.dim() < 2:
+            return False
+
+        # Respect preserve patterns (embeddings, lm_head, layer_norm, ...)
+        name_lower = name.lower()
+        for pattern in self.config.preserve_layers:
+            if pattern.lower() in name_lower:
+                return False
+
+        # BitNet keeps embedding matrices in full precision. The configured
+        # "embeddings" pattern misses common 2-D embedding param names
+        # (token_emb, wte, wpe, singular "embedding"), so guard them here -
+        # otherwise this shape-based fallback would wrongly quantize them.
+        if any(frag in name_lower for frag in ("emb", "wte", "wpe")):
+            return False
+
+        return True
+
     def quantize_model(
         self, model: nn.Module
     ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
@@ -171,8 +207,13 @@ class BitNetQuantizer:
             # Count total parameters
             self.stats["total_params"] += param.numel()
 
-            # Check if layer should be quantized
-            if self.should_quantize_layer(name):
+            # Check if layer should be quantized.
+            # Name-based matching catches conventionally-named transformer
+            # layers; the shape-based fallback catches the 2D matmul weight
+            # matrices of plain nn.Linear / nn.Sequential modules whose
+            # parameter names (e.g. "weight", "layers.0.0.weight") contain
+            # none of the expected substrings.
+            if self.should_quantize_layer(name) or self._is_quantizable_weight(name, param):
                 # Quantize
                 quantized, scale = self.quantize_tensor(param.data)
 

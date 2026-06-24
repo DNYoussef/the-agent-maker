@@ -163,8 +163,8 @@ class FineTuner:
             # Train one epoch
             epoch_stats = self._train_epoch(train_dataloader, log_callback)
 
-            # Evaluate if dataloader provided
-            if eval_dataloader is not None and self.training_history:
+            # Evaluate if dataloader provided (every epoch, including the first)
+            if eval_dataloader is not None:
                 eval_stats = self._evaluate(eval_dataloader)
                 epoch_stats.update(eval_stats)
 
@@ -331,7 +331,9 @@ class FineTuner:
         with torch.no_grad():
             for batch in dataloader:
                 input_ids = batch["input_ids"].to(self.device)
-                attention_mask = batch.get("attention_mask", torch.ones_like(input_ids)).to()
+                attention_mask = batch.get("attention_mask", torch.ones_like(input_ids)).to(
+                    self.device
+                )
 
                 # Forward pass
                 outputs = self.model(

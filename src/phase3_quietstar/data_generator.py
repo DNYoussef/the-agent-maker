@@ -270,7 +270,13 @@ class OpenRouterClient:
 
         question = prompt.split("Question:")[-1].strip() if "Question:" in prompt else lines[0]
         reasoning = content  # Full response contains reasoning
-        answer = lines[-1] if lines else ""
+
+        # Last line holds the answer; strip a leading "Answer:"/"Final Answer:" label
+        answer = lines[-1].strip() if lines else ""
+        for label in ("Final Answer:", "Answer:"):
+            if answer.startswith(label):
+                answer = answer[len(label) :].strip()
+                break
 
         return question, reasoning, answer
 

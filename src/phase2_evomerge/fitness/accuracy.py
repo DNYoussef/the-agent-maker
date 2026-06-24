@@ -120,6 +120,11 @@ def calculate_accuracy(
             # Unpack batch
             input_ids, labels = _unpack_batch(batch, device)
 
+            # Skip empty batches (no tokens) - they contribute nothing and
+            # must not be fed into the embedding layer.
+            if input_ids.numel() == 0:
+                continue
+
             # Forward pass
             logits = model(input_ids)
 
