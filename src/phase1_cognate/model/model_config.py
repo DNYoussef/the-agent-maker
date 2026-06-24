@@ -14,30 +14,32 @@ class TitansMAGConfig:
     """
     Titans-MAG Backbone Configuration
 
-    8-layer transformer with Sliding Window Attention + Long-range Memory.
-    Target: ~20M params for backbone alone.
+    Transformer with Sliding Window Attention + Long-range Memory.
+    Trainable-flagship size: ~200M total model params, fits an 8 GB GPU with bf16 +
+    gradient checkpointing. (Was 320/8 = ~32.6M; resized 2026-06-24.) head_dim is
+    pinned at 64, so d_model must be a multiple of 64 and n_heads = d_model // 64.
     """
 
-    # Model dimensions (adjusted for 25M target)
-    d_model: int = 320  # Reverted to 320 to match checkpoints
-    n_layers: int = 8  # Reverted to 8 to match checkpoints
-    n_heads: int = 5  # d_model / 64 (320/64 = 5)
+    # Model dimensions (~200M trainable flagship; head_dim pinned at 64)
+    d_model: int = 896  # 14 * 64
+    n_layers: int = 12
+    n_heads: int = 14  # d_model / 64 (896 / 64 = 14)
     head_dim: int = 64  # d_model / n_heads
-    d_ff: int = 1280  # SwiGLU MLP expansion (4x 320)
+    d_ff: int = 3584  # SwiGLU MLP expansion (4x 896)
 
     # Vocabulary
-    vocab_size: int = 50257  # GPT-2 tokenizer (full vocabulary)
+    vocab_size: int = 50257  # GPT-2 tokenizer (full vocabulary) - kept for pipeline compat
     max_seq_len: int = 2048
 
     # Sliding Window Attention
     sw_window: int = 1024  # Tokens attend to ±512 range
 
-    # Long-range Memory (LMM)
-    d_mem: int = 160  # Reverted to 160 (half of 320)
+    # Long-range Memory (LMM) - scales with d_model (half)
+    d_mem: int = 448  # d_model // 2
     memory_decay: float = 0.99  # Exponential decay rate
 
-    # MAG Gate
-    mag_hidden: int = 160  # Reverted to 160
+    # MAG Gate - scales with d_model (half)
+    mag_hidden: int = 448  # d_model // 2
     mag_entropy_reg: float = 0.001  # Entropy regularization
 
     # Dropout
@@ -118,12 +120,15 @@ class Phase1Config:
     # Model specialization (for 3 models)
     specialization: Literal["reasoning", "memory", "speed"] = "reasoning"
 
-    # ACT thresholds per specialization
+    # ACT thresholds per specialization. Halt fires when q > threshold, so a LOWER
+    # threshold halts SOONER. "speed" must therefore be the lowest (halt early) and
+    # "reasoning" the highest (think longest). The old speed=0.99 halted LATEST - the
+    # opposite of its intent (Codex #13).
     act_thresholds: dict[str, float] = field(
         default_factory=lambda: {
-            "reasoning": 0.95,  # Think longer
-            "memory": 0.90,  # Balanced
-            "speed": 0.99,  # Halt quickly
+            "reasoning": 0.95,  # highest -> think longest
+            "memory": 0.90,  # balanced
+            "speed": 0.80,  # lowest -> halt earliest
         }
     )
 
@@ -151,7 +156,12 @@ class Phase1Config:
     )
 
     # Training hyperparameters
-    batch_size: int = 16  # Fits in 6GB VRAM
+    # HONEST: at the resized ~222M size, a forward+backward fits an 8 GB GPU at physical
+    # batch 2 / seq 128 (fp32 ~4.9 GB, bf16 ~4.5 GB). batch 4 already exceeds 8 GB and
+    # seq 256 blows up (the TRM uses full O(seq^2) attention). Larger batch/seq needs
+    # gradient checkpointing + the O(seq^2) attention fix (a later efficiency phase).
+    # Effective batch is raised via the trainer's gradient_accumulation_steps.
+    batch_size: int = 2  # physical batch that fits 8 GB at ~222M (was 16 @ 32.6M)
     learning_rate: float = 1e-3
     num_epochs: int = 10
     gradient_clip: float = 1.0
@@ -171,8 +181,10 @@ class Phase1Config:
 
     # Hardware
     device: str = "cuda"
-    mixed_precision: bool = False  # Optional
-    gradient_checkpointing: bool = True  # Memory efficiency
+    mixed_precision: bool = False  # bf16 autocast now works (ACT BCE runs in fp32); opt-in
+    gradient_checkpointing: bool = (
+        True  # NOTE: flag only - NOT yet implemented in the backbone forward
+    )
 
     def __post_init__(self) -> None:
         """Apply specialization settings.
@@ -202,7 +214,7 @@ class Phase1Config:
             "specialization": self.specialization,
             "d_model": self.titans_config.d_model,
             "n_layers": self.titans_config.n_layers,
-            "target_params": "25M",
+            "target_params": "~200M",
             "act_threshold": self.act_config.halt_threshold,
             "ltm_capacity": self.ltm_capacities[self.specialization],
             "ltm_d_mem": self.titans_config.d_mem,

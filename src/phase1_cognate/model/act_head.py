@@ -1,10 +1,16 @@
 """
 Adaptive Computation Time (ACT) Head
 
-Learns when to halt recursion based on confidence and correctness.
-Uses EMA calibration to prevent pathological halting behavior.
+HONESTY (do not overclaim): this is a learned HALT-PROBABILITY HEAD, not Graves ACT.
+It trains a sigmoid halt head (BCE toward per-step next-token correctness, + entropy
+and diversity regularization) and reports halting_steps for inference, but it does NOT
+implement Graves' mechanism: there is no cumulative halt mass, no ponder cost, no
+halt-weighted mixture of step outputs, and crucially NO actual compute skipping - every
+recursion step always runs and the final step's logits are always used. Real
+compute-skipping ACT is a later feature.
 
-Reference: Graves, A. (2016). Adaptive Computation Time for RNNs
+Reference (mechanism this is INSPIRED BY, not a faithful impl):
+Graves, A. (2016). Adaptive Computation Time for RNNs.
 """
 
 from typing import Dict, Optional
@@ -24,17 +30,20 @@ class ACTHead(nn.Module):
     calibration to learn when to stop iterating.
     """
 
-    def __init__(self, d_model: int, config: ACTConfig):
+    def __init__(self, d_model: int, config: ACTConfig, max_steps: int = 11):
         super().__init__()
         self.config = config
         self.d_model = d_model
+        self.max_steps = max_steps
 
         # Halting predictor (single logit per token)
         self.w_halt = nn.Linear(d_model, 1)
 
-        # EMA step accuracies (tracked during training)
-        self.register_buffer("ema_step_acc", torch.zeros(10))  # Support up to T_max=10
-        self.register_buffer("step_count", torch.zeros(10))
+        # EMA step accuracies (tracked during training). Sized to the configured
+        # recursion depth (T_max + 1 for y0) so step indices never overflow - the old
+        # hardcoded 10 IndexError'd at T_max >= 10 (Codex #14).
+        self.register_buffer("ema_step_acc", torch.zeros(max_steps))
+        self.register_buffer("step_count", torch.zeros(max_steps))
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:
         """
@@ -97,13 +106,21 @@ class ACTHead(nn.Module):
         else:
             target_halt = torch.full((batch_size,), 0.5, device=q.device)
 
-        # BCE loss (match q dtype so fp16/bf16 forward passes do not error)
-        target_halt = target_halt.view(batch_size, 1, 1).expand_as(q).to(q.dtype)
-        loss_bce = F.binary_cross_entropy(q, target_halt)
+        # BCE + entropy computed in fp32: binary_cross_entropy is not implemented for
+        # bf16/fp16, so under autocast the bf16 q crashed the whole forward (the
+        # "bf16 OOM" was really this crash). Upcasting here keeps autocast training
+        # working and avoids log/grad instability at fp16 precision (Codex #16/bf16).
+        q32 = q.float()
+        target_halt = target_halt.view(batch_size, 1, 1).expand_as(q).float()
+        # binary_cross_entropy is explicitly "unsafe to autocast" - it raises inside an
+        # autocast region even with fp32 inputs. Disable autocast for this op so bf16
+        # training works (Codex #16/bf16).
+        with torch.autocast(device_type=q.device.type, enabled=False):
+            loss_bce = F.binary_cross_entropy(q32, target_halt)
 
         # Entropy regularization (prevent saturation)
-        eps = 1e-8
-        entropy = -(q * torch.log(q + eps) + (1 - q) * torch.log(1 - q + eps))
+        eps = 1e-6
+        entropy = -(q32 * torch.log(q32 + eps) + (1 - q32) * torch.log(1 - q32 + eps))
         loss_entropy = -self.config.entropy_reg * entropy.mean()
 
         # Diversity regularization (encourage variance across tokens)
@@ -136,7 +153,7 @@ class ACTHead(nn.Module):
     def get_ema_stats(self) -> Dict[str, float]:
         """Get EMA statistics for W&B logging"""
         stats = {}
-        for i in range(10):
+        for i in range(len(self.ema_step_acc)):
             if self.step_count[i] > 0:
                 stats[f"act/ema_acc_step{i}"] = self.ema_step_acc[i].item()
         return stats

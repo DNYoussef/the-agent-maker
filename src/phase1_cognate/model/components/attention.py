@@ -21,7 +21,9 @@ class SlidingWindowAttention(nn.Module):
     Complexity: O(n*w) instead of O(n^2)
     """
 
-    def __init__(self, d_model: int, n_heads: int, window: int, dropout: float = 0.1):
+    def __init__(
+        self, d_model: int, n_heads: int, window: int, dropout: float = 0.1, causal: bool = True
+    ):
         """
         Initialize Sliding Window Attention.
 
@@ -30,6 +32,10 @@ class SlidingWindowAttention(nn.Module):
             n_heads: Number of attention heads
             window: Sliding window size
             dropout: Dropout rate
+            causal: If True (default, for LM use), a position attends only to itself and
+                the prior window_half tokens - never to the future. False = symmetric
+                (bidirectional) window. A causal LM MUST keep this True or it leaks
+                future tokens into the next-token prediction.
         """
         super().__init__()
         assert d_model % n_heads == 0
@@ -37,6 +43,7 @@ class SlidingWindowAttention(nn.Module):
         self.n_heads = n_heads
         self.head_dim = d_model // n_heads
         self.window = window
+        self.causal = causal
         self.scale = 1.0 / math.sqrt(self.head_dim)
 
         # Q, K, V projections
@@ -103,7 +110,9 @@ class SlidingWindowAttention(nn.Module):
 
         for pos in range(seq_len):
             start = max(0, pos - window_half)
-            end = min(seq_len, pos + window_half + 1)
+            # Causal: attend only up to and including the current position (no future).
+            # Bidirectional: also attend to the next window_half tokens.
+            end = pos + 1 if self.causal else min(seq_len, pos + window_half + 1)
 
             q_pos = q[:, :, pos : pos + 1, :]
             k_local = k[:, :, start:end, :]
@@ -134,6 +143,15 @@ class SlidingWindowAttention(nn.Module):
     ) -> torch.Tensor:
         """Return the mask slice for one query position and local key window."""
         if mask.dim() == 2:
+            # A 2-D mask must be [seq, seq]. A non-square 2-D mask is almost certainly a
+            # [batch, seq] key-padding mask, which would be silently mis-sliced here;
+            # reject it with a clear message instead (Codex #1).
+            if mask.shape[0] != mask.shape[1]:
+                raise ValueError(
+                    f"2-D attention mask must be square [seq, seq]; got {tuple(mask.shape)}. "
+                    "Supported shapes: [seq, seq], [batch, seq, seq], [batch, heads, seq, seq] "
+                    "(a [batch, seq] key-padding mask is not supported - broadcast it to one of these)."
+                )
             local = mask[position : position + 1, start:end]
             return local.view(1, 1, 1, end - start)
         if mask.dim() == 3:

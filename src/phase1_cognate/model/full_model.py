@@ -2,12 +2,14 @@
 Complete TRM × Titans-MAG Model
 
 Integrates all components:
-1. Titans-MAG Backbone (8 layers, Sliding Window + LMM + MAG)
-2. TRM Wrapper (multi-pass reasoning)
-3. ACT Head (adaptive computation)
-4. LM Head (vocabulary projection)
+1. Titans-MAG Backbone (n_layers, causal Sliding Window + EMA-pool LMM + MAG)
+2. TRM Wrapper (multi-pass reasoning, causal)
+3. ACT Head (halt-probability head; reports halting but does NOT skip compute)
+4. LM Head (vocabulary projection, tied with embeddings)
 
-Target: ~25M parameters, fits in 6GB VRAM
+Size: ~222M parameters (resized 2026-06-24). Trains on an 8 GB GPU at b2/s128
+(fp32 ~4.9 GB or bf16 ~4.5 GB); larger batch/seq needs the deferred efficiency work
+(gradient checkpointing + the TRM's O(seq^2) attention).
 """
 
 from typing import Dict, List, Optional
@@ -44,8 +46,8 @@ class TRMTitansMAGModel(nn.Module):
         # TRM Wrapper
         self.trm = TRMWrapper(d_model, config.trm_config)
 
-        # ACT Head
-        self.act_head = ACTHead(d_model, config.act_config)
+        # ACT Head (EMA buffers sized to the recursion depth: y0 + T_max steps)
+        self.act_head = ACTHead(d_model, config.act_config, max_steps=config.trm_config.T_max + 1)
 
         # Language Modeling Head (tied with embeddings)
         self.lm_head = nn.Linear(d_model, vocab_size, bias=False)
@@ -79,6 +81,14 @@ class TRMTitansMAGModel(nn.Module):
                 - halting_steps: [batch] number of steps taken
                 - gate_loss: scalar MAG gate entropy loss
         """
+        # Truncate input AND labels together to max_seq_len: the backbone truncates
+        # input internally, so unsynced labels caused a CE/ACT shape mismatch (Codex #9).
+        max_len = self.config.titans_config.max_seq_len
+        if input_ids.shape[1] > max_len:
+            input_ids = input_ids[:, :max_len]
+            if labels is not None:
+                labels = labels[:, :max_len]
+
         batch_size, seq_len = input_ids.shape
 
         # 1. Backbone forward pass
@@ -103,6 +113,9 @@ class TRMTitansMAGModel(nn.Module):
             halt_probs.append(q_t.mean(dim=[1, 2]))  # [batch]
 
         # 4. Determine halting (for inference)
+        # halting_steps is REPORTED for inference but does NOT skip compute: every step
+        # always runs and the final step's logits are always used (see act_head docstring).
+        # Range is 1..len(halt_probs) = 1..T_max+1 because y0/z0 count as step 1.
         halting_steps = self._compute_halting_steps(halt_probs)
 
         # 5. Final output (last step)
@@ -110,55 +123,8 @@ class TRMTitansMAGModel(nn.Module):
 
         # 6. Compute loss with optional deep supervision
         output = {"logits": logits}
-
         if labels is not None:
-            vocab_size = self.config.titans_config.vocab_size
-
-            # Deep supervision: weighted loss across all steps
-            if self.config.trm_config.deep_supervision and len(step_logits) > 1:
-                step_weights = self.config.trm_config.step_weights
-                total_weight = sum(step_weights[: len(step_logits)])
-                loss_ce = torch.tensor(0.0, device=labels.device)
-
-                step_losses = []
-                for t, (logits_t, weight) in enumerate(zip(step_logits, step_weights)):
-                    # Clone logits to avoid graph reuse issues (M4 fix)
-                    logits_clone = logits_t.clone()
-                    step_loss = nn.functional.cross_entropy(
-                        logits_clone.view(-1, vocab_size), labels.view(-1), reduction="mean"
-                    )
-                    step_losses.append(step_loss.item())
-                    loss_ce = loss_ce + weight * step_loss
-
-                # Normalize by total weight
-                loss_ce = loss_ce / total_weight
-                output["step_losses"] = step_losses
-            else:
-                # Final step only (standard training)
-                loss_ce = nn.functional.cross_entropy(
-                    logits.view(-1, vocab_size), labels.view(-1), reduction="mean"
-                )
-
-            # Differentiable ACT loss so the halt head actually trains. The old
-            # `halting_steps.float().mean()` was built from a non-differentiable
-            # integer tensor, so the ACT head got zero gradient. compute_act_loss
-            # (BCE-to-target + entropy + diversity reg) is differentiable w.r.t.
-            # the halt probabilities, and is calibrated against per-step token
-            # accuracy vs its EMA so the target is correctness-driven, not a flat
-            # 0.5 prior (which would collapse all halt probs to 0.5).
-            act_step_losses = []
-            for t, q_t in enumerate(step_q):
-                is_correct = (step_logits[t].argmax(dim=-1) == labels).float().mean(dim=1)
-                act_step_losses.append(self.act_head.compute_act_loss(q_t, t, is_correct))
-            loss_act = self.config.act_config.act_loss_weight * torch.stack(act_step_losses).mean()
-
-            # Total loss
-            loss_total = loss_ce + loss_act + loss_gate
-
-            output["loss"] = loss_total
-            output["loss_ce"] = loss_ce
-            output["loss_act"] = loss_act
-            output["loss_gate"] = loss_gate
+            output.update(self._supervised_loss(step_logits, step_q, labels, loss_gate))
 
         output["halting_steps"] = halting_steps
         output["halt_probs"] = halt_probs
@@ -169,6 +135,80 @@ class TRMTitansMAGModel(nn.Module):
             output["all_z"] = z_history
 
         return output
+
+    def _supervised_loss(
+        self,
+        step_logits: List[torch.Tensor],
+        step_q: List[torch.Tensor],
+        labels: torch.Tensor,
+        loss_gate: torch.Tensor,
+    ) -> Dict[str, torch.Tensor]:
+        """NEXT-token (shifted) CE + differentiable ACT loss + MAG gate loss.
+
+        Same-position CE is degenerate for a causal LM (the model copies the token it
+        sees via self-attention - Codex #2); logits[t] is scored against token t+1.
+        ignore_index=-100 masks padding; the ACT correctness target uses the same
+        shifted, padding-masked alignment (Codex #15).
+        """
+        vocab_size = self.config.titans_config.vocab_size
+        shift_labels = labels[:, 1:].reshape(-1)
+
+        out: Dict[str, torch.Tensor] = {}
+        # Degenerate supervision: no next token exists (seq_len<=1) or every shifted
+        # target is padding. CE-mean would be nan; return graph-connected zeros so the
+        # step neither crashes nor poisons training (Codex #1). The gate loss still flows.
+        if step_logits[-1].shape[1] <= 1 or (shift_labels != -100).sum() == 0:
+            zero = step_logits[-1].sum() * 0.0
+            return {
+                "loss": zero + loss_gate,
+                "loss_ce": zero,
+                "loss_act": zero,
+                "loss_gate": loss_gate,
+            }
+
+        def _ce(logits_t: torch.Tensor) -> torch.Tensor:
+            return nn.functional.cross_entropy(
+                logits_t[:, :-1, :].reshape(-1, vocab_size),
+                shift_labels,
+                reduction="mean",
+                ignore_index=-100,
+            )
+
+        if self.config.trm_config.deep_supervision and len(step_logits) > 1:
+            step_weights = self.config.trm_config.step_weights
+            total_weight = sum(step_weights[: len(step_logits)])
+            loss_ce = torch.tensor(0.0, device=labels.device)
+            step_losses = []
+            for logits_t, weight in zip(step_logits, step_weights):
+                step_loss = _ce(logits_t)
+                step_losses.append(step_loss.item())
+                loss_ce = loss_ce + weight * step_loss
+            loss_ce = loss_ce / total_weight
+            out["step_losses"] = step_losses
+        else:
+            loss_ce = _ce(step_logits[-1])
+
+        # Per-sample NEXT-token correctness (shifted, padding-masked) drives the ACT
+        # target; the halt head trains via differentiable compute_act_loss. Rows with no
+        # supervised target are EXCLUDED so they are not trained as "wrong" (Codex #2);
+        # at least one row has a target here (the all-padding case returned early above).
+        valid = (labels[:, 1:] != -100).float()
+        has_target = valid.sum(dim=1) > 0
+        denom = valid.sum(dim=1).clamp(min=1.0)
+        act_step_losses = []
+        for t, q_t in enumerate(step_q):
+            pred = step_logits[t][:, :-1, :].argmax(dim=-1)
+            is_correct = ((pred == labels[:, 1:]).float() * valid).sum(dim=1) / denom
+            act_step_losses.append(
+                self.act_head.compute_act_loss(q_t[has_target], t, is_correct[has_target])
+            )
+        loss_act = self.config.act_config.act_loss_weight * torch.stack(act_step_losses).mean()
+
+        out["loss"] = loss_ce + loss_act + loss_gate
+        out["loss_ce"] = loss_ce
+        out["loss_act"] = loss_act
+        out["loss_gate"] = loss_gate
+        return out
 
     def _compute_halting_steps(self, halt_probs: List[torch.Tensor]) -> torch.Tensor:
         """

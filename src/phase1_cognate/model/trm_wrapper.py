@@ -4,12 +4,13 @@ TRM (Transformer Recursive Memory) Wrapper
 Multi-pass reasoning with iterative refinement of latent state (z) and answer (y).
 
 Components:
-- g_φ (Refiner): Updates latent state via micro-steps
-- h_ψ (Updater): Updates answer from refined latent
-- Recursion Controller: Manages T_max iterations with early stopping
+- g_phi (Refiner): Updates latent state via micro-steps (causal cross-attention)
+- h_psi (Updater): Updates answer from refined latent
+- Recursion: runs a FIXED T_max iterations. There is NO early stopping / compute
+  skipping - the ACT head only REPORTS a halting step, it does not cut the loop.
 
 Key Features:
-- Detached recursion for memory efficiency
+- Truncated BPTT when detach_between_steps=True (full BPTT when False)
 - Deep supervision (loss at each step)
 - Micro-step refinement
 """
@@ -29,16 +30,23 @@ class LatentRefiner(nn.Module):
     Uses cross-attention to features and previous answer.
     """
 
-    def __init__(self, d_model: int, n_heads: int = 8):
+    def __init__(self, d_model: int, n_heads: int = 0):
         super().__init__()
         self.d_model = d_model
-        self.n_heads = n_heads
+        # head_dim pinned at 64 to match the backbone geometry; do NOT hardcode a
+        # head count that breaks when d_model is not divisible by it (scale-up bug).
+        self.n_heads = n_heads if n_heads > 0 else max(1, d_model // 64)
+        # An explicit override must still honor the pinned 64-dim head geometry,
+        # else nn.MultiheadAttention silently builds wrong-sized heads.
+        assert (
+            d_model % self.n_heads == 0 and d_model // self.n_heads == 64
+        ), f"TRM n_heads={self.n_heads} violates pinned head_dim 64 for d_model={d_model}"
 
         # Cross-attention to features
-        self.feature_attn = nn.MultiheadAttention(d_model, n_heads, batch_first=True)
+        self.feature_attn = nn.MultiheadAttention(d_model, self.n_heads, batch_first=True)
 
         # Cross-attention to answer
-        self.answer_attn = nn.MultiheadAttention(d_model, n_heads, batch_first=True)
+        self.answer_attn = nn.MultiheadAttention(d_model, self.n_heads, batch_first=True)
 
         # MLP for update
         self.mlp = nn.Sequential(
@@ -63,12 +71,19 @@ class LatentRefiner(nn.Module):
         Returns:
             z_refined: [batch, seq_len, d_model]
         """
+        # Causal mask: query position i may attend only to key positions j <= i.
+        # Without it the TRM cross-attends over the whole sequence and leaks future
+        # tokens into y_t -> the next-token logits (the same bug as the backbone).
+        seq_len = z.size(1)
+        causal = torch.triu(
+            torch.full((seq_len, seq_len), float("-inf"), device=z.device), diagonal=1
+        )
         for _ in range(n_steps):
-            # Attend to features
-            feat_context, _ = self.feature_attn(z, features, features)
+            # Attend to features (causal)
+            feat_context, _ = self.feature_attn(z, features, features, attn_mask=causal)
 
-            # Attend to answer
-            ans_context, _ = self.answer_attn(z, y, y)
+            # Attend to answer (causal)
+            ans_context, _ = self.answer_attn(z, y, y, attn_mask=causal)
 
             # Combine contexts
             combined = torch.cat([z, feat_context, ans_context], dim=-1)
@@ -160,16 +175,20 @@ class TRMWrapper(nn.Module):
         y_history = [y]
         z_history = [z]
 
-        # For recursion, we'll use features but need to avoid graph reuse issues
-        # We pass features to the first refiner call normally, then detached versions after
-        features_first = features
+        # Features detaching is governed by detach_between_steps (truncated BPTT). The
+        # old code detached features after the first step UNCONDITIONALLY, ignoring the
+        # config (Codex #5) - so setting detach_between_steps=False still cut the
+        # gradient to the backbone through later steps.
         features_detached = features.detach()
 
         # Recursion loop
         for t in range(max_steps):
-            # Refine latent
-            # Use non-detached features for first iteration, detached for rest
-            feat_to_use = features_first if t == 0 else features_detached
+            # Refine latent. Full-BPTT (detach off) keeps gradient to features every
+            # step; truncated BPTT detaches features after the first step.
+            if t == 0 or not self.config.detach_between_steps:
+                feat_to_use = features
+            else:
+                feat_to_use = features_detached
             z_refined = self.refiner(z, feat_to_use, y, n_steps=self.config.micro_steps)
 
             # Update answer
