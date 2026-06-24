@@ -9,6 +9,12 @@ from typing import Dict
 import torch
 import torch.nn as nn
 
+# Parameter-count boundaries for the adaptive size categories (tiny/small/
+# medium/large). Named so the thresholds are not magic literals at the call site.
+TINY_MODEL_MAX_PARAMS = 50_000_000  # < 50M -> "tiny"
+SMALL_MODEL_MAX_PARAMS = 500_000_000  # < 500M -> "small"
+MEDIUM_MODEL_MAX_PARAMS = 2_000_000_000  # < 2B -> "medium"; else "large"
+
 
 def get_model_size(model: nn.Module) -> Dict:
     """
@@ -25,11 +31,11 @@ def get_model_size(model: nn.Module) -> Dict:
     size_mb = total_params * 4 / (1024**2)  # FP32
 
     # Categorize for adaptive strategies
-    if total_params < 50_000_000:  # <50M
+    if total_params < TINY_MODEL_MAX_PARAMS:
         size_category = "tiny"
-    elif total_params < 500_000_000:  # <500M
+    elif total_params < SMALL_MODEL_MAX_PARAMS:
         size_category = "small"
-    elif total_params < 2_000_000_000:  # <2B
+    elif total_params < MEDIUM_MODEL_MAX_PARAMS:
         size_category = "medium"
     else:
         size_category = "large"

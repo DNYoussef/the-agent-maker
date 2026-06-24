@@ -119,7 +119,7 @@ MODEL_CONFIGS: Dict[ModelProvider, ModelConfig] = {
         cost_per_1m_input_tokens=5.00,
         cost_per_1m_output_tokens=15.00,
         max_tokens=32768,
-        context_window=2000000,  # 2M context
+        context_window=2_000_000,  # 2M context (per-model data, not a threshold)
     ),
     ModelProvider.GPT_51_DEEP_THINKING: ModelConfig(
         name="GPT-5.1 Deep Thinking",
