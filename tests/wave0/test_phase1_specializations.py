@@ -4,7 +4,7 @@ surprise_thresholds are config that is never applied (no memory slots, no
 surprise signal in the EMA memory). Lock that so the config can't masquerade as
 three distinct designs."""
 
-from phase1_cognate.model.model_config import Phase1Config
+from phase1_cognate.model.model_config import Phase1Config, TitansMAGConfig
 
 
 def test_specializations_differ_only_by_halt_threshold_and_seed():
@@ -31,7 +31,8 @@ def test_capacity_and_surprise_config_is_not_silently_applied():
     # (and update this test), rather than letting dead config imply real behavior.
     r = Phase1Config(specialization="reasoning")
     s = Phase1Config(specialization="speed")
-    # d_mem is the single factorized dim and does NOT track ltm_capacities.
-    assert r.titans_config.d_mem == s.titans_config.d_mem
+    # d_mem is the single factorized dim and does NOT track ltm_capacities: it is
+    # identical across specializations even though the (unwired) ltm_capacities differ.
     assert r.ltm_capacities["reasoning"] != r.ltm_capacities["speed"]  # config differs...
-    assert r.titans_config.d_mem == 160  # ...but the model dim is fixed regardless
+    assert r.titans_config.d_mem == s.titans_config.d_mem  # ...but the model dim is fixed
+    assert r.titans_config.d_mem == TitansMAGConfig().d_mem  # == the architecture default

@@ -54,9 +54,12 @@ def test_phase1_cognate_sandbox():  # noqa: C901
         print("[1/6] Creating test configuration...")
         config = Phase1Config(specialization="reasoning")
 
-        # Override for faster testing
-        config.titans_config.n_layers = 8  # Keep full architecture
-        config.titans_config.d_model = 320
+        # Override for faster testing: the COMPLETE small (~32.6M) geometry, not a
+        # partial override (leaving d_ff/d_mem/mag_hidden at the 896-defaults builds a
+        # mismatched ~50M model). head_dim pinned at 64, so n_heads = d_model // 64.
+        tc = config.titans_config
+        tc.n_layers, tc.d_model, tc.n_heads = 8, 320, 5
+        tc.d_ff, tc.d_mem, tc.mag_hidden = 1280, 160, 160
         config.trm_config.T_max = 3  # 3 reasoning steps
 
         print("  Architecture: TRM x Titans-MAG")
@@ -272,6 +275,11 @@ def test_phase1_cognate_sandbox():  # noqa: C901
         traceback.print_exc()
         print()
 
+    # Real gate: pytest must FAIL on a non-success run (returning the dict alone
+    # lets pytest pass even when status is FAILURE/ERROR - Codex-flagged theater).
+    assert (
+        results["status"] == "SUCCESS"
+    ), f"sandbox status={results['status']} errors={results['errors']}"
     return results
 
 

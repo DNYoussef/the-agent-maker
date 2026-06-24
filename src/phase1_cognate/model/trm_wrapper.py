@@ -29,16 +29,23 @@ class LatentRefiner(nn.Module):
     Uses cross-attention to features and previous answer.
     """
 
-    def __init__(self, d_model: int, n_heads: int = 8):
+    def __init__(self, d_model: int, n_heads: int = 0):
         super().__init__()
         self.d_model = d_model
-        self.n_heads = n_heads
+        # head_dim pinned at 64 to match the backbone geometry; do NOT hardcode a
+        # head count that breaks when d_model is not divisible by it (scale-up bug).
+        self.n_heads = n_heads if n_heads > 0 else max(1, d_model // 64)
+        # An explicit override must still honor the pinned 64-dim head geometry,
+        # else nn.MultiheadAttention silently builds wrong-sized heads.
+        assert (
+            d_model % self.n_heads == 0 and d_model // self.n_heads == 64
+        ), f"TRM n_heads={self.n_heads} violates pinned head_dim 64 for d_model={d_model}"
 
         # Cross-attention to features
-        self.feature_attn = nn.MultiheadAttention(d_model, n_heads, batch_first=True)
+        self.feature_attn = nn.MultiheadAttention(d_model, self.n_heads, batch_first=True)
 
         # Cross-attention to answer
-        self.answer_attn = nn.MultiheadAttention(d_model, n_heads, batch_first=True)
+        self.answer_attn = nn.MultiheadAttention(d_model, self.n_heads, batch_first=True)
 
         # MLP for update
         self.mlp = nn.Sequential(
