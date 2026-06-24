@@ -10,7 +10,7 @@ Integrates all components:
 Target: ~25M parameters, fits in 6GB VRAM
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import torch
 import torch.nn as nn

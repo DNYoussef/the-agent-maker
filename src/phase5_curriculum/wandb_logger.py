@@ -28,10 +28,8 @@ Usage:
     logger.finish()
 """
 import logging
-import os
-from dataclasses import asdict, dataclass, field
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass, field
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -347,13 +345,18 @@ class Phase5WandBLogger:
         summary = {
             "summary/total_levels": len(self._level_metrics),
             "summary/total_questions_mastered": sum(
-                m.get(f"level_{l}/mastered_questions", 0) for l, m in self._level_metrics.items()
+                m.get(f"level_{lvl}/mastered_questions", 0)
+                for lvl, m in self._level_metrics.items()
             ),
             "summary/total_training_hours": sum(
-                m.get(f"level_{l}/training_time_hours", 0) for l, m in self._level_metrics.items()
+                m.get(f"level_{lvl}/training_time_hours", 0)
+                for lvl, m in self._level_metrics.items()
             ),
             "summary/average_accuracy": (
-                sum(m.get(f"level_{l}/final_accuracy", 0) for l, m in self._level_metrics.items())
+                sum(
+                    m.get(f"level_{lvl}/final_accuracy", 0)
+                    for lvl, m in self._level_metrics.items()
+                )
                 / len(self._level_metrics)
             ),
         }

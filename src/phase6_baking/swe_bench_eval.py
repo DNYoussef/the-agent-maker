@@ -469,7 +469,7 @@ class SWEBenchEvaluator:
 
         if verbose:
             print(f"\n{'='*50}")
-            print(f"EVALUATION COMPLETE")
+            print("EVALUATION COMPLETE")
             print(f"{'='*50}")
             print(f"Tasks evaluated: {metrics['count']}")
             print(f"Exact match: {metrics['exact_match']:.2%}")

@@ -7,9 +7,8 @@ import json
 import os
 import sqlite3
 import threading
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 
 class ModelRegistry:

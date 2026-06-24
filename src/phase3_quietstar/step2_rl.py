@@ -17,12 +17,11 @@ Duration: ~8-12 hours (10K episodes × 3-4s/episode)
 """
 
 import copy
-import json
 
 # ISS-004: Secure checkpoint utilities
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 
 import numpy as np
 import torch
@@ -37,8 +36,8 @@ from .config import QuietSTaRConfig
 from .wandb_logger import WandBLogger
 
 sys.path.insert(0, str(Path(__file__).parents[2]))
-from src.cross_phase.utils.checkpoint_utils import load_checkpoint as secure_load
-from src.cross_phase.utils.checkpoint_utils import save_checkpoint as secure_save
+from src.cross_phase.utils.checkpoint_utils import load_checkpoint as secure_load  # noqa: E402
+from src.cross_phase.utils.checkpoint_utils import save_checkpoint as secure_save  # noqa: E402
 
 
 class REINFORCETrainer:
@@ -460,7 +459,7 @@ class REINFORCETrainer:
         print("\n" + "=" * 60)
         print("PHASE 3 - STEP 2: QUIET-STAR RL (REINFORCE)")
         print("=" * 60)
-        print(f"ISS-007 Features:")
+        print("ISS-007 Features:")
         print(f"  - GAE: {self.config.rl.use_gae}")
         print(f"  - LR Schedule: {self.config.rl.lr_schedule}")
         print(f"  - Entropy Bonus: {self.config.rl.entropy_coefficient}")
@@ -732,7 +731,7 @@ def run_step2_rl(
     thinking_tokens = metadata.get("thinking_tokens", [])
     strategy_accuracies = metadata.get("strategy_accuracies", {})
 
-    print(f"[OK] Loaded baked model")
+    print("[OK] Loaded baked model")
     print(f"   Thinking tokens: {len(thinking_tokens)}")
     print(f"   Strategy accuracies: {strategy_accuracies}")
 

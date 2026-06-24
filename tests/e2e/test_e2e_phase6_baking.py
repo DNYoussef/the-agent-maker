@@ -1,10 +1,5 @@
 """E2E tests for Phase 6: Tool & Persona Baking"""
-import sys
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
-import torch
+from unittest.mock import Mock, patch
 
 
 class TestPhase6BakingE2E:
@@ -41,12 +36,12 @@ class TestPhase6BakingE2E:
         from phase6_baking.baking_engine import BakingConfig, BakingCycleType, BakingEngine
 
         config = BakingConfig()
-        engine = BakingEngine(config=config)
+        _ = BakingEngine(config=config)
 
         # Mock the imports inside the run method
-        with patch("phase6_baking.a_cycle_tool.ACycleOptimizer") as MockA, patch(
+        with patch("phase6_baking.a_cycle_tool.ACycleOptimizer") as _, patch(
             "phase6_baking.b_cycle_persona.BCycleOptimizer"
-        ) as MockB, patch("phase6_baking.plateau_detector.PlateauDetector") as MockDetector:
+        ) as _, patch("phase6_baking.plateau_detector.PlateauDetector") as MockDetector:
             # Setup mocks
             mock_detector = MockDetector.return_value
             mock_detector.check.side_effect = [True, False, True]  # Plateau, no plateau, plateau
@@ -99,7 +94,7 @@ class TestPhase6BakingE2E:
         """Test A-cycle can execute one training iteration."""
         from phase6_baking.baking_engine import BakingConfig
 
-        config = BakingConfig()
+        BakingConfig()
 
         # Mock A-cycle optimizer
         mock_optimizer = MockOptimizer.return_value
@@ -130,7 +125,7 @@ class TestPhase6BakingE2E:
         """Test B-cycle discovers model's own patterns."""
         from phase6_baking.baking_engine import BakingConfig
 
-        config = BakingConfig()
+        BakingConfig()
 
         # Mock B-cycle optimizer
         mock_optimizer = MockOptimizer.return_value
@@ -149,7 +144,7 @@ class TestPhase6BakingE2E:
         """Test half-baking applies 50% strength per iteration."""
         from phase6_baking.baking_engine import BakingConfig
 
-        config = BakingConfig(half_bake_strength=0.5, baking_epochs=1)
+        _ = BakingConfig(half_bake_strength=0.5, baking_epochs=1)
 
         # Mock HalfBaker
         with patch("phase6_baking.half_baking.HalfBaker") as MockBaker:
@@ -194,10 +189,10 @@ class TestPhase6BakingE2E:
 
     def test_plateau_triggered_cycle_switch(self, mock_model, temp_output_dir):
         """Test plateau detection triggers cycle switch."""
-        from phase6_baking.baking_engine import BakingConfig, BakingCycleType, BakingEngine
+        from phase6_baking.baking_engine import BakingConfig, BakingEngine
 
         config = BakingConfig(max_total_iterations=3)
-        engine = BakingEngine(config=config)
+        _ = BakingEngine(config=config)
 
         # Mock the imports inside the run method
         with patch("phase6_baking.a_cycle_tool.ACycleOptimizer") as MockA, patch(
@@ -268,8 +263,6 @@ class TestPhase6BakingE2E:
         """Test sequential baking composes multiple prompts."""
         # Sequential baking: theta_u1u2 = B(B(theta, u1), u2)
         # From V1 implementation
-
-        from phase6_baking.baking_engine import BakingConfig
 
         # Mock HalfBaker for sequential composition
         with patch("phase6_baking.half_baking.HalfBaker") as MockBaker:

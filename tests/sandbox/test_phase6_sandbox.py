@@ -20,12 +20,12 @@ Components Tested:
 Critical: Model must remain in 1.58-bit format throughout!
 """
 
-import sys
-from dataclasses import dataclass
-from typing import Any, Dict, List
+import sys  # noqa: E402
+from dataclasses import dataclass  # noqa: E402
+from typing import Any, Dict, List  # noqa: E402
 
-import torch
-import torch.nn as nn
+import torch  # noqa: E402
+import torch.nn as nn  # noqa: E402
 
 # ============================================================================
 # MOCK 1.58-BIT MODEL
@@ -216,7 +216,7 @@ def test_a_cycle_tool_optimization(model: nn.Module, tokenizer: Any):
             f"  After optimization: {sum(after_quant.values())}/{len(after_quant)} layers quantized"
         )
 
-        print(f"  [OK] A-Cycle completed successfully")
+        print("  [OK] A-Cycle completed successfully")
         print(f"  - Tool score: {score:.3f}")
         print(f"  - 1.58-bit preserved: {all(after_quant.values())}")
 
@@ -267,7 +267,7 @@ def test_b_cycle_persona_discovery(model: nn.Module, tokenizer: Any):
         state = b_optimizer.get_state()
         discovered = state.get("discovered_traits", [])
 
-        print(f"  [OK] B-Cycle completed successfully")
+        print("  [OK] B-Cycle completed successfully")
         print(f"  - Persona score: {score:.3f}")
         print(f"  - Discovered traits: {discovered[:3]}")
         print(f"  - 1.58-bit preserved: {all(after_quant.values())}")
@@ -312,8 +312,8 @@ def test_half_baking(original_model: nn.Module, baked_model: nn.Module):
         # Get metrics
         metrics = half_baker.get_metrics()
 
-        print(f"  [OK] Half-baking completed successfully")
-        print(f"  - Strength: 0.5")
+        print("  [OK] Half-baking completed successfully")
+        print("  - Strength: 0.5")
         print(f"  - Layers interpolated: {metrics['layers_interpolated']}")
         print(f"  - Layers preserved: {metrics['layers_preserved']}")
         print(f"  - 1.58-bit preserved: {all(after_quant.values())}")
@@ -367,7 +367,7 @@ def test_prompt_pursuit(model: nn.Module, tokenizer: Any):
         after_quant = result.final_model.verify_quantization()
         print(f"  After pursuit: {sum(after_quant.values())}/{len(after_quant)} layers quantized")
 
-        print(f"  [OK] Prompt pursuit completed successfully")
+        print("  [OK] Prompt pursuit completed successfully")
         print(f"  - Rounds completed: {result.rounds_completed}")
         print(f"  - Converged: {result.converged}")
         print(f"  - Scores: {[f'{s:.3f}' for s in result.scores_per_round]}")
@@ -418,7 +418,7 @@ def test_drift_meter(model: nn.Module, tokenizer: Any):
             f"  After measurement: {sum(after_quant.values())}/{len(after_quant)} layers quantized"
         )
 
-        print(f"  [OK] Drift measurement completed successfully")
+        print("  [OK] Drift measurement completed successfully")
         print(f"  - Turns completed: {result.turns_completed}")
         print(f"  - Avg drift: {result.avg_drift:.4f}")
         print(f"  - Max drift: {result.max_drift:.4f}")
@@ -480,7 +480,7 @@ def test_cross_task_validator(base_model: nn.Module, baked_model: nn.Module):
             f"  After validation baked: {sum(after_baked.values())}/{len(after_baked)} layers quantized"
         )
 
-        print(f"  [OK] Cross-task validation completed successfully")
+        print("  [OK] Cross-task validation completed successfully")
         print(f"  - Tasks passed: {result.tasks_passed}/{len(tasks)}")
         print(f"  - Max degradation: {result.max_degradation*100:.2f}%")
         print(f"  - Avg degradation: {result.avg_degradation*100:.2f}%")
@@ -536,7 +536,7 @@ def test_end_to_end_ab_cycles(model: nn.Module, tokenizer: Any):
             f"  After A/B cycles: {sum(after_quant.values())}/{len(after_quant)} layers quantized"
         )
 
-        print(f"  [OK] End-to-end A/B cycles completed successfully")
+        print("  [OK] End-to-end A/B cycles completed successfully")
         print(f"  - Total iterations: {result.total_iterations}")
         print(f"  - A-cycle count: {result.a_cycle_count}")
         print(f"  - B-cycle count: {result.b_cycle_count}")
@@ -679,13 +679,13 @@ def main():
     print("SANDBOX TEST SUMMARY")
     print("=" * 70)
 
-    print(f"\nPhase: 6 (Tool & Persona Baking)")
+    print("\nPhase: 6 (Tool & Persona Baking)")
     print(f"Status: {'PASSED' if all(results.values()) else 'PARTIAL'}")
     print(f"Components Tested: {', '.join(components_tested)}")
     print(f"A/B Cycles Working: {ab_cycles_working}")
     print(f"1.58-bit Preserved: {bit_preserved}")
 
-    print(f"\nTest Results:")
+    print("\nTest Results:")
     for test_name, passed in results.items():
         status = "[OK]" if passed else "[X]"
         print(f"  {status} {test_name.replace('_', ' ').title()}")

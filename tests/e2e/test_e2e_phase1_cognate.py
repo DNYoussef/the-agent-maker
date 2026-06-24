@@ -9,11 +9,7 @@ Tests the complete model creation pipeline including:
 """
 
 import json
-import sys
-from pathlib import Path
-from unittest.mock import Mock, patch
 
-import pytest
 import torch
 import torch.nn as nn
 from safetensors.torch import load_file as safe_load_file

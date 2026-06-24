@@ -69,8 +69,6 @@ class ThoughtGenerator(nn.Module):
         hidden_states: Optional[torch.Tensor] = None,
     ) -> ThoughtOutput:
         """Generate thoughts at specified position."""
-        batch_size = input_ids.size(0)
-        device = input_ids.device
 
         # Initialize storage
         all_thoughts = []
@@ -101,8 +99,6 @@ class ThoughtGenerator(nn.Module):
         hidden_states: Optional[torch.Tensor],
     ) -> Tuple[torch.Tensor, torch.Tensor, List[int]]:
         """Generate a single thought continuation."""
-        device = input_ids.device
-        batch_size = input_ids.size(0)
 
         # Start from position
         current_ids = input_ids[:, : position + 1].clone()
@@ -325,7 +321,6 @@ class MixingHead(nn.Module):
         Returns:
             mixed_hidden: (batch, hidden_size)
         """
-        batch_size = base_hidden.size(0)
 
         # Query from base
         query = self.query(base_hidden).unsqueeze(1)

@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional
 
 # Layer 1 imports only
 from ..bigeometric import BigeometricConfig, BigeometricTransform, bigeometric_gradient_transform
-from ..k_formula import compute_k, k_from_gradient
+from ..k_formula import k_from_gradient
 
 
 @dataclass
@@ -255,7 +255,6 @@ def analyze_gradients(model) -> Dict[str, Any]:
     Returns:
         Dictionary with gradient statistics
     """
-    import torch
 
     stats = {
         "num_params": 0,

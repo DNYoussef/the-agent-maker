@@ -7,15 +7,13 @@ Target: ≥85% coverage
 """
 
 import json
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 import torch
 import torch.nn as nn
 from safetensors.torch import save_file as safe_save_file
 
-from src.phase3_quietstar.anti_theater import validate_anti_theater
 from src.phase3_quietstar.config import QuietSTaRConfig
 from src.phase3_quietstar.phase_handoff import validate_full_phase3_pipeline
 from src.phase3_quietstar.step1_baking import PromptBakingTrainer, ReasoningDataset
@@ -108,7 +106,7 @@ def sample_reasoning_data(tmp_path):
     data = [
         {
             "question": f"Question {i}",
-            "reasoning": f"<think><step>Step 1</step></think>",
+            "reasoning": "<think><step>Step 1</step></think>",
             "answer": f"Answer {i}",
             "strategy": "chain_of_thought",
             "model": "test",

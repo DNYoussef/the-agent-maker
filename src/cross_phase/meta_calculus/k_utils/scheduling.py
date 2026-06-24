@@ -10,7 +10,6 @@ Phase Applications:
     - All phases: Warmup schedules with k-adaptation
 """
 
-import math
 from dataclasses import dataclass
 from typing import Callable, List, Optional
 

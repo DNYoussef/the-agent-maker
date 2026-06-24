@@ -12,12 +12,11 @@ Three Critical Tests:
 All 3 tests must pass or Phase 3 fails.
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from scipy.stats import pearsonr
 
 from .config import AntiTheaterConfig

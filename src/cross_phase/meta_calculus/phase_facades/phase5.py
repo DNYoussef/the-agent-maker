@@ -21,24 +21,17 @@ Usage:
     result = phase5.optimize_curriculum(evaluator)
 """
 
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
-import numpy as np
-
-from ..gap_utils.monitoring import GapHealthStatus, PhaseGapMonitor, get_stage_advancement_info
+from ..gap_utils.monitoring import PhaseGapMonitor, get_stage_advancement_info
 from ..gap_utils.monitoring import should_advance_stage as _should_advance_stage
 
 # Layer 2 imports (utilities)
-from ..k_utils.scheduling import (
-    KScheduleConfig,
-    get_stage_difficulties,
-    k_difficulty_schedule,
-    k_warmup_schedule,
-)
+from ..k_utils.scheduling import get_stage_difficulties, k_difficulty_schedule
 
 # Layer 1 imports (core)
 from ..meta_grokfast import GrokfastConfig, MetaGrokfast
-from ..moo_utils.hyperparams import CurriculumScheduleProblem, optimize_curriculum_schedule
+from ..moo_utils.hyperparams import optimize_curriculum_schedule
 
 # Phase 5 specific defaults
 PHASE5_CONFIG = GrokfastConfig(

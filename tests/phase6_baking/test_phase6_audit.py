@@ -8,8 +8,6 @@ Tests the four newly created modules:
 4. validation.py - Cross-task validation
 """
 
-import pytest
-import torch
 import torch.nn as nn
 
 
@@ -151,11 +149,7 @@ class TestPhase6Integration:
 
     def test_integration_with_baking_engine(self):
         """Test all modules can coexist with baking_engine."""
-        from src.phase6_baking.baking_engine import BakingConfig, BakingEngine
-        from src.phase6_baking.drift_meter import PersonaDriftMeter
-        from src.phase6_baking.monte_carlo_kl import monte_carlo_kl_from_trajectories
-        from src.phase6_baking.prompt_pursuit import PromptPursuitOptimizer
-        from src.phase6_baking.validation import CrossTaskValidator
+        from src.phase6_baking.baking_engine import BakingEngine
 
         # All imports should succeed
         engine = BakingEngine()
@@ -180,7 +174,7 @@ class TestPhase6PyTorchCompatibility:
             def forward(self, x):
                 return self.linear(x)
 
-        model = SimpleModel()
+        SimpleModel()
 
         # Instantiate all modules (should not error)
         optimizer = PromptPursuitOptimizer()

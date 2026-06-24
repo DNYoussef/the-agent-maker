@@ -13,7 +13,7 @@ import inspect
 import random
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import torch
 import torch.nn as nn
@@ -178,17 +178,17 @@ class Phase2Pipeline:
 
         # Check for hybrid PS+DFS mode
         if self.config.use_hybrid_ps_dfs:
-            print(f"Mode: HYBRID PS+DFS (Paper's best approach)")
+            print("Mode: HYBRID PS+DFS (Paper's best approach)")
             print(f"PS candidates: {len(input_models) * self.config.ps_candidates_multiplier}")
         elif self.config.use_cmaes:
-            print(f"Mode: CMA-ES Parameter Space Optimization")
+            print("Mode: CMA-ES Parameter Space Optimization")
         else:
-            print(f"Mode: Standard Evolutionary Search")
+            print("Mode: Standard Evolutionary Search")
 
         if self.config.use_real_fitness:
             print(f"Fitness: Real benchmarks ({self.config.benchmark_name})")
         else:
-            print(f"Fitness: Parameter-based proxy (fast)")
+            print("Fitness: Parameter-based proxy (fast)")
 
         print("=" * 60 + "\n")
 
@@ -251,7 +251,7 @@ class Phase2Pipeline:
             "merge_techniques_used": list(self._mergers.keys()),
         }
 
-        print(f"\nPhase 2 Complete!")
+        print("\nPhase 2 Complete!")
         print(f"  Fitness gain: {fitness_gain * 100:.1f}%")
         print(f"  Duration: {elapsed:.1f}s")
 
@@ -279,7 +279,6 @@ class Phase2Pipeline:
 
     def _evaluate_population(self) -> float:
         """Evaluate fitness of all population members. Returns best fitness."""
-        from phase2_evomerge.fitness.composite import compute_composite_fitness
 
         # Honor use_real_fitness on the standard path (not just the hybrid path):
         # use the real benchmark fitness when configured and a tokenizer is present,
@@ -412,7 +411,8 @@ class Phase2Pipeline:
 
         else:
             # Use proxy fitness
-            fitness_fn = lambda model: self._quick_fitness(model)["composite"]
+            def fitness_fn(model):
+                return self._quick_fitness(model)["composite"]
 
         # Configure hybrid merge
         hybrid_config = HybridConfig(

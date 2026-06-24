@@ -21,15 +21,11 @@ Usage:
     diversity = phase7.compute_expert_diversity(expert_weights)
 """
 
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Optional
 
 import numpy as np
 
-from ..gap_utils.regularization import (
-    DiversityRegularizerConfig,
-    create_expert_regularizer,
-    expert_diversity_loss,
-)
+from ..gap_utils.regularization import DiversityRegularizerConfig, create_expert_regularizer
 
 # Layer 2 imports (utilities)
 from ..k_utils.routing import (
@@ -37,14 +33,13 @@ from ..k_utils.routing import (
     estimate_complexity_from_entropy,
     get_adaptive_top_k,
     get_routing_params,
-    get_routing_params_batch,
     get_routing_temperature,
 )
 from ..meta_grokfast import GrokfastConfig, MetaGrokfast
 
 # Layer 1 imports (core)
 from ..moo_bridge import ExpertDiscoveryProblem, MOOConfig, MOORunner
-from ..moo_utils.architecture import ExpertCountProblem, search_expert_count
+from ..moo_utils.architecture import search_expert_count
 from ..moo_utils.selection import SelectionResult, select_balanced, select_knee_point
 from ..spectral_gap import compute_expert_diversity as _compute_expert_diversity
 

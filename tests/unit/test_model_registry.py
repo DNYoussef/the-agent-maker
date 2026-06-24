@@ -3,11 +3,7 @@ Unit tests for Model Registry
 Tests SQLite WAL mode, session tracking, and model registration
 """
 
-import sys
 from datetime import datetime
-from pathlib import Path
-
-import pytest
 
 from cross_phase.storage.model_registry import ModelRegistry
 

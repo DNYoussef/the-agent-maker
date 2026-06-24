@@ -1,10 +1,7 @@
 """E2E tests for Phase 5: Curriculum Learning"""
-import sys
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-import torch
 
 
 class TestPhase5CurriculumE2E:
@@ -38,7 +35,7 @@ class TestPhase5CurriculumE2E:
         from phase5_curriculum.curriculum_engine import CurriculumConfig, CurriculumEngine
 
         config = CurriculumConfig()
-        engine = CurriculumEngine(config=config)
+        _ = CurriculumEngine(config=config)
 
         # Test progression logic by checking threshold
         threshold = config.edge_of_chaos_threshold
@@ -101,7 +98,7 @@ class TestPhase5CurriculumE2E:
 
         # Test that the assessment module can be imported
         try:
-            from phase5_curriculum.assessment import EdgeOfChaosAssessment
+            pass
 
             config = CurriculumConfig()
 

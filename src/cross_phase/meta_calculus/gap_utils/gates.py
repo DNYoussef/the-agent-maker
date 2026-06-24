@@ -294,13 +294,13 @@ def check_quantization_quality(
     """
     config = config or QualityGateConfig()
 
-    monitor = SpectralGapMonitor()
+    SpectralGapMonitor()
 
     # Compute gaps
     try:
         # Flatten weights for gap computation
-        original_flat = weights_original.flatten().unsqueeze(0)
-        quantized_flat = weights_quantized.flatten().unsqueeze(0)
+        weights_original.flatten().unsqueeze(0)
+        weights_quantized.flatten().unsqueeze(0)
 
         # Compute for comparison (need multiple samples for SVD)
         # Use weight distribution statistics instead

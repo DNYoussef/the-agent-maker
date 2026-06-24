@@ -23,15 +23,12 @@ Usage:
     result = phase6.optimize_interleaving(evaluator)
 """
 
-from typing import Any, Callable, Dict, List, Optional, Tuple
-
-import numpy as np
+from typing import Any, Callable, Dict, Optional
 
 from ..gap_utils.monitoring import PhaseGapMonitor
 
 # Layer 2 imports (utilities)
 from ..k_utils.adaptive import (
-    AdaptiveConfig,
     get_baking_strength,
     get_baking_strengths_for_model,
     get_half_baking_ratio,
@@ -39,7 +36,7 @@ from ..k_utils.adaptive import (
 
 # Layer 1 imports (core)
 from ..meta_grokfast import GrokfastConfig, MetaGrokfast
-from ..moo_utils.hyperparams import ABCycleInterleavingProblem, optimize_ab_interleaving
+from ..moo_utils.hyperparams import optimize_ab_interleaving
 
 # Phase 6 specific defaults
 PHASE6_CONFIG = GrokfastConfig(

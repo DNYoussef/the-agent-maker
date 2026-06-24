@@ -12,11 +12,16 @@ ISS-025: Added QK-Clip implementation for attention score clipping
 
 import logging
 import math
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional
 
 import torch
 import torch.nn as nn
 from torch.optim import Optimizer
+
+if TYPE_CHECKING:
+    # Only needed for the "MuGrokConfig" forward-reference annotation; imported
+    # under TYPE_CHECKING to avoid any import cost / cycle at runtime.
+    from .config import MuGrokConfig
 
 logger = logging.getLogger(__name__)
 

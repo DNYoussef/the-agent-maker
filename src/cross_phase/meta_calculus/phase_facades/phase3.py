@@ -22,7 +22,7 @@ Usage:
     positions = phase3.get_thought_positions(token_entropies)
 """
 
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, List, Optional
 
 import numpy as np
 
@@ -33,22 +33,12 @@ from ..gap_utils.regularization import (
 )
 
 # Layer 2 imports (utilities)
-from ..k_utils.adaptive import (
-    AdaptiveConfig,
-    get_thought_count,
-    get_thought_count_batch,
-    should_insert_thought,
-)
+from ..k_utils.adaptive import AdaptiveConfig, get_thought_count, get_thought_count_batch
 from ..meta_grokfast import GrokfastConfig, MetaGrokfast
-from ..moo_utils.hyperparams import ThoughtHyperparamProblem, optimize_thought_hyperparams
+from ..moo_utils.hyperparams import optimize_thought_hyperparams
 
 # Layer 1 imports (core)
-from ..spectral_gap import SpectralGapMonitor, thought_diversity_loss
-from ..transform_utils.log_space import (
-    LogSpaceConfig,
-    log_space_kl_divergence,
-    log_space_policy_gradient,
-)
+from ..transform_utils.log_space import log_space_kl_divergence, log_space_policy_gradient
 
 # Phase 3 specific defaults
 PHASE3_CONFIG = GrokfastConfig(

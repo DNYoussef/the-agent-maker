@@ -18,15 +18,15 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from typing import Dict, Tuple
+from typing import Dict  # noqa: E402
 
-import torch
-import torch.nn as nn
+import torch  # noqa: E402
+import torch.nn as nn  # noqa: E402
 
-from src.phase4_bitnet.bitlinear import BitLinear, replace_linear_with_bitlinear
-from src.phase4_bitnet.compressed_model import CompressedModel
-from src.phase4_bitnet.config import Phase4Config
-from src.phase4_bitnet.quantizer import BitNetQuantizer
+from src.phase4_bitnet.bitlinear import BitLinear, replace_linear_with_bitlinear  # noqa: E402
+from src.phase4_bitnet.compressed_model import CompressedModel  # noqa: E402
+from src.phase4_bitnet.config import Phase4Config  # noqa: E402
+from src.phase4_bitnet.quantizer import BitNetQuantizer  # noqa: E402
 
 
 class TestModel(nn.Module):
@@ -86,7 +86,7 @@ def test_ternary_quantization() -> Dict:
     zero_pct = (zeros / total_elements) * 100
     pos_pct = (pos_ones / total_elements) * 100
 
-    print(f"\nWeight Distribution:")
+    print("\nWeight Distribution:")
     print(f"  -1: {neg_ones:,} ({neg_pct:.2f}%)")
     print(f"   0: {zeros:,} ({zero_pct:.2f}%)")
     print(f"  +1: {pos_ones:,} ({pos_pct:.2f}%)")
@@ -145,7 +145,7 @@ def test_bitlinear_replacement() -> Dict:
     test_input = torch.randn(4, 64)
     output = model(test_input)
 
-    print(f"\nForward pass successful:")
+    print("\nForward pass successful:")
     print(f"  Input shape: {test_input.shape}")
     print(f"  Output shape: {output.shape}")
 
@@ -182,7 +182,7 @@ def test_compression_ratio() -> Dict:
     # Get compression stats
     stats = compressed.get_compression_stats()
 
-    print(f"\nCompression Statistics:")
+    print("\nCompression Statistics:")
     print(f"  Mode: {stats['mode']}")
     print(f"  BitLinear layers: {stats.get('num_bitlinear_layers', 0)}")
     print(f"  Original size: {stats['original_size_mb']:.2f} MB")
@@ -211,7 +211,7 @@ def test_compression_ratio() -> Dict:
         print(
             f"\nNote: Small model compression ({stats['compression_ratio']:.2f}x) - scale overhead dominates"
         )
-        print(f"      Large production models will achieve 6-8.2x compression")
+        print("      Large production models will achieve 6-8.2x compression")
 
     return {
         "status": "PASS",
@@ -382,7 +382,7 @@ def test_weight_distribution() -> Dict:
 
     print(f"BitLinear layers found: {num_bitlinear}")
     print(f"Total quantized parameters: {total_params:,}")
-    print(f"\nModel-Wide Weight Distribution:")
+    print("\nModel-Wide Weight Distribution:")
     print(f"  -1: {total_neg_ones:,} ({neg_pct:.2f}%)")
     print(f"   0: {total_zeros:,} ({zero_pct:.2f}%)")
     print(f"  +1: {total_pos_ones:,} ({pos_pct:.2f}%)")
@@ -483,7 +483,7 @@ if __name__ == "__main__":
     print("# PHASE 4 SANDBOX TEST REPORT")
     print("#" * 80)
 
-    print(f"\nPhase: Phase 4 (BitNet - 1.58-bit Quantization)")
+    print("\nPhase: Phase 4 (BitNet - 1.58-bit Quantization)")
     print(f"Status: {final_results['overall_status']}")
 
     if "test3_compression_ratio" in final_results["tests"]:
@@ -493,7 +493,7 @@ if __name__ == "__main__":
 
     if "test6_weight_distribution" in final_results["tests"]:
         dist_result = final_results["tests"]["test6_weight_distribution"]
-        print(f"\nWeight Distribution:")
+        print("\nWeight Distribution:")
         print(f"  -1: {dist_result['distribution']['-1']:.2f}%")
         print(f"   0: {dist_result['distribution']['0']:.2f}%")
         print(f"  +1: {dist_result['distribution']['+1']:.2f}%")
@@ -506,6 +506,6 @@ if __name__ == "__main__":
     if "error" in final_results:
         print(f"\nErrors: {final_results['error']}")
     else:
-        print(f"\nErrors: None")
+        print("\nErrors: None")
 
     print("\n" + "#" * 80)

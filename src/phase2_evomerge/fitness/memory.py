@@ -5,7 +5,6 @@ This module provides functions for measuring peak VRAM usage during model infere
 which is one component of the composite fitness score (10% weight).
 """
 
-from typing import Optional
 
 import torch
 import torch.nn as nn

@@ -4,7 +4,6 @@ Tests Phase 3→4→5 handoffs, W&B integration, and end-to-end pipeline
 """
 
 import shutil
-import sys
 import tempfile
 from pathlib import Path
 
@@ -124,7 +123,7 @@ class TestPhase4To5Handoff:
 
     def test_dual_model_output(self, phase4_output_dir):
         """Test that Phase 4 outputs both models"""
-        config = Phase4Config(
+        _ = Phase4Config(
             output_path=phase4_output_dir,
             save_quantized=True,
             save_dequantized_fp16=True,
@@ -416,7 +415,7 @@ class TestErrorHandling:
         temp_dir = tempfile.mkdtemp()
         output_dir = Path(temp_dir) / "nonexistent" / "nested" / "path"
 
-        config = Phase4Config(output_path=str(output_dir))
+        _ = Phase4Config(output_path=str(output_dir))
 
         # Directory should be created when saving
         from src.phase4_bitnet.utils import save_compression_metadata

@@ -9,14 +9,14 @@ import torch.nn as nn
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from cross_phase.utils import validate_diversity
-from phase4_bitnet.config import Phase4Config
-from phase4_bitnet.phase_controller import Phase4Controller
-from phase5_curriculum.curriculum_engine import CurriculumConfig, CurriculumEngine
-from phase6_baking.swe_bench_eval import MissingSWEBenchDataError, SWEBenchEvaluator
-from phase7_experts.adas.config import Individual
-from phase7_experts.adas.evaluation import evaluate_individual
-from phase8_compression.benchmarks import BenchmarkConfig, MMLUBenchmark
+from cross_phase.utils import validate_diversity  # noqa: E402
+from phase4_bitnet.config import Phase4Config  # noqa: E402
+from phase4_bitnet.phase_controller import Phase4Controller  # noqa: E402
+from phase5_curriculum.curriculum_engine import CurriculumConfig, CurriculumEngine  # noqa: E402
+from phase6_baking.swe_bench_eval import MissingSWEBenchDataError, SWEBenchEvaluator  # noqa: E402
+from phase7_experts.adas.config import Individual  # noqa: E402
+from phase7_experts.adas.evaluation import evaluate_individual  # noqa: E402
+from phase8_compression.benchmarks import BenchmarkConfig, MMLUBenchmark  # noqa: E402
 
 
 def test_mmlu_question_bank_does_not_fabricate_missing_subjects():

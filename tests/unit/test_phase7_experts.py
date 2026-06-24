@@ -13,7 +13,7 @@ Target: >=90% coverage for core functionality
 import sys
 from dataclasses import asdict
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 import torch
@@ -21,7 +21,7 @@ import torch.nn as nn
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from phase7_experts.experts_engine import ExpertsConfig, ExpertsEngine, Phase7Result
+from phase7_experts.experts_engine import ExpertsConfig, ExpertsEngine, Phase7Result  # noqa: E402
 
 
 class TestExpertsConfig:

@@ -14,7 +14,7 @@ Target: >=90% coverage for core functionality
 import sys
 from dataclasses import asdict
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 import torch
@@ -22,7 +22,12 @@ import torch.nn as nn
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from phase6_baking.baking_engine import BakingConfig, BakingCycleType, BakingEngine, BakingResult
+from phase6_baking.baking_engine import (  # noqa: E402
+    BakingConfig,
+    BakingCycleType,
+    BakingEngine,
+    BakingResult,
+)
 
 
 class TestBakingCycleType:
@@ -288,7 +293,6 @@ class TestBakingCycleLogic:
         """Test that engine starts with A-cycle."""
         # This is implicitly tested by the engine's run() method
         # which sets current_cycle = BakingCycleType.A_CYCLE
-        pass
 
     def test_plateau_detection_config(self):
         """Test plateau detection configuration."""

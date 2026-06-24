@@ -14,7 +14,6 @@ REINFORCE Implementation Notes (Policy Gradient):
 - Gradient clipping for stability
 """
 
-import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -130,7 +129,7 @@ class SVFPolicy(nn.Module):
             log_probs: [batch] - log probability for REINFORCE gradient
         """
         selection_probs, magnitudes = self.forward(task_embedding)
-        batch_size = task_embedding.shape[0]
+        task_embedding.shape[0]
 
         # Apply temperature scaling for exploration control
         scaled_logits = torch.log(selection_probs + 1e-8) / temperature

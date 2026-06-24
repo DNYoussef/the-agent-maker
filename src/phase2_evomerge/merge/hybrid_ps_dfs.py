@@ -160,7 +160,7 @@ class HybridPSDFS:
         self.final_fitness = champion_fitness
 
         if verbose:
-            logger.info(f"DFS Phase complete")
+            logger.info("DFS Phase complete")
             logger.info(f"Champion fitness: {champion_fitness:.4f}")
 
         # Compute metrics

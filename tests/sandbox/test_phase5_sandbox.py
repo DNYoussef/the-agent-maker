@@ -17,18 +17,16 @@ Tests all 7 stages of Phase 5 with a mock 1.58-bit quantized model:
 CRITICAL: Verifies 1.58-bit format preservation throughout.
 """
 
-import sys
-from pathlib import Path
+import sys  # noqa: E402
+from pathlib import Path  # noqa: E402
 
 # Add src to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
-from dataclasses import dataclass
-from typing import Dict, List, Optional
 
-import torch
-import torch.nn as nn
+import torch  # noqa: E402
+import torch.nn as nn  # noqa: E402
 
 # ============================================================================
 # MOCK 1.58-BIT QUANTIZED MODEL (Simulates BitNet Phase 4 Output)
@@ -239,7 +237,7 @@ def test_stage2_curriculum_generation(baseline_level):
     print("\n--- Testing Stage 2: Curriculum Generation ---")
 
     from phase5_curriculum.curriculum_engine import SpecializationType
-    from phase5_curriculum.curriculum_generator import AdaptiveCurriculumGenerator, Question
+    from phase5_curriculum.curriculum_generator import AdaptiveCurriculumGenerator
 
     # Generate curriculum (no frontier client = placeholders)
     generator = AdaptiveCurriculumGenerator(
@@ -292,7 +290,7 @@ def test_stage4_eudaimonia_baking(model, tokenizer):
     assert model.verify_158bit_format(), "Model not in 1.58-bit format!"
 
     # Create engine to access prompts
-    engine = CurriculumEngine()
+    CurriculumEngine()
 
     # Extract eudaimonia system (from curriculum_engine.py lines 338-385)
     eudaimonia_rules = [
@@ -353,7 +351,7 @@ def test_stage5_self_modeling(model, tokenizer):
     """
     print("\n--- Testing Stage 5: Self-Modeling ---")
 
-    from phase5_curriculum.self_modeling import SelfModelingTrainer, TemperatureRange
+    from phase5_curriculum.self_modeling import SelfModelingTrainer
 
     # Verify initial format
     assert model.verify_158bit_format(), "Model not in 1.58-bit format!"
@@ -545,7 +543,7 @@ def main():
     print("\n" + "=" * 70)
     print("PHASE 5 SANDBOX TEST COMPLETE")
     print("=" * 70)
-    print(f"Phase: 5 (Curriculum Learning)")
+    print("Phase: 5 (Curriculum Learning)")
     print(f"Status: {'PASS' if stages_passed == stages_tested and not errors else 'FAIL'}")
     print(f"Stages Tested: {stages_passed}/{stages_tested}")
     print(f"1.58-bit Format Preserved: {'YES' if model.verify_158bit_format() else 'NO'}")

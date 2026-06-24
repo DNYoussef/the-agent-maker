@@ -10,12 +10,10 @@ Phase Applications:
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
-
-from ..bigeometric import from_log_space, to_log_space
+from typing import Any, Dict, Optional
 
 # Layer 1 imports only
-from ..k_formula import compute_k, k_from_parameter_variance
+from ..k_formula import k_from_parameter_variance
 
 
 @dataclass
@@ -293,7 +291,7 @@ class LogSpaceSTE:
             Quantized weights (with gradient connection)
         """
         try:
-            import torch
+            pass
 
             if threshold is None:
                 threshold = bigeometric_threshold(weights, config=self.config)

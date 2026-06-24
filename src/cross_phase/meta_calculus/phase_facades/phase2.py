@@ -26,19 +26,15 @@ Usage:
 
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-import numpy as np
-
 from ..gap_utils.gates import MergeQualityResult, QualityGateConfig
 from ..gap_utils.gates import check_merge_quality as _check_merge_quality
 
 # Layer 2 imports (utilities)
-from ..k_utils.layer_ratios import LayerRatioConfig, get_all_merge_ratios, get_layer_merge_ratio
+from ..k_utils.layer_ratios import LayerRatioConfig, get_all_merge_ratios
 
 # Layer 1 imports (core)
 from ..moo_bridge import EvoMergeProblem, MOOConfig, MOORunner
 from ..moo_utils.selection import SelectionResult, select_balanced, select_knee_point
-from ..transform_utils.weights import WeightMergeConfig
-from ..transform_utils.weights import bigeometric_merge as _bigeometric_merge
 from ..transform_utils.weights import bigeometric_merge_models
 
 

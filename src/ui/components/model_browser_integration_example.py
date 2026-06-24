@@ -12,8 +12,8 @@ import streamlit as st
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.cross_phase.storage.model_registry import ModelRegistry
-from ui.components.model_comparison_3d import get_sample_data, render_model_browser_3d
+from src.cross_phase.storage.model_registry import ModelRegistry  # noqa: E402
+from ui.components.model_comparison_3d import get_sample_data, render_model_browser_3d  # noqa: E402
 
 
 def render_model_browser_with_3d():
@@ -166,19 +166,19 @@ def render_model_browser_with_3d():
                 col1, col2, col3, col4 = st.columns(4)
 
                 with col1:
-                    if st.button(f"Load", key=f"load_{model_id}"):
+                    if st.button("Load", key=f"load_{model_id}"):
                         st.success(f"Loaded {model['name']}")
 
                 with col2:
-                    if st.button(f"Export", key=f"export_{model_id}"):
+                    if st.button("Export", key=f"export_{model_id}"):
                         st.info("Export functionality coming soon")
 
                 with col3:
-                    if st.button(f"Compare", key=f"compare_{model_id}"):
+                    if st.button("Compare", key=f"compare_{model_id}"):
                         st.info("Comparison view coming soon")
 
                 with col4:
-                    if st.button(f"Delete", key=f"delete_{model_id}"):
+                    if st.button("Delete", key=f"delete_{model_id}"):
                         if registry.delete_model(model_id):
                             st.success(f"Deleted {model['name']}")
                             st.rerun()

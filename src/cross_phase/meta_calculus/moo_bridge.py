@@ -16,9 +16,9 @@ Key Features:
 
 import logging
 import math
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from abc import ABC
+from dataclasses import dataclass
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -39,7 +39,7 @@ except ImportError:
     Problem = object  # Placeholder
 
 try:
-    import torch
+    pass
 
     TORCH_AVAILABLE = True
 except ImportError:

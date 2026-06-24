@@ -19,7 +19,7 @@ Research Foundation:
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -289,7 +289,7 @@ class CurriculumEngine:
                         print(f"  [Meta-Calculus] Ready to advance: {should_advance}")
 
                         if not should_advance and advancement_info.get("stability", 0) < 0.5:
-                            print(f"  [Meta-Calculus] Representation unstable, consolidating...")
+                            print("  [Meta-Calculus] Representation unstable, consolidating...")
                             # Extra consolidation round
                             current_model = self._run_dream_consolidation(
                                 current_model, curriculum[level], tokenizer, level
@@ -653,7 +653,7 @@ Your approach: Adapt to context, be helpful, be honest.""",
         )
 
         consolidated_model = consolidator.consolidate(model, level_data, tokenizer)
-        print(f"  Dream consolidation complete")
+        print("  Dream consolidation complete")
 
         return consolidated_model
 

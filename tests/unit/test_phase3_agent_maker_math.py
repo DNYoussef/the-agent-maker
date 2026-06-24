@@ -11,19 +11,22 @@ import torch.nn as nn
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from cross_phase.storage.model_registry import ModelRegistry
-from phase1_cognate.model.components.attention import SlidingWindowAttention
-from phase2_evomerge.fitness.composite import DEFAULT_WEIGHTS, compute_composite_fitness
-from phase6_baking.validation import create_standard_benchmark_suite
-from phase7_experts.svf_trainer import (
+from cross_phase.storage.model_registry import ModelRegistry  # noqa: E402
+from phase1_cognate.model.components.attention import SlidingWindowAttention  # noqa: E402
+from phase2_evomerge.fitness.composite import (  # noqa: E402
+    DEFAULT_WEIGHTS,
+    compute_composite_fitness,
+)
+from phase6_baking.validation import create_standard_benchmark_suite  # noqa: E402
+from phase7_experts.svf_trainer import (  # noqa: E402
     REINFORCEConfig,
     REINFORCETrainer,
     SVFConfig,
     SVFPolicy,
     SVFTrainer,
 )
-from phase8_compression.hypercompression import HyperCompressor, HyperConfig
-from phase8_compression.seedlm import SeedLMCompressor, SeedLMConfig
+from phase8_compression.hypercompression import HyperCompressor, HyperConfig  # noqa: E402
+from phase8_compression.seedlm import SeedLMCompressor, SeedLMConfig  # noqa: E402
 
 REPO_ROOT = Path(__file__).parent.parent.parent
 SRC_ROOT = REPO_ROOT / "src"

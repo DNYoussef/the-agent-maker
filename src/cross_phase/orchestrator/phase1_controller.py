@@ -23,7 +23,6 @@ class Phase1Controller(PhaseController):
         from pathlib import Path
 
         import torch
-        from transformers import GPT2Tokenizer
 
         # Ensure src is in path
         src_path = str(Path(__file__).parents[3])

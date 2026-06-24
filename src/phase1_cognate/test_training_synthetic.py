@@ -12,8 +12,8 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
-from phase1_cognate.model.full_model import TRMTitansMAGModel
-from phase1_cognate.model.model_config import Phase1Config
+from phase1_cognate.model.full_model import TRMTitansMAGModel  # noqa: E402
+from phase1_cognate.model.model_config import Phase1Config  # noqa: E402
 
 
 def generate_synthetic_batch(batch_size=4, seq_len=64, vocab_size=50257) -> None:
@@ -84,7 +84,7 @@ def test_training_loop() -> None:
         test_input = torch.randint(0, 50257, (1, 32))
         output = model(test_input)
 
-    print(f"[OK] Inference successful!")
+    print("[OK] Inference successful!")
     print(f"  Output shape: {output['logits'].shape}")
     print(f"  Halting steps: {output['halting_steps'].item():.1f}")
 

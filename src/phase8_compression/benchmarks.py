@@ -24,14 +24,12 @@ Usage:
     retention = compressed_scores['overall'] / original_scores['overall']
 """
 
-import math
 import re
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 @dataclass

@@ -266,7 +266,7 @@ __all__ = [
 # =============================================================================
 # Layer 2: Domain Utility Modules
 # =============================================================================
-from . import gap_utils, k_utils, moo_utils, phase_facades, transform_utils
+from . import gap_utils, k_utils, moo_utils, phase_facades, transform_utils  # noqa: E402
 
 
 def print_module_info():

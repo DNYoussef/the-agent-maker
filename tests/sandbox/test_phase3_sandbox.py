@@ -18,11 +18,11 @@ from pathlib import Path
 src_path = Path(__file__).resolve().parents[2] / "src"
 sys.path.insert(0, str(src_path))
 
-from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from dataclasses import dataclass  # noqa: E402
+from typing import Any  # noqa: E402
 
-import torch
-import torch.nn as nn
+import torch  # noqa: E402
+import torch.nn as nn  # noqa: E402
 
 
 # Mock base model for testing
@@ -62,8 +62,8 @@ class MockBaseModel(nn.Module):
         num_return_sequences: int = 1,
     ) -> torch.Tensor:
         """Mock generation for anti-theater testing."""
-        batch_size = input_ids.size(0)
-        device = input_ids.device
+        input_ids.size(0)
+        input_ids.device
 
         # Simple greedy generation
         generated = input_ids.clone()
@@ -116,7 +116,7 @@ def test_thought_generator():
     try:
         output = generator(input_ids, position)
 
-        print(f"\n[PASS] ThoughtGenerator Output:")
+        print("\n[PASS] ThoughtGenerator Output:")
         print(f"  - Thoughts shape: {output.thoughts.shape}")
         print(
             f"  - Expected: (batch={batch_size}, num_thoughts={generator.num_thoughts}, thought_len=10-20, hidden={base_model.hidden_size})"
@@ -139,7 +139,7 @@ def test_thought_generator():
             len(output.thought_ids) == generator.num_thoughts
         ), f"Wrong num thought IDs: {len(output.thought_ids)} != {generator.num_thoughts}"
 
-        print(f"\n[PASS] All shape validations passed!")
+        print("\n[PASS] All shape validations passed!")
         return True
 
     except Exception as e:
@@ -183,7 +183,7 @@ def test_coherence_scorer():
     try:
         scores = scorer(base_hidden, thought_hiddens, next_token_logits)
 
-        print(f"\n[PASS] CoherenceScorer Output:")
+        print("\n[PASS] CoherenceScorer Output:")
         print(f"  - Semantic scores: {scores.semantic.shape}")
         print(f"  - Syntactic scores: {scores.syntactic.shape}")
         print(f"  - Predictive scores: {scores.predictive.shape}")
@@ -222,13 +222,13 @@ def test_coherence_scorer():
             scores.composite <= 1
         ).all(), "Composite scores out of range"
 
-        print(f"\n[PASS] Sample scores (first batch, all thoughts):")
+        print("\n[PASS] Sample scores (first batch, all thoughts):")
         print(f"  - Semantic: {scores.semantic[0].tolist()}")
         print(f"  - Syntactic: {scores.syntactic[0].tolist()}")
         print(f"  - Predictive: {scores.predictive[0].tolist()}")
         print(f"  - Composite: {scores.composite[0].tolist()}")
 
-        print(f"\n[PASS] All validations passed!")
+        print("\n[PASS] All validations passed!")
         return True
 
     except Exception as e:
@@ -270,7 +270,7 @@ def test_mixing_head():
         mixer.eval()  # Disable dropout for deterministic test
         mixed_output = mixer(base_hidden, thought_hiddens, coherence_scores)
 
-        print(f"\n[PASS] MixingHead Output:")
+        print("\n[PASS] MixingHead Output:")
         print(f"  - Mixed hidden shape: {mixed_output.shape}")
         print(f"  - Expected: (batch={batch_size}, hidden_size={hidden_size})")
 
@@ -288,11 +288,11 @@ def test_mixing_head():
         # Not exactly equal to base or thoughts
         base_diff = (mixed_output - base_hidden).abs().mean().item()
         print(f"\n[PASS] Average difference from base: {base_diff:.4f}")
-        print(f"   (Should be >0, indicating thoughts were integrated)")
+        print("   (Should be >0, indicating thoughts were integrated)")
 
         assert base_diff > 0, "Mixed output identical to base (no integration)"
 
-        print(f"\n[PASS] All validations passed!")
+        print("\n[PASS] All validations passed!")
         return True
 
     except Exception as e:
@@ -321,7 +321,7 @@ def test_thought_injector():
     print(f"Min interval: {injector.min_interval}")
 
     # Test 1: High difficulty (should inject)
-    print(f"\n--- Test Case 1: High Difficulty ---")
+    print("\n--- Test Case 1: High Difficulty ---")
     high_difficulty_logits = (
         torch.randn(batch_size, vocab_size) * 0.1
     )  # Low confidence (high entropy)
@@ -330,10 +330,10 @@ def test_thought_injector():
 
     should_inject = injector(high_difficulty_logits, attention, loss, position=5)
     print(f"  High difficulty -> Should inject: {should_inject}")
-    assert should_inject == True, "Failed to inject on high difficulty"
+    assert should_inject, "Failed to inject on high difficulty"
 
     # Test 2: Low difficulty (should NOT inject)
-    print(f"\n--- Test Case 2: Low Difficulty ---")
+    print("\n--- Test Case 2: Low Difficulty ---")
     low_difficulty_logits = torch.zeros(batch_size, vocab_size)
     low_difficulty_logits[:, 0] = 10.0  # Very confident (low entropy)
     attention = torch.zeros(batch_size, 10)
@@ -342,16 +342,16 @@ def test_thought_injector():
 
     should_inject = injector(low_difficulty_logits, attention, loss, position=10)
     print(f"  Low difficulty -> Should inject: {should_inject}")
-    assert should_inject == False, "Incorrectly injected on low difficulty"
+    assert not should_inject, "Incorrectly injected on low difficulty"
 
     # Test 3: Interval enforcement (should NOT inject)
-    print(f"\n--- Test Case 3: Interval Enforcement ---")
+    print("\n--- Test Case 3: Interval Enforcement ---")
     injector.last_injection = 9  # Recent injection at position 9
     should_inject = injector(high_difficulty_logits, attention, loss, position=10)
     print(f"  High difficulty but recent injection -> Should inject: {should_inject}")
-    assert should_inject == False, "Failed to enforce min interval"
+    assert not should_inject, "Failed to enforce min interval"
 
-    print(f"\n[PASS] All injection decisions correct!")
+    print("\n[PASS] All injection decisions correct!")
     return True
 
 
@@ -407,7 +407,7 @@ def test_anti_theater_detection():
     dataloader = MockDataLoader(num_batches=3)
     config = AntiTheaterConfig()
 
-    print(f"\nAnti-Theater Thresholds:")
+    print("\nAnti-Theater Thresholds:")
     print(f"  - Divergence: >{config.divergence_threshold}")
     print(f"  - Ablation: >{config.ablation_threshold}")
     print(f"  - Correlation: >{config.correlation_threshold}")
@@ -417,25 +417,25 @@ def test_anti_theater_detection():
             model=model, tokenizer=tokenizer, config=config, device="cpu"
         )
 
-        print(f"\n[PASS] AntiTheaterValidator initialized successfully")
+        print("\n[PASS] AntiTheaterValidator initialized successfully")
 
         # Test individual methods (with reduced samples for speed)
-        print(f"\n--- Testing Divergence Detection ---")
+        print("\n--- Testing Divergence Detection ---")
         input_ids = torch.randint(0, 1000, (5, 20))
         divergence = validator.divergence_test(input_ids, num_samples=5)
         print(f"  Divergence score: {divergence:.3f} (threshold: {config.divergence_threshold})")
 
-        print(f"\n--- Testing Ablation Study ---")
+        print("\n--- Testing Ablation Study ---")
         ablation = validator.ablation_test(dataloader, max_batches=3)
         print(f"  Ablation improvement: {ablation:.4f} (threshold: {config.ablation_threshold})")
 
-        print(f"\n--- Testing Correlation ---")
+        print("\n--- Testing Correlation ---")
         correlation = validator.correlation_test(dataloader, max_batches=3)
         print(f"  Correlation: {correlation:.3f} (threshold: {config.correlation_threshold})")
 
-        print(f"\n[PASS] Anti-theater detection methods executed successfully!")
-        print(f"\nNOTE: With mock model, scores are not meaningful.")
-        print(f"      Real validation requires trained Quiet-STaR model.")
+        print("\n[PASS] Anti-theater detection methods executed successfully!")
+        print("\nNOTE: With mock model, scores are not meaningful.")
+        print("      Real validation requires trained Quiet-STaR model.")
 
         return True
 
@@ -474,7 +474,7 @@ def test_full_integration():
     input_ids = torch.randint(0, vocab_size, (batch_size, seq_len))
 
     print(f"Input shape: {input_ids.shape}")
-    print(f"Testing full forward pass at multiple positions...")
+    print("Testing full forward pass at multiple positions...")
 
     try:
         mixer.eval()
@@ -513,12 +513,12 @@ def test_full_integration():
                     hidden_size,
                 ), f"Wrong mixed shape at pos {position}"
 
-        print(f"\n[PASS] Full Integration Results:")
+        print("\n[PASS] Full Integration Results:")
         print(f"  - Sequence length: {seq_len}")
         print(f"  - Positions checked: {seq_len - 10}")
         print(f"  - Thoughts injected: {num_injections}")
         print(f"  - Injection rate: {num_injections / (seq_len - 10) * 100:.1f}%")
-        print(f"\n[PASS] All components integrated successfully!")
+        print("\n[PASS] All components integrated successfully!")
 
         return True
 

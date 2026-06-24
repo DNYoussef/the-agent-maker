@@ -13,7 +13,7 @@ Enhanced with meta-calculus k(L) scaling for level-adaptive consolidation.
 
 import random
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import torch
 import torch.nn as nn
@@ -22,7 +22,6 @@ import torch.nn.functional as F
 # Import meta-calculus for k(level) sample scaling
 try:
     from src.cross_phase.meta_calculus.k_formula import compute_k
-    from src.cross_phase.meta_calculus.phase_facades import phase5 as meta_phase5
 
     META_CALCULUS_AVAILABLE = True
 except ImportError:

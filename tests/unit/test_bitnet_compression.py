@@ -368,7 +368,7 @@ class TestCompressedModelIntegration:
         model.compress()
 
         # Get quantized dict
-        quantized_dict = model.get_quantized_state_dict()
+        model.get_quantized_state_dict()
 
         # Even embeddings should be quantized (if config allows)
         # Note: This depends on quantizer implementation

@@ -1,10 +1,6 @@
 """E2E tests for Phase 8: Final Compression (SeedLM -> VPTQ -> Hypercompression)"""
-import sys
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-import torch
 
 
 class TestPhase8CompressionE2E:

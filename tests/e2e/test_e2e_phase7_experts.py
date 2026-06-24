@@ -1,10 +1,4 @@
 """E2E tests for Phase 7: Self-Guided Experts (MoE + ADAS)"""
-import sys
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
-import torch
 
 
 class TestPhase7ExpertsE2E:
@@ -87,7 +81,7 @@ class TestPhase7ExpertsE2E:
         trainer = SVFTrainer(config=config)
 
         # Create mock expert profile
-        expert_profile = ExpertProfile(
+        _ = ExpertProfile(
             id=0,
             name="test_expert",
             capabilities=["reasoning"],

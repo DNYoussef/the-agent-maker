@@ -84,7 +84,6 @@ def render_phase1_details() -> None:
     # Metrics visualization
     st.subheader("Training Metrics")
 
-    import numpy as np
     import pandas as pd
 
     # Dummy data for visualization

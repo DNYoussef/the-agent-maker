@@ -87,7 +87,7 @@ class EdgeOfChaosAssessment:
         Returns:
             Tuple of (baseline_level, assessment_results)
         """
-        print(f"  Running edge-of-chaos assessment...")
+        print("  Running edge-of-chaos assessment...")
         print(f"  Target threshold: {self.threshold:.0%}")
 
         # Generate or load assessment questions
@@ -299,7 +299,7 @@ class EdgeOfChaosAssessment:
             else:
                 # Fallback for models without generate
                 with torch.no_grad():
-                    logits = model(**inputs)
+                    model(**inputs)
                 response = "Model output (no generate method)"
         except Exception as e:
             response = f"Error: {e}"

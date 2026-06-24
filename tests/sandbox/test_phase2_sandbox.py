@@ -14,8 +14,6 @@ Test Models:
 """
 
 import copy
-import random
-from typing import List
 
 import numpy as np
 import pytest
@@ -30,7 +28,6 @@ from src.phase2_evomerge.evolution.population import initialize_population
 from src.phase2_evomerge.fitness import FitnessEvaluator
 from src.phase2_evomerge.merge import (
     DAREMerge,
-    DFSMerge,
     FrankenMerge,
     LinearMerge,
     MergeTechniques,
@@ -503,7 +500,7 @@ def test_mini_evolution_loop(test_models, fitness_evaluator):
     # Verify generations count
     assert result["generations"] <= 3, "Should run at most 3 generations"
 
-    print(f"✓ Mini evolution loop: PASSED")
+    print("✓ Mini evolution loop: PASSED")
     print(f"  Initial fitness: {result['initial_fitness']:.4f}")
     print(f"  Final fitness: {result['fitness']:.4f}")
     print(f"  Improvement: {result['improvement']:.4f} ({result['improvement_pct']*100:.1f}%)")

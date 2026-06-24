@@ -6,7 +6,7 @@ Tests thinking token management and model preparation.
 Target: ≥95% coverage
 """
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 import torch

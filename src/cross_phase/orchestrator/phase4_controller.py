@@ -23,7 +23,6 @@ class Phase4Controller(PhaseController):
         Returns:
             PhaseResult with quantized model
         """
-        import copy
         import time
 
         start_time = time.time()
@@ -135,7 +134,6 @@ class Phase4Controller(PhaseController):
     def _quantize_model(self, model) -> Any:
         """Apply BitNet ternary quantization to model."""
         import torch
-        import torch.nn as nn
 
         quantized_state = {}
         scale_factors = {}
@@ -221,7 +219,7 @@ class Phase4Controller(PhaseController):
 
         # Load dequantized state
         compressed_model.load_state_dict(dequantized_state)
-        print(f"  Compressed model created")
+        print("  Compressed model created")
 
         return compressed_model
 
@@ -232,7 +230,7 @@ class Phase4Controller(PhaseController):
         # 1. Use STE for gradients through quantization
         # 2. Fine-tune for 2000 steps
         # 3. Validate accuracy retention
-        print(f"  STE fine-tuning skipped (MVP mode)")
+        print("  STE fine-tuning skipped (MVP mode)")
         return model
 
     def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:

@@ -4,7 +4,7 @@ Evaluation Logic
 Implements fitness evaluation for individuals in the ADAS population.
 """
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List
 
 import torch.nn as nn
 

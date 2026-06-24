@@ -149,7 +149,7 @@ class DFSPaperAccurate:
             indicators = np.zeros(T, dtype=np.float32)
             for model_idx in range(M):
                 start = model_idx * r
-                end = start + r
+                start + r
                 # Select at least min_layers_per_model layers
                 n_select = max(self.config.min_layers_per_model, r // 2)
                 selected_indices = np.random.choice(r, size=n_select, replace=False)

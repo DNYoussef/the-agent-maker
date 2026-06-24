@@ -7,7 +7,7 @@ import sys
 import time
 from pathlib import Path
 
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import sync_playwright
 
 
 def wait_for_streamlit(url: str, timeout: int = 30) -> bool:

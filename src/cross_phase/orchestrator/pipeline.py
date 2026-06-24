@@ -5,8 +5,7 @@ Coordinates execution of all 8 phases with handoff validation
 
 import time
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from ..monitoring.wandb_integration import WandBIntegration
 from ..storage.model_registry import ModelRegistry
@@ -225,7 +224,6 @@ class PipelineOrchestrator:
         """
         # Import phase controllers
         if self.config.get("mock_mode"):
-            import torch
             import torch.nn as nn
 
             class MockPhaseController(PhaseController):

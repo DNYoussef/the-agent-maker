@@ -18,8 +18,8 @@ Where:
 """
 
 import math
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Union
+from dataclasses import dataclass
+from typing import Any, Dict, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn

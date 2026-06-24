@@ -5,18 +5,13 @@ Real-time visualization of thought generation, coherence scoring, and anti-theat
 Features futuristic command center theme with dark background and cyan accents.
 """
 
-import json
-import time
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import cast
 
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from plotly.subplots import make_subplots
 
 
 # ==================== CUSTOM CSS THEME ====================
@@ -299,7 +294,7 @@ def render_config_panel() -> None:
     st.divider()
     st.subheader("Prompt Baking")
 
-    baking_mode = st.selectbox(
+    _ = st.selectbox(
         "Baking Mode",
         ["Standard", "Half-Baking (50%)", "Pursuit (Iterative)"],
         help="Prompt strength injection strategy",
@@ -317,11 +312,11 @@ def render_config_panel() -> None:
     st.divider()
     st.subheader("RL Training")
 
-    rl_epochs = st.number_input(
+    _ = st.number_input(
         "RL Epochs", min_value=1, max_value=10, value=3, help="REINFORCE training iterations"
     )
 
-    kl_weight = st.slider(
+    _ = st.slider(
         "KL Regularization Weight",
         min_value=0.01,
         max_value=0.5,
@@ -333,13 +328,13 @@ def render_config_panel() -> None:
     st.divider()
     st.subheader("OpenRouter")
 
-    frontier_model = st.selectbox(
+    _ = st.selectbox(
         "Frontier Model",
         ["GPT-4o-mini", "Claude-3.5-Haiku", "Gemini-2.0-Flash", "Qwen-2.5"],
         help="Data generation model",
     )
 
-    budget_limit = st.number_input(
+    _ = st.number_input(
         "Budget Limit ($)", min_value=10, max_value=500, value=150, help="Maximum API spend"
     )
 
@@ -1381,9 +1376,7 @@ def render_openrouter_footer() -> None:
         )
 
     with col2:
-        st.metric(
-            "Total Cost", f"${st.session_state.openrouter_cost:.2f}", delta=f"Budget: $150.00"
-        )
+        st.metric("Total Cost", f"${st.session_state.openrouter_cost:.2f}", delta="Budget: $150.00")
 
     with col3:
         budget_used = (st.session_state.openrouter_cost / 150.0) * 100

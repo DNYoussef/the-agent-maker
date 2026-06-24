@@ -10,7 +10,7 @@ sequential generation, achieving ~num_thoughts speedup.
 Paper Reference: arXiv:2403.09629v2 (Quiet-STaR)
 """
 
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import torch
 import torch.nn as nn

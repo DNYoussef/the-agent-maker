@@ -331,7 +331,7 @@ def print_routing_table(
     """
     config = config or RoutingConfig()
 
-    print(f"\nRouting Parameter Table")
+    print("\nRouting Parameter Table")
     print("-" * 65)
     print(f"{'Complexity':>10} | {'k value':>8} | {'Temp':>8} | {'Top-k':>6} | {'Noise':>8}")
     print("-" * 65)

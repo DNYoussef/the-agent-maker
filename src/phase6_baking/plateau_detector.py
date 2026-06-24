@@ -9,7 +9,7 @@ Key insight: Plateaus indicate diminishing returns, time to switch cycles.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
 
 @dataclass

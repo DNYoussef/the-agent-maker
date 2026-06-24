@@ -22,13 +22,13 @@ Integration Points:
 
 from dataclasses import dataclass, field, replace
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, Optional, Union
 
 import torch
 from torch.optim import Optimizer
 
 from .bigeometric import BigeometricConfig, bigeometric_gradient_transform
-from .k_formula import KFormulaConfig, compute_k, k_from_gradient, k_from_layer_index
+from .k_formula import KFormulaConfig, k_from_gradient, k_from_layer_index
 
 
 class GrokfastFilterType(Enum):

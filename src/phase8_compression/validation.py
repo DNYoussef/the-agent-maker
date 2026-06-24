@@ -17,7 +17,6 @@ Usage:
     print(f"Pipeline valid: {result.all_passed}")
 """
 
-import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 

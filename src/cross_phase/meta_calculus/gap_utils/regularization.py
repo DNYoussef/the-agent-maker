@@ -11,7 +11,7 @@ Phase Applications:
 
 import math
 from dataclasses import dataclass
-from typing import Callable, Optional, Union
+from typing import Callable, Optional
 
 # Layer 1 import only
 from ..spectral_gap import (

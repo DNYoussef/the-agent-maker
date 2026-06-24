@@ -4,7 +4,6 @@ Tests Muon, Grokfast, and phase-specific presets
 """
 
 import sys
-from pathlib import Path
 
 import pytest
 

@@ -6,12 +6,10 @@ Tests KL divergence baking, half-baking, and prompt management
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from cross_phase.prompt_baking.baker import PromptBakingConfig
-from cross_phase.prompt_baking.prompts import PhasePrompts, PromptManager
+from cross_phase.prompt_baking.baker import PromptBakingConfig  # noqa: E402
+from cross_phase.prompt_baking.prompts import PhasePrompts, PromptManager  # noqa: E402
 
 
 class TestPhasePrompts:

@@ -5,11 +5,7 @@ Model-driven expert discovery with Transformer-squared SVF training and NSGA-II 
 Futuristic command center theme with real-time visualization.
 """
 
-import json
-import time
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
@@ -305,15 +301,15 @@ def render_config_panel() -> None:
     # SVF Training settings
     st.subheader("SVF Training (Stage 2)")
 
-    svf_algorithm = st.selectbox(
+    _ = st.selectbox(
         "Training Algorithm",
         ["REINFORCE (Primary)", "MuonGrokfast (Fallback)"],
         help="REINFORCE policy gradient with MuonGrokfast fallback",
     )
 
-    svf_epochs = st.slider("Training Epochs", 1, 10, 5, help="Transformer² SVF training epochs")
+    _ = st.slider("Training Epochs", 1, 10, 5, help="Transformer² SVF training epochs")
 
-    svf_lr = st.number_input(
+    _ = st.number_input(
         "Learning Rate",
         min_value=1e-5,
         max_value=1e-2,
@@ -345,7 +341,7 @@ def render_config_panel() -> None:
     # Frontier models
     st.subheader("Frontier Models")
 
-    models = st.multiselect(
+    _ = st.multiselect(
         "Select Models",
         ["GPT-4o-mini", "Claude-3.5 Haiku", "Gemini 2.0 Flash", "Qwen 2.5"],
         default=["GPT-4o-mini", "Claude-3.5 Haiku", "Gemini 2.0 Flash", "Qwen 2.5"],
@@ -384,16 +380,16 @@ def render_overview_tab() -> None:
         st.metric(
             "Discovered Experts",
             f"{discovered_experts}",
-            delta=f"Model-determined" if discovered_experts > 0 else "Pending",
+            delta="Model-determined" if discovered_experts > 0 else "Pending",
         )
 
     with col3:
         elapsed_time = st.session_state.get("elapsed_hours", 0.0)
-        st.metric("Elapsed Time", f"{elapsed_time:.1f}h", delta=f"/ 78h total")
+        st.metric("Elapsed Time", f"{elapsed_time:.1f}h", delta="/ 78h total")
 
     with col4:
         api_cost = st.session_state.get("api_cost", 0.0)
-        st.metric("API Cost", f"${api_cost:.2f}", delta=f"/ $250 budget")
+        st.metric("API Cost", f"${api_cost:.2f}", delta="/ $250 budget")
 
     # Three-stage pipeline
     st.subheader("Three-Stage Expert Discovery Pipeline")

@@ -11,19 +11,18 @@ Research: Transformer^2 SVF, NSGA-II ADAS
 
 import logging
 import time
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
-import torch
 import torch.nn as nn
 
 logger = logging.getLogger(__name__)
 
-from src.cross_phase.monitoring.wandb_integration import WandBIntegration
+from src.cross_phase.monitoring.wandb_integration import WandBIntegration  # noqa: E402
 
-from .adas_optimizer import ADASConfig, ADASOptimizer
-from .expert_discovery import DiscoveryConfig, ExpertDiscovery
-from .svf_trainer import SVFConfig, SVFTrainer
+from .adas_optimizer import ADASConfig, ADASOptimizer  # noqa: E402
+from .expert_discovery import DiscoveryConfig, ExpertDiscovery  # noqa: E402
+from .svf_trainer import SVFConfig, SVFTrainer  # noqa: E402
 
 
 @dataclass
@@ -215,7 +214,7 @@ class ExpertsEngine:
 
             total_duration = time.time() - start_time
 
-            print(f"\nPhase 7 Complete:")
+            print("\nPhase 7 Complete:")
             print(f"  Discovered experts: {num_experts}")
             print(f"  SVF training: {len(svf_results)} experts trained")
             print(f"  ADAS generations: {self.config.adas_generations}")

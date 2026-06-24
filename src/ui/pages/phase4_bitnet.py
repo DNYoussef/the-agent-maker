@@ -4,17 +4,12 @@ Phase 4: BitNet 1.58-bit Compression - Streamlit UI Dashboard
 Real-time visualization of compression progress, metrics, and dual model outputs.
 """
 
-import json
-import time
-from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import cast
 
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from plotly.subplots import make_subplots
 
 
 def render_phase4_dashboard() -> None:
@@ -93,7 +88,7 @@ def render_config_panel() -> None:
 
     # Sparsity settings
     st.subheader("Sparsity Injection")
-    sparsity_threshold = st.slider(
+    _ = st.slider(
         "Threshold (τ)",
         min_value=0.01,
         max_value=0.15,
@@ -102,7 +97,7 @@ def render_config_panel() -> None:
         help="Weights below τ × scale become 0",
     )
 
-    target_sparsity = st.slider(
+    _ = st.slider(
         "Target Sparsity",
         min_value=0.20,
         max_value=0.50,
@@ -116,7 +111,7 @@ def render_config_panel() -> None:
     enable_finetune = st.checkbox("Enable Fine-Tuning", value=True)
 
     if enable_finetune:
-        finetune_epochs = st.number_input(
+        _ = st.number_input(
             "Epochs",
             min_value=1,
             max_value=10,
@@ -124,7 +119,7 @@ def render_config_panel() -> None:
             help="More epochs = better recovery, longer time",
         )
 
-        grokfast_lambda = st.slider(
+        _ = st.slider(
             "Grokfast λ (EMA strength)",
             min_value=0.5,
             max_value=5.0,
@@ -135,8 +130,8 @@ def render_config_panel() -> None:
 
     # Output settings
     st.subheader("Output Options")
-    save_quantized = st.checkbox("Save Quantized (int8, ~12MB)", value=True)
-    save_dequantized = st.checkbox(
+    _ = st.checkbox("Save Quantized (int8, ~12MB)", value=True)
+    _ = st.checkbox(
         "Save Dequantized FP16 (~50MB) [PRIMARY]", value=True, help="Required for Phase 5 training"
     )
 

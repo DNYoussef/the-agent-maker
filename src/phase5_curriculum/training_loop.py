@@ -14,7 +14,7 @@ import asyncio
 import copy
 import logging
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import torch
@@ -25,12 +25,7 @@ from .curriculum_generator import Question
 
 # Import OpenRouter client
 try:
-    from .openrouter_client import (
-        CompletionResponse,
-        ModelProvider,
-        OpenRouterClient,
-        get_free_models,
-    )
+    from .openrouter_client import CompletionResponse, ModelProvider, OpenRouterClient
 
     OPENROUTER_AVAILABLE = True
 except ImportError:
@@ -437,7 +432,9 @@ class CurriculumTrainingLoop:
 
             # Check for proper indentation
             lines = code.split("\n")
-            indented_lines = [l for l in lines if l.startswith("    ") or l.startswith("\t")]
+            indented_lines = [
+                line for line in lines if line.startswith("    ") or line.startswith("\t")
+            ]
             if len(indented_lines) > 0:
                 validation_score += 0.25
                 total_checks += 0.25
@@ -714,7 +711,7 @@ rather than giving direct answers. Be encouraging and specific."""
 
             return loss.item()
 
-        except Exception as e:
+        except Exception:
             return 0.0
 
 

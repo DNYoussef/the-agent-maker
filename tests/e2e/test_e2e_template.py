@@ -4,11 +4,6 @@ Template for E2E tests.
 Copy this template for each phase and customize.
 """
 
-from pathlib import Path
-
-import pytest
-import torch
-
 
 class TestE2ETemplate:
     """Template E2E test class."""

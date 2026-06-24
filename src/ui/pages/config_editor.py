@@ -198,11 +198,11 @@ def _render_phase1_config(phase_config: dict) -> None:
     """Render Phase 1 configuration"""
     st.markdown("### Phase 1: Cognate (TRM × Titans-MAG)")
 
-    num_models = st.slider(
+    _ = st.slider(
         "Number of Models", min_value=1, max_value=5, value=int(phase_config.get("num_models", 3))
     )
 
-    epochs = st.slider(
+    _ = st.slider(
         "Training Epochs", min_value=5, max_value=20, value=int(phase_config.get("epochs", 10))
     )
 
@@ -213,7 +213,7 @@ def _render_phase1_config(phase_config: dict) -> None:
     col1, col2 = st.columns(2)
 
     with col1:
-        muon_lr = st.number_input(
+        _ = st.number_input(
             "Muon Learning Rate",
             min_value=0.0001,
             max_value=0.01,
@@ -222,7 +222,7 @@ def _render_phase1_config(phase_config: dict) -> None:
         )
 
     with col2:
-        grokfast_lambda = st.number_input(
+        _ = st.number_input(
             "Grokfast Lambda",
             min_value=0.0,
             max_value=1.0,
@@ -235,14 +235,14 @@ def _render_phase2_config(phase_config: dict) -> None:
     """Render Phase 2 configuration"""
     st.markdown("### Phase 2: EvoMerge (50 generations)")
 
-    num_generations = st.slider(
+    _ = st.slider(
         "Number of Generations",
         min_value=10,
         max_value=100,
         value=int(phase_config.get("num_generations", 50)),
     )
 
-    population_size = st.slider(
+    _ = st.slider(
         "Population Size",
         min_value=4,
         max_value=32,
@@ -252,7 +252,7 @@ def _render_phase2_config(phase_config: dict) -> None:
 
     # Merge techniques
     st.markdown("**Merge Techniques**")
-    techniques = st.multiselect(
+    _ = st.multiselect(
         "Enabled Techniques",
         ["linear", "slerp", "ties", "dare", "frankenmerge", "dfs"],
         default=phase_config.get("merge_techniques", ["linear", "slerp", "ties"]),
@@ -265,7 +265,7 @@ def _render_phase3_config(phase_config: dict) -> None:
 
     # Prompt baking
     st.markdown("**Prompt Baking (Step 1)**")
-    baking_epochs = st.slider(
+    _ = st.slider(
         "Baking Epochs", min_value=1, max_value=10, value=int(phase_config.get("baking_epochs", 3))
     )
 
@@ -274,7 +274,7 @@ def _render_phase3_config(phase_config: dict) -> None:
     col1, col2 = st.columns(2)
 
     with col1:
-        kl_coefficient = st.number_input(
+        _ = st.number_input(
             "KL Coefficient",
             min_value=0.0,
             max_value=1.0,
@@ -283,7 +283,7 @@ def _render_phase3_config(phase_config: dict) -> None:
         )
 
     with col2:
-        rl_epochs = st.slider(
+        _ = st.slider(
             "RL Epochs", min_value=1, max_value=20, value=int(phase_config.get("rl_epochs", 5))
         )
 
@@ -292,7 +292,7 @@ def _render_phase4_config(phase_config: dict) -> None:
     """Render Phase 4 configuration"""
     st.markdown("### Phase 4: BitNet (1.58-bit Quantization)")
 
-    target_compression = st.slider(
+    _ = st.slider(
         "Target Compression Ratio",
         min_value=4.0,
         max_value=12.0,
@@ -300,14 +300,14 @@ def _render_phase4_config(phase_config: dict) -> None:
         step=0.1,
     )
 
-    ste_epochs = st.slider(
+    _ = st.slider(
         "STE Training Epochs",
         min_value=1,
         max_value=10,
         value=int(phase_config.get("ste_epochs", 5)),
     )
 
-    quality_threshold = st.slider(
+    _ = st.slider(
         "Quality Retention Threshold (%)",
         min_value=80,
         max_value=98,

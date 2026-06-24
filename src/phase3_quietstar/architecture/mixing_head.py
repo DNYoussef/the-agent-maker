@@ -64,7 +64,6 @@ class MixingHead(nn.Module):
         Returns:
             mixed_hidden: (batch, hidden_size)
         """
-        batch_size = base_hidden.size(0)
 
         # Query from base
         query = self.query(base_hidden).unsqueeze(1)

@@ -16,16 +16,11 @@ Features:
 - Futuristic command center theme (dark #0D1B2A, cyan #00F5D4)
 """
 
-import json
-import time
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Dict, List, Optional
 
 import numpy as np
-import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 import streamlit.components.v1 as components
@@ -1064,8 +1059,10 @@ def render_champion_model_card(champion: ModelIndividual, technique_stats: Dict)
     # Fitness breakdown
     st.markdown("#### Fitness Breakdown")
 
-    # Mock fitness components
-    components = {
+    # Mock fitness components (renamed from `components` so it no longer shadows
+    # the module-level `streamlit.components.v1 as components` used above for
+    # components.html(); the shadow made that call raise UnboundLocalError).
+    fitness_components = {
         "Perplexity": 0.25,
         "GSM8K Accuracy": 0.20,
         "MMLU": 0.18,
@@ -1074,8 +1071,8 @@ def render_champion_model_card(champion: ModelIndividual, technique_stats: Dict)
         "Diversity": 0.12,
     }
 
-    component_names = list(components.keys())
-    component_values = list(components.values())
+    component_names = list(fitness_components.keys())
+    component_values = list(fitness_components.values())
 
     fig_breakdown = go.Figure()
 
@@ -1207,7 +1204,7 @@ def render_phase2_dashboard() -> None:
         st.markdown("---")
         st.markdown("### Phase 2 Settings")
 
-        mutation_rate = st.slider(
+        _ = st.slider(
             "Mutation Rate",
             min_value=0.0,
             max_value=0.5,
@@ -1216,7 +1213,7 @@ def render_phase2_dashboard() -> None:
             help="Probability of random parameter changes",
         )
 
-        crossover_rate = st.slider(
+        _ = st.slider(
             "Crossover Rate",
             min_value=0.5,
             max_value=1.0,
@@ -1225,7 +1222,7 @@ def render_phase2_dashboard() -> None:
             help="Probability of combining parent models",
         )
 
-        elitism_count = st.number_input(
+        _ = st.number_input(
             "Elite Models (preserved)",
             min_value=1,
             max_value=10,

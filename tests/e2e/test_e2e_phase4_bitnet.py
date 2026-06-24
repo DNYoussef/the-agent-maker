@@ -8,11 +8,7 @@ Tests the complete quantization pipeline including:
 - Fine-tuning step with STE (Straight-Through Estimator)
 """
 
-import sys
-from pathlib import Path
-from unittest.mock import Mock, patch
 
-import pytest
 import torch
 import torch.nn as nn
 
@@ -174,7 +170,7 @@ class TestPhase4BitNetE2E:
         mock_model.eval()
         with torch.no_grad():
             batch = next(iter(mock_dataloader))
-            initial_loss = mock_model(batch["input_ids"], labels=batch["labels"]).loss.item()
+            _ = mock_model(batch["input_ids"], labels=batch["labels"]).loss.item()
 
         # Fine-tune 3 steps
         mock_model.train()
@@ -237,7 +233,7 @@ class TestPhase4BitNetE2E:
         with torch.no_grad():
             start_fp = time.time()
             for _ in range(10):
-                outputs_fp = mock_model(inputs["input_ids"])
+                mock_model(inputs["input_ids"])
             time_fp = time.time() - start_fp
 
         # Quantized inference (simulated - would be faster with real BitNet)
@@ -245,7 +241,7 @@ class TestPhase4BitNetE2E:
         with torch.no_grad():
             start_quant = time.time()
             for _ in range(10):
-                outputs_quant = mock_model(inputs["input_ids"])
+                mock_model(inputs["input_ids"])
             time_quant = time.time() - start_quant
 
         # Both should complete successfully

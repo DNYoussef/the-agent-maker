@@ -14,7 +14,7 @@ import streamlit as st
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from typing import Any, Dict, List, Optional
+from typing import Any  # noqa: E402
 
 
 def render() -> None:
@@ -452,9 +452,7 @@ def render() -> None:
         )
 
     with col3:
-        time_window = st.selectbox(
-            "Time Window", ["1 hour", "6 hours", "24 hours", "7 days", "All time"]
-        )
+        _ = st.selectbox("Time Window", ["1 hour", "6 hours", "24 hours", "7 days", "All time"])
 
     # Metric chart (simulated data)
     st.markdown('<div class="metric-chart">', unsafe_allow_html=True)
@@ -581,7 +579,7 @@ def render() -> None:
             st.markdown("**Duration Comparison**")
             # Extract numeric duration
             comparison_data["Duration (min)"] = (
-                comparison_data["Duration"].str.extract("(\d+)").astype(int)
+                comparison_data["Duration"].str.extract(r"(\d+)").astype(int)
             )
             st.bar_chart(comparison_data.set_index("Run ID")["Duration (min)"])
 

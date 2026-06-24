@@ -39,7 +39,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 import torch
 
-from .k_formula import KFormulaConfig, compute_k, k_from_gradient
+from .k_formula import KFormulaConfig, k_from_gradient
 
 _K_CLAMP_WARNED = False
 
@@ -453,7 +453,7 @@ def run_verification():
     print("\n2. Gradient Transformation")
     print("-" * 40)
 
-    transform = BigeometricTransform()
+    BigeometricTransform()
 
     # Test with different gradient magnitudes
     for magnitude in [0.01, 1.0, 100.0, 10000.0]:

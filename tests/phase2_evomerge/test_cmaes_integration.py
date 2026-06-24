@@ -21,7 +21,7 @@ from phase2_evomerge.fitness.benchmarks import (
     extract_numeric_answer,
 )
 from phase2_evomerge.merge.dfs_paper_accurate import DFSConfig, DFSPaperAccurate
-from phase2_evomerge.merge.hybrid_ps_dfs import HybridConfig, HybridPSDFS, hybrid_merge
+from phase2_evomerge.merge.hybrid_ps_dfs import HybridConfig, HybridPSDFS
 from phase2_evomerge.phase2_pipeline import EvolutionConfig, Phase2Pipeline
 
 

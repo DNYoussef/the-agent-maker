@@ -14,9 +14,8 @@ Phase Applications:
     - Phase 6 (Baking): Adaptive baking strength based on parameter variance
 """
 
-import math
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Optional
 
 # Layer 1 import only
 from ..k_formula import compute_k, k_from_entropy, k_from_parameter_variance, normalize_k_value
@@ -402,7 +401,7 @@ def print_adaptive_params_table(
     """
     config = config or AdaptiveConfig()
 
-    print(f"\nAdaptive Parameters Table")
+    print("\nAdaptive Parameters Table")
     print("-" * 75)
     print(
         f"{'Input':>8} | {'k value':>8} | {'Thoughts':>8} | "

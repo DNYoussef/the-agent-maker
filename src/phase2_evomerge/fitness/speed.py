@@ -6,7 +6,6 @@ which is one component of the composite fitness score (20% weight).
 """
 
 import time
-from typing import Optional
 
 import torch
 import torch.nn as nn

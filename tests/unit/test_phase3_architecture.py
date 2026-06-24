@@ -11,7 +11,7 @@ Tests all 5 core classes:
 Target: ≥95% coverage for critical paths
 """
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
 import torch
@@ -116,7 +116,7 @@ class TestThoughtGenerator:
 
         # Check top-p filtering
         sorted_probs = torch.sort(probs, descending=True)[0]
-        cumsum = torch.cumsum(sorted_probs, dim=-1)
+        _ = torch.cumsum(sorted_probs, dim=-1)
         # Most mass should be in top-p
         # After nucleus sampling, prob mass is concentrated in top tokens
         # Check that we have valid prob distribution (sums to 1)

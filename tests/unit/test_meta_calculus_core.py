@@ -8,16 +8,7 @@ import torch
 
 def test_meta_calculus_public_imports():
     import src.cross_phase.meta_calculus as meta
-    from src.cross_phase.meta_calculus.phase_facades import (
-        phase1,
-        phase2,
-        phase3,
-        phase4,
-        phase5,
-        phase6,
-        phase7,
-        phase8,
-    )
+    from src.cross_phase.meta_calculus.phase_facades import phase1, phase2, phase8
 
     assert meta.__version__
     assert phase1.PHASE1_CONFIG.grokfast_alpha > 0

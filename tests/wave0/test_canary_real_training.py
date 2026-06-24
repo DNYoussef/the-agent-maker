@@ -54,7 +54,7 @@ def test_real_training_step_reduces_loss():
         losses.append(loss.item())
 
     first, last = losses[0], losses[-1]
-    assert all(l == l for l in losses), "loss must never be NaN"
+    assert all(v == v for v in losses), "loss must never be NaN"
     # Real learning on an overfit batch: loss must fall well below the start.
     assert (
         last < first * 0.5
