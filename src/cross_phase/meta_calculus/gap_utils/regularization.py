@@ -9,16 +9,16 @@ Phase Applications:
     - All phases: Anti-collapse regularization
 """
 
-from dataclasses import dataclass
-from typing import Optional, Callable, Union
 import math
+from dataclasses import dataclass
+from typing import Callable, Optional, Union
 
 # Layer 1 import only
 from ..spectral_gap import (
     SpectralGapRegularizer,
-    thought_diversity_loss,
-    compute_thought_diversity,
     compute_expert_diversity,
+    compute_thought_diversity,
+    thought_diversity_loss,
 )
 
 
@@ -50,10 +50,13 @@ class EmbeddingDiversityRegularizer:
         self.weight = weight
 
     def __call__(self, embeddings):
-        return thought_diversity_loss(
-            embeddings,
-            target_diversity=self.target_diversity,
-        ) * self.weight
+        return (
+            thought_diversity_loss(
+                embeddings,
+                target_diversity=self.target_diversity,
+            )
+            * self.weight
+        )
 
 
 class ExpertDiversityRegularizer:
@@ -74,6 +77,7 @@ class ExpertDiversityRegularizer:
 # =============================================================================
 # FACTORY FUNCTIONS
 # =============================================================================
+
 
 def create_thought_regularizer(
     target_diversity: float = 0.5,
@@ -176,6 +180,7 @@ def create_generic_regularizer(
 # LOSS FUNCTIONS
 # =============================================================================
 
+
 def diversity_loss(
     embeddings,
     target_diversity: float = 0.5,
@@ -205,10 +210,13 @@ def diversity_loss(
         weight=weight,
     )
 
-    return thought_diversity_loss(
-        embeddings,
-        target_diversity=config.target_diversity,
-    ) * config.weight
+    return (
+        thought_diversity_loss(
+            embeddings,
+            target_diversity=config.target_diversity,
+        )
+        * config.weight
+    )
 
 
 def anti_collapse_loss(
@@ -322,6 +330,7 @@ def expert_diversity_loss(
 # =============================================================================
 # COMBINED REGULARIZER
 # =============================================================================
+
 
 class CombinedDiversityRegularizer:
     """

@@ -186,7 +186,7 @@ class SelfModelingTrainer:
                     if w.dim() > 2:
                         w = w.view(w.size(0), -1)
                     if w.size(0) >= 2 and w.size(1) >= 2:
-                        weight_matrices.append(w[:min(256, w.size(0)), :min(256, w.size(1))])
+                        weight_matrices.append(w[: min(256, w.size(0)), : min(256, w.size(1))])
 
             if not weight_matrices:
                 return 0.5
@@ -450,9 +450,7 @@ class MOOSelfModelingTrainer(SelfModelingTrainer):
                 ]
 
             # Create temperature ranges
-            ranges = self._create_ranges_from_params(
-                temp_start, temp_width, num_ranges
-            )
+            ranges = self._create_ranges_from_params(temp_start, temp_width, num_ranges)
 
             # Quick training evaluation
             accuracy = self._quick_evaluate(
@@ -476,8 +474,8 @@ class MOOSelfModelingTrainer(SelfModelingTrainer):
             self._range_cache[cache_key] = {
                 "accuracy_obj": -accuracy,  # maximize -> negate
                 "coverage_obj": -coverage,  # maximize -> negate
-                "time_obj": time_cost,      # minimize
-                "gap_obj": -gap,            # maximize -> negate
+                "time_obj": time_cost,  # minimize
+                "gap_obj": -gap,  # maximize -> negate
                 "ranges": ranges,
             }
 
@@ -542,12 +540,14 @@ class MOOSelfModelingTrainer(SelfModelingTrainer):
             start = temp_start + i * step
             end = start + step
             midpoint = (start + end) / 2
-            ranges.append(TemperatureRange(
-                start=round(start, 2),
-                end=round(end, 2),
-                midpoint=round(midpoint, 2),
-                index=i,
-            ))
+            ranges.append(
+                TemperatureRange(
+                    start=round(start, 2),
+                    end=round(end, 2),
+                    midpoint=round(midpoint, 2),
+                    index=i,
+                )
+            )
 
         return ranges
 

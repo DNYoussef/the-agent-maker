@@ -1,9 +1,9 @@
 """Phase 3 regression tests for Agent Maker math and validation fixes."""
 
-from concurrent.futures import ThreadPoolExecutor
 import importlib.util
-from pathlib import Path
 import sys
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import pytest
 import torch

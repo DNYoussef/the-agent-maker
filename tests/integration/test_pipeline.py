@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-
 from cross_phase.orchestrator.base_controller import PhaseResult
 from cross_phase.orchestrator.pipeline import PipelineOrchestrator
 

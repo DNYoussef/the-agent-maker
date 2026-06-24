@@ -8,13 +8,14 @@ Phase Applications:
     - Phase 8 (Compression): Log-space quantization for hypercompression
 """
 
-from dataclasses import dataclass
-from typing import Optional, Tuple, Dict, Any
 import math
+from dataclasses import dataclass
+from typing import Any, Dict, Optional, Tuple
+
+from ..bigeometric import from_log_space, to_log_space
 
 # Layer 1 imports only
 from ..k_formula import compute_k, k_from_parameter_variance
-from ..bigeometric import to_log_space, from_log_space
 
 
 @dataclass
@@ -39,6 +40,7 @@ class QuantizationConfig:
 # =============================================================================
 # BIGEOMETRIC THRESHOLD (Phase 4)
 # =============================================================================
+
 
 def bigeometric_threshold(
     weights,
@@ -71,6 +73,7 @@ def bigeometric_threshold(
 
     try:
         import torch
+
         if isinstance(weights, torch.Tensor):
             # Compute in log-space
             abs_weights = weights.abs() + config.epsilon
@@ -88,6 +91,7 @@ def bigeometric_threshold(
 
     try:
         import numpy as np
+
         if isinstance(weights, np.ndarray):
             abs_weights = np.abs(weights) + config.epsilon
             log_weights = np.log(abs_weights)
@@ -124,6 +128,7 @@ def compute_adaptive_threshold(
 
     try:
         import torch
+
         if isinstance(weights, torch.Tensor):
             # Sort absolute values
             abs_sorted = weights.abs().flatten().sort()[0]
@@ -143,6 +148,7 @@ def compute_adaptive_threshold(
 # =============================================================================
 # TERNARY QUANTIZATION
 # =============================================================================
+
 
 def apply_bigeometric_quantization(
     weights,
@@ -173,6 +179,7 @@ def apply_bigeometric_quantization(
 
     try:
         import torch
+
         if isinstance(weights, torch.Tensor):
             # Ternary mapping
             quantized = torch.zeros_like(weights)
@@ -186,6 +193,7 @@ def apply_bigeometric_quantization(
 
     try:
         import numpy as np
+
         if isinstance(weights, np.ndarray):
             quantized = np.zeros_like(weights)
             quantized[weights > threshold] = config.positive_value
@@ -221,6 +229,7 @@ def get_ternary_mapping(
 
     try:
         import torch
+
         if isinstance(weights, torch.Tensor):
             n_total = weights.numel()
 
@@ -252,6 +261,7 @@ def get_ternary_mapping(
 # =============================================================================
 # LOG-SPACE STE (Straight-Through Estimator)
 # =============================================================================
+
 
 class LogSpaceSTE:
     """
@@ -345,6 +355,7 @@ except ImportError:
 # UTILITY FUNCTIONS
 # =============================================================================
 
+
 def analyze_quantization(
     weights,
     threshold: Optional[float] = None,
@@ -371,10 +382,11 @@ def analyze_quantization(
 
     try:
         import torch
+
         if isinstance(weights, torch.Tensor):
             # Reconstruction error
             error = weights - quantized
-            mse = (error ** 2).mean().item()
+            mse = (error**2).mean().item()
             mae = error.abs().mean().item()
 
             # Correlation

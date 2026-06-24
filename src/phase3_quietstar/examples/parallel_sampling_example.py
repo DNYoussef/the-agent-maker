@@ -17,7 +17,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from ..architecture.parallel_thought_generator import ParallelThoughtGenerator
 from ..architecture.thought_generator import ThoughtGenerator  # Original sequential
 from ..config import QuietSTaRConfig
-from ..config_extensions import extend_rl_config, ParallelSamplingConfig
+from ..config_extensions import ParallelSamplingConfig, extend_rl_config
 
 
 def compare_sequential_vs_parallel():
@@ -188,7 +188,7 @@ def test_diagonal_attention_mask():
     print("\nValidating mask structure...")
 
     # 1. Shared context: all thoughts attend
-    shared_context_valid = torch.all(mask[:, :position + 1, :position + 1] == 0.0)
+    shared_context_valid = torch.all(mask[:, : position + 1, : position + 1] == 0.0)
     print(f"✅ Shared context valid: {shared_context_valid}")
 
     # 2. Diagonal blocks: thoughts attend only to themselves
@@ -206,9 +206,7 @@ def test_diagonal_attention_mask():
                         mask[i, start_i:end_i, start_j:end_j] == float("-inf")
                     )
                     if not off_diagonal_masked:
-                        print(
-                            f"⚠️  Off-diagonal block ({i},{j}) not fully masked"
-                        )
+                        print(f"⚠️  Off-diagonal block ({i},{j}) not fully masked")
 
     print("✅ Diagonal structure validated")
 
@@ -250,9 +248,7 @@ def test_teacher_forcing():
     output = generator(input_ids, position=5)
 
     # Create dummy labels (future tokens)
-    labels = torch.randint(
-        0, tokenizer.vocab_size, (1, input_ids.size(1) + 10), device=device
-    )
+    labels = torch.randint(0, tokenizer.vocab_size, (1, input_ids.size(1) + 10), device=device)
 
     # Compute teacher forcing loss
     print("\nComputing teacher forcing loss...")

@@ -11,19 +11,20 @@ Phase Applications:
 """
 
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Any, Union
 from enum import Enum
+from typing import Any, Dict, List, Optional, Union
 
 # Layer 1 import only
 from ..spectral_gap import (
-    compute_merge_diversity_change,
-    compute_compression_gap_retention,
     SpectralGapMonitor,
+    compute_compression_gap_retention,
+    compute_merge_diversity_change,
 )
 
 
 class GateDecision(Enum):
     """Quality gate decision."""
+
     ACCEPT = "accept"
     REJECT = "reject"
     RETRY = "retry"
@@ -49,6 +50,7 @@ class QualityGateConfig:
 @dataclass
 class MergeQualityResult:
     """Result from merge quality check."""
+
     decision: GateDecision
     retention: float
     gap_before: float
@@ -61,6 +63,7 @@ class MergeQualityResult:
 @dataclass
 class CompressionQualityResult:
     """Result from compression quality check."""
+
     decision: GateDecision
     mean_retention: float
     min_retention: float
@@ -74,6 +77,7 @@ class CompressionQualityResult:
 # =============================================================================
 # MERGE QUALITY GATE (Phase 2)
 # =============================================================================
+
 
 def check_merge_quality(
     models_before: List,
@@ -117,7 +121,9 @@ def check_merge_quality(
             details={"error": str(e)},
         )
 
-    gap_before = diversity_result.get("mean_gap_before", diversity_result.get("min_gap_before", 0.0))
+    gap_before = diversity_result.get(
+        "mean_gap_before", diversity_result.get("min_gap_before", 0.0)
+    )
     gap_after = diversity_result.get("gap_after", 0.0)
     satisfies_bound = diversity_result.get("satisfies_bound", False)
 
@@ -175,6 +181,7 @@ def check_merge_quality_simple(
 # =============================================================================
 # COMPRESSION QUALITY GATE (Phase 8)
 # =============================================================================
+
 
 def check_compression_quality(
     model_original,
@@ -260,6 +267,7 @@ def check_compression_quality(
 # =============================================================================
 # QUANTIZATION QUALITY GATE (Phase 4)
 # =============================================================================
+
 
 def check_quantization_quality(
     weights_original,
@@ -350,6 +358,7 @@ def check_quantization_quality(
 # RETRY LOGIC
 # =============================================================================
 
+
 def gate_with_retry(
     check_fn,
     adjust_fn,
@@ -388,11 +397,13 @@ def gate_with_retry(
     for retry in range(config.max_retries + 1):
         result = check_fn(**current_kwargs, config=config)
 
-        history.append({
-            "retry": retry,
-            "result": result,
-            "threshold": current_threshold,
-        })
+        history.append(
+            {
+                "retry": retry,
+                "result": result,
+                "threshold": current_threshold,
+            }
+        )
 
         # Check if passed
         if hasattr(result, "decision"):
@@ -429,6 +440,7 @@ def gate_with_retry(
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
+
 
 def format_gate_result(result: Union[MergeQualityResult, CompressionQualityResult, dict]) -> str:
     """Format gate result for display."""

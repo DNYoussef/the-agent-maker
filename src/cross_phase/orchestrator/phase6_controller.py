@@ -36,8 +36,8 @@ class Phase6Controller(PhaseController):
             tokenizer = self._get_tokenizer()
 
             # Create baking config
-            from phase6_baking import BakingConfig, BakingEngine
             from cross_phase.monitoring.wandb_integration import WandBIntegration
+            from phase6_baking import BakingConfig, BakingEngine
 
             config = BakingConfig(
                 a_cycle_iterations=self.config.get("a_cycle_iterations", 5) if self.config else 5,
@@ -50,7 +50,11 @@ class Phase6Controller(PhaseController):
 
             # Run baking engine
             wandb_integration = WandBIntegration(
-                project_name=(self.config.get("wandb_project", "agent-forge-v2") if self.config else "agent-forge-v2"),
+                project_name=(
+                    self.config.get("wandb_project", "agent-forge-v2")
+                    if self.config
+                    else "agent-forge-v2"
+                ),
                 mode=(self.config.get("wandb_mode", "auto") if self.config else "auto"),
             )
             engine = BakingEngine(

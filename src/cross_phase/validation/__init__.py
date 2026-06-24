@@ -17,21 +17,7 @@ from .quality_validator import (
     ValidationResult,
     Violation,
 )
-
-from .spec_validation import (
-    BaseValidator,
-    ContextValidator,
-    ImplementationPlanValidator,
-    JSONFileValidator,
-    MarkdownDocumentValidator,
-    PrereqsValidator,
-    SpecDocumentValidator,
-    SpecValidator,
-    SpecValidationResult,
-    ValidationSchema,
-    create_validator_from_config,
-    validate_spec_directory,
-    # Default schemas
+from .spec_validation import (  # Default schemas
     DEFAULT_CONTEXT_SCHEMA,
     DEFAULT_IMPLEMENTATION_PLAN_SCHEMA,
     DEFAULT_PHASE_SCHEMA,
@@ -40,6 +26,18 @@ from .spec_validation import (
     DEFAULT_SPEC_REQUIRED_SECTIONS,
     DEFAULT_SUBTASK_SCHEMA,
     DEFAULT_VERIFICATION_SCHEMA,
+    BaseValidator,
+    ContextValidator,
+    ImplementationPlanValidator,
+    JSONFileValidator,
+    MarkdownDocumentValidator,
+    PrereqsValidator,
+    SpecDocumentValidator,
+    SpecValidationResult,
+    SpecValidator,
+    ValidationSchema,
+    create_validator_from_config,
+    validate_spec_directory,
 )
 
 __all__ = [

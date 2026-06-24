@@ -19,11 +19,13 @@ Design:
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Union, Any
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import numpy as np
 
 try:
     from pymoo.indicators.hv import HV
+
     PYMOO_AVAILABLE = True
 except ImportError:
     PYMOO_AVAILABLE = False
@@ -69,18 +71,16 @@ def _normalize_objectives(F: np.ndarray) -> np.ndarray:
     return (F - F_min) / F_range
 
 
-def _extract_pareto_data(
-    result: Any
-) -> Tuple[np.ndarray, np.ndarray]:
+def _extract_pareto_data(result: Any) -> Tuple[np.ndarray, np.ndarray]:
     """Extract X and F from pymoo Result or raw arrays."""
-    if hasattr(result, 'X') and hasattr(result, 'F'):
+    if hasattr(result, "X") and hasattr(result, "F"):
         # pymoo Result object
         X = result.X
         F = result.F
     elif isinstance(result, dict):
         # Dict from pymoo-like code or MOORunner.optimize().
-        X = np.array(result.get('X', result.get('x', result.get('pareto_solutions', []))))
-        F = np.array(result.get('F', result.get('f', result.get('pareto_front', []))))
+        X = np.array(result.get("X", result.get("x", result.get("pareto_solutions", []))))
+        F = np.array(result.get("F", result.get("f", result.get("pareto_front", []))))
     elif isinstance(result, tuple) and len(result) == 2:
         # Tuple of (X, F)
         X, F = result
@@ -135,7 +135,7 @@ def select_balanced(
         F_norm = F
 
     # Compute distance to ideal point (origin in normalized space)
-    distances = np.sqrt(np.sum(F_norm ** 2, axis=1))
+    distances = np.sqrt(np.sum(F_norm**2, axis=1))
 
     # Select closest to ideal
     best_idx = int(np.argmin(distances))
@@ -148,7 +148,7 @@ def select_balanced(
             "method": "balanced",
             "distance_to_ideal": float(distances[best_idx]),
             "normalized": config.normalize,
-        }
+        },
     )
 
 
@@ -222,12 +222,10 @@ def select_knee_point(
 
         angles = []
         for i in range(1, len(F_sorted) - 1):
-            v1 = F_sorted[i] - F_sorted[i-1]
-            v2 = F_sorted[i+1] - F_sorted[i]
+            v1 = F_sorted[i] - F_sorted[i - 1]
+            v2 = F_sorted[i + 1] - F_sorted[i]
 
-            cos_angle = np.dot(v1, v2) / (
-                np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-10
-            )
+            cos_angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-10)
             angle = np.arccos(np.clip(cos_angle, -1, 1))
             angles.append(angle)
 
@@ -247,7 +245,7 @@ def select_knee_point(
         metadata={
             "method": "knee_point",
             "knee_method": config.knee_method,
-        }
+        },
     )
 
 
@@ -314,7 +312,7 @@ def select_by_constraint(
                     "method": "by_constraint",
                     "feasible": False,
                     "violation": float(violations[best_idx]),
-                }
+                },
             )
 
     # Among feasible, select best on primary objective
@@ -331,7 +329,7 @@ def select_by_constraint(
             "feasible": True,
             "num_feasible": len(feasible_indices),
             "constraints_used": constraints,
-        }
+        },
     )
 
 
@@ -387,7 +385,7 @@ def select_by_preference(
             "method": "by_preference",
             "weights": weights.tolist(),
             "score": float(scores[best_idx]),
-        }
+        },
     )
 
 
@@ -433,9 +431,7 @@ def analyze_tradeoffs(
 
     if objective_pairs is None:
         # Analyze all pairs
-        objective_pairs = [
-            (i, j) for i in range(n_objectives) for j in range(i+1, n_objectives)
-        ]
+        objective_pairs = [(i, j) for i in range(n_objectives) for j in range(i + 1, n_objectives)]
 
     results = []
 
@@ -475,19 +471,18 @@ def analyze_tradeoffs(
             sorted_by_j = np.argsort(fj)
             for k in range(n_samples):
                 if k < len(sorted_by_i) and k < len(sorted_by_j):
-                    samples.append((
-                        int(sorted_by_i[k]),
-                        int(sorted_by_j[k])
-                    ))
+                    samples.append((int(sorted_by_i[k]), int(sorted_by_j[k])))
 
-        results.append(TradeoffAnalysis(
-            objective_i=obj_i,
-            objective_j=obj_j,
-            correlation=float(corr),
-            tradeoff_ratio=float(tradeoff_ratio),
-            extreme_solutions=extremes,
-            samples=samples,
-        ))
+        results.append(
+            TradeoffAnalysis(
+                objective_i=obj_i,
+                objective_j=obj_j,
+                correlation=float(corr),
+                tradeoff_ratio=float(tradeoff_ratio),
+                extreme_solutions=extremes,
+                samples=samples,
+            )
+        )
 
     return results
 

@@ -43,7 +43,9 @@ class Phase4Controller(PhaseController):
             from phase4_bitnet.quantizer import BitNetQuantizer
 
             phase4_config = (
-                Phase4Config.from_dict(self.config) if isinstance(self.config, dict) else Phase4Config()
+                Phase4Config.from_dict(self.config)
+                if isinstance(self.config, dict)
+                else Phase4Config()
             )
             quantizer = BitNetQuantizer(phase4_config)
 

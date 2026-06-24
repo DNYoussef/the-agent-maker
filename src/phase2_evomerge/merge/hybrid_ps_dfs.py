@@ -165,7 +165,9 @@ class HybridPSDFS:
 
         # Compute metrics
         baseline_fitness = max([fitness_fn(model) for model in base_models])
-        improvement = (champion_fitness - baseline_fitness) / baseline_fitness if baseline_fitness > 0 else 0
+        improvement = (
+            (champion_fitness - baseline_fitness) / baseline_fitness if baseline_fitness > 0 else 0
+        )
 
         metrics = {
             "n_base_models": N,

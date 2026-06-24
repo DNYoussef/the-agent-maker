@@ -23,10 +23,10 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
 import torch
-from safetensors.torch import save_file, load_file
+from safetensors.torch import load_file, save_file
 
-from phase1_cognate.model.model_config import Phase1Config
 from phase1_cognate.model.full_model import TRMTitansMAGModel
+from phase1_cognate.model.model_config import Phase1Config
 
 
 def test_phase1_cognate_sandbox():
@@ -41,7 +41,7 @@ def test_phase1_cognate_sandbox():
         "status": "PENDING",
         "parameter_count": None,
         "output_shapes": {},
-        "errors": []
+        "errors": [],
     }
 
     try:
@@ -96,7 +96,9 @@ def test_phase1_cognate_sandbox():
         print(f"  Difference: {diff_pct:.1f}%")
 
         if total_params < 15_000_000 or total_params > 35_000_000:
-            results["errors"].append(f"Parameter count {total_params:,} outside acceptable range (15M-35M)")
+            results["errors"].append(
+                f"Parameter count {total_params:,} outside acceptable range (15M-35M)"
+            )
 
         print()
 
@@ -124,27 +126,27 @@ def test_phase1_cognate_sandbox():
         print(f"    loss: scalar ({output['loss'].item():.4f})")
 
         results["output_shapes"] = {
-            "logits": list(output['logits'].shape),
-            "halting_steps": list(output['halting_steps'].shape),
-            "num_reasoning_steps": len(output['all_logits'])
+            "logits": list(output["logits"].shape),
+            "halting_steps": list(output["halting_steps"].shape),
+            "num_reasoning_steps": len(output["all_logits"]),
         }
 
         # Validate shapes
         expected_logit_shape = [batch_size, seq_len, vocab_size]
         expected_halt_shape = [batch_size]
 
-        if list(output['logits'].shape) != expected_logit_shape:
+        if list(output["logits"].shape) != expected_logit_shape:
             results["errors"].append(
                 f"Logits shape {list(output['logits'].shape)} != expected {expected_logit_shape}"
             )
 
-        if list(output['halting_steps'].shape) != expected_halt_shape:
+        if list(output["halting_steps"].shape) != expected_halt_shape:
             results["errors"].append(
                 f"Halting steps shape {list(output['halting_steps'].shape)} != expected {expected_halt_shape}"
             )
 
         # Check reasoning steps
-        num_steps = len(output['all_logits'])
+        num_steps = len(output["all_logits"])
         print(f"    reasoning steps: {num_steps} (expected {config.trm_config.T_max + 1})")
 
         if num_steps != config.trm_config.T_max + 1:
@@ -170,7 +172,7 @@ def test_phase1_cognate_sandbox():
 
         # Remove the tied weight (lm_head.weight) before saving
         # It will be restored during load via tie_weights()
-        state_dict_to_save = {k: v for k, v in state_dict.items() if k != 'lm_head.weight'}
+        state_dict_to_save = {k: v for k, v in state_dict.items() if k != "lm_head.weight"}
 
         save_file(state_dict_to_save, str(save_path))
         print(f"  Saved to: {save_path}")
@@ -192,7 +194,7 @@ def test_phase1_cognate_sandbox():
         with torch.no_grad():
             output_loaded = model_loaded(input_ids, labels=labels)
 
-        max_diff = (output['logits'] - output_loaded['logits']).abs().max().item()
+        max_diff = (output["logits"] - output_loaded["logits"]).abs().max().item()
         print(f"  Max logits difference: {max_diff:.2e}")
 
         # Note: The difference is expected because we're testing raw SafeTensors functionality.
@@ -203,6 +205,7 @@ def test_phase1_cognate_sandbox():
         # Clean up (wrapped in try-except for Windows file locks)
         try:
             import time
+
             time.sleep(0.1)  # Small delay to release file handles
             save_path.unlink()
         except Exception as e:
@@ -227,7 +230,7 @@ def test_phase1_cognate_sandbox():
 
             results["memory_usage_gb"] = {
                 "allocated": f"{allocated:.2f}",
-                "reserved": f"{reserved:.2f}"
+                "reserved": f"{reserved:.2f}",
             }
 
             # Check if fits in 6GB target
@@ -265,6 +268,7 @@ def test_phase1_cognate_sandbox():
         print(f"\nException: {e}")
 
         import traceback
+
         traceback.print_exc()
         print()
 
@@ -281,22 +285,22 @@ def print_summary(results):
     print(f"Status: {results['status']}")
     print()
 
-    if results['parameter_count']:
+    if results["parameter_count"]:
         print(f"Model Parameter Count: {results['parameter_count']:,}")
 
-    if results['output_shapes']:
+    if results["output_shapes"]:
         print(f"\nOutput Shapes:")
-        for key, value in results['output_shapes'].items():
+        for key, value in results["output_shapes"].items():
             print(f"  {key}: {value}")
 
-    if 'memory_usage_gb' in results:
+    if "memory_usage_gb" in results:
         print(f"\nGPU Memory Usage:")
-        for key, value in results['memory_usage_gb'].items():
+        for key, value in results["memory_usage_gb"].items():
             print(f"  {key}: {value} GB")
 
-    if results['errors']:
+    if results["errors"]:
         print(f"\nErrors ({len(results['errors'])}):")
-        for i, error in enumerate(results['errors'], 1):
+        for i, error in enumerate(results["errors"], 1):
             print(f"  {i}. {error}")
     else:
         print("\nNo errors detected")
@@ -311,4 +315,4 @@ if __name__ == "__main__":
     print_summary(results)
 
     # Exit with appropriate code
-    sys.exit(0 if results['status'] == 'SUCCESS' else 1)
+    sys.exit(0 if results["status"] == "SUCCESS" else 1)

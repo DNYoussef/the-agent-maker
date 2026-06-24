@@ -9,12 +9,12 @@ Phase Applications:
     - Phase 8: Log-space compression operations
 """
 
+import math
 from dataclasses import dataclass
 from typing import Optional, Union
-import math
 
 # Layer 1 imports only
-from ..bigeometric import to_log_space, from_log_space
+from ..bigeometric import from_log_space, to_log_space
 
 
 @dataclass
@@ -33,6 +33,7 @@ class LogSpaceConfig:
 # SAFE LOG/EXP OPERATIONS
 # =============================================================================
 
+
 def safe_log(x, config: Optional[LogSpaceConfig] = None):
     """
     Numerically stable logarithm.
@@ -50,6 +51,7 @@ def safe_log(x, config: Optional[LogSpaceConfig] = None):
 
     try:
         import torch
+
         if isinstance(x, torch.Tensor):
             result = torch.log(x.abs() + config.epsilon)
             return torch.clamp(result, config.min_value, config.max_value)
@@ -58,6 +60,7 @@ def safe_log(x, config: Optional[LogSpaceConfig] = None):
 
     try:
         import numpy as np
+
         if isinstance(x, np.ndarray):
             result = np.log(np.abs(x) + config.epsilon)
             return np.clip(result, config.min_value, config.max_value)
@@ -86,6 +89,7 @@ def safe_exp(x, config: Optional[LogSpaceConfig] = None):
 
     try:
         import torch
+
         if isinstance(x, torch.Tensor):
             clamped = torch.clamp(x, config.min_value, config.max_value)
             return torch.exp(clamped)
@@ -94,6 +98,7 @@ def safe_exp(x, config: Optional[LogSpaceConfig] = None):
 
     try:
         import numpy as np
+
         if isinstance(x, np.ndarray):
             clamped = np.clip(x, config.min_value, config.max_value)
             return np.exp(clamped)
@@ -108,6 +113,7 @@ def safe_exp(x, config: Optional[LogSpaceConfig] = None):
 # =============================================================================
 # LOG-SPACE STATISTICS
 # =============================================================================
+
 
 def log_space_mean(x, config: Optional[LogSpaceConfig] = None):
     """
@@ -127,6 +133,7 @@ def log_space_mean(x, config: Optional[LogSpaceConfig] = None):
 
     try:
         import torch
+
         if isinstance(x, torch.Tensor):
             log_abs = torch.log(x.abs() + config.epsilon)
             return torch.exp(log_abs.mean())
@@ -135,6 +142,7 @@ def log_space_mean(x, config: Optional[LogSpaceConfig] = None):
 
     try:
         import numpy as np
+
         if isinstance(x, np.ndarray):
             log_abs = np.log(np.abs(x) + config.epsilon)
             return np.exp(np.mean(log_abs))
@@ -163,6 +171,7 @@ def log_space_std(x, config: Optional[LogSpaceConfig] = None):
 
     try:
         import torch
+
         if isinstance(x, torch.Tensor):
             log_abs = torch.log(x.abs() + config.epsilon)
             return log_abs.std()
@@ -171,6 +180,7 @@ def log_space_std(x, config: Optional[LogSpaceConfig] = None):
 
     try:
         import numpy as np
+
         if isinstance(x, np.ndarray):
             log_abs = np.log(np.abs(x) + config.epsilon)
             return np.std(log_abs)
@@ -202,6 +212,7 @@ def log_space_normalize(x, config: Optional[LogSpaceConfig] = None):
 
     try:
         import torch
+
         if isinstance(x, torch.Tensor):
             signs = torch.sign(x)
             log_abs = torch.log(x.abs() + config.epsilon)
@@ -212,6 +223,7 @@ def log_space_normalize(x, config: Optional[LogSpaceConfig] = None):
 
     try:
         import numpy as np
+
         if isinstance(x, np.ndarray):
             signs = np.sign(x)
             log_abs = np.log(np.abs(x) + config.epsilon)
@@ -226,6 +238,7 @@ def log_space_normalize(x, config: Optional[LogSpaceConfig] = None):
 # =============================================================================
 # LOG-SPACE INTERPOLATION
 # =============================================================================
+
 
 def log_space_interpolate(
     x1,
@@ -258,6 +271,7 @@ def log_space_interpolate(
 
     try:
         import torch
+
         if isinstance(x1, torch.Tensor):
             # Handle signs
             sign1 = torch.sign(x1)
@@ -278,6 +292,7 @@ def log_space_interpolate(
 
     try:
         import numpy as np
+
         if isinstance(x1, np.ndarray):
             sign1 = np.sign(x1)
             sign2 = np.sign(x2)
@@ -300,6 +315,7 @@ def log_space_interpolate(
 # =============================================================================
 # LOG-SPACE POLICY GRADIENT (Phase 3)
 # =============================================================================
+
 
 def log_space_policy_gradient(
     log_probs,
@@ -327,6 +343,7 @@ def log_space_policy_gradient(
 
     try:
         import torch
+
         if isinstance(log_probs, torch.Tensor):
             # Standard policy gradient: -log_prob * advantage
             # But we compute in a numerically stable way
@@ -359,6 +376,7 @@ def log_space_kl_divergence(
 
     try:
         import torch
+
         if isinstance(log_p, torch.Tensor):
             # P = exp(log_p)
             p = torch.exp(log_p)

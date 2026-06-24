@@ -169,9 +169,7 @@ class CMAESOptimizer:
                 self.best_params = coeffs.copy()
                 self.stagnation_count = 0
                 if verbose:
-                    logger.info(
-                        f"New best fitness: {fitness:.4f} " f"at coeffs: {coeffs.round(3)}"
-                    )
+                    logger.info(f"New best fitness: {fitness:.4f} " f"at coeffs: {coeffs.round(3)}")
             else:
                 self.stagnation_count += 1
 

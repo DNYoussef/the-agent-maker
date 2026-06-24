@@ -275,7 +275,9 @@ class DFSPaperAccurate:
 
         return result
 
-    def _group_parameters_by_layer(self, param_names: List[str], n_layers: int) -> Dict[int, List[str]]:
+    def _group_parameters_by_layer(
+        self, param_names: List[str], n_layers: int
+    ) -> Dict[int, List[str]]:
         """
         Group parameter names by layer index.
 

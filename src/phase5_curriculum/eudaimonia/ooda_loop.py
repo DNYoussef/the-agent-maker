@@ -453,15 +453,17 @@ class OODALoop:
 
         # Build objective matrix (all objectives to minimize)
         # Shape: (n_actions, 4)
-        objectives = np.array([
+        objectives = np.array(
             [
-                -action.alignment_score,  # maximize -> negate
-                -action.measurability,    # maximize -> negate
-                -action.reversibility,    # maximize -> negate
-                action.risk_level,        # minimize
+                [
+                    -action.alignment_score,  # maximize -> negate
+                    -action.measurability,  # maximize -> negate
+                    -action.reversibility,  # maximize -> negate
+                    action.risk_level,  # minimize
+                ]
+                for action in evaluated_actions
             ]
-            for action in evaluated_actions
-        ])
+        )
 
         # Find Pareto front
         pareto_mask = self._find_pareto_front(objectives)

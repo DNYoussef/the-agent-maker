@@ -273,7 +273,9 @@ class CompressedModel(nn.Module):
                 "layers_preserved": 0,
                 "original_size_mb": total_original / (1024**2),
                 "quantized_size_mb": total_quantized / (1024**2),
-                "compression_ratio": total_original / total_quantized if total_quantized > 0 else 1.0,
+                "compression_ratio": total_original / total_quantized
+                if total_quantized > 0
+                else 1.0,
                 "sparsity_ratio": sparsity_ratio,
             }
 
@@ -283,9 +285,7 @@ class CompressedModel(nn.Module):
 
         quantized_size_mb = self._calculate_state_dict_size(self.quantized_state)
 
-        compression_ratio = (
-            original_size_mb / quantized_size_mb if quantized_size_mb > 0 else 1.0
-        )
+        compression_ratio = original_size_mb / quantized_size_mb if quantized_size_mb > 0 else 1.0
 
         stats = self.quantizer.get_stats()
 

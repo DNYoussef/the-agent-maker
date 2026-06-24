@@ -29,9 +29,7 @@ def test_substring_tool_mention_scoring_is_gone():
     # exist any more, in either the optimizer or the persona B-cycle twin.
     from pathlib import Path
 
-    path = (
-        Path(__file__).resolve().parents[2] / "src" / "phase6_baking" / "a_cycle_tool.py"
-    )
+    path = Path(__file__).resolve().parents[2] / "src" / "phase6_baking" / "a_cycle_tool.py"
     src = path.read_text(encoding="utf-8")
     assert "tool_mentions" not in src, "substring tool-mention scoring must be removed"
     assert "SWEBenchToolEvaluator(" in src, "default scoring must build the real evaluator"
@@ -58,9 +56,7 @@ def test_default_eval_uses_real_evaluator_when_synthetic_allowed():
     # of the substring proxy.
     from phase6_baking.a_cycle_tool import ACycleOptimizer, SWEBenchToolEvaluator
 
-    opt = ACycleOptimizer(
-        tool_prompts=["use tools"], max_eval_tasks=2, allow_synthetic_eval=True
-    )
+    opt = ACycleOptimizer(tool_prompts=["use tools"], max_eval_tasks=2, allow_synthetic_eval=True)
     score = opt._evaluate_tool_use(_TinyNoGen(), _StubTok(), evaluator=None)
     assert isinstance(score, float) and 0.0 <= score <= 1.0
     assert isinstance(opt._default_evaluator, SWEBenchToolEvaluator)

@@ -17,10 +17,11 @@ Test validates:
 """
 
 import pytest
-pytestmark = pytest.mark.skip(reason='Standalone sandbox script - run with python directly')
 
-import sys
+pytestmark = pytest.mark.skip(reason="Standalone sandbox script - run with python directly")
+
 import math
+import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -30,11 +31,11 @@ import torch.nn as nn
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from phase8_compression.seedlm import SeedLMCompressor, SeedLMConfig
-from phase8_compression.vptq import VPTQCompressor, VPTQConfig
+from phase8_compression.benchmarks import BenchmarkConfig, BenchmarkSuite
 from phase8_compression.hypercompression import HyperCompressor, HyperConfig
-from phase8_compression.validation import CompressionValidator, CompressionTargets
-from phase8_compression.benchmarks import BenchmarkSuite, BenchmarkConfig
+from phase8_compression.seedlm import SeedLMCompressor, SeedLMConfig
+from phase8_compression.validation import CompressionTargets, CompressionValidator
+from phase8_compression.vptq import VPTQCompressor, VPTQConfig
 
 
 class MockModel(nn.Module):
@@ -58,17 +59,13 @@ class MockModel(nn.Module):
         self.embed = nn.Embedding(1000, hidden_dim)
 
         # Transformer layers (simplified)
-        self.layers = nn.ModuleList([
-            nn.Linear(hidden_dim, hidden_dim) for _ in range(num_layers)
-        ])
+        self.layers = nn.ModuleList([nn.Linear(hidden_dim, hidden_dim) for _ in range(num_layers)])
 
         # Output head
         self.lm_head = nn.Linear(hidden_dim, 1000)
 
         # Layer norms
-        self.norms = nn.ModuleList([
-            nn.LayerNorm(hidden_dim) for _ in range(num_layers)
-        ])
+        self.norms = nn.ModuleList([nn.LayerNorm(hidden_dim) for _ in range(num_layers)])
 
     def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
         """Forward pass."""
@@ -92,10 +89,10 @@ class MockTokenizer:
     def __call__(self, text, **kwargs):
         """Tokenize text."""
         # Simple mock: return random token IDs
-        num_tokens = min(len(text.split()), kwargs.get('max_length', 512))
+        num_tokens = min(len(text.split()), kwargs.get("max_length", 512))
         input_ids = torch.randint(0, 1000, (1, num_tokens))
         attention_mask = torch.ones_like(input_ids)
-        return {'input_ids': input_ids, 'attention_mask': attention_mask}
+        return {"input_ids": input_ids, "attention_mask": attention_mask}
 
     def encode(self, text, **kwargs):
         """Encode text to IDs."""
@@ -185,13 +182,15 @@ def test_seedlm_stage(model: nn.Module) -> Tuple[nn.Module, Dict]:
     print(f"  Compression: {result.compression_ratio:.2f}x")
     print(f"  Retention: {result.retention_score:.2%}")
     print(f"  Target: 2x compression, >95% retention")
-    print(f"  Status: {'PASS' if result.compression_ratio >= 1.8 and result.retention_score >= 0.93 else 'FAIL'}")
+    print(
+        f"  Status: {'PASS' if result.compression_ratio >= 1.8 and result.retention_score >= 0.93 else 'FAIL'}"
+    )
 
     return compressed_model, {
-        'original_size': result.original_size_mb,
-        'compressed_size': result.compressed_size_mb,
-        'retention': result.retention_score,
-        'compression_ratio': result.compression_ratio,
+        "original_size": result.original_size_mb,
+        "compressed_size": result.compressed_size_mb,
+        "retention": result.retention_score,
+        "compression_ratio": result.compression_ratio,
     }
 
 
@@ -225,13 +224,15 @@ def test_vptq_stage(model: nn.Module) -> Tuple[nn.Module, Dict]:
     print(f"  Compression: {result.compression_ratio:.2f}x")
     print(f"  Retention: {result.retention_score:.2%}")
     print(f"  Target: 20x compression, >95% retention")
-    print(f"  Status: {'PASS' if result.compression_ratio >= 18 and result.retention_score >= 0.93 else 'FAIL'}")
+    print(
+        f"  Status: {'PASS' if result.compression_ratio >= 18 and result.retention_score >= 0.93 else 'FAIL'}"
+    )
 
     return compressed_model, {
-        'original_size': result.original_size_mb,
-        'compressed_size': result.compressed_size_mb,
-        'retention': result.retention_score,
-        'compression_ratio': result.compression_ratio,
+        "original_size": result.original_size_mb,
+        "compressed_size": result.compressed_size_mb,
+        "retention": result.retention_score,
+        "compression_ratio": result.compression_ratio,
     }
 
 
@@ -266,14 +267,16 @@ def test_hypercompression_stage(model: nn.Module) -> Tuple[nn.Module, Dict]:
     print(f"  Retention: {result.retention_score:.2%}")
     print(f"  Mean R^2: {result.mean_r_squared:.4f}")
     print(f"  Target: 6.25x compression, >90% retention, R^2 >0.95")
-    print(f"  Status: {'PASS' if result.compression_ratio >= 5.6 and result.retention_score >= 0.88 else 'FAIL'}")
+    print(
+        f"  Status: {'PASS' if result.compression_ratio >= 5.6 and result.retention_score >= 0.88 else 'FAIL'}"
+    )
 
     return compressed_model, {
-        'original_size': result.original_size_mb,
-        'compressed_size': result.compressed_size_mb,
-        'retention': result.retention_score,
-        'compression_ratio': result.compression_ratio,
-        'r_squared': result.mean_r_squared,
+        "original_size": result.original_size_mb,
+        "compressed_size": result.compressed_size_mb,
+        "retention": result.retention_score,
+        "compression_ratio": result.compression_ratio,
+        "r_squared": result.mean_r_squared,
     }
 
 
@@ -371,10 +374,10 @@ def test_benchmark_validation(
     print(f"  Status: {'PASS' if retention >= threshold else 'FAIL'}")
 
     return {
-        'original_score': original_score,
-        'compressed_score': compressed_score,
-        'retention': retention,
-        'meets_threshold': retention >= threshold,
+        "original_score": original_score,
+        "compressed_score": compressed_score,
+        "retention": retention,
+        "meets_threshold": retention >= threshold,
     }
 
 
@@ -404,18 +407,16 @@ def run_sandbox_test():
 
     # Calculate total compression
     total_compression = (
-        seedlm_result['compression_ratio'] *
-        vptq_result['compression_ratio'] *
-        hyper_result['compression_ratio']
+        seedlm_result["compression_ratio"]
+        * vptq_result["compression_ratio"]
+        * hyper_result["compression_ratio"]
     )
 
     total_retention = (
-        seedlm_result['retention'] *
-        vptq_result['retention'] *
-        hyper_result['retention']
+        seedlm_result["retention"] * vptq_result["retention"] * hyper_result["retention"]
     )
 
-    final_size = hyper_result['compressed_size']
+    final_size = hyper_result["compressed_size"]
 
     # Quality gate validation
     gates_passed = test_quality_gates(seedlm_result, vptq_result, hyper_result)
@@ -466,16 +467,16 @@ def run_sandbox_test():
 
     # Return results for programmatic testing
     return {
-        'phase': 'Phase 8',
-        'status': 'PASS' if all_ok else 'FAIL',
-        'seedlm_ratio': seedlm_result['compression_ratio'],
-        'vptq_ratio': vptq_result['compression_ratio'],
-        'hyper_ratio': hyper_result['compression_ratio'],
-        'total_compression': total_compression,
-        'quality_gates_passed': gates_passed,
-        'final_size_mb': final_size,
-        'total_retention': total_retention,
-        'errors': [] if all_ok else ['Some quality gates failed'],
+        "phase": "Phase 8",
+        "status": "PASS" if all_ok else "FAIL",
+        "seedlm_ratio": seedlm_result["compression_ratio"],
+        "vptq_ratio": vptq_result["compression_ratio"],
+        "hyper_ratio": hyper_result["compression_ratio"],
+        "total_compression": total_compression,
+        "quality_gates_passed": gates_passed,
+        "final_size_mb": final_size,
+        "total_retention": total_retention,
+        "errors": [] if all_ok else ["Some quality gates failed"],
     }
 
 

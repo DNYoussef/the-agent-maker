@@ -230,7 +230,8 @@ class BitLinear(nn.Linear):
             bias_size = self.bias.nelement() * 2  # FP16
 
         return {
-            "original_fp32": weight_fp32 + (self.bias.nelement() * 4 if self.bias is not None else 0),
+            "original_fp32": weight_fp32
+            + (self.bias.nelement() * 4 if self.bias is not None else 0),
             "quantized_1.58bit": weight_int8 + scale_fp16 + bias_size,
             "compression_ratio": weight_fp32 / (weight_int8 + scale_fp16),
         }

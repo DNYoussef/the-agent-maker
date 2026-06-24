@@ -1,4 +1,5 @@
 import pytest
+
 pytestmark = pytest.mark.skip(reason="Standalone sandbox script - run with python directly")
 
 """
@@ -23,11 +24,11 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
-import torch
-import torch.nn as nn
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
+import torch
+import torch.nn as nn
 
 # ============================================================================
 # MOCK 1.58-BIT QUANTIZED MODEL (Simulates BitNet Phase 4 Output)
@@ -93,10 +94,9 @@ class Mock158BitModel(nn.Module):
         self.embeddings = nn.Embedding(vocab_size, hidden_size)
 
         # Quantized layers
-        self.layers = nn.ModuleList([
-            Mock158BitLinear(hidden_size, hidden_size)
-            for _ in range(num_layers)
-        ])
+        self.layers = nn.ModuleList(
+            [Mock158BitLinear(hidden_size, hidden_size) for _ in range(num_layers)]
+        )
 
         # Output projection (quantized)
         self.output_proj = Mock158BitLinear(hidden_size, vocab_size)
@@ -117,7 +117,7 @@ class Mock158BitModel(nn.Module):
         # Output projection
         logits = self.output_proj(x)
 
-        return type('Output', (), {'logits': logits})()
+        return type("Output", (), {"logits": logits})()
 
     def generate(self, input_ids, max_new_tokens=50, temperature=1.0, do_sample=True, **kwargs):
         """Simple greedy generation for testing."""
@@ -163,8 +163,7 @@ class MockTokenizer:
         self.pad_token_id = 1
         self.eos_token_id = 2
 
-    def __call__(self, text, return_tensors=None, max_length=512,
-                 truncation=True, padding=True):
+    def __call__(self, text, return_tensors=None, max_length=512, truncation=True, padding=True):
         """Mock encoding."""
         # Generate random token IDs
         length = min(len(text.split()), max_length)
@@ -207,14 +206,10 @@ def test_stage1_assessment(model, tokenizer):
 
     # Run assessment
     assessment = EdgeOfChaosAssessment(
-        threshold=0.75,
-        num_questions=100,  # Reduced for speed
-        tolerance=0.05
+        threshold=0.75, num_questions=100, tolerance=0.05  # Reduced for speed
     )
 
-    baseline_level, results = assessment.find_baseline(
-        model, tokenizer, frontier_client=None
-    )
+    baseline_level, results = assessment.find_baseline(model, tokenizer, frontier_client=None)
 
     # Verify results
     assert 1 <= baseline_level <= 100, f"Invalid baseline: {baseline_level}"
@@ -243,11 +238,8 @@ def test_stage2_curriculum_generation(baseline_level):
     """
     print("\n--- Testing Stage 2: Curriculum Generation ---")
 
-    from phase5_curriculum.curriculum_generator import (
-        AdaptiveCurriculumGenerator,
-        Question,
-    )
     from phase5_curriculum.curriculum_engine import SpecializationType
+    from phase5_curriculum.curriculum_generator import AdaptiveCurriculumGenerator, Question
 
     # Generate curriculum (no frontier client = placeholders)
     generator = AdaptiveCurriculumGenerator(
@@ -269,9 +261,9 @@ def test_stage2_curriculum_generation(baseline_level):
 
         # Check question structure
         first_q = questions[0]
-        assert hasattr(first_q, 'id') or isinstance(first_q, dict)
-        assert hasattr(first_q, 'level') or 'level' in first_q
-        assert hasattr(first_q, 'question') or 'question' in first_q
+        assert hasattr(first_q, "id") or isinstance(first_q, dict)
+        assert hasattr(first_q, "level") or "level" in first_q
+        assert hasattr(first_q, "question") or "question" in first_q
 
     total_questions = sum(len(q) for q in curriculum.values())
     print(f"  Generated {total_questions} questions across 10 levels")
@@ -518,8 +510,8 @@ def main():
         stages_tested += 1
         print("\n--- Testing Stage 7: Level Progression Architecture ---")
         from phase5_curriculum.curriculum_engine import (
-            CurriculumEngine,
             CurriculumConfig,
+            CurriculumEngine,
             SpecializationType,
         )
 
@@ -546,6 +538,7 @@ def main():
         errors.append(str(e))
         print(f"\n[ERROR] {e}")
         import traceback
+
         traceback.print_exc()
 
     # Final Report

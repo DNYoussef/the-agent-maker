@@ -169,7 +169,9 @@ def test_phase3_compatibility():
             self.embedding = nn.Embedding(vocab_size, hidden_size)
             self.attention = nn.Linear(hidden_size, hidden_size * 3)
             self.mlp = nn.Sequential(
-                nn.Linear(hidden_size, hidden_size * 4), nn.GELU(), nn.Linear(hidden_size * 4, hidden_size)
+                nn.Linear(hidden_size, hidden_size * 4),
+                nn.GELU(),
+                nn.Linear(hidden_size * 4, hidden_size),
             )
             self.lm_head = nn.Linear(hidden_size, vocab_size)
 

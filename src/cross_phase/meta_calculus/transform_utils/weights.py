@@ -8,16 +8,12 @@ Phase Applications:
     - Phase 8 (Compression): Log-space weight fitting for Bezier curves
 """
 
-from dataclasses import dataclass
-from typing import Optional, List, Dict, Any, Union
 import math
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Union
 
 # Layer 1 imports only
-from ..bigeometric import (
-    to_log_space,
-    from_log_space,
-    log_space_interpolation,
-)
+from ..bigeometric import from_log_space, log_space_interpolation, to_log_space
 
 
 @dataclass
@@ -37,6 +33,7 @@ class WeightMergeConfig:
 # =============================================================================
 # BIGEOMETRIC MERGE (Phase 2 - NOVEL TECHNIQUE)
 # =============================================================================
+
 
 def bigeometric_merge(
     weights1,
@@ -176,17 +173,14 @@ def bigeometric_merge_models(
         alpha = layer_alphas.get(name, default_alpha)
 
         # Merge
-        merged_state[name] = bigeometric_merge_tensors(
-            tensor1, tensor2, alpha, config
-        )
+        merged_state[name] = bigeometric_merge_tensors(tensor1, tensor2, alpha, config)
         stats["layers_merged"] += 1
 
     return {
         "merged_state_dict": merged_state,
         "stats": stats,
         "layer_alphas_used": {
-            name: layer_alphas.get(name, default_alpha)
-            for name in state1.keys()
+            name: layer_alphas.get(name, default_alpha) for name in state1.keys()
         },
     }
 
@@ -194,6 +188,7 @@ def bigeometric_merge_models(
 # =============================================================================
 # LOG-SPACE WEIGHT FITTING (Phase 8)
 # =============================================================================
+
 
 def fit_weights_log_space(
     weights,
@@ -302,7 +297,7 @@ def compute_reconstruction_error(
 
     diff = original - reconstructed
 
-    mse = (diff ** 2).mean().item()
+    mse = (diff**2).mean().item()
     mae = diff.abs().mean().item()
     max_error = diff.abs().max().item()
 

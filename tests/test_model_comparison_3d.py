@@ -17,7 +17,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-
 from ui.components.model_comparison_3d import (
     PHASE_COLORS,
     STATUS_SYMBOLS,

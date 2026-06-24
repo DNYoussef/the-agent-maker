@@ -39,7 +39,6 @@ from src.phase2_evomerge.merge import (
 )
 from src.phase2_evomerge.merge.dfs_paper_accurate import DFSPaperAccurate
 
-
 # ============================================================================
 # Test Model Definition
 # ============================================================================
@@ -140,8 +139,12 @@ def test_models_have_matching_architecture(test_models):
     params2 = dict(model2.named_parameters())
     params3 = dict(model3.named_parameters())
 
-    assert set(params1.keys()) == set(params2.keys()), "Models 1 and 2 have different parameter names"
-    assert set(params1.keys()) == set(params3.keys()), "Models 1 and 3 have different parameter names"
+    assert set(params1.keys()) == set(
+        params2.keys()
+    ), "Models 1 and 2 have different parameter names"
+    assert set(params1.keys()) == set(
+        params3.keys()
+    ), "Models 1 and 3 have different parameter names"
 
     # Check parameter shapes match
     for name in params1.keys():
@@ -149,8 +152,9 @@ def test_models_have_matching_architecture(test_models):
         assert params1[name].shape == params3[name].shape, f"Shape mismatch for {name}"
 
     # Check parameter values differ (different seeds)
-    assert not torch.allclose(params1["linear1.weight"], params2["linear1.weight"]), \
-        "Models should have different weights"
+    assert not torch.allclose(
+        params1["linear1.weight"], params2["linear1.weight"]
+    ), "Models should have different weights"
 
     print("✓ Test models have matching architecture with different weights")
 
@@ -174,17 +178,20 @@ def test_linear_merge(test_models):
     merged_params = dict(merged.named_parameters())
     original_params = dict(test_models[0].named_parameters())
 
-    assert set(merged_params.keys()) == set(original_params.keys()), \
-        "Merged model should have same parameter names"
+    assert set(merged_params.keys()) == set(
+        original_params.keys()
+    ), "Merged model should have same parameter names"
 
     for name in merged_params.keys():
-        assert merged_params[name].shape == original_params[name].shape, \
-            f"Shape mismatch for {name}"
+        assert (
+            merged_params[name].shape == original_params[name].shape
+        ), f"Shape mismatch for {name}"
 
     # Verify weights are average (Linear merge with equal weights)
     expected_weight = sum(m.linear1.weight.data for m in test_models) / 3
-    assert torch.allclose(merged.linear1.weight.data, expected_weight, atol=1e-5), \
-        "Linear merge should average weights"
+    assert torch.allclose(
+        merged.linear1.weight.data, expected_weight, atol=1e-5
+    ), "Linear merge should average weights"
 
     print("✓ Linear merge: PASSED")
 
@@ -208,12 +215,14 @@ def test_slerp_merge(test_models):
     merged_params = dict(merged.named_parameters())
     original_params = dict(test_models[0].named_parameters())
 
-    assert set(merged_params.keys()) == set(original_params.keys()), \
-        "Merged model should have same parameter names"
+    assert set(merged_params.keys()) == set(
+        original_params.keys()
+    ), "Merged model should have same parameter names"
 
     for name in merged_params.keys():
-        assert merged_params[name].shape == original_params[name].shape, \
-            f"Shape mismatch for {name}"
+        assert (
+            merged_params[name].shape == original_params[name].shape
+        ), f"Shape mismatch for {name}"
 
     # Verify weights are different from Linear merge (SLERP is spherical interpolation)
     linear_merger = LinearMerge()
@@ -221,9 +230,7 @@ def test_slerp_merge(test_models):
 
     # SLERP and Linear should produce different results
     weights_differ = not torch.allclose(
-        merged.linear1.weight.data,
-        linear_merged.linear1.weight.data,
-        atol=1e-3
+        merged.linear1.weight.data, linear_merged.linear1.weight.data, atol=1e-3
     )
     assert weights_differ, "SLERP should differ from Linear merge"
 
@@ -252,12 +259,14 @@ def test_ties_merge(test_models):
     merged_params = dict(merged.named_parameters())
     original_params = dict(test_models[0].named_parameters())
 
-    assert set(merged_params.keys()) == set(original_params.keys()), \
-        "Merged model should have same parameter names"
+    assert set(merged_params.keys()) == set(
+        original_params.keys()
+    ), "Merged model should have same parameter names"
 
     for name in merged_params.keys():
-        assert merged_params[name].shape == original_params[name].shape, \
-            f"Shape mismatch for {name}"
+        assert (
+            merged_params[name].shape == original_params[name].shape
+        ), f"Shape mismatch for {name}"
 
     print("✓ TIES merge: PASSED")
 
@@ -285,12 +294,14 @@ def test_dare_merge(test_models):
     merged_params = dict(merged.named_parameters())
     original_params = dict(test_models[0].named_parameters())
 
-    assert set(merged_params.keys()) == set(original_params.keys()), \
-        "Merged model should have same parameter names"
+    assert set(merged_params.keys()) == set(
+        original_params.keys()
+    ), "Merged model should have same parameter names"
 
     for name in merged_params.keys():
-        assert merged_params[name].shape == original_params[name].shape, \
-            f"Shape mismatch for {name}"
+        assert (
+            merged_params[name].shape == original_params[name].shape
+        ), f"Shape mismatch for {name}"
 
     print("✓ DARE merge: PASSED")
 
@@ -317,12 +328,14 @@ def test_frankenmerge(test_models):
     merged_params = dict(merged.named_parameters())
     original_params = dict(test_models[0].named_parameters())
 
-    assert set(merged_params.keys()) == set(original_params.keys()), \
-        "Merged model should have same parameter names"
+    assert set(merged_params.keys()) == set(
+        original_params.keys()
+    ), "Merged model should have same parameter names"
 
     for name in merged_params.keys():
-        assert merged_params[name].shape == original_params[name].shape, \
-            f"Shape mismatch for {name}"
+        assert (
+            merged_params[name].shape == original_params[name].shape
+        ), f"Shape mismatch for {name}"
 
     print("✓ FrankenMerge: PASSED")
 
@@ -346,12 +359,14 @@ def test_dfs_paper_accurate(test_models):
     merged_params = dict(merged.named_parameters())
     original_params = dict(test_models[0].named_parameters())
 
-    assert set(merged_params.keys()) == set(original_params.keys()), \
-        "Merged model should have same parameter names"
+    assert set(merged_params.keys()) == set(
+        original_params.keys()
+    ), "Merged model should have same parameter names"
 
     for name in merged_params.keys():
-        assert merged_params[name].shape == original_params[name].shape, \
-            f"Shape mismatch for {name}"
+        assert (
+            merged_params[name].shape == original_params[name].shape
+        ), f"Shape mismatch for {name}"
 
     # Verify indicator array was created
     assert merger.indicator_array is not None, "DFS should create indicator array"
@@ -383,8 +398,9 @@ def test_fitness_evaluation(test_models, fitness_evaluator):
     assert "memory" in components, "Components should have 'memory'"
 
     # Verify composite is a scalar
-    assert isinstance(fitness["composite"], (float, np.floating)), \
-        "Composite fitness should be a float"
+    assert isinstance(
+        fitness["composite"], (float, np.floating)
+    ), "Composite fitness should be a float"
 
     # Verify composite is finite
     assert np.isfinite(fitness["composite"]), "Composite fitness should be finite"
@@ -433,12 +449,14 @@ def test_population_initialization(test_models):
         merged_params = dict(model.named_parameters())
         original_params = dict(test_models[0].named_parameters())
 
-        assert set(merged_params.keys()) == set(original_params.keys()), \
-            f"Population[{i}] should have same parameter names"
+        assert set(merged_params.keys()) == set(
+            original_params.keys()
+        ), f"Population[{i}] should have same parameter names"
 
         for name in merged_params.keys():
-            assert merged_params[name].shape == original_params[name].shape, \
-                f"Population[{i}] shape mismatch for {name}"
+            assert (
+                merged_params[name].shape == original_params[name].shape
+            ), f"Population[{i}] shape mismatch for {name}"
 
     print("✓ Population initialization: PASSED (8 models created)")
 
@@ -513,12 +531,14 @@ def test_merge_techniques_binary_combos(test_models):
         merged_params = dict(merged.named_parameters())
         original_params = dict(test_models[0].named_parameters())
 
-        assert set(merged_params.keys()) == set(original_params.keys()), \
-            f"Combo {combo_id} should have same parameter names"
+        assert set(merged_params.keys()) == set(
+            original_params.keys()
+        ), f"Combo {combo_id} should have same parameter names"
 
         for name in merged_params.keys():
-            assert merged_params[name].shape == original_params[name].shape, \
-                f"Combo {combo_id} shape mismatch for {name}"
+            assert (
+                merged_params[name].shape == original_params[name].shape
+            ), f"Combo {combo_id} shape mismatch for {name}"
 
         # Verify combo_id is tagged
         assert hasattr(merged, "combo_id"), f"Combo {combo_id} should have combo_id attribute"
@@ -538,9 +558,9 @@ def test_merge_techniques_binary_combos(test_models):
 
 def test_phase2_summary():
     """Print Phase 2 sandbox test summary."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("PHASE 2 EVOMERGE SANDBOX TEST SUMMARY")
-    print("="*70)
+    print("=" * 70)
     print("\nMerge Techniques Tested:")
     print("  ✓ Linear Merge")
     print("  ✓ SLERP Merge")
@@ -555,7 +575,7 @@ def test_phase2_summary():
     print("  ✓ Mini evolution loop (3 generations)")
     print("  ✓ MergeTechniques unified API (all 8 binary combos)")
     print("\nStatus: ALL TESTS PASSED")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
 
 # ============================================================================
@@ -564,9 +584,9 @@ def test_phase2_summary():
 
 
 if __name__ == "__main__":
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("PHASE 2 EVOMERGE SANDBOX TEST")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     # Create test fixtures
     test_models_fixture = [TinyTestModel(seed=i) for i in [42, 123, 456]]

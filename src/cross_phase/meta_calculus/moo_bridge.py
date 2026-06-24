@@ -16,22 +16,23 @@ Key Features:
 
 import logging
 import math
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
-from typing import Dict, List, Callable, Optional, Tuple, Any
-from dataclasses import dataclass, field
-from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
 
 try:
-    from pymoo.core.problem import Problem
     from pymoo.algorithms.moo.nsga2 import NSGA2
+    from pymoo.core.problem import Problem
+    from pymoo.indicators.hv import HV
     from pymoo.operators.crossover.sbx import SBX
     from pymoo.operators.mutation.pm import PM
     from pymoo.operators.sampling.rnd import FloatRandomSampling
     from pymoo.optimize import minimize
-    from pymoo.indicators.hv import HV
+
     PYMOO_AVAILABLE = True
 except ImportError:
     PYMOO_AVAILABLE = False
@@ -39,6 +40,7 @@ except ImportError:
 
 try:
     import torch
+
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
@@ -143,100 +145,75 @@ MDL_OBJECTIVE = ObjectiveDefinition(
 
 EVOMERGE_OBJECTIVES = [
     ObjectiveDefinition(
-        name="perplexity",
-        minimize=True,
-        description="Task performance (lower is better)"
+        name="perplexity", minimize=True, description="Task performance (lower is better)"
     ),
     ObjectiveDefinition(
         name="spectral_gap",
         minimize=False,
-        description="Representation diversity (higher is better)"
+        description="Representation diversity (higher is better)",
     ),
     ObjectiveDefinition(
-        name="weight_norm",
-        minimize=True,
-        description="Compression readiness (lower is better)"
+        name="weight_norm", minimize=True, description="Compression readiness (lower is better)"
     ),
     ObjectiveDefinition(
         name="invariance_score",
         minimize=False,
-        description="Cross-seed agreement (higher is better)"
+        description="Cross-seed agreement (higher is better)",
     ),
     ObjectiveDefinition(
-        name="fragility",
-        minimize=True,
-        description="Perturbation sensitivity (lower is better)"
+        name="fragility", minimize=True, description="Perturbation sensitivity (lower is better)"
     ),
     MDL_OBJECTIVE,
 ]
 
 EXPERT_DISCOVERY_OBJECTIVES = [
+    ObjectiveDefinition(name="task_loss", minimize=True, description="Primary task performance"),
     ObjectiveDefinition(
-        name="task_loss",
-        minimize=True,
-        description="Primary task performance"
+        name="expert_diversity", minimize=False, description="Spectral gap of expert weights"
     ),
     ObjectiveDefinition(
-        name="expert_diversity",
-        minimize=False,
-        description="Spectral gap of expert weights"
+        name="routing_entropy", minimize=False, description="Balanced expert utilization"
     ),
+    ObjectiveDefinition(name="compute_cost", minimize=True, description="Inference FLOPs"),
     ObjectiveDefinition(
-        name="routing_entropy",
-        minimize=False,
-        description="Balanced expert utilization"
-    ),
-    ObjectiveDefinition(
-        name="compute_cost",
-        minimize=True,
-        description="Inference FLOPs"
-    ),
-    ObjectiveDefinition(
-        name="robustness",
-        minimize=False,
-        description="Cross-seed variance (inverse)"
+        name="robustness", minimize=False, description="Cross-seed variance (inverse)"
     ),
     MDL_OBJECTIVE,
 ]
 
 COMPRESSION_OBJECTIVES = [
     ObjectiveDefinition(
-        name="accuracy_loss",
-        minimize=True,
-        description="Accuracy drop from compression"
+        name="accuracy_loss", minimize=True, description="Accuracy drop from compression"
     ),
     ObjectiveDefinition(
-        name="compression_ratio",
-        minimize=False,
-        description="Size reduction factor"
+        name="compression_ratio", minimize=False, description="Size reduction factor"
     ),
     ObjectiveDefinition(
-        name="spectral_gap_retention",
-        minimize=False,
-        description="Representation preservation"
+        name="spectral_gap_retention", minimize=False, description="Representation preservation"
     ),
     ObjectiveDefinition(
-        name="inference_speedup",
-        minimize=False,
-        description="Runtime improvement"
+        name="inference_speedup", minimize=False, description="Runtime improvement"
     ),
 ]
 
 
 ALL_OBJECTIVE_DEFINITIONS = (
-    EVOMERGE_OBJECTIVES
-    + EXPERT_DISCOVERY_OBJECTIVES
-    + COMPRESSION_OBJECTIVES
+    EVOMERGE_OBJECTIVES + EXPERT_DISCOVERY_OBJECTIVES + COMPRESSION_OBJECTIVES
 )
 OBJECTIVE_DEFINITIONS_BY_NAME = {obj.name: obj for obj in ALL_OBJECTIVE_DEFINITIONS}
 
 
 def _minimize_flags_from_names(names: List[str], fallback: bool = True) -> np.ndarray:
     """Return objective directions for raw, user-facing objective values."""
-    return np.array([
-        OBJECTIVE_DEFINITIONS_BY_NAME.get(name, ObjectiveDefinition(name, minimize=fallback)).minimize
-        for name in names
-    ], dtype=bool)
+    return np.array(
+        [
+            OBJECTIVE_DEFINITIONS_BY_NAME.get(
+                name, ObjectiveDefinition(name, minimize=fallback)
+            ).minimize
+            for name in names
+        ],
+        dtype=bool,
+    )
 
 
 def _normalized_costs(F: np.ndarray, minimize_flags: np.ndarray) -> np.ndarray:
@@ -253,6 +230,7 @@ def _normalized_costs(F: np.ndarray, minimize_flags: np.ndarray) -> np.ndarray:
 # =============================================================================
 # Base Problem Classes
 # =============================================================================
+
 
 class AgentForgeMOOProblem(Problem if PYMOO_AVAILABLE else ABC):
     """
@@ -299,13 +277,7 @@ class AgentForgeMOOProblem(Problem if PYMOO_AVAILABLE else ABC):
         n_obj = len(objectives)
 
         if PYMOO_AVAILABLE:
-            super().__init__(
-                n_var=n_var,
-                n_obj=n_obj,
-                n_constr=n_constr,
-                xl=xl,
-                xu=xu
-            )
+            super().__init__(n_var=n_var, n_obj=n_obj, n_constr=n_constr, xl=xl, xu=xu)
         else:
             self.n_var = n_var
             self.n_obj = n_obj
@@ -369,7 +341,7 @@ class EvoMergeProblem(AgentForgeMOOProblem):
         n_layers: int,
         n_techniques: int = 6,
         model_evaluator: Optional[Callable] = None,
-        include_mdl: bool = True
+        include_mdl: bool = True,
     ):
         """
         Initialize EvoMerge problem.
@@ -394,16 +366,13 @@ class EvoMergeProblem(AgentForgeMOOProblem):
         xl = np.zeros(n_var)
         xu = np.ones(n_var)
 
-        objectives = EVOMERGE_OBJECTIVES if include_mdl else [
-            obj for obj in EVOMERGE_OBJECTIVES if obj.name != "description_length"
-        ]
-
-        super().__init__(
-            n_var=n_var,
-            objectives=objectives,
-            xl=xl,
-            xu=xu
+        objectives = (
+            EVOMERGE_OBJECTIVES
+            if include_mdl
+            else [obj for obj in EVOMERGE_OBJECTIVES if obj.name != "description_length"]
         )
+
+        super().__init__(n_var=n_var, objectives=objectives, xl=xl, xu=xu)
 
     def compute_objectives(self, x: np.ndarray) -> np.ndarray:
         """Compute objectives for merge configurations."""
@@ -411,8 +380,8 @@ class EvoMergeProblem(AgentForgeMOOProblem):
         F = np.zeros((n_solutions, len(self.objectives)))
 
         for i, solution in enumerate(x):
-            layer_ratios = solution[:self.n_layers]
-            technique_weights = solution[self.n_layers:]
+            layer_ratios = solution[: self.n_layers]
+            technique_weights = solution[self.n_layers :]
             weight_sum = technique_weights.sum()
             if weight_sum > 0:
                 technique_weights = technique_weights / weight_sum
@@ -442,7 +411,9 @@ class EvoMergeProblem(AgentForgeMOOProblem):
                         ),
                     )
             else:
-                raise RuntimeError("EvoMergeProblem requires a model_evaluator; synthetic random objectives are disabled")
+                raise RuntimeError(
+                    "EvoMergeProblem requires a model_evaluator; synthetic random objectives are disabled"
+                )
 
         return F
 
@@ -459,11 +430,7 @@ class ExpertDiscoveryProblem(AgentForgeMOOProblem):
         - z_dim: Z-vector dimension [8, 128]
     """
 
-    def __init__(
-        self,
-        expert_evaluator: Optional[Callable] = None,
-        include_mdl: bool = True
-    ):
+    def __init__(self, expert_evaluator: Optional[Callable] = None, include_mdl: bool = True):
         """
         Initialize expert discovery problem.
 
@@ -483,16 +450,13 @@ class ExpertDiscoveryProblem(AgentForgeMOOProblem):
         xu = np.array([10, 1.0, 10.0, 64, 128])
         self._max_experts = int(xu[0])
 
-        objectives = EXPERT_DISCOVERY_OBJECTIVES if include_mdl else [
-            obj for obj in EXPERT_DISCOVERY_OBJECTIVES if obj.name != "description_length"
-        ]
-
-        super().__init__(
-            n_var=n_var,
-            objectives=objectives,
-            xl=xl,
-            xu=xu
+        objectives = (
+            EXPERT_DISCOVERY_OBJECTIVES
+            if include_mdl
+            else [obj for obj in EXPERT_DISCOVERY_OBJECTIVES if obj.name != "description_length"]
         )
+
+        super().__init__(n_var=n_var, objectives=objectives, xl=xl, xu=xu)
 
     def compute_objectives(self, x: np.ndarray) -> np.ndarray:
         """Compute objectives for expert configurations."""
@@ -507,9 +471,7 @@ class ExpertDiscoveryProblem(AgentForgeMOOProblem):
             z_dim = int(solution[4])
 
             if self.expert_evaluator is not None:
-                results = self.expert_evaluator(
-                    n_experts, sparsity, router_temp, svf_rank, z_dim
-                )
+                results = self.expert_evaluator(n_experts, sparsity, router_temp, svf_rank, z_dim)
                 F[i, 0] = results.get("task_loss", 0)
                 F[i, 1] = results.get("expert_diversity", 0)
                 F[i, 2] = results.get("routing_entropy", 0)
@@ -525,7 +487,9 @@ class ExpertDiscoveryProblem(AgentForgeMOOProblem):
                         ),
                     )
             else:
-                raise RuntimeError("ExpertDiscoveryProblem requires an expert_evaluator; synthetic random objectives are disabled")
+                raise RuntimeError(
+                    "ExpertDiscoveryProblem requires an expert_evaluator; synthetic random objectives are disabled"
+                )
 
         return F
 
@@ -533,6 +497,7 @@ class ExpertDiscoveryProblem(AgentForgeMOOProblem):
 # =============================================================================
 # MOO Runner and Utilities
 # =============================================================================
+
 
 class MOORunner:
     """
@@ -564,7 +529,7 @@ class MOORunner:
             sampling=FloatRandomSampling(),
             crossover=SBX(prob=self.config.crossover_prob, eta=self.config.crossover_eta),
             mutation=PM(eta=self.config.mutation_eta),
-            eliminate_duplicates=True
+            eliminate_duplicates=True,
         )
 
         # Run optimization
@@ -574,7 +539,7 @@ class MOORunner:
             ("n_gen", self.config.n_generations),
             seed=self.config.seed,
             verbose=self.config.verbose,
-            save_history=self.config.save_history
+            save_history=self.config.save_history,
         )
 
         # Extract Pareto front
@@ -607,9 +572,7 @@ class MOORunner:
 
 
 def select_from_pareto(
-    pareto_result: dict,
-    preference: Dict[str, float],
-    method: str = "weighted_sum"
+    pareto_result: dict, preference: Dict[str, float], method: str = "weighted_sum"
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Select a single solution from Pareto front based on preferences.
@@ -655,7 +618,10 @@ def select_from_pareto(
     # weights, is a regime choice that must be auditable after the fact.
     logger.info(
         "pareto-select: method=%s idx=%d front_size=%d preference=%s",
-        method, best_idx, len(F), preference,
+        method,
+        best_idx,
+        len(F),
+        preference,
     )
 
     return X[best_idx], F[best_idx]
@@ -708,7 +674,7 @@ def analyze_pareto_front(pareto_result: dict) -> dict:
         best_idx = F[:, i].argmin() if minimize_flags[i] else F[:, i].argmax()
         analysis["extreme_solutions"][name] = {
             "index": int(best_idx),
-            "objectives": {n: float(F[best_idx, j]) for j, n in enumerate(names)}
+            "objectives": {n: float(F[best_idx, j]) for j, n in enumerate(names)},
         }
 
     return analysis
@@ -718,6 +684,7 @@ def analyze_pareto_front(pareto_result: dict) -> dict:
 # GlobalMOO API Adapter (Optional Cloud Integration)
 # =============================================================================
 
+
 class GlobalMOOAdapter:
     """
     Adapter for GlobalMOO cloud API.
@@ -726,11 +693,7 @@ class GlobalMOOAdapter:
     compute is insufficient.
     """
 
-    def __init__(
-        self,
-        api_key: Optional[str] = None,
-        api_url: str = "https://api.globalmoo.com"
-    ):
+    def __init__(self, api_key: Optional[str] = None, api_url: str = "https://api.globalmoo.com"):
         self.api_key = api_key
         self.api_url = api_url
         self._session = None
@@ -739,11 +702,7 @@ class GlobalMOOAdapter:
         """Check if GlobalMOO API is available."""
         return self.api_key is not None
 
-    def submit_problem(
-        self,
-        problem: AgentForgeMOOProblem,
-        config: MOOConfig
-    ) -> str:
+    def submit_problem(self, problem: AgentForgeMOOProblem, config: MOOConfig) -> str:
         """
         Submit problem to GlobalMOO cloud.
 
@@ -768,6 +727,7 @@ class GlobalMOOAdapter:
 # =============================================================================
 # Quick Test
 # =============================================================================
+
 
 def run_demo():
     """Run a demo optimization."""

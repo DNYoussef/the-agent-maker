@@ -6,6 +6,7 @@ def test_svf_reinforce_baseline_guarded_for_scalars():
     # which zeroed the logged loss (~0) and reduced no variance. Now guarded to a
     # real batch (numel > 1) so scalar losses log their real value.
     import inspect
+
     import phase7_experts.svf_trainer as svf
 
     src = inspect.getsource(svf)
@@ -20,6 +21,7 @@ def test_svf_forward_step_propagates_gradient_to_singular_values():
     # graph-connected reconstruction so the gradient reaches sv_params.
     import torch
     import torch.nn as nn
+
     from phase7_experts.svf_trainer import SVFConfig, SVFTrainer
 
     class TinyModel(nn.Module):
@@ -48,9 +50,7 @@ def test_svf_forward_step_propagates_gradient_to_singular_values():
     trainer._extract_singular_values(model)
     assert trainer.sv_params, "expected at least one trainable singular-value parameter"
 
-    loss = trainer._svf_forward_step(
-        model, [{"prompt": "x"}], fake_tokenizer, torch.device("cpu")
-    )
+    loss = trainer._svf_forward_step(model, [{"prompt": "x"}], fake_tokenizer, torch.device("cpu"))
     assert loss is not None
     loss.backward()
 
@@ -69,6 +69,7 @@ def test_svf_forward_step_restores_weight_on_baseexception():
     # KeyboardInterrupt) mid-forward must still trigger the restore.
     import torch
     import torch.nn as nn
+
     from phase7_experts.svf_trainer import SVFConfig, SVFTrainer
 
     class Boom(nn.Module):
@@ -89,9 +90,7 @@ def test_svf_forward_step_restores_weight_on_baseexception():
 
     raised = False
     try:
-        trainer._svf_forward_step(
-            model, [{"prompt": "x"}], fake_tokenizer, torch.device("cpu")
-        )
+        trainer._svf_forward_step(model, [{"prompt": "x"}], fake_tokenizer, torch.device("cpu"))
     except KeyboardInterrupt:
         raised = True
 

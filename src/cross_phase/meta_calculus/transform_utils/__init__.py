@@ -25,36 +25,33 @@ Design:
 """
 
 from .gradients import (
+    GradientTransformConfig,
+    LogSpaceGradientAccumulator,
     apply_bigeometric_to_gradients,
     apply_bigeometric_to_model,
-    LogSpaceGradientAccumulator,
-    GradientTransformConfig,
 )
-
-from .weights import (
-    bigeometric_merge,
-    bigeometric_merge_tensors,
-    bigeometric_merge_models,
-    fit_weights_log_space,
-    WeightMergeConfig,
-)
-
 from .log_space import (
-    safe_log,
-    safe_exp,
-    log_space_mean,
-    log_space_std,
-    log_space_normalize,
-    log_space_interpolate,
     LogSpaceConfig,
+    log_space_interpolate,
+    log_space_mean,
+    log_space_normalize,
+    log_space_std,
+    safe_exp,
+    safe_log,
 )
-
 from .quantization import (
-    bigeometric_threshold,
-    apply_bigeometric_quantization,
-    get_ternary_mapping,
     LogSpaceSTE,
     QuantizationConfig,
+    apply_bigeometric_quantization,
+    bigeometric_threshold,
+    get_ternary_mapping,
+)
+from .weights import (
+    WeightMergeConfig,
+    bigeometric_merge,
+    bigeometric_merge_models,
+    bigeometric_merge_tensors,
+    fit_weights_log_space,
 )
 
 __all__ = [

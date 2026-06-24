@@ -8,16 +8,12 @@ Phase Applications:
     - All phases: Log-space gradient accumulation for numerical stability
 """
 
-from dataclasses import dataclass
-from typing import Optional, Dict, Any
 import math
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
 
 # Layer 1 imports only
-from ..bigeometric import (
-    bigeometric_gradient_transform,
-    BigeometricTransform,
-    BigeometricConfig,
-)
+from ..bigeometric import BigeometricConfig, BigeometricTransform, bigeometric_gradient_transform
 from ..k_formula import compute_k, k_from_gradient
 
 
@@ -40,6 +36,7 @@ class GradientTransformConfig:
 # =============================================================================
 # BIGEOMETRIC GRADIENT TRANSFORM
 # =============================================================================
+
 
 def apply_bigeometric_to_gradients(
     gradients,
@@ -102,9 +99,7 @@ def apply_bigeometric_to_model(
         "total_grad_norm_after": 0.0,
     }
 
-    transform = BigeometricTransform(
-        BigeometricConfig(use_adaptive_k=config.adaptive_k)
-    )
+    transform = BigeometricTransform(BigeometricConfig(use_adaptive_k=config.adaptive_k))
 
     for name, param in model.named_parameters():
         stats["num_params"] += 1
@@ -130,6 +125,7 @@ def apply_bigeometric_to_model(
 # =============================================================================
 # LOG-SPACE GRADIENT ACCUMULATION
 # =============================================================================
+
 
 class LogSpaceGradientAccumulator:
     """
@@ -246,6 +242,7 @@ class LogSpaceGradientAccumulator:
 # GRADIENT ANALYSIS
 # =============================================================================
 
+
 def analyze_gradients(model) -> Dict[str, Any]:
     """
     Analyze gradient distribution in a model.
@@ -294,7 +291,7 @@ def analyze_gradients(model) -> Dict[str, Any]:
         }
 
         # Global stats
-        stats["total_norm"] += grad_norm ** 2
+        stats["total_norm"] += grad_norm**2
         stats["max_grad"] = max(stats["max_grad"], grad_max)
         stats["min_grad"] = min(stats["min_grad"], grad_abs_mean)
         all_grads.append(grad_abs_mean)

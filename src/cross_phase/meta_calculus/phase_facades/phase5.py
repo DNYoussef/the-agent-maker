@@ -22,28 +22,23 @@ Usage:
 """
 
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
 import numpy as np
 
-# Layer 1 imports (core)
-from ..meta_grokfast import MetaGrokfast, GrokfastConfig
+from ..gap_utils.monitoring import GapHealthStatus, PhaseGapMonitor, get_stage_advancement_info
+from ..gap_utils.monitoring import should_advance_stage as _should_advance_stage
 
 # Layer 2 imports (utilities)
 from ..k_utils.scheduling import (
-    k_difficulty_schedule,
-    k_warmup_schedule,
     KScheduleConfig,
     get_stage_difficulties,
+    k_difficulty_schedule,
+    k_warmup_schedule,
 )
-from ..gap_utils.monitoring import (
-    PhaseGapMonitor,
-    should_advance_stage as _should_advance_stage,
-    get_stage_advancement_info,
-    GapHealthStatus,
-)
-from ..moo_utils.hyperparams import (
-    optimize_curriculum_schedule,
-    CurriculumScheduleProblem,
-)
+
+# Layer 1 imports (core)
+from ..meta_grokfast import GrokfastConfig, MetaGrokfast
+from ..moo_utils.hyperparams import CurriculumScheduleProblem, optimize_curriculum_schedule
 
 # Phase 5 specific defaults
 PHASE5_CONFIG = GrokfastConfig(
@@ -198,6 +193,7 @@ def get_virtue_weights(
     """
     # k(L) determines how much to emphasize later virtues
     from ..k_formula import compute_k
+
     L = stage / total_stages
     k = compute_k(L)
 

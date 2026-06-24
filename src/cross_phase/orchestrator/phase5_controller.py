@@ -49,8 +49,8 @@ class Phase5Controller(PhaseController):
             from phase5_curriculum import (
                 CurriculumConfig,
                 CurriculumEngine,
-                SpecializationType,
                 OpenRouterClient,
+                SpecializationType,
             )
             from phase5_curriculum.docker_sandbox import DockerSandbox
 
@@ -75,7 +75,11 @@ class Phase5Controller(PhaseController):
             from cross_phase.monitoring.wandb_integration import WandBIntegration
 
             wandb_integration = WandBIntegration(
-                project_name=(self.config.get("wandb_project", "agent-forge-v2") if self.config else "agent-forge-v2"),
+                project_name=(
+                    self.config.get("wandb_project", "agent-forge-v2")
+                    if self.config
+                    else "agent-forge-v2"
+                ),
                 mode=(self.config.get("wandb_mode", "auto") if self.config else "auto"),
             )
             engine = CurriculumEngine(

@@ -10,16 +10,12 @@ Phase Applications:
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any, Callable
+from typing import Any, Callable, Dict, List, Optional
+
 import numpy as np
 
 # Layer 1 import only
-from ..moo_bridge import (
-    AgentForgeMOOProblem,
-    MOORunner,
-    MOOConfig,
-    ObjectiveDefinition,
-)
+from ..moo_bridge import AgentForgeMOOProblem, MOOConfig, MOORunner, ObjectiveDefinition
 
 
 @dataclass
@@ -47,6 +43,7 @@ class ArchitectureSearchConfig:
 # =============================================================================
 # ARCHITECTURE SEARCH (Phase 1)
 # =============================================================================
+
 
 class ArchitectureSearchProblem(AgentForgeMOOProblem):
     """
@@ -92,18 +89,22 @@ class ArchitectureSearchProblem(AgentForgeMOOProblem):
 
         # Define search space bounds
         # [n_layers, hidden_dim, n_heads, ff_ratio]
-        xl = np.array([
-            self.config.min_layers,
-            self.config.min_hidden,
-            self.config.min_heads,
-            1.0,  # ff_ratio min
-        ])
-        xr = np.array([
-            self.config.max_layers,
-            self.config.max_hidden,
-            self.config.max_heads,
-            4.0,  # ff_ratio max
-        ])
+        xl = np.array(
+            [
+                self.config.min_layers,
+                self.config.min_hidden,
+                self.config.min_heads,
+                1.0,  # ff_ratio min
+            ]
+        )
+        xr = np.array(
+            [
+                self.config.max_layers,
+                self.config.max_hidden,
+                self.config.max_heads,
+                4.0,  # ff_ratio max
+            ]
+        )
 
         super().__init__(
             n_var=4,
@@ -191,6 +192,7 @@ def search_architecture(
 # =============================================================================
 # MIXED PRECISION SEARCH (Phase 4)
 # =============================================================================
+
 
 class MixedPrecisionProblem(AgentForgeMOOProblem):
     """
@@ -299,6 +301,7 @@ def search_precision_assignment(
 # =============================================================================
 # EXPERT COUNT SEARCH (Phase 7)
 # =============================================================================
+
 
 class ExpertCountProblem(AgentForgeMOOProblem):
     """

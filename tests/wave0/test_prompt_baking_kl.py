@@ -61,9 +61,9 @@ def test_compute_bake_loss_prompted_teacher_detached_unprompted_student():
     assert torch.isfinite(loss) and loss.requires_grad
 
     loss.backward()
-    assert model.w.grad is not None and model.w.grad.abs().sum().item() > 0, (
-        "student path must be differentiable"
-    )
+    assert (
+        model.w.grad is not None and model.w.grad.abs().sum().item() > 0
+    ), "student path must be differentiable"
 
     assert len(model.calls) == 2, "exactly one teacher and one student forward"
     teacher, student = model.calls
@@ -83,11 +83,7 @@ def test_bake_prompt_loop_uses_the_kl_helper_on_distinct_inputs():
     from pathlib import Path
 
     path = (
-        Path(__file__).resolve().parents[2]
-        / "src"
-        / "cross_phase"
-        / "prompt_baking"
-        / "baker.py"
+        Path(__file__).resolve().parents[2] / "src" / "cross_phase" / "prompt_baking" / "baker.py"
     )
     src = path.read_text(encoding="utf-8")
     body = src.split("def bake_prompt", 1)[1].split("\n    def ", 1)[0]
@@ -121,6 +117,6 @@ def test_prepare_batches_aligns_prompted_suffix_with_unprompted():
     unprompted = batches[0]["unprompted_input_ids"]
     n = unprompted.shape[1]
     assert prompted.shape[1] > n, "prompted must include the prompt prefix"
-    assert torch.equal(prompted[:, -n:], unprompted), (
-        "prompted must end with the identical text tokens (aligned final position)"
-    )
+    assert torch.equal(
+        prompted[:, -n:], unprompted
+    ), "prompted must end with the identical text tokens (aligned final position)"

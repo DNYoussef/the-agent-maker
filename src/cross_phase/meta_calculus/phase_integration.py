@@ -24,35 +24,38 @@ Usage:
     integration.log_step(loss, step)
 """
 
-import torch
-import torch.nn as nn
-from typing import Optional, Dict, Any, List, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional
+
+import torch
+import torch.nn as nn
+
+from .bigeometric import BigeometricConfig, BigeometricTransform
 
 # Meta-calculus imports
-from .k_formula import compute_k, k_from_layer_index, KFormulaConfig
-from .bigeometric import BigeometricTransform, BigeometricConfig
-from .meta_grokfast import MetaGrokfast, MetaGrokfastConfig, PHASE_CONFIGS
+from .k_formula import KFormulaConfig, compute_k, k_from_layer_index
+from .meta_grokfast import PHASE_CONFIGS, MetaGrokfast, MetaGrokfastConfig
 from .spectral_gap import (
-    SpectralGapMonitor,
     SpectralGapConfig,
-    compute_thought_diversity,
+    SpectralGapMonitor,
+    SpectralGapRegularizer,
     compute_expert_diversity,
     compute_merge_diversity_change,
-    SpectralGapRegularizer,
+    compute_thought_diversity,
 )
 
 # Optional MOO imports
 try:
     from .moo_bridge import (
-        MOORunner,
-        MOOConfig,
-        EvoMergeProblem,
-        ExpertDiscoveryProblem,
         EVOMERGE_OBJECTIVES,
         EXPERT_DISCOVERY_OBJECTIVES,
+        EvoMergeProblem,
+        ExpertDiscoveryProblem,
+        MOOConfig,
+        MOORunner,
     )
+
     MOO_AVAILABLE = True
 except ImportError:
     MOO_AVAILABLE = False
@@ -144,11 +147,7 @@ class PhaseIntegration:
         metrics = integration.get_metrics()
     """
 
-    def __init__(
-        self,
-        phase: str,
-        config: Optional[PhaseIntegrationConfig] = None
-    ):
+    def __init__(self, phase: str, config: Optional[PhaseIntegrationConfig] = None):
         """
         Initialize phase integration.
 
@@ -168,8 +167,7 @@ class PhaseIntegration:
         # Get default config or use provided
         if config is None:
             config = PHASE_INTEGRATION_DEFAULTS.get(
-                self.phase_key,
-                PhaseIntegrationConfig(phase=phase)
+                self.phase_key, PhaseIntegrationConfig(phase=phase)
             )
         self.config = config
 
@@ -183,11 +181,7 @@ class PhaseIntegration:
         self.metrics_history: List[Dict[str, Any]] = []
         self.warnings: List[str] = []
 
-    def create_optimizer(
-        self,
-        model: nn.Module,
-        **kwargs
-    ) -> MetaGrokfast:
+    def create_optimizer(self, model: nn.Module, **kwargs) -> MetaGrokfast:
         """
         Create phase-optimized MetaGrokfast optimizer.
 
@@ -214,19 +208,12 @@ class PhaseIntegration:
 
         config_name = phase_config_map.get(self.phase_key, "phase1_cognate")
 
-        self.optimizer = MetaGrokfast.for_phase(
-            config_name,
-            model.parameters(),
-            **kwargs
-        )
+        self.optimizer = MetaGrokfast.for_phase(config_name, model.parameters(), **kwargs)
 
         return self.optimizer
 
     def log_step(
-        self,
-        loss: float,
-        step: int,
-        extra_metrics: Optional[Dict[str, Any]] = None
+        self, loss: float, step: int, extra_metrics: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Log a training step with meta-calculus metrics.
@@ -248,16 +235,19 @@ class PhaseIntegration:
             metrics.update({f"opt_{k}": v for k, v in opt_stats.items()})
 
         # Add spectral gap metrics (periodically)
-        if (self.spectral_monitor is not None and
-            self.model is not None and
-            step % self.config.log_frequency == 0):
-
+        if (
+            self.spectral_monitor is not None
+            and self.model is not None
+            and step % self.config.log_frequency == 0
+        ):
             gap_metrics = self._compute_spectral_metrics()
             metrics.update(gap_metrics)
 
             # Check for warnings
             if gap_metrics.get("avg_gap", 1.0) < self.config.spectral_gap_warning:
-                warning = f"Step {step}: Spectral gap below threshold ({gap_metrics['avg_gap']:.4f})"
+                warning = (
+                    f"Step {step}: Spectral gap below threshold ({gap_metrics['avg_gap']:.4f})"
+                )
                 self.warnings.append(warning)
 
         # Add extra metrics
@@ -345,9 +335,7 @@ class PhaseIntegration:
         return compute_expert_diversity(expert_weights)
 
     def evaluate_merge(
-        self,
-        models_before: List[nn.Module],
-        model_after: nn.Module
+        self, models_before: List[nn.Module], model_after: nn.Module
     ) -> Dict[str, float]:
         """
         Evaluate merge quality (Phase 2 specific).
@@ -366,11 +354,8 @@ class PhaseIntegration:
 # Convenience Functions
 # =============================================================================
 
-def get_phase_optimizer(
-    phase: str,
-    model: nn.Module,
-    **kwargs
-) -> MetaGrokfast:
+
+def get_phase_optimizer(phase: str, model: nn.Module, **kwargs) -> MetaGrokfast:
     """
     Quick function to get optimizer for a phase.
 
@@ -433,9 +418,7 @@ def create_moo_problem(phase: str, evaluator: Optional[Callable] = None):
     if phase_key == "phase2":
         # EvoMerge problem
         return EvoMergeProblem(
-            n_layers=8,  # Default, can be overridden
-            n_techniques=6,
-            model_evaluator=evaluator
+            n_layers=8, n_techniques=6, model_evaluator=evaluator  # Default, can be overridden
         )
     elif phase_key == "phase7":
         # Expert discovery problem
@@ -445,9 +428,7 @@ def create_moo_problem(phase: str, evaluator: Optional[Callable] = None):
 
 
 def run_moo_optimization(
-    phase: str,
-    evaluator: Callable,
-    config: Optional[MOOConfig] = None
+    phase: str, evaluator: Callable, config: Optional[MOOConfig] = None
 ) -> Dict[str, Any]:
     """
     Run MOO optimization for a phase.
@@ -472,10 +453,9 @@ def run_moo_optimization(
 # Auto-Integration Hooks
 # =============================================================================
 
+
 def auto_integrate_phase(
-    phase: str,
-    model: nn.Module,
-    enable_logging: bool = True
+    phase: str, model: nn.Module, enable_logging: bool = True
 ) -> Dict[str, Any]:
     """
     Automatically integrate meta-calculus into a phase.
@@ -514,6 +494,7 @@ def auto_integrate_phase(
 # Print Integration Status
 # =============================================================================
 
+
 def print_integration_status():
     """Print meta-calculus integration status."""
     print("\n" + "=" * 60)
@@ -528,7 +509,9 @@ def print_integration_status():
 
     print("\nOptimizer Presets:")
     for name, cfg in PHASE_CONFIGS.items():
-        print(f"  {name}: lr={cfg.lr}, lambda={cfg.grokfast_lambda}, bigeometric={cfg.use_bigeometric}")
+        print(
+            f"  {name}: lr={cfg.lr}, lambda={cfg.grokfast_lambda}, bigeometric={cfg.use_bigeometric}"
+        )
 
     print("\nMOO Available:", "Yes" if MOO_AVAILABLE else "No (install pymoo)")
 

@@ -8,7 +8,16 @@ import torch
 
 def test_meta_calculus_public_imports():
     import src.cross_phase.meta_calculus as meta
-    from src.cross_phase.meta_calculus.phase_facades import phase1, phase2, phase3, phase4, phase5, phase6, phase7, phase8
+    from src.cross_phase.meta_calculus.phase_facades import (
+        phase1,
+        phase2,
+        phase3,
+        phase4,
+        phase5,
+        phase6,
+        phase7,
+        phase8,
+    )
 
     assert meta.__version__
     assert phase1.PHASE1_CONFIG.grokfast_alpha > 0
@@ -28,7 +37,10 @@ def test_k_from_parameter_variance_accepts_scalars_and_singletons():
 
 def test_thought_count_and_single_thought_diversity_are_defined():
     from src.cross_phase.meta_calculus.k_utils.adaptive import get_thought_count
-    from src.cross_phase.meta_calculus.spectral_gap import compute_thought_diversity, thought_diversity_loss
+    from src.cross_phase.meta_calculus.spectral_gap import (
+        compute_thought_diversity,
+        thought_diversity_loss,
+    )
 
     assert 1 <= get_thought_count(5.0) <= 8
 

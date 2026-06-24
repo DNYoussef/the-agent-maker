@@ -14,17 +14,12 @@ Phase Applications:
     - Phase 6 (Baking): Adaptive baking strength based on parameter variance
 """
 
+import math
 from dataclasses import dataclass
 from typing import Optional, Union
-import math
 
 # Layer 1 import only
-from ..k_formula import (
-    compute_k,
-    k_from_entropy,
-    k_from_parameter_variance,
-    normalize_k_value,
-)
+from ..k_formula import compute_k, k_from_entropy, k_from_parameter_variance, normalize_k_value
 
 
 @dataclass
@@ -53,6 +48,7 @@ class AdaptiveConfig:
 # =============================================================================
 # THOUGHT COUNT (Phase 3 Quiet-STaR)
 # =============================================================================
+
 
 def get_thought_count(
     input_entropy: float,
@@ -151,6 +147,7 @@ def should_insert_thought(
 # BAKING STRENGTH (Phase 6)
 # =============================================================================
 
+
 def get_baking_strength(
     param_variance: float,
     config: Optional[AdaptiveConfig] = None,
@@ -229,6 +226,7 @@ def get_baking_strengths_for_model(
 # HALF-BAKING RATIO (Phase 6)
 # =============================================================================
 
+
 def get_half_baking_ratio(
     param_variance: float,
     base_ratio: float = 0.5,
@@ -272,6 +270,7 @@ def get_half_baking_ratio(
 # =============================================================================
 # QUANTIZATION THRESHOLD (Phase 4 BitNet)
 # =============================================================================
+
 
 def get_quantization_threshold_scale(
     layer_variance: float,
@@ -331,6 +330,7 @@ def get_quantization_params(
         variance = weights.var().item()
     except AttributeError:
         import numpy as np
+
         variance = np.var(weights)
 
     k = k_from_parameter_variance(variance)
@@ -351,6 +351,7 @@ def get_quantization_params(
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
+
 
 def compute_adaptive_param(
     input_value: float,
@@ -403,8 +404,10 @@ def print_adaptive_params_table(
 
     print(f"\nAdaptive Parameters Table")
     print("-" * 75)
-    print(f"{'Input':>8} | {'k value':>8} | {'Thoughts':>8} | "
-          f"{'Baking':>8} | {'Half-Bake':>9} | {'Quant Scale':>11}")
+    print(
+        f"{'Input':>8} | {'k value':>8} | {'Thoughts':>8} | "
+        f"{'Baking':>8} | {'Half-Bake':>9} | {'Quant Scale':>11}"
+    )
     print("-" * 75)
 
     min_v, max_v = value_range
@@ -418,7 +421,9 @@ def print_adaptive_params_table(
         half_bake = get_half_baking_ratio(v, config=config)
         quant = get_quantization_threshold_scale(v, config)
 
-        print(f"{v:>8.3f} | {k:>8.4f} | {thoughts:>8} | "
-              f"{baking:>8.3f} | {half_bake:>9.3f} | {quant:>11.3f}")
+        print(
+            f"{v:>8.3f} | {k:>8.4f} | {thoughts:>8} | "
+            f"{baking:>8.3f} | {half_bake:>9.3f} | {quant:>11.3f}"
+        )
 
     print("-" * 75)

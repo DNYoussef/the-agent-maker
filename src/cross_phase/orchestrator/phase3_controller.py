@@ -44,7 +44,9 @@ class Phase3Controller(PhaseController):
             # Step 2: Quiet-STaR RL
             # AGM-004: Returns tuple (model, rl_completed) for honest reporting
             print("\n--- Step 2: Quiet-STaR RL ---")
-            enhanced_model, rl_completed = self._run_quietstar_rl(baked_model, champion_model, tokenizer)
+            enhanced_model, rl_completed = self._run_quietstar_rl(
+                baked_model, champion_model, tokenizer
+            )
 
             # Step 3: Anti-theater validation
             print("\n--- Step 3: Anti-Theater Validation ---")
@@ -146,8 +148,8 @@ class Phase3Controller(PhaseController):
         if enable_full_rl:
             # AGM-004: Full RL implementation using REINFORCETrainer
             try:
-                from phase3_quietstar.step2_rl import REINFORCETrainer
                 from phase3_quietstar.config import QuietSTaRConfig
+                from phase3_quietstar.step2_rl import REINFORCETrainer
 
                 print(f"  Running full REINFORCE RL training ({rl_episodes} episodes)...")
 

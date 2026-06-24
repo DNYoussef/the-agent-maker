@@ -62,9 +62,9 @@ def test_forward_returns_graph_connected_thought_log_probs():
     base.lm_head.weight.grad = None
     tlp.mean().backward()
     grad = base.lm_head.weight.grad
-    assert grad is not None and grad.abs().sum().item() > 0, (
-        "thought log-probs must carry gradient to the policy"
-    )
+    assert (
+        grad is not None and grad.abs().sum().item() > 0
+    ), "thought log-probs must carry gradient to the policy"
 
 
 def test_train_episode_uses_thought_log_probs_for_policy_loss():
@@ -74,19 +74,14 @@ def test_train_episode_uses_thought_log_probs_for_policy_loss():
     # read the source file directly instead of importing the module.
     from pathlib import Path
 
-    path = (
-        Path(__file__).resolve().parents[2]
-        / "src"
-        / "phase3_quietstar"
-        / "step2_rl.py"
-    )
+    path = Path(__file__).resolve().parents[2] / "src" / "phase3_quietstar" / "step2_rl.py"
     src = path.read_text(encoding="utf-8")
     body = src.split("def train_episode", 1)[1].split("\n    def ", 1)[0]
     assert "thought_log_probs" in body, "policy loss must use the thought log-probs"
     # Per-sample REINFORCE: each sample's log-prob times its own advantage.
-    assert "-(thought_log_probs * advantages.detach()).mean()" in body, (
-        "policy loss must do per-sample credit assignment"
-    )
+    assert (
+        "-(thought_log_probs * advantages.detach()).mean()" in body
+    ), "policy loss must do per-sample credit assignment"
     # No silent CE proxy fallback when there are no thoughts.
     assert "torch.zeros" in body, "no-thought case must be zero policy loss, not a CE proxy"
 
@@ -98,13 +93,10 @@ def test_run_step2_rl_does_not_freeze_the_policy():
     # The baked baseline must be a separate frozen snapshot (deepcopy).
     from pathlib import Path
 
-    path = (
-        Path(__file__).resolve().parents[2]
-        / "src"
-        / "phase3_quietstar"
-        / "step2_rl.py"
-    )
+    path = Path(__file__).resolve().parents[2] / "src" / "phase3_quietstar" / "step2_rl.py"
     src = path.read_text(encoding="utf-8")
     body = src.split("def run_step2_rl", 1)[1]
-    assert "baked_model=model," not in body, "must not alias the trainable model as the frozen baseline"
+    assert (
+        "baked_model=model," not in body
+    ), "must not alias the trainable model as the frozen baseline"
     assert "copy.deepcopy(model)" in body, "baked baseline must be a frozen snapshot"

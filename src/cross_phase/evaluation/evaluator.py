@@ -62,7 +62,7 @@ def _hf_generate(model, tokenizer, prompt: str, max_new_tokens: int) -> str:
     enc = tokenizer(prompt, return_tensors="pt")
     out = model.generate(**enc, max_new_tokens=max_new_tokens)
     text = tokenizer.decode(out[0], skip_special_tokens=True)
-    return text[len(prompt):] if text.startswith(prompt) else text
+    return text[len(prompt) :] if text.startswith(prompt) else text
 
 
 def evaluate(
@@ -81,5 +81,7 @@ def evaluate(
     tasks = tasks or DEFAULT_TASKS
     if not tasks:
         raise ValueError("evaluate() needs at least one task")
-    correct = sum(1 for t in tasks if matches(gen(model, tokenizer, t.prompt, max_new_tokens), t.answer))
+    correct = sum(
+        1 for t in tasks if matches(gen(model, tokenizer, t.prompt, max_new_tokens), t.answer)
+    )
     return correct / len(tasks)

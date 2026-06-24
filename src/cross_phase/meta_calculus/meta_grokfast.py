@@ -20,20 +20,22 @@ Integration Points:
     - Phase 8 (Compression): Fine-tuning after compression
 """
 
-import torch
-from torch.optim import Optimizer
-from typing import Optional, Dict, List, Callable, Any, Union
 from dataclasses import dataclass, field, replace
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Union
 
-from .k_formula import compute_k, k_from_gradient, k_from_layer_index, KFormulaConfig
-from .bigeometric import bigeometric_gradient_transform, BigeometricConfig
+import torch
+from torch.optim import Optimizer
+
+from .bigeometric import BigeometricConfig, bigeometric_gradient_transform
+from .k_formula import KFormulaConfig, compute_k, k_from_gradient, k_from_layer_index
 
 
 class GrokfastFilterType(Enum):
     """Filter types for gradient EMA."""
-    EMA = "ema"           # Exponential moving average
-    MA = "ma"             # Simple moving average
+
+    EMA = "ema"  # Exponential moving average
+    MA = "ma"  # Simple moving average
     ADAPTIVE = "adaptive"  # Adaptive alpha based on gradient stats
     BIGEOMETRIC = "bigeometric"  # Log-space EMA (new)
 
@@ -193,12 +195,7 @@ class MetaGrokfast(Optimizer):
         optimizer = MetaGrokfast.for_phase("phase1_cognate", model.parameters())
     """
 
-    def __init__(
-        self,
-        params,
-        config: Optional[MetaGrokfastConfig] = None,
-        **kwargs
-    ):
+    def __init__(self, params, config: Optional[MetaGrokfastConfig] = None, **kwargs):
         """
         Initialize MetaGrokfast optimizer.
 
@@ -341,16 +338,12 @@ class MetaGrokfast(Optimizer):
                     else:
                         k = 0.5
 
-                    grad = bigeometric_gradient_transform(
-                        grad, k, self.config.bigeometric_config
-                    )
+                    grad = bigeometric_gradient_transform(grad, k, self.config.bigeometric_config)
 
                 # Step 3: QK-Clip (for attention parameters in RL)
                 if self.config.use_qk_clip:
                     grad = torch.clamp(
-                        grad,
-                        -self.config.qk_clip_threshold,
-                        self.config.qk_clip_threshold
+                        grad, -self.config.qk_clip_threshold, self.config.qk_clip_threshold
                     )
 
                 # Step 4: Parameter update
@@ -361,11 +354,13 @@ class MetaGrokfast(Optimizer):
 
                 # Track stats
                 if self.config.track_stats:
-                    step_stats["params"].append({
-                        "orig_norm": orig_norm,
-                        "processed_norm": torch.norm(grad).item(),
-                        "param_norm": torch.norm(p.data).item(),
-                    })
+                    step_stats["params"].append(
+                        {
+                            "orig_norm": orig_norm,
+                            "processed_norm": torch.norm(grad).item(),
+                            "param_norm": torch.norm(p.data).item(),
+                        }
+                    )
 
         if self.config.track_stats:
             self.stats_history.append(step_stats)
@@ -423,7 +418,9 @@ class MetaGrokfast(Optimizer):
             ema.mul_(alpha).add_(grad, alpha=1 - alpha)
             return grad + lamb * ema
 
-    def _muon_update(self, param: torch.Tensor, grad: torch.Tensor, state: dict, group: dict) -> None:
+    def _muon_update(
+        self, param: torch.Tensor, grad: torch.Tensor, state: dict, group: dict
+    ) -> None:
         """Muon update with Newton-Schulz orthogonalization for 2D params."""
         lr = self.config.muon_lr
         momentum = self.config.muon_momentum
@@ -456,7 +453,9 @@ class MetaGrokfast(Optimizer):
 
         param.add_(G, alpha=-lr)
 
-    def _adam_update(self, param: torch.Tensor, grad: torch.Tensor, state: dict, group: dict) -> None:
+    def _adam_update(
+        self, param: torch.Tensor, grad: torch.Tensor, state: dict, group: dict
+    ) -> None:
         """Standard Adam update for non-Muon parameters."""
         exp_avg, exp_avg_sq = state["exp_avg"], state["exp_avg_sq"]
         beta1, beta2 = group["betas"]
@@ -468,7 +467,7 @@ class MetaGrokfast(Optimizer):
         bias_correction2 = 1 - beta2 ** state["step"]
 
         step_size = group["lr"] / bias_correction1
-        denom = (exp_avg_sq.sqrt() / (bias_correction2 ** 0.5)).add_(group["eps"])
+        denom = (exp_avg_sq.sqrt() / (bias_correction2**0.5)).add_(group["eps"])
 
         if group["weight_decay"] != 0:
             param.data.add_(param.data, alpha=-group["lr"] * group["weight_decay"])
@@ -487,11 +486,15 @@ class MetaGrokfast(Optimizer):
 
         return {
             "steps": self.step_count,
-            "avg_orig_grad_norm": sum(all_orig_norms) / len(all_orig_norms) if all_orig_norms else 0,
-            "avg_processed_grad_norm": sum(all_proc_norms) / len(all_proc_norms) if all_proc_norms else 0,
-            "compression_ratio": (
-                sum(all_orig_norms) / (sum(all_proc_norms) + 1e-8)
-            ) if all_proc_norms else 1.0,
+            "avg_orig_grad_norm": sum(all_orig_norms) / len(all_orig_norms)
+            if all_orig_norms
+            else 0,
+            "avg_processed_grad_norm": sum(all_proc_norms) / len(all_proc_norms)
+            if all_proc_norms
+            else 0,
+            "compression_ratio": (sum(all_orig_norms) / (sum(all_proc_norms) + 1e-8))
+            if all_proc_norms
+            else 1.0,
         }
 
 
@@ -499,11 +502,9 @@ class MetaGrokfast(Optimizer):
 # Utility Functions
 # =============================================================================
 
+
 def create_optimizer_for_model(
-    model: torch.nn.Module,
-    phase: str,
-    separate_groups: bool = True,
-    **kwargs
+    model: torch.nn.Module, phase: str, separate_groups: bool = True, **kwargs
 ) -> MetaGrokfast:
     """
     Create MetaGrokfast optimizer with intelligent parameter grouping.
@@ -586,7 +587,9 @@ def compare_optimizers_demo():
     print("\n4. Available Phase Configs:")
     for phase in PHASE_CONFIGS:
         cfg = PHASE_CONFIGS[phase]
-        print(f"   {phase}: lr={cfg.lr}, lambda={cfg.grokfast_lambda}, bigeometric={cfg.use_bigeometric}")
+        print(
+            f"   {phase}: lr={cfg.lr}, lambda={cfg.grokfast_lambda}, bigeometric={cfg.use_bigeometric}"
+        )
 
     print("\n" + "=" * 60)
     print("DEMO COMPLETE")

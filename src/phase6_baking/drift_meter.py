@@ -260,9 +260,7 @@ class PersonaDriftMeter:
             Comparison metrics dict
         """
         print("\n=== Testing Baked Model ===")
-        baked_result = self.measure_drift(
-            baked_model, persona, keywords, tokenizer, num_turns
-        )
+        baked_result = self.measure_drift(baked_model, persona, keywords, tokenizer, num_turns)
 
         print("\n=== Testing Prompted Model ===")
         prompted_result = self.measure_drift(
@@ -323,12 +321,14 @@ class PersonaDriftMeter:
                         max_new_tokens=self.config.max_tokens_per_turn,
                         do_sample=True,
                         temperature=self.config.temperature,
-                        pad_token_id=tokenizer.pad_token_id if hasattr(tokenizer, "pad_token_id") else 0,
+                        pad_token_id=tokenizer.pad_token_id
+                        if hasattr(tokenizer, "pad_token_id")
+                        else 0,
                     )
 
                     if hasattr(tokenizer, "decode"):
                         response = tokenizer.decode(
-                            outputs[0][inputs["input_ids"].size(1):],
+                            outputs[0][inputs["input_ids"].size(1) :],
                             skip_special_tokens=True,
                         )
                     else:
@@ -352,7 +352,9 @@ class PersonaDriftMeter:
         try:
             with torch.no_grad():
                 if hasattr(tokenizer, "__call__"):
-                    inputs = tokenizer(response, return_tensors="pt", max_length=256, truncation=True)
+                    inputs = tokenizer(
+                        response, return_tensors="pt", max_length=256, truncation=True
+                    )
                 else:
                     inputs = {"input_ids": torch.tensor([[1, 2, 3]])}
 
@@ -374,9 +376,7 @@ class PersonaDriftMeter:
         except Exception:
             return torch.randn(768)
 
-    def _calculate_drift(
-        self, baseline: torch.Tensor, current: torch.Tensor, metric: str
-    ) -> float:
+    def _calculate_drift(self, baseline: torch.Tensor, current: torch.Tensor, metric: str) -> float:
         """Calculate drift between baseline and current embeddings."""
         if metric == "cosine":
             # Cosine distance (1 - cosine similarity)
@@ -399,9 +399,7 @@ class PersonaDriftMeter:
 
         return max(0.0, min(1.0, drift))  # Clamp to [0, 1]
 
-    def _build_context(
-        self, persona: str, history: List[Dict], user_prompt: str
-    ) -> str:
+    def _build_context(self, persona: str, history: List[Dict], user_prompt: str) -> str:
         """Build conversation context with history."""
         context_parts = [persona, "\n"]
 

@@ -69,16 +69,21 @@ from typing import (
 # Optional async support
 try:
     import aiofiles
+
     ASYNC_AVAILABLE = True
 except ImportError:
     ASYNC_AVAILABLE = False
 
 # LEGO Import: Use shared types from library for common validation types
 try:
-    from library.common.types import SpecValidationResult as BaseSpecValidationResult, Violation, Severity
+    from library.common.types import Severity
+    from library.common.types import SpecValidationResult as BaseSpecValidationResult
+    from library.common.types import Violation
 except ImportError:
     try:
-        from common.types import SpecValidationResult as BaseSpecValidationResult, Violation, Severity
+        from common.types import Severity
+        from common.types import SpecValidationResult as BaseSpecValidationResult
+        from common.types import Violation
     except ImportError:
         # Fallback for standalone use - BaseSpecValidationResult not needed, using SpecValidationResult
         BaseSpecValidationResult = None  # type: ignore
@@ -89,6 +94,7 @@ except ImportError:
 # ============================================================================
 # Pre-compiled Regex Patterns (LOW-SPEC-01 fix)
 # ============================================================================
+
 
 def _compile_section_pattern(section: str) -> re.Pattern[str]:
     """Compile a regex pattern for matching markdown section headers."""
@@ -125,6 +131,7 @@ class Validatable(Protocol):
 # Schema Configuration
 # ============================================================================
 
+
 @dataclass
 class ValidationSchema:
     """
@@ -142,9 +149,7 @@ class ValidationSchema:
     optional_fields: List[str] = field(default_factory=list)
     allowed_values: Dict[str, List[str]] = field(default_factory=dict)
     nested_schemas: Dict[str, "ValidationSchema"] = field(default_factory=dict)
-    custom_validators: Dict[str, Callable[[Any], Optional[str]]] = field(
-        default_factory=dict
-    )
+    custom_validators: Dict[str, Callable[[Any], Optional[str]]] = field(default_factory=dict)
     required_fields_either: List[List[str]] = field(default_factory=list)
 
     def validate_data(
@@ -173,9 +178,7 @@ class ValidationSchema:
         # Check required_fields_either (at least one from each group)
         for group in self.required_fields_either:
             if not any(f in data for f in group):
-                errors.append(
-                    f"{prefix}Missing one of required fields: {', '.join(group)}"
-                )
+                errors.append(f"{prefix}Missing one of required fields: {', '.join(group)}")
 
         # Check allowed values
         for field_name, allowed in self.allowed_values.items():
@@ -183,9 +186,7 @@ class ValidationSchema:
                 continue
             if data[field_name] in allowed:
                 continue
-            warnings.append(
-                f"{prefix}Unknown value for {field_name}: {data[field_name]}"
-            )
+            warnings.append(f"{prefix}Unknown value for {field_name}: {data[field_name]}")
 
         # Run custom validators
         for field_name, validator_fn in self.custom_validators.items():
@@ -360,6 +361,7 @@ DEFAULT_SPEC_RECOMMENDED_SECTIONS: List[str] = [
 # fields. For simple validation needs, use library.common.types.SpecValidationResult.
 # ============================================================================
 
+
 @dataclass
 class SpecValidationResult:
     """
@@ -462,6 +464,7 @@ SpecSpecValidationResult = SpecValidationResult
 # Base Validator Interface
 # ============================================================================
 
+
 class BaseValidator(ABC):
     """
     Abstract base class for validators.
@@ -524,6 +527,7 @@ class BaseValidator(ABC):
 # Individual Validators
 # ============================================================================
 
+
 class PrereqsValidator(BaseValidator):
     """
     Validates that prerequisites exist.
@@ -577,9 +581,7 @@ class PrereqsValidator(BaseValidator):
             if not filepath.exists():
                 warnings.append(f"{filename} not found")
 
-        return self._create_result(
-            "prerequisites", errors=errors, warnings=warnings, fixes=fixes
-        )
+        return self._create_result("prerequisites", errors=errors, warnings=warnings, fixes=fixes)
 
 
 class JSONFileValidator(BaseValidator):
@@ -1068,16 +1070,12 @@ class ImplementationPlanValidator(BaseValidator):
             # Check for at least one identifier
             has_id = "id" in phase or "phase" in phase
             if not has_id:
-                errors.append(
-                    f"Phase {phase_id}: Missing identifier (need 'id' or 'phase')"
-                )
+                errors.append(f"Phase {phase_id}: Missing identifier (need 'id' or 'phase')")
 
             # Check required fields
             for req_field in phase_schema.required_fields:
                 if req_field not in phase:
-                    errors.append(
-                        f"Phase {phase_id}: Missing required field '{req_field}'"
-                    )
+                    errors.append(f"Phase {phase_id}: Missing required field '{req_field}'")
 
             # Validate subtasks
             if "subtasks" not in phase or not subtask_schema:
@@ -1105,6 +1103,7 @@ class ImplementationPlanValidator(BaseValidator):
 # ============================================================================
 # Main Validator Class
 # ============================================================================
+
 
 class SpecValidator:
     """
@@ -1178,9 +1177,7 @@ class SpecValidator:
         if additional_validators:
             for name, validator_class in additional_validators.items():
                 config = self._validator_configs.get(name, {})
-                self._additional_validators[name] = validator_class(
-                    self.spec_dir, **config
-                )
+                self._additional_validators[name] = validator_class(self.spec_dir, **config)
 
     def _get_file_mtimes(self) -> Dict[str, float]:
         """
@@ -1299,8 +1296,7 @@ class SpecValidator:
 
         if checkpoint not in validators:
             raise ValueError(
-                f"Unknown checkpoint: {checkpoint}. "
-                f"Available: {list(validators.keys())}"
+                f"Unknown checkpoint: {checkpoint}. " f"Available: {list(validators.keys())}"
             )
 
         return validators[checkpoint].validate()
@@ -1364,6 +1360,7 @@ class SpecValidator:
 # ============================================================================
 # Utility Functions
 # ============================================================================
+
 
 def validate_spec_directory(
     spec_dir: Union[str, Path],

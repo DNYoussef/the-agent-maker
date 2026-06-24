@@ -23,32 +23,31 @@ Usage:
 """
 
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
 import numpy as np
 
-# Layer 1 imports (core)
-from ..spectral_gap import SpectralGapMonitor, thought_diversity_loss
-from ..meta_grokfast import MetaGrokfast, GrokfastConfig
+from ..gap_utils.regularization import (
+    DiversityRegularizerConfig,
+    create_thought_regularizer,
+    thought_diversity_loss_with_warmup,
+)
 
 # Layer 2 imports (utilities)
 from ..k_utils.adaptive import (
+    AdaptiveConfig,
     get_thought_count,
     get_thought_count_batch,
     should_insert_thought,
-    AdaptiveConfig,
 )
-from ..gap_utils.regularization import (
-    create_thought_regularizer,
-    thought_diversity_loss_with_warmup,
-    DiversityRegularizerConfig,
-)
+from ..meta_grokfast import GrokfastConfig, MetaGrokfast
+from ..moo_utils.hyperparams import ThoughtHyperparamProblem, optimize_thought_hyperparams
+
+# Layer 1 imports (core)
+from ..spectral_gap import SpectralGapMonitor, thought_diversity_loss
 from ..transform_utils.log_space import (
-    log_space_policy_gradient,
-    log_space_kl_divergence,
     LogSpaceConfig,
-)
-from ..moo_utils.hyperparams import (
-    optimize_thought_hyperparams,
-    ThoughtHyperparamProblem,
+    log_space_kl_divergence,
+    log_space_policy_gradient,
 )
 
 # Phase 3 specific defaults

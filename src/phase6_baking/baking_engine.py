@@ -133,9 +133,7 @@ class BakingEngine:
         self.wandb_project: str = wandb_project
         self.wandb_run_name: Optional[str] = wandb_run_name
         self.session_id = session_id or f"phase6_{int(time.time())}"
-        self.wandb_integration = wandb_integration or WandBIntegration(
-            project_name=wandb_project
-        )
+        self.wandb_integration = wandb_integration or WandBIntegration(project_name=wandb_project)
 
     def _init_wandb(self) -> None:
         """Initialize W&B run for Phase 6 logging."""

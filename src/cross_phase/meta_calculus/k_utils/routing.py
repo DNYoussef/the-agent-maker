@@ -12,9 +12,9 @@ Phase Applications:
     - Phase 7 (Experts): Adaptive routing temperature and expert selection
 """
 
+import math
 from dataclasses import dataclass
 from typing import Optional, Tuple
-import math
 
 # Layer 1 import only
 from ..k_formula import compute_k, normalize_k_value
@@ -44,6 +44,7 @@ class RoutingConfig:
 # =============================================================================
 # ROUTING TEMPERATURE (Phase 7 Experts)
 # =============================================================================
+
 
 def get_routing_temperature(
     input_complexity: float,
@@ -110,6 +111,7 @@ def get_routing_temperatures_batch(
 # ADAPTIVE TOP-K (Phase 7 Experts)
 # =============================================================================
 
+
 def get_adaptive_top_k(
     input_complexity: float,
     config: Optional[RoutingConfig] = None,
@@ -175,6 +177,7 @@ def get_adaptive_top_k_batch(
 # ROUTING NOISE (Phase 7 Experts)
 # =============================================================================
 
+
 def get_routing_noise_scale(
     input_complexity: float,
     config: Optional[RoutingConfig] = None,
@@ -214,6 +217,7 @@ def get_routing_noise_scale(
 # =============================================================================
 # COMBINED ROUTING PARAMETERS
 # =============================================================================
+
 
 def get_routing_params(
     input_complexity: float,
@@ -267,6 +271,7 @@ def get_routing_params_batch(
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
+
 
 def estimate_complexity_from_entropy(entropy: float) -> float:
     """
@@ -336,8 +341,10 @@ def print_routing_table(
         complexity = min_c + (max_c - min_c) * i / (num_samples - 1)
         params = get_routing_params(complexity, config)
 
-        print(f"{complexity:>10.2f} | {params['k_value']:>8.4f} | "
-              f"{params['temperature']:>8.2f} | {params['top_k']:>6} | "
-              f"{params['noise_scale']:>8.4f}")
+        print(
+            f"{complexity:>10.2f} | {params['k_value']:>8.4f} | "
+            f"{params['temperature']:>8.2f} | {params['top_k']:>6} | "
+            f"{params['noise_scale']:>8.4f}"
+        )
 
     print("-" * 65)

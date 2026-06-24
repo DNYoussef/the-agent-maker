@@ -17,7 +17,8 @@ class TestBitNetQuantizer:
     @pytest.fixture
     def config(self):
         """Create test configuration"""
-        return Phase4Config(wandb_enabled=False, 
+        return Phase4Config(
+            wandb_enabled=False,
             sparsity_threshold=0.1,
             preserve_embedding_precision=True,
             preserve_output_precision=True,
@@ -264,7 +265,9 @@ class TestQuantizerEdgeCases:
 
     @pytest.fixture
     def config(self):
-        return Phase4Config(wandb_enabled=False, )
+        return Phase4Config(
+            wandb_enabled=False,
+        )
 
     @pytest.fixture
     def quantizer(self, config):

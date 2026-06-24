@@ -22,36 +22,29 @@ Usage:
 """
 
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
 import numpy as np
 
-# Layer 1 imports (core)
-from ..meta_grokfast import MetaGrokfast, GrokfastConfig
 from ..bigeometric import BigeometricTransform
+from ..gap_utils.gates import QualityGateConfig, check_quantization_quality
 
 # Layer 2 imports (utilities)
 from ..k_utils.adaptive import (
-    get_quantization_threshold_scale,
-    get_quantization_params,
     AdaptiveConfig,
+    get_quantization_params,
+    get_quantization_threshold_scale,
 )
-from ..k_utils.layer_ratios import (
-    get_layer_sparsity,
-    get_all_sparsities,
-)
+from ..k_utils.layer_ratios import get_all_sparsities, get_layer_sparsity
+
+# Layer 1 imports (core)
+from ..meta_grokfast import GrokfastConfig, MetaGrokfast
+from ..moo_utils.architecture import MixedPrecisionProblem, search_precision_assignment
 from ..transform_utils.quantization import (
-    bigeometric_threshold,
-    apply_bigeometric_quantization,
     LogSpaceSTE,
     QuantizationConfig,
     analyze_quantization,
-)
-from ..gap_utils.gates import (
-    check_quantization_quality,
-    QualityGateConfig,
-)
-from ..moo_utils.architecture import (
-    MixedPrecisionProblem,
-    search_precision_assignment,
+    apply_bigeometric_quantization,
+    bigeometric_threshold,
 )
 
 # Phase 4 specific defaults
@@ -161,7 +154,7 @@ def compute_threshold(
         Quantization threshold
     """
     params = get_layer_quantization_params(layer_idx, total_layers)
-    return bigeometric_threshold(weights, scale=params['threshold_scale'])
+    return bigeometric_threshold(weights, scale=params["threshold_scale"])
 
 
 def apply_ternary_quantization(

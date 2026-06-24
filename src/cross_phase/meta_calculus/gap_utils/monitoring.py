@@ -8,26 +8,27 @@ Phase Applications:
     - Phase 5: Stage advancement detection based on gap stability
 """
 
-from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
-from enum import Enum
 import math
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 # Layer 1 import only
 from ..spectral_gap import (
-    SpectralGapMonitor,
     SpectralGapConfig,
-    compute_thought_diversity,
+    SpectralGapMonitor,
     compute_expert_diversity,
+    compute_thought_diversity,
 )
 
 
 class GapHealthStatus(Enum):
     """Health status based on spectral gap."""
-    HEALTHY = "healthy"           # Gap >= threshold
-    WARNING = "warning"           # Gap near threshold
-    COLLAPSED = "collapsed"       # Gap critically low
-    UNKNOWN = "unknown"           # Not enough data
+
+    HEALTHY = "healthy"  # Gap >= threshold
+    WARNING = "warning"  # Gap near threshold
+    COLLAPSED = "collapsed"  # Gap critically low
+    UNKNOWN = "unknown"  # Not enough data
 
 
 @dataclass
@@ -191,8 +192,8 @@ class PhaseGapMonitor:
 
             # Trim history if needed
             if len(self.gap_history) > self.config.history_size:
-                self.gap_history = self.gap_history[-self.config.history_size:]
-                self.status_history = self.status_history[-self.config.history_size:]
+                self.gap_history = self.gap_history[-self.config.history_size :]
+                self.status_history = self.status_history[-self.config.history_size :]
 
         # Trigger callbacks
         if status == GapHealthStatus.WARNING and self.config.on_warning:
@@ -237,6 +238,7 @@ class PhaseGapMonitor:
         if expert_weights:
             try:
                 import torch
+
                 stacked = torch.stack([w.flatten() for w in expert_weights])
                 status = self.check(stacked)
             except Exception:
@@ -265,8 +267,8 @@ class PhaseGapMonitor:
             return 0.0
 
         recent = self.gap_history[-window:]
-        first_half = sum(recent[:window//2]) / (window//2)
-        second_half = sum(recent[window//2:]) / (window - window//2)
+        first_half = sum(recent[: window // 2]) / (window // 2)
+        second_half = sum(recent[window // 2 :]) / (window - window // 2)
 
         return second_half - first_half
 
@@ -298,6 +300,7 @@ class PhaseGapMonitor:
 # =============================================================================
 # STAGE ADVANCEMENT (Phase 5 Curriculum)
 # =============================================================================
+
 
 def should_advance_stage(
     gap_history: List[float],
@@ -378,6 +381,7 @@ def get_stage_advancement_info(
 # =============================================================================
 # HEALTH STATUS UTILITIES
 # =============================================================================
+
 
 def get_gap_health_status(
     gap: float,

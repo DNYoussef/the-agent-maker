@@ -12,13 +12,13 @@ import pytest
 import torch
 import torch.nn as nn
 
-# Add src to path for imports
-
 from cross_phase.monitoring.wandb_integration import WandBIntegration
 from cross_phase.utils import MockTokenizer
 from phase4_bitnet.config import Phase4Config
 from phase4_bitnet.phase_controller import Phase4Controller
 from phase4_bitnet.utils import load_compression_metadata, test_gradient_flow
+
+# Add src to path for imports
 
 
 class MockTransformerModel(nn.Module):

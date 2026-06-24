@@ -204,7 +204,9 @@ class MMLUBenchmark:
     def get_questions(self, num_subjects: int = 10, samples_per_subject: int = 5) -> List[Dict]:
         """Get MMLU-style questions from the local sample bank only."""
         questions = []
-        available_subjects = [subject for subject in self.SUBJECTS if subject in self.SAMPLE_QUESTIONS]
+        available_subjects = [
+            subject for subject in self.SUBJECTS if subject in self.SAMPLE_QUESTIONS
+        ]
         subjects = available_subjects[: min(num_subjects, len(available_subjects))]
 
         for subject in subjects:

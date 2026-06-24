@@ -9,7 +9,6 @@ from pathlib import Path
 
 import pytest
 
-
 from cross_phase.storage.model_registry import ModelRegistry
 
 

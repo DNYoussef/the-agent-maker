@@ -14,10 +14,10 @@ import random
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from src.cross_phase.evaluation.evaluator import matches
-
 import torch
 import torch.nn as nn
+
+from src.cross_phase.evaluation.evaluator import matches
 
 # Import meta-calculus for MOO edge-of-chaos finding
 try:
@@ -29,7 +29,7 @@ except ImportError:
 
 # OpenRouter client for real question generation
 try:
-    from .openrouter_client import OpenRouterClient, ModelProvider
+    from .openrouter_client import ModelProvider, OpenRouterClient
 
     OPENROUTER_AVAILABLE = True
 except ImportError:
@@ -171,9 +171,7 @@ class EdgeOfChaosAssessment:
         system_prompt = "You are a precise curriculum generator. Output JSON only."
 
         try:
-            response = asyncio.run(
-                self._async_complete(api_key, prompt, system_prompt)
-            )
+            response = asyncio.run(self._async_complete(api_key, prompt, system_prompt))
         except Exception as exc:
             raise RuntimeError(f"OpenRouter request failed: {exc}") from exc
 
@@ -199,10 +197,10 @@ class EdgeOfChaosAssessment:
 
         return questions
 
-    async def _async_complete(
-        self, api_key: str, prompt: str, system_prompt: str
-    ):
-        async with OpenRouterClient(api_key=api_key, default_model=ModelProvider.QWEN_FREE) as client:
+    async def _async_complete(self, api_key: str, prompt: str, system_prompt: str):
+        async with OpenRouterClient(
+            api_key=api_key, default_model=ModelProvider.QWEN_FREE
+        ) as client:
             return await client.complete(
                 prompt=prompt,
                 system_prompt=system_prompt,

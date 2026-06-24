@@ -22,36 +22,31 @@ Usage:
 """
 
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
 import numpy as np
 
-# Layer 1 imports (core)
-from ..moo_bridge import ExpertDiscoveryProblem, MOORunner, MOOConfig
-from ..spectral_gap import compute_expert_diversity as _compute_expert_diversity
-from ..meta_grokfast import MetaGrokfast, GrokfastConfig
+from ..gap_utils.regularization import (
+    DiversityRegularizerConfig,
+    create_expert_regularizer,
+    expert_diversity_loss,
+)
 
 # Layer 2 imports (utilities)
 from ..k_utils.routing import (
-    get_routing_temperature,
+    RoutingConfig,
+    estimate_complexity_from_entropy,
     get_adaptive_top_k,
     get_routing_params,
     get_routing_params_batch,
-    RoutingConfig,
-    estimate_complexity_from_entropy,
+    get_routing_temperature,
 )
-from ..gap_utils.regularization import (
-    create_expert_regularizer,
-    expert_diversity_loss,
-    DiversityRegularizerConfig,
-)
-from ..moo_utils.architecture import (
-    ExpertCountProblem,
-    search_expert_count,
-)
-from ..moo_utils.selection import (
-    select_balanced,
-    select_knee_point,
-    SelectionResult,
-)
+from ..meta_grokfast import GrokfastConfig, MetaGrokfast
+
+# Layer 1 imports (core)
+from ..moo_bridge import ExpertDiscoveryProblem, MOOConfig, MOORunner
+from ..moo_utils.architecture import ExpertCountProblem, search_expert_count
+from ..moo_utils.selection import SelectionResult, select_balanced, select_knee_point
+from ..spectral_gap import compute_expert_diversity as _compute_expert_diversity
 
 # Phase 7 specific defaults
 PHASE7_CONFIG = GrokfastConfig(

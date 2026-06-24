@@ -21,7 +21,7 @@ def temp_dir():
 
 @pytest.fixture
 def sample_config():
-    """Sample configuration for testing"""       
+    """Sample configuration for testing"""
     return {
         "mock_mode": True,
         "wandb": {"enabled": True, "mode": "offline", "project": "test-project"},
