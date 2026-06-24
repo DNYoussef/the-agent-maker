@@ -3,10 +3,18 @@ pytest configuration and fixtures
 Shared fixtures for all tests
 """
 
+import os
 import tempfile
 from pathlib import Path
 
 import pytest
+
+# Force W&B into no-op mode for the whole test suite. CI has no WANDB_API_KEY,
+# so any code path that calls wandb.init() (FineTuner, WandBIntegration, ...)
+# would raise "No API key configured". "disabled" makes wandb.init a no-op that
+# needs no key and no network. setdefault keeps any explicit override.
+os.environ.setdefault("WANDB_MODE", "disabled")
+os.environ.setdefault("WANDB_SILENT", "true")
 
 # Add src to path
 
