@@ -143,6 +143,15 @@ class SlidingWindowAttention(nn.Module):
     ) -> torch.Tensor:
         """Return the mask slice for one query position and local key window."""
         if mask.dim() == 2:
+            # A 2-D mask must be [seq, seq]. A non-square 2-D mask is almost certainly a
+            # [batch, seq] key-padding mask, which would be silently mis-sliced here;
+            # reject it with a clear message instead (Codex #1).
+            if mask.shape[0] != mask.shape[1]:
+                raise ValueError(
+                    f"2-D attention mask must be square [seq, seq]; got {tuple(mask.shape)}. "
+                    "Supported shapes: [seq, seq], [batch, seq, seq], [batch, heads, seq, seq] "
+                    "(a [batch, seq] key-padding mask is not supported - broadcast it to one of these)."
+                )
             local = mask[position : position + 1, start:end]
             return local.view(1, 1, 1, end - start)
         if mask.dim() == 3:

@@ -1,10 +1,16 @@
 """
 Adaptive Computation Time (ACT) Head
 
-Learns when to halt recursion based on confidence and correctness.
-Uses EMA calibration to prevent pathological halting behavior.
+HONESTY (do not overclaim): this is a learned HALT-PROBABILITY HEAD, not Graves ACT.
+It trains a sigmoid halt head (BCE toward per-step next-token correctness, + entropy
+and diversity regularization) and reports halting_steps for inference, but it does NOT
+implement Graves' mechanism: there is no cumulative halt mass, no ponder cost, no
+halt-weighted mixture of step outputs, and crucially NO actual compute skipping - every
+recursion step always runs and the final step's logits are always used. Real
+compute-skipping ACT is a later feature.
 
-Reference: Graves, A. (2016). Adaptive Computation Time for RNNs
+Reference (mechanism this is INSPIRED BY, not a faithful impl):
+Graves, A. (2016). Adaptive Computation Time for RNNs.
 """
 
 from typing import Dict, Optional
@@ -100,13 +106,21 @@ class ACTHead(nn.Module):
         else:
             target_halt = torch.full((batch_size,), 0.5, device=q.device)
 
-        # BCE loss (match q dtype so fp16/bf16 forward passes do not error)
-        target_halt = target_halt.view(batch_size, 1, 1).expand_as(q).to(q.dtype)
-        loss_bce = F.binary_cross_entropy(q, target_halt)
+        # BCE + entropy computed in fp32: binary_cross_entropy is not implemented for
+        # bf16/fp16, so under autocast the bf16 q crashed the whole forward (the
+        # "bf16 OOM" was really this crash). Upcasting here keeps autocast training
+        # working and avoids log/grad instability at fp16 precision (Codex #16/bf16).
+        q32 = q.float()
+        target_halt = target_halt.view(batch_size, 1, 1).expand_as(q).float()
+        # binary_cross_entropy is explicitly "unsafe to autocast" - it raises inside an
+        # autocast region even with fp32 inputs. Disable autocast for this op so bf16
+        # training works (Codex #16/bf16).
+        with torch.autocast(device_type=q.device.type, enabled=False):
+            loss_bce = F.binary_cross_entropy(q32, target_halt)
 
         # Entropy regularization (prevent saturation)
-        eps = 1e-8
-        entropy = -(q * torch.log(q + eps) + (1 - q) * torch.log(1 - q + eps))
+        eps = 1e-6
+        entropy = -(q32 * torch.log(q32 + eps) + (1 - q32) * torch.log(1 - q32 + eps))
         loss_entropy = -self.config.entropy_reg * entropy.mean()
 
         # Diversity regularization (encourage variance across tokens)

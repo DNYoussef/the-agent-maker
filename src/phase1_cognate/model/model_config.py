@@ -120,12 +120,15 @@ class Phase1Config:
     # Model specialization (for 3 models)
     specialization: Literal["reasoning", "memory", "speed"] = "reasoning"
 
-    # ACT thresholds per specialization
+    # ACT thresholds per specialization. Halt fires when q > threshold, so a LOWER
+    # threshold halts SOONER. "speed" must therefore be the lowest (halt early) and
+    # "reasoning" the highest (think longest). The old speed=0.99 halted LATEST - the
+    # opposite of its intent (Codex #13).
     act_thresholds: dict[str, float] = field(
         default_factory=lambda: {
-            "reasoning": 0.95,  # Think longer
-            "memory": 0.90,  # Balanced
-            "speed": 0.99,  # Halt quickly
+            "reasoning": 0.95,  # highest -> think longest
+            "memory": 0.90,  # balanced
+            "speed": 0.80,  # lowest -> halt earliest
         }
     )
 
@@ -153,12 +156,11 @@ class Phase1Config:
     )
 
     # Training hyperparameters
-    # HONEST: at the resized ~222M size, a forward+backward fits an 8 GB GPU only at
-    # physical batch 2 / seq 128 / fp32 (measured peak ~4.9 GB). batch 4 already
-    # exceeds 8 GB and seq 256 blows up (the TRM uses full O(seq^2) attention).
-    # Larger batch/seq needs gradient checkpointing + the O(seq^2) attention fix +
-    # the bf16/BCE-autocast fix (a later efficiency phase). Effective batch is raised
-    # via the trainer's gradient_accumulation_steps, not the physical batch.
+    # HONEST: at the resized ~222M size, a forward+backward fits an 8 GB GPU at physical
+    # batch 2 / seq 128 (fp32 ~4.9 GB, bf16 ~4.5 GB). batch 4 already exceeds 8 GB and
+    # seq 256 blows up (the TRM uses full O(seq^2) attention). Larger batch/seq needs
+    # gradient checkpointing + the O(seq^2) attention fix (a later efficiency phase).
+    # Effective batch is raised via the trainer's gradient_accumulation_steps.
     batch_size: int = 2  # physical batch that fits 8 GB at ~222M (was 16 @ 32.6M)
     learning_rate: float = 1e-3
     num_epochs: int = 10
@@ -179,9 +181,7 @@ class Phase1Config:
 
     # Hardware
     device: str = "cuda"
-    mixed_precision: bool = (
-        False  # bf16 autocast currently CRASHES (BCE in ACT loss); fix is a later phase
-    )
+    mixed_precision: bool = False  # bf16 autocast now works (ACT BCE runs in fp32); opt-in
     gradient_checkpointing: bool = (
         True  # NOTE: flag only - NOT yet implemented in the backbone forward
     )

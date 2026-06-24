@@ -4,12 +4,13 @@ TRM (Transformer Recursive Memory) Wrapper
 Multi-pass reasoning with iterative refinement of latent state (z) and answer (y).
 
 Components:
-- g_φ (Refiner): Updates latent state via micro-steps
-- h_ψ (Updater): Updates answer from refined latent
-- Recursion Controller: Manages T_max iterations with early stopping
+- g_phi (Refiner): Updates latent state via micro-steps (causal cross-attention)
+- h_psi (Updater): Updates answer from refined latent
+- Recursion: runs a FIXED T_max iterations. There is NO early stopping / compute
+  skipping - the ACT head only REPORTS a halting step, it does not cut the loop.
 
 Key Features:
-- Detached recursion for memory efficiency
+- Truncated BPTT when detach_between_steps=True (full BPTT when False)
 - Deep supervision (loss at each step)
 - Micro-step refinement
 """

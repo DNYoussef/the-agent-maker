@@ -2,12 +2,14 @@
 Complete TRM × Titans-MAG Model
 
 Integrates all components:
-1. Titans-MAG Backbone (8 layers, Sliding Window + LMM + MAG)
-2. TRM Wrapper (multi-pass reasoning)
-3. ACT Head (adaptive computation)
-4. LM Head (vocabulary projection)
+1. Titans-MAG Backbone (n_layers, causal Sliding Window + EMA-pool LMM + MAG)
+2. TRM Wrapper (multi-pass reasoning, causal)
+3. ACT Head (halt-probability head; reports halting but does NOT skip compute)
+4. LM Head (vocabulary projection, tied with embeddings)
 
-Target: ~25M parameters, fits in 6GB VRAM
+Size: ~222M parameters (resized 2026-06-24). Trains on an 8 GB GPU at b2/s128
+(fp32 ~4.9 GB or bf16 ~4.5 GB); larger batch/seq needs the deferred efficiency work
+(gradient checkpointing + the TRM's O(seq^2) attention).
 """
 
 from typing import Dict, List, Optional
@@ -111,6 +113,9 @@ class TRMTitansMAGModel(nn.Module):
             halt_probs.append(q_t.mean(dim=[1, 2]))  # [batch]
 
         # 4. Determine halting (for inference)
+        # halting_steps is REPORTED for inference but does NOT skip compute: every step
+        # always runs and the final step's logits are always used (see act_head docstring).
+        # Range is 1..len(halt_probs) = 1..T_max+1 because y0/z0 count as step 1.
         halting_steps = self._compute_halting_steps(halt_probs)
 
         # 5. Final output (last step)
@@ -154,7 +159,12 @@ class TRMTitansMAGModel(nn.Module):
         # step neither crashes nor poisons training (Codex #1). The gate loss still flows.
         if step_logits[-1].shape[1] <= 1 or (shift_labels != -100).sum() == 0:
             zero = step_logits[-1].sum() * 0.0
-            return {"loss": zero + loss_gate, "loss_ce": zero, "loss_act": zero, "loss_gate": loss_gate}
+            return {
+                "loss": zero + loss_gate,
+                "loss_ce": zero,
+                "loss_act": zero,
+                "loss_gate": loss_gate,
+            }
 
         def _ce(logits_t: torch.Tensor) -> torch.Tensor:
             return nn.functional.cross_entropy(

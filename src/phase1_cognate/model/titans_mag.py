@@ -1,13 +1,12 @@
 """
 Titans-MAG Backbone Implementation
 
-8-layer transformer with:
-- Sliding Window Attention (O(n*w) complexity)
-- Long-range Memory Module (LMM) with factorized projections
+n_layers transformer (config.titans_config.n_layers; 12 in the ~222M flagship) with:
+- Causal Sliding Window Attention (a Python per-token loop, O(n*w) effective; a fused
+  kernel is deferred efficiency work)
+- Long-range Memory Module (LMM) - an EMA-decayed pool, NOT Titans neural memory
 - MAG Gate for memory-augmented output
 - RMSNorm + SwiGLU MLP
-
-Target: ~20M params for backbone (leaves 5M for TRM wrapper + heads)
 """
 
 from typing import Optional, Tuple
