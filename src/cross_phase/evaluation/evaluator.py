@@ -46,8 +46,14 @@ def _extract(text: str) -> str:
 
 
 def matches(generated: str, answer: str) -> bool:
-    """True if the generated continuation contains/extracts the exact answer."""
-    return _extract(generated).lower() == answer.lower() or answer.lower() in generated.lower()
+    """True iff the extracted answer token equals the expected answer.
+
+    EXACT-extracted only - NO substring fallback. Substring matching
+    ("answer in generated") let a degenerate scorer pass: an output that just
+    lists many numbers ("0 1 2 ... 99") would contain every answer and score
+    1.0 without solving anything, silently defeating the Wave-2 merge gate.
+    """
+    return _extract(generated).strip().lower() == answer.strip().lower()
 
 
 @torch.no_grad()
