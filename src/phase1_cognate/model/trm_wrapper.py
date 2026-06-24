@@ -174,16 +174,20 @@ class TRMWrapper(nn.Module):
         y_history = [y]
         z_history = [z]
 
-        # For recursion, we'll use features but need to avoid graph reuse issues
-        # We pass features to the first refiner call normally, then detached versions after
-        features_first = features
+        # Features detaching is governed by detach_between_steps (truncated BPTT). The
+        # old code detached features after the first step UNCONDITIONALLY, ignoring the
+        # config (Codex #5) - so setting detach_between_steps=False still cut the
+        # gradient to the backbone through later steps.
         features_detached = features.detach()
 
         # Recursion loop
         for t in range(max_steps):
-            # Refine latent
-            # Use non-detached features for first iteration, detached for rest
-            feat_to_use = features_first if t == 0 else features_detached
+            # Refine latent. Full-BPTT (detach off) keeps gradient to features every
+            # step; truncated BPTT detaches features after the first step.
+            if t == 0 or not self.config.detach_between_steps:
+                feat_to_use = features
+            else:
+                feat_to_use = features_detached
             z_refined = self.refiner(z, feat_to_use, y, n_steps=self.config.micro_steps)
 
             # Update answer

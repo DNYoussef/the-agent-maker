@@ -62,20 +62,19 @@ class LongTermMemory(nn.Module):
         # Compress to memory dimension
         x_compressed = self.w_down(x)
 
-        # Initialize local memory state (batch-independent)
-        # Start from global memory_state, broadcast to batch size
-        memory = self.memory_state.expand(batch, -1, -1).clone()
+        # STATELESS across forwards: each call starts from zero memory. Carrying the
+        # final memory_state into the next forward (the old behavior) leaked one batch's
+        # content into the next and made outputs depend on batch order / call history
+        # (Codex #10/#11). The within-sequence EMA scan below is unchanged - it is the
+        # actual long-range memory; cross-sequence memory is a Wave-2 feature.
+        memory = torch.zeros(batch, 1, self.d_mem, device=x.device, dtype=x_compressed.dtype)
 
-        # Update memory with exponential decay (local to this forward pass)
+        # Update memory with exponential decay (causal scan within this sequence)
         m_list = []
         for t in range(seq_len):
             # Decay previous memory and add current
             memory = self.decay * memory + (1 - self.decay) * x_compressed[:, t : t + 1, :]
             m_list.append(memory)
-
-        # Update global memory_state (average across batch, detached)
-        # This maintains memory across sequences without batch dependency
-        self.memory_state = memory.mean(dim=0, keepdim=True).detach()
 
         # Stack and expand back to d_model
         m_compressed = torch.cat(m_list, dim=1)
