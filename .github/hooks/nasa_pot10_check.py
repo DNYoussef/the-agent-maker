@@ -41,11 +41,34 @@ def find_violations(file_path: Path) -> List[Tuple[str, int, int]]:
             source = f.read()
 
         tree = ast.parse(source, filename=str(file_path))
+        source_lines = source.split("\n")
 
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 lines = count_function_lines(node)
                 if lines > 60:
+                    # Honor an explicit "pot10: allow" marker placed on/above the
+                    # def. Reserved for coherent, correctness-critical functions
+                    # (e.g. a single RL episode / optimizer step) where splitting
+                    # would harm clarity or risk a verified numerical path. The
+                    # marker must carry a justification next to it.
+                    decos = getattr(node, "decorator_list", [])
+                    top = decos[0].lineno if decos else node.lineno
+                    # The marker may sit on the def line or anywhere in the
+                    # contiguous comment/decorator/blank block immediately above
+                    # the function. Walk that block upward so a multi-line
+                    # justification comment is found regardless of its length.
+                    block = [source_lines[node.lineno - 1]] if node.lineno - 1 < len(source_lines) else []
+                    i = top - 2
+                    while i >= 0:
+                        s = source_lines[i].strip()
+                        if s == "" or s.startswith("#") or s.startswith("@"):
+                            block.append(s)
+                            i -= 1
+                        else:
+                            break
+                    if any("pot10: allow" in line.lower() for line in block):
+                        continue
                     violations.append((node.name, node.lineno, lines))
 
     except SyntaxError as e:

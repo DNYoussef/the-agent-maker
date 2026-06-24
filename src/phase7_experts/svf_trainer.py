@@ -502,7 +502,7 @@ class SVFTrainer:
                     except Exception:
                         continue
 
-    def _svf_forward_step(
+    def _svf_forward_step(  # noqa: C901
         self, model: nn.Module, batch: List[Dict], tokenizer: Any, device: torch.device
     ) -> Optional[torch.Tensor]:
         """Forward pass with modified singular values."""

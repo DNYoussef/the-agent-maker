@@ -286,8 +286,11 @@ class MetaGrokfast(Optimizer):
         layer_idx = self.param_to_layer.get(id(param), 0)
         return k_from_layer_index(layer_idx, self.total_layers, self.config.k_formula_config)
 
+    # pot10: allow - a single optimizer step (grokfast EMA filter, Newton-Schulz
+    # orthogonalization, momentum, qk-clip) over all param groups; one coherent
+    # numerical update that should not be fragmented.
     @torch.no_grad()
-    def step(self, closure: Optional[Callable] = None):
+    def step(self, closure: Optional[Callable] = None):  # noqa: C901
         """
         Perform optimization step.
 

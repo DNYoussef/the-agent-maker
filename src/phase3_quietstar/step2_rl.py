@@ -264,7 +264,12 @@ class REINFORCETrainer:
         entropy = -(probs * log_probs).sum(dim=-1).mean()
         return entropy
 
-    def train_episode(self, input_ids: torch.Tensor, labels: torch.Tensor) -> Dict[str, float]:
+    # pot10: allow - one coherent REINFORCE episode (forward-with/without-thoughts,
+    # reward, GAE, policy/value/entropy/KL losses, backward). Wave-1-verified
+    # numerical path; splitting it would scatter the loss assembly and risk the fixes.
+    def train_episode(  # noqa: C901
+        self, input_ids: torch.Tensor, labels: torch.Tensor
+    ) -> Dict[str, float]:
         """
         ISS-007: Train one REINFORCE episode with full RL features.
 
@@ -437,7 +442,10 @@ class REINFORCETrainer:
             "thought_density": len(thought_positions) / input_ids.size(1),
         }
 
-    def train(
+    # pot10: allow - the RL training driver (episode loop + validation + early
+    # stopping + checkpointing), tightly coupled to train_episode above. Core-ML,
+    # carved per the cleanup plan to avoid churning the verified RL path.
+    def train(  # noqa: C901
         self,
         train_dataloader,
         val_dataloader,

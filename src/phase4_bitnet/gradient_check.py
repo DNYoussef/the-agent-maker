@@ -36,7 +36,10 @@ class GradientCheckResult:
         )
 
 
-def validate_gradient_flow(
+# pot10: allow - a single coherent gradient-flow validation (forward, backward,
+# per-parameter grad inspection, STE checks); splitting would scatter the numerical
+# checks. Core-ML carve-out.
+def validate_gradient_flow(  # noqa: C901
     model: nn.Module,
     input_ids: torch.Tensor,
     attention_mask: Optional[torch.Tensor] = None,

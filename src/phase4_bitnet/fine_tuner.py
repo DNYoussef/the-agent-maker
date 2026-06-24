@@ -213,7 +213,12 @@ class FineTuner:
 
         return results
 
-    def _train_epoch(self, dataloader: DataLoader, log_callback: Optional[Callable] = None) -> Dict:
+    # pot10: allow - one BitNet QAT training epoch (forward, loss, backward,
+    # STE/grad handling, logging); a coherent gradient loop kept intact per the
+    # core-ML carve-out.
+    def _train_epoch(  # noqa: C901
+        self, dataloader: DataLoader, log_callback: Optional[Callable] = None
+    ) -> Dict:
         """
         Train one epoch
 

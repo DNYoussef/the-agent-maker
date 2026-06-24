@@ -351,7 +351,10 @@ class PromptBakingTrainer:
 
         return True
 
-    def train(
+    # pot10: allow - the Quiet-STaR baking training loop (epochs, optimizer step,
+    # validation, early stopping); a coherent training driver kept intact per the
+    # cleanup plan's core-ML carve-out.
+    def train(  # noqa: C901
         self,
         train_dataloader: DataLoader,
         val_dataloader: DataLoader,
