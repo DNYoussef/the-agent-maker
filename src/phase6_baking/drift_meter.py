@@ -14,7 +14,7 @@ Theory:
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import torch
 import torch.nn as nn
@@ -196,7 +196,7 @@ class PersonaDriftMeter:
             drift_at_20 = drift_scores[19] if len(drift_scores) >= 20 else None
             drift_at_30 = drift_scores[29] if len(drift_scores) >= 30 else None
 
-            print(f"\nDrift Measurement Complete:")
+            print("\nDrift Measurement Complete:")
             print(f"  Avg drift: {avg_drift:.4f}")
             print(f"  Max drift: {max_drift:.4f}")
             print(f"  Drift@20: {drift_at_20:.4f}" if drift_at_20 else "  Drift@20: N/A")
@@ -286,7 +286,7 @@ class PersonaDriftMeter:
             "prompted_result": prompted_result,
         }
 
-        print(f"\n=== Comparison ===")
+        print("\n=== Comparison ===")
         print(f"Baked avg drift: {baked_result.avg_drift:.4f}")
         print(f"Prompted avg drift: {prompted_result.avg_drift:.4f}")
         print(f"Drift reduction: {drift_reduction:.1f}%")

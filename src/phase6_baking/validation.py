@@ -9,9 +9,8 @@ Key Finding: Prompt baking is remarkably robust to catastrophic forgetting.
 """
 
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
-import torch
 import torch.nn as nn
 
 
@@ -149,12 +148,12 @@ class CrossTaskValidator:
 
             try:
                 # Evaluate base model
-                print(f"    Base model...", end=" ")
+                print("    Base model...", end=" ")
                 base_score = evaluator(base_model)
                 print(f"{base_score:.4f}")
 
                 # Evaluate baked model
-                print(f"    Baked model...", end=" ")
+                print("    Baked model...", end=" ")
                 baked_score = evaluator(baked_model)
                 print(f"{baked_score:.4f}")
 
@@ -220,7 +219,7 @@ class CrossTaskValidator:
             tasks_failed = 0
 
         # Print summary
-        print(f"\n=== Validation Summary ===")
+        print("\n=== Validation Summary ===")
         print(f"Baked task: {baked_task}")
         print(f"Tasks evaluated: {len(task_results)}")
         print(f"Tasks passed: {tasks_passed}/{len(task_results)}")
@@ -230,7 +229,7 @@ class CrossTaskValidator:
         print(f"Avg degradation: {avg_degradation*100:.2f}%")
 
         if all_passed:
-            print(f"VALIDATION PASSED: No catastrophic forgetting detected")
+            print("VALIDATION PASSED: No catastrophic forgetting detected")
         else:
             print(f"VALIDATION FAILED: {tasks_failed} task(s) degraded beyond threshold")
 
@@ -307,7 +306,7 @@ class CrossTaskValidator:
             # Store degradation matrix
             heatmap[baked_task] = {r.task_name: r.degradation_percent for r in result.task_results}
 
-        print(f"\nHeatmap generation complete")
+        print("\nHeatmap generation complete")
         print(f"Matrix size: {len(tasks)} x {len(tasks)}")
 
         return heatmap

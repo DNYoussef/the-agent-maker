@@ -12,8 +12,6 @@ Target: >=90% coverage for loss functions
 """
 
 import math
-import sys
-from pathlib import Path
 
 import pytest
 import torch
@@ -149,7 +147,7 @@ class TestReverseKLDivergence:
         loss = reverse_kl_divergence_loss(logits, target, temperature=1.0)
 
         # When distributions are identical, KL should be ~0
-        assert loss.item() < 0.01, f"Reverse KL should be near 0 for identical dists"
+        assert loss.item() < 0.01, "Reverse KL should be near 0 for identical dists"
 
     def test_all_reductions(self):
         """Test all reduction modes."""

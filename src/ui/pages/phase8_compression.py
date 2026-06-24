@@ -1,5 +1,5 @@
 """
-Phase 8: Final Compression Dashboard  
+Phase 8: Final Compression Dashboard
 Three-stage compression pipeline with quality validation
 """
 

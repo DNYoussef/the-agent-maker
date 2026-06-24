@@ -19,8 +19,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import torch
 import torch.nn as nn
 
-from .loss_functions import kl_divergence_loss
-
 
 @dataclass
 class PursuitConfig:
@@ -174,7 +172,7 @@ class PromptPursuitOptimizer:
             final_round = len(scores) - 1
             total_improvement = scores[-1] - scores[0]
 
-            print(f"\nPrompt Pursuit Complete:")
+            print("\nPrompt Pursuit Complete:")
             print(f"  Rounds: {final_round}")
             print(f"  Base score: {scores[0]:.4f}")
             print(f"  Final score: {scores[-1]:.4f}")

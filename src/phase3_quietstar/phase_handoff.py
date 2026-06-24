@@ -12,10 +12,7 @@ ISS-004: Updated to use secure SafeTensors checkpoint loading.
 
 import json
 from pathlib import Path
-from typing import Dict, Optional, Tuple
-
-import torch
-import torch.nn as nn
+from typing import Dict, Tuple
 
 # ISS-004: Secure checkpoint validation
 from safetensors.torch import load_file as safe_load_file
@@ -96,16 +93,16 @@ class Phase3HandoffValidator:
         # Validate model state dict
         num_params = sum(p.numel() for p in model_state.values())
 
-        print(f"[OK] Model loaded successfully")
+        print("[OK] Model loaded successfully")
         print(f"   Parameters: {num_params / 1e6:.1f}M")
 
         # Validate Phase 2 metadata
         if "phase" not in metadata or metadata["phase"] != 2:
-            print(f"⚠️  Warning: Model phase not set to 2")
+            print("⚠️  Warning: Model phase not set to 2")
 
         # Check for EvoMerge champion marker
         if "champion_selected" not in metadata:
-            print(f"⚠️  Warning: No champion selection metadata")
+            print("⚠️  Warning: No champion selection metadata")
 
         # Validate fitness improvement
         fitness_gain = metadata.get("fitness_improvement", 0.0)
@@ -114,7 +111,7 @@ class Phase3HandoffValidator:
         else:
             print(f"✅ Fitness gain: {fitness_gain:.2%}")
 
-        print(f"✅ Phase 2 → Phase 3 handoff validated")
+        print("✅ Phase 2 → Phase 3 handoff validated")
 
         return True, {
             "num_params": num_params,
@@ -179,7 +176,7 @@ class Phase3HandoffValidator:
                 else:
                     print(f"[OK] Baking accuracy: {baking_acc:.2%}")
             except Exception:
-                print(f"[!] Warning: Could not load baked checkpoint for validation")
+                print("[!] Warning: Could not load baked checkpoint for validation")
 
         # Validate Step 2 (RL) results - secure loading (ISS-004)
         avg_reward = 0.0
@@ -193,20 +190,20 @@ class Phase3HandoffValidator:
                     avg_reward = sum(reward_history[-100:]) / min(100, len(reward_history))
                     print(f"[OK] Avg reward (last 100): {avg_reward:.4f}")
             except Exception:
-                print(f"[!] Warning: Could not load RL checkpoint for validation")
+                print("[!] Warning: Could not load RL checkpoint for validation")
 
         # Validate anti-theater results (if available in metadata)
         anti_theater = metadata.get("anti_theater_results", {})
         if anti_theater:
             all_passed = anti_theater.get("all_passed", False)
             if not all_passed:
-                print(f"⚠️  Warning: Anti-theater tests failed")
+                print("⚠️  Warning: Anti-theater tests failed")
                 print(f"   Divergence: {anti_theater.get('divergence', 0):.3f}")
                 print(f"   Ablation: {anti_theater.get('ablation', 0):.3f}")
             else:
-                print(f"✅ Anti-theater: All tests passed")
+                print("✅ Anti-theater: All tests passed")
 
-        print(f"✅ Phase 3 → Phase 4 handoff validated")
+        print("✅ Phase 3 → Phase 4 handoff validated")
 
         return True, {
             "num_thinking_tokens": len(thinking_tokens),
@@ -248,7 +245,7 @@ class Phase3HandoffValidator:
                 },
             )
 
-            print(f"✅ Phase 3 completion registered in model registry")
+            print("✅ Phase 3 completion registered in model registry")
             return True
 
         except Exception as e:
@@ -310,13 +307,13 @@ def validate_full_phase3_pipeline(
     print("\n" + "=" * 70)
     print("VALIDATION SUMMARY")
     print("=" * 70)
-    print(f"✅ Phase 2 → Phase 3: PASSED")
+    print("✅ Phase 2 → Phase 3: PASSED")
     print(f"   Fitness gain: {input_metadata.get('fitness_gain', 0):.2%}")
-    print(f"✅ Phase 3 → Phase 4: PASSED")
+    print("✅ Phase 3 → Phase 4: PASSED")
     print(f"   Baking accuracy: {output_metadata.get('baking_accuracy', 0):.2%}")
     print(
         f"   Anti-theater: {'✅ PASSED' if output_metadata.get('anti_theater_passed') else '❌ FAILED'}"
     )
-    print(f"\n✅ Full Phase 3 pipeline validated!")
+    print("\n✅ Full Phase 3 pipeline validated!")
 
     return True

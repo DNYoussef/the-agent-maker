@@ -12,7 +12,6 @@ Complete training pipeline with:
 from __future__ import annotations
 
 # Cross-phase imports
-import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -20,9 +19,7 @@ from typing import Any, Dict, Optional
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
 
-from src.cross_phase.mugrokfast.config import MuGrokConfig
 from src.cross_phase.mugrokfast.optimizer import MuonGrokfast, create_optimizer_from_phase
 from src.cross_phase.utils.checkpoint_utils import load_checkpoint as secure_load
 from src.cross_phase.utils.checkpoint_utils import save_checkpoint
@@ -112,13 +109,12 @@ class EMAModel:
         self.shadow = state_dict.copy()
 
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING  # noqa: E402
 
 if TYPE_CHECKING:
-    from phase1_cognate.data.curriculum_loader import CurriculumLoader
     from phase1_cognate.model.model_config import Phase1Config
 
-from .wandb_logger import Phase1WandBLogger
+from .wandb_logger import Phase1WandBLogger  # noqa: E402
 
 
 @dataclass
@@ -243,7 +239,7 @@ class Phase1Trainer:
         # Use helper function for Phase 1 preset
         optimizer = create_optimizer_from_phase(self.model, phase_num=1)
 
-        print(f"Created MuGrokfast optimizer (Phase 1 preset)")
+        print("Created MuGrokfast optimizer (Phase 1 preset)")
         return optimizer
 
     def _create_scheduler(self) -> Optional[Any]:
@@ -260,7 +256,7 @@ class Phase1Trainer:
 
         # Handle case where warmup >= num_epochs (just use constant LR)
         if self.config.warmup_epochs >= self.config.num_epochs:
-            print(f"Warmup epochs >= num_epochs, using constant LR")
+            print("Warmup epochs >= num_epochs, using constant LR")
             return None
 
         # Warmup scheduler (linear ramp-up)

@@ -7,14 +7,10 @@ tool use training, eudaimonia baking, self-modeling, and dream consolidation.
 Futuristic theme with dark background and cyan accents.
 """
 
-import json
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Optional, cast
 
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
@@ -543,7 +539,7 @@ def create_dream_consolidation_metrics() -> go.Figure:
     """Create dream consolidation visualization with autoencoder quality"""
     epochs_per_level = 3
     levels_completed = 3
-    total_epochs = epochs_per_level * 10  # 10 levels
+    _ = epochs_per_level * 10  # 10 levels
 
     epochs = np.arange(1, levels_completed * epochs_per_level + 1)
     reconstruction_quality = 0.95 - 0.02 * np.random.rand(len(epochs))
@@ -833,14 +829,14 @@ def render_config_panel() -> None:
     st.markdown("---")
     st.markdown("### 🤖 Frontier Models")
 
-    models = st.multiselect(
+    _ = st.multiselect(
         "Active Models",
         ["GPT-4o-mini", "Claude-3.5 Haiku", "Gemini 2.0 Flash", "Qwen 2.5"],
         default=["GPT-4o-mini", "Claude-3.5 Haiku"],
         help="Select frontier models for data generation",
     )
 
-    budget_limit = st.number_input(
+    _ = st.number_input(
         "Budget Limit ($)",
         min_value=100,
         max_value=1000,

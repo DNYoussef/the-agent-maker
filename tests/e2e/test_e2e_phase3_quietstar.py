@@ -8,11 +8,8 @@ Tests the complete reasoning enhancement pipeline including:
 - RL training step (with mocks)
 """
 
-import sys
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
-import pytest
 import torch
 import torch.nn as nn
 
@@ -242,7 +239,7 @@ class TestPhase3QuietSTaRE2E:
 
         # Forward pass
         with torch.no_grad():
-            outputs = mock_model(prompt_inputs["input_ids"])
+            mock_model(prompt_inputs["input_ids"])
 
         # Verify weights unchanged
         for key, original_value in original_weights.items():
@@ -262,7 +259,7 @@ class TestPhase3QuietSTaRE2E:
 
         # Forward pass
         outputs = mock_model(context_inputs["input_ids"])
-        logits = outputs.logits
+        outputs.logits
 
         # Mock policy distribution
         mock_dist = Mock()
@@ -354,7 +351,6 @@ class TestPhase3QuietSTaRE2E:
     def test_rl_reward_calculation(self, mock_model, mock_tokenizer):
         """Test RL reward calculation based on coherence."""
         thought = "Paris"
-        context = "The capital of France is"
         correct_answer = "Paris"
 
         # Reward based on match

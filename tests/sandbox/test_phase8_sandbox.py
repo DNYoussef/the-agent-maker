@@ -20,22 +20,22 @@ import pytest
 
 pytestmark = pytest.mark.skip(reason="Standalone sandbox script - run with python directly")
 
-import math
-import sys
-from pathlib import Path
-from typing import Dict, List, Tuple
+import math  # noqa: E402
+import sys  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import Dict, Tuple  # noqa: E402
 
-import torch
-import torch.nn as nn
+import torch  # noqa: E402
+import torch.nn as nn  # noqa: E402
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from phase8_compression.benchmarks import BenchmarkConfig, BenchmarkSuite
-from phase8_compression.hypercompression import HyperCompressor, HyperConfig
-from phase8_compression.seedlm import SeedLMCompressor, SeedLMConfig
-from phase8_compression.validation import CompressionTargets, CompressionValidator
-from phase8_compression.vptq import VPTQCompressor, VPTQConfig
+from phase8_compression.benchmarks import BenchmarkConfig, BenchmarkSuite  # noqa: E402
+from phase8_compression.hypercompression import HyperCompressor, HyperConfig  # noqa: E402
+from phase8_compression.seedlm import SeedLMCompressor, SeedLMConfig  # noqa: E402
+from phase8_compression.validation import CompressionValidator  # noqa: E402
+from phase8_compression.vptq import VPTQCompressor, VPTQConfig  # noqa: E402
 
 
 class MockModel(nn.Module):
@@ -121,7 +121,7 @@ def create_mock_1_58bit_model(size_mb: float = 100.0) -> nn.Module:
     hidden_dim = int(math.sqrt(num_params / 10))
     num_layers = max(3, num_params // (hidden_dim * hidden_dim))
 
-    print(f"Creating mock 1.58-bit model:")
+    print("Creating mock 1.58-bit model:")
     print(f"  Target size: {size_mb:.2f} MB")
     print(f"  Hidden dim: {hidden_dim}")
     print(f"  Num layers: {num_layers}")
@@ -178,10 +178,10 @@ def test_seedlm_stage(model: nn.Module) -> Tuple[nn.Module, Dict]:
     compressor = SeedLMCompressor(config)
     compressed_model, result = compressor.compress(model)
 
-    print(f"\nSeedLM Results:")
+    print("\nSeedLM Results:")
     print(f"  Compression: {result.compression_ratio:.2f}x")
     print(f"  Retention: {result.retention_score:.2%}")
-    print(f"  Target: 2x compression, >95% retention")
+    print("  Target: 2x compression, >95% retention")
     print(
         f"  Status: {'PASS' if result.compression_ratio >= 1.8 and result.retention_score >= 0.93 else 'FAIL'}"
     )
@@ -220,10 +220,10 @@ def test_vptq_stage(model: nn.Module) -> Tuple[nn.Module, Dict]:
     compressor = VPTQCompressor(config)
     compressed_model, result = compressor.compress(model)
 
-    print(f"\nVPTQ Results:")
+    print("\nVPTQ Results:")
     print(f"  Compression: {result.compression_ratio:.2f}x")
     print(f"  Retention: {result.retention_score:.2%}")
-    print(f"  Target: 20x compression, >95% retention")
+    print("  Target: 20x compression, >95% retention")
     print(
         f"  Status: {'PASS' if result.compression_ratio >= 18 and result.retention_score >= 0.93 else 'FAIL'}"
     )
@@ -262,11 +262,11 @@ def test_hypercompression_stage(model: nn.Module) -> Tuple[nn.Module, Dict]:
     compressor = HyperCompressor(config)
     compressed_model, result = compressor.compress(model)
 
-    print(f"\nHypercompression Results:")
+    print("\nHypercompression Results:")
     print(f"  Compression: {result.compression_ratio:.2f}x")
     print(f"  Retention: {result.retention_score:.2%}")
     print(f"  Mean R^2: {result.mean_r_squared:.4f}")
-    print(f"  Target: 6.25x compression, >90% retention, R^2 >0.95")
+    print("  Target: 6.25x compression, >90% retention, R^2 >0.95")
     print(
         f"  Status: {'PASS' if result.compression_ratio >= 5.6 and result.retention_score >= 0.88 else 'FAIL'}"
     )
@@ -366,7 +366,7 @@ def test_benchmark_validation(
     retention = compressed_score / max(original_score, 0.001)
     threshold = 0.84
 
-    print(f"\nBenchmark Results:")
+    print("\nBenchmark Results:")
     print(f"  Original score: {original_score:.2%}")
     print(f"  Compressed score: {compressed_score:.2%}")
     print(f"  Retention: {retention:.2%}")
@@ -429,28 +429,28 @@ def run_sandbox_test():
     print("FINAL RESULTS")
     print("=" * 60)
 
-    print(f"\nCompression Ratios:")
+    print("\nCompression Ratios:")
     print(f"  SeedLM: {seedlm_result['compression_ratio']:.2f}x")
     print(f"  VPTQ: {vptq_result['compression_ratio']:.2f}x")
     print(f"  Hypercompression: {hyper_result['compression_ratio']:.2f}x")
     print(f"  Total: {total_compression:.2f}x (target: 280x)")
 
-    print(f"\nRetention Scores:")
+    print("\nRetention Scores:")
     print(f"  SeedLM: {seedlm_result['retention']:.2%} (target: >95%)")
     print(f"  VPTQ: {vptq_result['retention']:.2%} (target: >95%)")
     print(f"  Hypercompression: {hyper_result['retention']:.2%} (target: >90%)")
     print(f"  Total: {total_retention:.2%} (target: >84%)")
 
-    print(f"\nModel Sizes:")
+    print("\nModel Sizes:")
     print(f"  Original: {original_size:.2f} MB")
     print(f"  After SeedLM: {seedlm_result['compressed_size']:.2f} MB")
     print(f"  After VPTQ: {vptq_result['compressed_size']:.2f} MB")
     print(f"  Final: {final_size:.2f} MB (target: ~0.4 MB)")
 
-    print(f"\nQuality Gates:")
+    print("\nQuality Gates:")
     print(f"  All gates passed: {gates_passed}")
 
-    print(f"\nBenchmark Validation:")
+    print("\nBenchmark Validation:")
     print(f"  Quality retention: {benchmark_result['retention']:.2%}")
     print(f"  Meets threshold: {benchmark_result['meets_threshold']}")
 

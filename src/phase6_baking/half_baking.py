@@ -11,9 +11,8 @@ without overwriting previous learning.
 
 import copy
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
-import torch
 import torch.nn as nn
 
 

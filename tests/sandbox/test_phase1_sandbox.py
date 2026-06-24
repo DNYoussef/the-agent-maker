@@ -22,11 +22,11 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
-import torch
-from safetensors.torch import load_file, save_file
+import torch  # noqa: E402
+from safetensors.torch import load_file, save_file  # noqa: E402
 
-from phase1_cognate.model.full_model import TRMTitansMAGModel
-from phase1_cognate.model.model_config import Phase1Config
+from phase1_cognate.model.full_model import TRMTitansMAGModel  # noqa: E402
+from phase1_cognate.model.model_config import Phase1Config  # noqa: E402
 
 
 def test_phase1_cognate_sandbox():
@@ -59,7 +59,7 @@ def test_phase1_cognate_sandbox():
         config.titans_config.d_model = 320
         config.trm_config.T_max = 3  # 3 reasoning steps
 
-        print(f"  Architecture: TRM x Titans-MAG")
+        print("  Architecture: TRM x Titans-MAG")
         print(f"  Specialization: {config.specialization}")
         print(f"  Layers: {config.titans_config.n_layers}")
         print(f"  Hidden dim: {config.titans_config.d_model}")
@@ -72,14 +72,14 @@ def test_phase1_cognate_sandbox():
         print(f"  Device: {device}")
 
         model = TRMTitansMAGModel(config).to(device)
-        print(f"  Model created successfully")
+        print("  Model created successfully")
         print()
 
         # 3. Count parameters
         print("[3/6] Counting model parameters...")
         param_counts = model.count_parameters()
 
-        print(f"  Component breakdown:")
+        print("  Component breakdown:")
         for component, count in param_counts.items():
             print(f"    {component}: {count:,} params")
 
@@ -120,7 +120,7 @@ def test_phase1_cognate_sandbox():
             output = model(input_ids, labels=labels, return_all_steps=True)
 
         # Verify output shapes
-        print(f"  Output shapes:")
+        print("  Output shapes:")
         print(f"    logits: {list(output['logits'].shape)}")
         print(f"    halting_steps: {list(output['halting_steps'].shape)}")
         print(f"    loss: scalar ({output['loss'].item():.4f})")
@@ -176,7 +176,7 @@ def test_phase1_cognate_sandbox():
 
         save_file(state_dict_to_save, str(save_path))
         print(f"  Saved to: {save_path}")
-        print(f"  Note: Tied weights handled (lm_head tied to token_emb)")
+        print("  Note: Tied weights handled (lm_head tied to token_emb)")
 
         # Create new model and load weights
         model_loaded = TRMTitansMAGModel(config).to(device)
@@ -200,7 +200,7 @@ def test_phase1_cognate_sandbox():
         # Note: The difference is expected because we're testing raw SafeTensors functionality.
         # In production, the cross_phase.utils.checkpoint_utils module handles tied weights correctly.
         # For this sandbox test, we just verify save/load completes successfully.
-        print(f"  SafeTensors save/load: PASSED (functionality works)")
+        print("  SafeTensors save/load: PASSED (functionality works)")
 
         # Clean up (wrapped in try-except for Windows file locks)
         try:
@@ -237,7 +237,7 @@ def test_phase1_cognate_sandbox():
             if allocated > 6.0:
                 results["errors"].append(f"Memory usage {allocated:.2f}GB exceeds 6GB target")
         else:
-            print(f"  CPU mode - no GPU memory tracking")
+            print("  CPU mode - no GPU memory tracking")
 
         print()
 
@@ -289,12 +289,12 @@ def print_summary(results):
         print(f"Model Parameter Count: {results['parameter_count']:,}")
 
     if results["output_shapes"]:
-        print(f"\nOutput Shapes:")
+        print("\nOutput Shapes:")
         for key, value in results["output_shapes"].items():
             print(f"  {key}: {value}")
 
     if "memory_usage_gb" in results:
-        print(f"\nGPU Memory Usage:")
+        print("\nGPU Memory Usage:")
         for key, value in results["memory_usage_gb"].items():
             print(f"  {key}: {value} GB")
 

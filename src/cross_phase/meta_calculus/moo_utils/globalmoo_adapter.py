@@ -29,11 +29,10 @@ References:
 
 from __future__ import annotations
 
-import json
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -217,7 +216,7 @@ class GlobalMOOClient:
             model_id=self.model_id,
             n_suggestions=n_suggestions,
         )
-        response = self.client.send(suggest_req)
+        self.client.send(suggest_req)
 
         # Load the suggestions
         load_req = LoadInversedOutput(

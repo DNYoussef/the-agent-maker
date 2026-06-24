@@ -9,8 +9,8 @@ Phase Applications:
     - Phase 7 (Experts): Expert count and configuration optimization
 """
 
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, Optional
 
 import numpy as np
 
@@ -139,7 +139,7 @@ class ArchitectureSearchProblem(AgentForgeMOOProblem):
                 if self.n_constr > 0 and self.config.max_params:
                     g[i, 0] = metrics.get("param_count", 0) - self.config.max_params
 
-            except Exception as e:
+            except Exception:
                 # Invalid architecture - assign bad fitness
                 f[i, :] = 1e9
                 if g is not None:

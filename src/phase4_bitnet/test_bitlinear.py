@@ -14,7 +14,7 @@ import torch
 import torch.nn as nn
 
 from src.phase4_bitnet.bitlinear import BitLinear, replace_linear_with_bitlinear
-from src.phase4_bitnet.quantizer import activation_quant, apply_ste
+from src.phase4_bitnet.quantizer import activation_quant
 
 
 def test_bitlinear_quantization():
@@ -25,7 +25,7 @@ def test_bitlinear_quantization():
 
     # Run forward pass to trigger quantization
     x = torch.randn(2, 10, 128)
-    output = layer(x)
+    layer(x)
 
     # Get quantized weights
     quant_state = layer.get_quantized_state()
@@ -177,7 +177,7 @@ def test_phase3_compatibility():
 
         def forward(self, input_ids):
             x = self.embedding(input_ids)
-            attn = self.attention(x)
+            self.attention(x)
             x = x + self.mlp(x)
             return self.lm_head(x)
 

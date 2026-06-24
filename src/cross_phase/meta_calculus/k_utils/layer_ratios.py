@@ -14,7 +14,6 @@ Phase Applications:
     - Phase 8 (Compression): Layer-wise compression ratios
 """
 
-import math
 from dataclasses import dataclass
 from typing import List, Optional
 

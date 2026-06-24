@@ -164,7 +164,7 @@ class TestFineTuner:
 
     def test_gradient_computation_during_finetuning(self, compressed_model, config, dataloader):
         """Test that gradients are computed during fine-tuning"""
-        tuner = FineTuner(compressed_model, config, device="cpu")
+        _ = FineTuner(compressed_model, config, device="cpu")
 
         # Store parameter to check gradients
         param_to_check = None

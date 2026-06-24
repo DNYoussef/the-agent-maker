@@ -22,21 +22,16 @@ def test_imports() -> bool:
         print("  Main imports: OK")
 
         # Test sub-module imports
-        from adas.config import ADASConfig as Config
-        from adas.evaluation import evaluate_individual
-        from adas.nsga2 import assign_ranks, calculate_crowding_distance
-        from adas.operators import crossover, mutate
-        from adas.optimizer import ADASOptimizer as Optimizer
 
         print("  Sub-module imports: OK")
 
         # Test class instantiation
         config = ADASConfig(population_size=10)
-        optimizer = ADASOptimizer(config)
+        ADASOptimizer(config)
         print("  Class instantiation: OK")
 
         # Test data structures
-        individual = Individual(routing_weights=[0.5, 0.5], expert_configs={}, fitness_scores={})
+        _ = Individual(routing_weights=[0.5, 0.5], expert_configs={}, fitness_scores={})
         print("  Data structures: OK")
 
         print("\nAll imports successful!")

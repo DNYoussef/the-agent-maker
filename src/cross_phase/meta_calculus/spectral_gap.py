@@ -17,7 +17,7 @@ spectral gap - crucial for ensuring stability through transformations.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional
 
 import numpy as np
 import torch
@@ -448,7 +448,7 @@ class SpectralGapRegularizer(torch.nn.Module):
                 continue
 
             if self.layers is not None:
-                if not any(l in name for l in self.layers):
+                if not any(layer in name for layer in self.layers):
                     continue
 
             # Compute gap (need gradients)

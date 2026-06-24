@@ -19,7 +19,7 @@ import json
 import warnings
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 import torch
 import torch.nn as nn

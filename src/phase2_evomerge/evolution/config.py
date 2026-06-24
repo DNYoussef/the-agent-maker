@@ -5,7 +5,6 @@ This module provides configuration dataclass for evolutionary optimization param
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass

@@ -9,9 +9,6 @@ Tests cover:
 - Edge cases
 """
 
-import sys
-from pathlib import Path
-from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd

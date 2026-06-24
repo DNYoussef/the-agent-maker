@@ -121,7 +121,7 @@ class Phase3Controller(PhaseController):
             "What is the capital of France?",
         ]
 
-        print(f"  Baking reasoning prompt into model...")
+        print("  Baking reasoning prompt into model...")
         baked_model = baker.bake_prompt(
             model=model,
             prompt=reasoning_prompt,
@@ -130,7 +130,7 @@ class Phase3Controller(PhaseController):
             half_bake=False,
         )
 
-        print(f"  Prompt baking complete")
+        print("  Prompt baking complete")
         return baked_model
 
     def _run_quietstar_rl(self, baked_model, baseline_model, tokenizer) -> tuple:
@@ -169,7 +169,7 @@ class Phase3Controller(PhaseController):
                 )
 
                 enhanced_model = trainer.train()
-                print(f"  Full RL training complete")
+                print("  Full RL training complete")
                 return enhanced_model, True
 
             except Exception as e:
@@ -177,15 +177,15 @@ class Phase3Controller(PhaseController):
                 return baked_model, False
         else:
             # AGM-004: Skip RL with honest reporting
-            print(f"  RL step skipped (enable_full_rl=False)")
-            print(f"  Using baked model as output (RL training is compute-intensive)")
+            print("  RL step skipped (enable_full_rl=False)")
+            print("  Using baked model as output (RL training is compute-intensive)")
             return baked_model, False
 
     def _validate_anti_theater(self, model, tokenizer) -> Any:
         """Validate model outputs are genuine, not theatrical."""
         import torch
 
-        print(f"  Running anti-theater validation...")
+        print("  Running anti-theater validation...")
 
         results = {
             "divergence_test": True,

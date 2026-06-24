@@ -46,8 +46,6 @@ class ThoughtGenerator(nn.Module):
         hidden_states: Optional[torch.Tensor] = None,
     ) -> ThoughtOutput:
         """Generate thoughts at specified position."""
-        batch_size = input_ids.size(0)
-        device = input_ids.device
 
         # Generate thought length ONCE for all thoughts (ensures stackable tensors)
         thought_length = torch.randint(self.min_length, self.max_length + 1, (1,)).item()
@@ -85,8 +83,6 @@ class ThoughtGenerator(nn.Module):
         thought_length: int,
     ) -> Tuple[torch.Tensor, torch.Tensor, List[int]]:
         """Generate a single thought continuation."""
-        device = input_ids.device
-        batch_size = input_ids.size(0)
 
         # Start from position
         current_ids = input_ids[:, : position + 1].clone()

@@ -24,22 +24,19 @@ Usage:
     integration.log_step(loss, step)
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 import torch
 import torch.nn as nn
 
-from .bigeometric import BigeometricConfig, BigeometricTransform
+from .bigeometric import BigeometricTransform
 
 # Meta-calculus imports
-from .k_formula import KFormulaConfig, compute_k, k_from_layer_index
-from .meta_grokfast import PHASE_CONFIGS, MetaGrokfast, MetaGrokfastConfig
+from .meta_grokfast import PHASE_CONFIGS, MetaGrokfast
 from .spectral_gap import (
-    SpectralGapConfig,
     SpectralGapMonitor,
-    SpectralGapRegularizer,
     compute_expert_diversity,
     compute_merge_diversity_change,
     compute_thought_diversity,
@@ -47,14 +44,7 @@ from .spectral_gap import (
 
 # Optional MOO imports
 try:
-    from .moo_bridge import (
-        EVOMERGE_OBJECTIVES,
-        EXPERT_DISCOVERY_OBJECTIVES,
-        EvoMergeProblem,
-        ExpertDiscoveryProblem,
-        MOOConfig,
-        MOORunner,
-    )
+    from .moo_bridge import EvoMergeProblem, ExpertDiscoveryProblem, MOOConfig, MOORunner
 
     MOO_AVAILABLE = True
 except ImportError:

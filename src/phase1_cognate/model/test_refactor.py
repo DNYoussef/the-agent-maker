@@ -12,7 +12,7 @@ import torch
 # Also verify direct component imports work
 from model.components import LongTermMemory, MAGGate, RMSNorm, SlidingWindowAttention, SwiGLUMLP
 from model.model_config import TitansMAGConfig
-from model.titans_mag import TitansMAGBackbone, TitansMAGLayer
+from model.titans_mag import TitansMAGBackbone
 
 
 def test_component_imports() -> None:

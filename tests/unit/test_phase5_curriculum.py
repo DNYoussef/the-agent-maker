@@ -12,10 +12,8 @@ Tests:
 Target: >=90% coverage for core functionality
 """
 
-import sys
 from dataclasses import asdict
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 import torch

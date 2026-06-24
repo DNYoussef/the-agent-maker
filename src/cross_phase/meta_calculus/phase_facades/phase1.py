@@ -21,18 +21,17 @@ Usage:
     result = phase1.search_architecture(evaluator)
 """
 
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Optional
 
-from ..gap_utils.monitoring import GapHealthStatus, PhaseGapMonitor
+from ..gap_utils.monitoring import PhaseGapMonitor
 
 # Layer 2 imports (utilities)
-from ..k_utils.scheduling import KScheduleConfig, create_k_lr_scheduler, k_learning_rate_schedule
+from ..k_utils.scheduling import KScheduleConfig, create_k_lr_scheduler
 
 # Layer 1 imports (core)
 from ..meta_grokfast import GrokfastConfig, MetaGrokfast
-from ..moo_utils.architecture import ArchitectureSearchConfig, ArchitectureSearchProblem
+from ..moo_utils.architecture import ArchitectureSearchConfig
 from ..moo_utils.architecture import search_architecture as _search_architecture
-from ..spectral_gap import SpectralGapMonitor
 
 # Phase 1 specific defaults
 PHASE1_CONFIG = GrokfastConfig(

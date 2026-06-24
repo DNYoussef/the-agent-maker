@@ -3,8 +3,6 @@ Integration tests for Pipeline Orchestrator
 Tests end-to-end phase sequencing and handoff validation
 """
 
-import sys
-from pathlib import Path
 
 import pytest
 
@@ -39,7 +37,7 @@ class TestPipelineIntegration:
         config = sample_config.copy()
         config["registry"] = {"db_path": str(temp_dir / "test_context.db")}
 
-        with PipelineOrchestrator(config) as pipeline:
+        with PipelineOrchestrator(config) as _:
             pass  # Context manager should close automatically
 
         # Verify database exists

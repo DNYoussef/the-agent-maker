@@ -5,8 +5,6 @@ Sandbox tests are standalone scripts meant to be run with `python` directly,
 not as pytest tests. This conftest.py tells pytest to skip collecting them.
 """
 
-import pytest
-
 
 def pytest_collect_file(file_path, parent):
     """Skip collecting test files in sandbox directory."""

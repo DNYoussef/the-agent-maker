@@ -342,7 +342,7 @@ class OpenRouterClient:
                     delay = 2**attempt
                     logger.warning(f"Rate limited, retrying in {delay}s (attempt {attempt + 1})")
                     await asyncio.sleep(delay)
-                    last_error = f"Rate limited (429)"
+                    last_error = "Rate limited (429)"
 
                 elif response.status_code >= 500:
                     # Server error - retry

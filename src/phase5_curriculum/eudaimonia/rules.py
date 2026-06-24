@@ -22,7 +22,10 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+
+if TYPE_CHECKING:
+    import numpy as np  # for the "np.ndarray" annotation only; runtime import stays lazy
 
 # Import meta-calculus for MOO virtue weight optimization
 try:
@@ -89,13 +92,11 @@ class EthicalRule(ABC):
     @abstractmethod
     def rule_type(self) -> RuleType:
         """Return the rule type."""
-        pass
 
     @property
     @abstractmethod
     def weight(self) -> float:
         """Return the rule's weight in overall calculation."""
-        pass
 
     @abstractmethod
     def assess(self, action: str, context: Dict[str, Any]) -> RuleAssessment:
@@ -117,7 +118,6 @@ class EthicalRule(ABC):
         Returns:
             RuleAssessment with score and reasoning
         """
-        pass
 
 
 class EudaimoniaPrimeDirective(EthicalRule):
@@ -664,7 +664,7 @@ class VirtueWeightOptimizer:
 
             # Create system with custom weights
             system = EudaimoniaRuleSystem()
-            original_weights = [r.weight for r in system.rules]
+            [r.weight for r in system.rules]
 
             # Temporarily override weights
             for i, rule in enumerate(system.rules):
@@ -748,7 +748,7 @@ class VirtueWeightOptimizer:
             "backend_used": result.backend_used,
         }
 
-    def _select_balanced_weights(self, X, F) -> "numpy.ndarray":
+    def _select_balanced_weights(self, X, F) -> "np.ndarray":
         """Select balanced weights from Pareto front."""
         import numpy as np
 

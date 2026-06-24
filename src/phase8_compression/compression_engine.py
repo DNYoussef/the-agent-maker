@@ -13,7 +13,7 @@ Research: SeedLM, VPTQ, Hyper-Compression papers
 
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import torch
 import torch.nn as nn
@@ -222,7 +222,7 @@ class CompressionEngine:
 
             duration = time.time() - start_time
 
-            print(f"\nPhase 8 Complete:")
+            print("\nPhase 8 Complete:")
             print(f"  Original size: {original_size:.2f} MB")
             print(f"  Final size: {final_size:.2f} MB")
             print(f"  Total compression: {total_compression:.1f}x")

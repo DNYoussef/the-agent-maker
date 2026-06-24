@@ -14,14 +14,10 @@ Features:
 - Prompt baking details (LoRA r=16, 5 min per prompt)
 """
 
-import json
-import time
-from pathlib import Path
-from typing import Any, Dict, List, Optional, cast
+from typing import Optional, cast
 
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 import streamlit.components.v1 as components
@@ -113,7 +109,6 @@ def create_ab_cycle_timeline() -> go.Figure:
     colors = []
     texts = []
     customdata = []
-    start_time = 0
 
     for cycle in cycles:
         y_positions.append(cycle["iteration"])
@@ -588,7 +583,6 @@ def create_baking_time_breakdown() -> go.Figure:
     colors = {"A-Cycle": "#00F5D4", "B-Cycle": "#8338EC", "Final": "#FF006E"}
 
     # Waterfall-style bars
-    start = 0
     for comp in components:
         fig.add_trace(
             go.Bar(

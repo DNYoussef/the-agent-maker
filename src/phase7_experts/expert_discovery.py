@@ -8,14 +8,11 @@ Research: Transformer^2 SVF, NSGA-II ADAS
 Key insight: Self-guided discovery (N=3-10 experts) vs manual design.
 """
 
-import random
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch import Tensor
 
 
 @dataclass

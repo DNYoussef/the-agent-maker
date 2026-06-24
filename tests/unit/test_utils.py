@@ -10,7 +10,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from cross_phase.utils import (
+from cross_phase.utils import (  # noqa: E402
     calculate_safe_batch_size,
     compute_population_diversity,
     detect_training_divergence,

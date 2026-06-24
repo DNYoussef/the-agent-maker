@@ -17,7 +17,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from ..architecture.parallel_thought_generator import ParallelThoughtGenerator
 from ..architecture.thought_generator import ThoughtGenerator  # Original sequential
 from ..config import QuietSTaRConfig
-from ..config_extensions import ParallelSamplingConfig, extend_rl_config
+from ..config_extensions import extend_rl_config
 
 
 def compare_sequential_vs_parallel():
@@ -213,7 +213,7 @@ def test_diagonal_attention_mask():
     # 3. Mask sparsity
     sparsity = (mask == float("-inf")).float().mean()
     print(f"\nMask sparsity: {sparsity:.2%}")
-    print(f"Expected: ~75% for num_thoughts=4")
+    print("Expected: ~75% for num_thoughts=4")
 
     return mask
 
@@ -252,7 +252,7 @@ def test_teacher_forcing():
 
     # Compute teacher forcing loss
     print("\nComputing teacher forcing loss...")
-    print(f"n_true: 4 (number of future tokens)")
+    print("n_true: 4 (number of future tokens)")
 
     loss = generator.compute_teacher_forced_loss(
         input_ids=input_ids,
@@ -286,7 +286,7 @@ def main():
     results = compare_sequential_vs_parallel()
 
     # 2. Diagonal mask validation
-    mask = test_diagonal_attention_mask()
+    test_diagonal_attention_mask()
 
     # 3. Teacher forcing test
     tf_loss = test_teacher_forcing()
@@ -296,7 +296,7 @@ def main():
     print("SUMMARY")
     print("=" * 60)
     print(f"✅ Parallel sampling: {results['speedup']:.2f}x speedup")
-    print(f"✅ Diagonal mask: Structure validated")
+    print("✅ Diagonal mask: Structure validated")
     print(f"✅ Teacher forcing: Loss = {tf_loss:.4f}")
     print("\nAll components working correctly!")
 

@@ -318,7 +318,7 @@ class HyperCompressor:
 
     def _fit_segment(self, segment: torch.Tensor) -> torch.Tensor:
         """Fit a parametric curve to a segment."""
-        n = len(segment)
+        len(segment)
 
         if self.config.curve_type == "bezier":
             return self._fit_bezier(segment)
@@ -371,7 +371,7 @@ class HyperCompressor:
     def _fit_polynomial(self, segment: torch.Tensor) -> torch.Tensor:
         """Fit polynomial to segment."""
         n = len(segment)
-        degree = self.config.num_params - 1
+        self.config.num_params - 1
 
         # Create Vandermonde matrix
         x = torch.linspace(-1, 1, n)

@@ -24,12 +24,7 @@ from .curriculum_engine import SpecializationType
 
 # Import OpenRouter client
 try:
-    from .openrouter_client import (
-        CompletionResponse,
-        ModelProvider,
-        OpenRouterClient,
-        get_free_models,
-    )
+    from .openrouter_client import CompletionResponse, ModelProvider, OpenRouterClient
 
     OPENROUTER_AVAILABLE = True
 except ImportError:
@@ -227,7 +222,7 @@ class AdaptiveCurriculumGenerator:
             List of Question objects from API
         """
         if not OPENROUTER_AVAILABLE or client is None:
-            logger.info(f"  Using placeholder (OpenRouter unavailable)")
+            logger.info("  Using placeholder (OpenRouter unavailable)")
             return self._generate_placeholder(model_name, difficulty, level, count)
 
         # Get model provider
@@ -669,7 +664,6 @@ class MOOCurriculumGenerator(AdaptiveCurriculumGenerator):
 
     def _select_efficient_curriculum(self, X, F) -> List[float]:
         """Select efficient curriculum from Pareto front."""
-        import numpy as np
 
         if len(X) == 0:
             return [1.0, 1.0, 1.0, 0.5]  # Default params

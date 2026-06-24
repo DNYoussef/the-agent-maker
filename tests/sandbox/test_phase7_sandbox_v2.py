@@ -11,24 +11,24 @@ Tests the complete Phase 7 pipeline with mock data.
 CRITICAL: Verify 1.58-bit format preservation throughout pipeline.
 """
 
-import sys
-from pathlib import Path
+import sys  # noqa: E402
+from pathlib import Path  # noqa: E402
 
 # Add src to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List  # noqa: E402
 
-import torch
-import torch.nn as nn
+import torch  # noqa: E402
+import torch.nn as nn  # noqa: E402
 
-from phase7_experts.adas_optimizer import ADASConfig, ADASOptimizer, Individual
+from phase7_experts.adas_optimizer import ADASConfig, ADASOptimizer  # noqa: E402
 
 # Import Phase 7 modules
-from phase7_experts.expert_discovery import ExpertProfile
-from phase7_experts.svf_trainer import SVFConfig, SVFTrainer
-from phase7_experts.transformer2 import Transformer2, Transformer2Config
+from phase7_experts.expert_discovery import ExpertProfile  # noqa: E402
+from phase7_experts.svf_trainer import SVFConfig, SVFTrainer  # noqa: E402
+from phase7_experts.transformer2 import Transformer2, Transformer2Config  # noqa: E402
 
 
 # Mock 1.58-bit Model (simulates Phase 4 output)
@@ -176,7 +176,7 @@ def test_expert_discovery_mock():
     for expert in experts:
         print(f"    - {expert.name}: {expert.capabilities} (strength: {expert.strength_score:.2f})")
 
-    print(f"\n  [SUCCESS] Expert discovery (mock) complete")
+    print("\n  [SUCCESS] Expert discovery (mock) complete")
 
     return num_experts, experts, True
 
@@ -215,7 +215,7 @@ def test_svf_training(model, experts, tokenizer):
 
         success = result.success
         if success:
-            print(f"\n  [SUCCESS] SVF training complete")
+            print("\n  [SUCCESS] SVF training complete")
             print(f"    Final loss: {result.final_loss:.4f}")
             print(f"    SV modifications: {len(result.sv_changes)} layers")
 
@@ -270,7 +270,7 @@ def test_transformer2_inference(model, num_experts, tokenizer):
                 print(f"  [WARNING] Routing weights sum: {routing_sum.item():.4f}")
 
         if success:
-            print(f"\n  [SUCCESS] Transformer^2 inference working")
+            print("\n  [SUCCESS] Transformer^2 inference working")
             print(f"    Logits shape: {list(result.logits.shape)}")
             print(f"    Routing shape: {list(result.routing_weights.shape)}")
             print(f"    Routing entropy: {result.metrics['routing_entropy']:.3f}")
@@ -307,7 +307,7 @@ def test_adas_optimizer(model, experts, tokenizer):
 
         success = result.success
         if success:
-            print(f"\n  [SUCCESS] ADAS optimization complete")
+            print("\n  [SUCCESS] ADAS optimization complete")
             print(f"    Pareto front size: {len(result.pareto_front)}")
             print(
                 f"    Best accuracy: {result.best_individual.fitness_scores.get('accuracy', 0):.3f}"
@@ -335,13 +335,13 @@ def verify_158bit(model, stage_name):
     verification = model.verify_158bit_format()
 
     if not verification["is_158bit"]:
-        print(f"    [ERROR] 1.58-bit format VIOLATED")
+        print("    [ERROR] 1.58-bit format VIOLATED")
         for v in verification["violations"]:
             print(f"      - {v}")
         return False
 
     stats = verification["stats"]
-    print(f"    [SUCCESS] 1.58-bit preserved")
+    print("    [SUCCESS] 1.58-bit preserved")
     print(f"      -1: {stats['minus_one']}")
     print(f"       0: {stats['zero']}")
     print(f"      +1: {stats['plus_one']}")

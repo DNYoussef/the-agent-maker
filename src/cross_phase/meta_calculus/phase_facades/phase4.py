@@ -23,22 +23,15 @@ Usage:
 
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-import numpy as np
-
-from ..bigeometric import BigeometricTransform
 from ..gap_utils.gates import QualityGateConfig, check_quantization_quality
 
 # Layer 2 imports (utilities)
-from ..k_utils.adaptive import (
-    AdaptiveConfig,
-    get_quantization_params,
-    get_quantization_threshold_scale,
-)
+from ..k_utils.adaptive import get_quantization_params, get_quantization_threshold_scale
 from ..k_utils.layer_ratios import get_all_sparsities, get_layer_sparsity
 
 # Layer 1 imports (core)
 from ..meta_grokfast import GrokfastConfig, MetaGrokfast
-from ..moo_utils.architecture import MixedPrecisionProblem, search_precision_assignment
+from ..moo_utils.architecture import search_precision_assignment
 from ..transform_utils.quantization import (
     LogSpaceSTE,
     QuantizationConfig,

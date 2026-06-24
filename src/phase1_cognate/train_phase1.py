@@ -26,12 +26,15 @@ import torch
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
-from phase1_cognate.data.dataset_downloader import DATASET_CONFIGS, download_all_datasets
-from phase1_cognate.data.dataset_processor import process_dataset
-from phase1_cognate.model.full_model import TRMTitansMAGModel
-from phase1_cognate.model.model_config import Phase1Config
-from phase1_cognate.training.trainer import Phase1Trainer, TrainingConfig
-from src.cross_phase.utils import get_tokenizer
+from phase1_cognate.data.dataset_downloader import (  # noqa: E402
+    DATASET_CONFIGS,
+    download_all_datasets,
+)
+from phase1_cognate.data.dataset_processor import process_dataset  # noqa: E402
+from phase1_cognate.model.full_model import TRMTitansMAGModel  # noqa: E402
+from phase1_cognate.model.model_config import Phase1Config  # noqa: E402
+from phase1_cognate.training.trainer import Phase1Trainer, TrainingConfig  # noqa: E402
+from src.cross_phase.utils import get_tokenizer  # noqa: E402
 
 
 def get_tokenizer_phase1() -> None:
@@ -115,7 +118,7 @@ def train_single_model(specialization: str, datasets: dict, tokenizer, args) -> 
 
     # Print parameter count
     param_counts = model.count_parameters()
-    print(f"\nModel Parameters:")
+    print("\nModel Parameters:")
     for component, count in param_counts.items():
         print(f"  {component}: {count:,}")
     print()

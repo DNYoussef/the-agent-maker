@@ -6,7 +6,6 @@ the test fail.
 """
 
 import logging
-import math
 
 import numpy as np
 import pytest

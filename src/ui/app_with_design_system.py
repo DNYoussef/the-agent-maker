@@ -13,7 +13,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import design system
-from design_system import get_custom_css
+from design_system import get_custom_css  # noqa: E402
 
 # Page configuration
 st.set_page_config(

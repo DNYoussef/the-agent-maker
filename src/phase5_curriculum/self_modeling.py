@@ -18,7 +18,7 @@ import copy
 import logging
 import random
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import torch
 import torch.nn as nn
@@ -114,7 +114,7 @@ class SelfModelingTrainer:
 
         print(f"  Training self-modeling across {len(self.temperature_ranges)} temperature ranges")
         if self.monitor_spectral_gap:
-            print(f"  [Meta-Calculus] Spectral gap monitoring enabled")
+            print("  [Meta-Calculus] Spectral gap monitoring enabled")
 
         for epoch in range(self.max_epochs):
             total_correct = 0
@@ -165,7 +165,7 @@ class SelfModelingTrainer:
                 # Check for representation collapse (gap < 0.05)
                 if gap_value < 0.05:
                     print(f"    [Meta-Calculus] WARNING: Spectral gap {gap_value:.4f} < 0.05")
-                    print(f"    [Meta-Calculus] Possible representation collapse detected!")
+                    print("    [Meta-Calculus] Possible representation collapse detected!")
                 else:
                     print(f"    [Meta-Calculus] Spectral gap: {gap_value:.4f} (healthy)")
 
@@ -593,7 +593,6 @@ class MOOSelfModelingTrainer(SelfModelingTrainer):
 
     def _select_efficient_ranges(self, X, F) -> List[float]:
         """Select efficient range configuration from Pareto front."""
-        import numpy as np
 
         if len(X) == 0:
             return [0.3, 0.2, 8, 100]  # Default params

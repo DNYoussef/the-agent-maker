@@ -16,26 +16,28 @@ import pytest
 
 pytestmark = pytest.mark.skip(reason="Standalone sandbox script - run with python directly")
 
-import sys
-from pathlib import Path
+import sys  # noqa: E402
+from pathlib import Path  # noqa: E402
 
 # Add src to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
-import math
-import random
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional  # noqa: E402
 
-import torch
-import torch.nn as nn
+import torch  # noqa: E402
+import torch.nn as nn  # noqa: E402
 
-from phase7_experts.adas_optimizer import ADASConfig, ADASOptimizer, ADASResult
+from phase7_experts.adas_optimizer import ADASConfig, ADASOptimizer  # noqa: E402
 
 # Import Phase 7 modules
-from phase7_experts.expert_discovery import DiscoveryConfig, ExpertDiscovery, ExpertProfile
-from phase7_experts.svf_trainer import SVFConfig, SVFResult, SVFTrainer
-from phase7_experts.transformer2 import Transformer2, Transformer2Config, Transformer2Result
+from phase7_experts.expert_discovery import (  # noqa: E402
+    DiscoveryConfig,
+    ExpertDiscovery,
+    ExpertProfile,
+)
+from phase7_experts.svf_trainer import SVFConfig, SVFTrainer  # noqa: E402
+from phase7_experts.transformer2 import Transformer2, Transformer2Config  # noqa: E402
 
 
 # Mock 1.58-bit Model (simulates Phase 4 output)
@@ -302,7 +304,7 @@ def test_svf_training(
         success = False
 
     if success:
-        print(f"\n  [SUCCESS] SVF training complete")
+        print("\n  [SUCCESS] SVF training complete")
         print(f"    Final loss: {result.final_loss:.4f}")
         print(f"    SV modifications: {len(result.sv_changes)} layers")
 
@@ -376,7 +378,7 @@ def test_transformer2_inference(
         success = False
 
     if success:
-        print(f"\n  [SUCCESS] Transformer^2 inference working")
+        print("\n  [SUCCESS] Transformer^2 inference working")
         print(f"    Logits shape: {result.logits.shape}")
         print(f"    Routing weights shape: {result.routing_weights.shape}")
         print(f"    Routing entropy: {result.metrics['routing_entropy']:.3f}")
@@ -437,7 +439,7 @@ def test_adas_optimizer(
     else:
         # Check routing weights
         if len(result.best_individual.routing_weights) != len(experts):
-            print(f"  [ERROR] Routing weight count mismatch")
+            print("  [ERROR] Routing weight count mismatch")
             success = False
 
         # Check weights sum to 1
@@ -458,7 +460,7 @@ def test_adas_optimizer(
         success = False
 
     if success:
-        print(f"\n  [SUCCESS] ADAS optimization complete")
+        print("\n  [SUCCESS] ADAS optimization complete")
         print(f"    Pareto front size: {len(result.pareto_front)}")
         print(f"    Best accuracy: {result.best_individual.fitness_scores.get('accuracy', 0):.3f}")
         print(f"    Best latency: {result.best_individual.fitness_scores.get('latency', 0):.3f}")
@@ -482,7 +484,7 @@ def test_158bit_preservation(model: Mock158BitModel, name: str) -> bool:
     verification = model.verify_158bit_format()
 
     if not verification["is_158bit"]:
-        print(f"    [ERROR] 1.58-bit format VIOLATED")
+        print("    [ERROR] 1.58-bit format VIOLATED")
         for violation in verification["violations"]:
             print(f"      - {violation['param']}: {violation['unique_values']}")
         return False
@@ -500,7 +502,7 @@ def test_158bit_preservation(model: Mock158BitModel, name: str) -> bool:
 
     total_weights = total_minus_one + total_zero + total_plus_one
 
-    print(f"    [SUCCESS] 1.58-bit format preserved")
+    print("    [SUCCESS] 1.58-bit format preserved")
     print(f"      -1: {total_minus_one}/{total_weights} ({100*total_minus_one/total_weights:.1f}%)")
     print(f"       0: {total_zero}/{total_weights} ({100*total_zero/total_weights:.1f}%)")
     print(f"      +1: {total_plus_one}/{total_weights} ({100*total_plus_one/total_weights:.1f}%)")

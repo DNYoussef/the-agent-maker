@@ -9,9 +9,8 @@ Research: "Prompt Baking" (arXiv:2409.13697v1)
 M4 TIER 1: Integrated with SWEBenchEvaluator for real code generation evaluation.
 """
 
-import random
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn

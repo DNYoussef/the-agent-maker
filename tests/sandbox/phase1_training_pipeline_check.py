@@ -16,10 +16,10 @@ import torch.nn.functional as F
 # Add repo src to path when run directly from tests/sandbox.
 sys.path.insert(0, str(Path(__file__).parents[2] / "src"))
 
-from phase1_cognate.data.curriculum_loader import CurriculumLoader
-from phase1_cognate.model.full_model import TRMTitansMAGModel
-from phase1_cognate.model.model_config import Phase1Config
-from phase1_cognate.training.trainer import Phase1Trainer, TrainingConfig
+from phase1_cognate.data.curriculum_loader import CurriculumLoader  # noqa: E402
+from phase1_cognate.model.full_model import TRMTitansMAGModel  # noqa: E402
+from phase1_cognate.model.model_config import Phase1Config  # noqa: E402
+from phase1_cognate.training.trainer import Phase1Trainer, TrainingConfig  # noqa: E402
 
 
 def create_synthetic_datasets(num_samples=100) -> dict:

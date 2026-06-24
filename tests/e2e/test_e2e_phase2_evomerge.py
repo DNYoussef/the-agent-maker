@@ -8,11 +8,7 @@ Tests the complete evolutionary merge pipeline including:
 - Evolution step execution
 """
 
-import sys
-from pathlib import Path
-from unittest.mock import Mock, patch
 
-import pytest
 import torch
 import torch.nn as nn
 

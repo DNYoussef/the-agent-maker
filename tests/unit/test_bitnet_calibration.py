@@ -3,12 +3,9 @@ Unit tests for Calibration System
 Tests dataset loading, tokenization, and activation collection
 """
 
-import sys
-from pathlib import Path
 
 import pytest
 import torch
-from transformers import AutoTokenizer
 
 from cross_phase.utils import MockTokenizer
 from phase4_bitnet.calibration import (
@@ -122,7 +119,7 @@ class TestCalibrationDataset:
         # For now, test that unknown datasets raise error
 
         with pytest.raises(ValueError):
-            dataset = CalibrationDataset(tokenizer, config, dataset_name="unknown_dataset")
+            _ = CalibrationDataset(tokenizer, config, dataset_name="unknown_dataset")
 
 
 class TestCalibrationDataLoader:
@@ -167,8 +164,8 @@ class TestCalibrationDataLoader:
 
         # DataLoader should not shuffle for calibration
         # DataLoader shuffle is internal, verify deterministic iteration instead
-        batch1 = next(iter(dataloader))
-        batch2 = next(iter(dataloader))
+        next(iter(dataloader))
+        next(iter(dataloader))
         # Batches should be consistent between iterations
 
     def test_dataloader_pin_memory_cuda(self, tokenizer):

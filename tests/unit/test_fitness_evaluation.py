@@ -19,7 +19,6 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
 from src.phase2_evomerge.fitness import (
-    DEFAULT_EXPECTED,
     DEFAULT_WEIGHTS,
     FitnessCache,
     FitnessEvaluator,

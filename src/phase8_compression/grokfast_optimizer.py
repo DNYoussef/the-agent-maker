@@ -27,9 +27,8 @@ Usage:
         grokfast.step()  # Applies Grokfast filtering then steps
 """
 
-import math
 from dataclasses import dataclass
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Literal
 
 import torch
 import torch.nn as nn

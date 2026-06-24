@@ -10,8 +10,6 @@ import time
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
-import torch
-
 # ISS-004: Secure checkpoint utilities
 from safetensors.torch import save_file as safe_save_tensors
 from transformers import AutoModel, AutoTokenizer
@@ -23,9 +21,7 @@ from src.phase4_bitnet.fine_tuner import FineTuner
 from src.phase4_bitnet.quantizer import BitNetQuantizer
 from src.phase4_bitnet.utils import (
     calculate_model_size_mb,
-    calculate_sparsity_ratio,
     count_parameters,
-    estimate_inference_speedup,
     save_compression_metadata,
     test_gradient_flow,
     validate_compression_quality,
@@ -229,7 +225,7 @@ class Phase4Controller:
     def _run_calibration(self):
         """Run calibration data collection"""
         # Create calibration dataloader
-        dataloader = create_calibration_dataloader(self.tokenizer, self.config)
+        create_calibration_dataloader(self.tokenizer, self.config)
 
         print(f"  Dataset: {self.config.calibration_dataset}")
         print(f"  Samples: {self.config.calibration_samples}")

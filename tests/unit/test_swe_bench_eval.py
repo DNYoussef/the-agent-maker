@@ -14,15 +14,13 @@ import json
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
-import torch
-import torch.nn as nn
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from phase6_baking.swe_bench_eval import (
+from phase6_baking.swe_bench_eval import (  # noqa: E402
     EvaluationMode,
     EvaluationResult,
     MissingSWEBenchDataError,

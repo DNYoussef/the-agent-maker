@@ -17,13 +17,15 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-import torch
-import torch.nn as nn
+import torch  # noqa: E402
+import torch.nn as nn  # noqa: E402
 
-from src.phase3_quietstar.architecture.parallel_thought_generator import ParallelThoughtGenerator
-from src.phase3_quietstar.architecture.thought_generator import ThoughtGenerator
-from src.phase3_quietstar.config import QuietSTaRRLConfig
-from src.phase3_quietstar.config_extensions import (
+from src.phase3_quietstar.architecture.parallel_thought_generator import (  # noqa: E402
+    ParallelThoughtGenerator,
+)
+from src.phase3_quietstar.architecture.thought_generator import ThoughtGenerator  # noqa: E402
+from src.phase3_quietstar.config import QuietSTaRRLConfig  # noqa: E402
+from src.phase3_quietstar.config_extensions import (  # noqa: E402
     MetaTokenConfig,
     ParallelSamplingConfig,
     TeacherForcingConfig,
@@ -82,10 +84,9 @@ def test_diagonal_mask_correctness():
     print("   [PASS] Shared context correct")
 
     # Test 2: Diagonal structure - thoughts should NOT cross-attend
-    print(f"\n3. Diagonal Structure (thought isolation):")
+    print("\n3. Diagonal Structure (thought isolation):")
     if seq_len > position + 1:
         # For each batch item, check off-diagonal blocks are masked
-        violations = 0
         for batch_idx in range(batch_size * num_thoughts):
             thought_idx = batch_idx % num_thoughts
 
@@ -97,12 +98,12 @@ def test_diagonal_mask_correctness():
                         # This is simplified - actual implementation may vary
                         pass  # Complex to validate without knowing exact token assignment
 
-        print(f"   [PASS] Diagonal blocking implemented")
+        print("   [PASS] Diagonal blocking implemented")
     else:
         print("   [SKIP] Sequence too short to test diagonal blocking")
 
     # Test 3: Causal structure - future tokens masked
-    print(f"\n4. Causal Structure:")
+    print("\n4. Causal Structure:")
     for i in range(seq_len):
         for j in range(i + 1, seq_len):
             # Position i should NOT attend to future position j
@@ -113,7 +114,7 @@ def test_diagonal_mask_correctness():
     print("   [PASS] Causal masking present")
 
     # Test 4: Value distribution
-    print(f"\n5. Value Distribution:")
+    print("\n5. Value Distribution:")
     attend_count = (mask == 0.0).sum().item()
     masked_count = torch.isinf(mask).sum().item()
     total = mask.numel()
@@ -272,8 +273,8 @@ def test_config_extensions():
     print(f"   enabled: {parallel_cfg.enabled}")
     print(f"   allow_cross_attention: {parallel_cfg.allow_cross_attention}")
     print(f"   batch_parallel_thoughts: {parallel_cfg.batch_parallel_thoughts}")
-    assert parallel_cfg.enabled == True, "FAIL: Should be enabled by default"
-    assert parallel_cfg.allow_cross_attention == False, "FAIL: Should not allow cross-attention"
+    assert parallel_cfg.enabled, "FAIL: Should be enabled by default"
+    assert not parallel_cfg.allow_cross_attention, "FAIL: Should not allow cross-attention"
     print("   [PASS] ParallelSamplingConfig correct")
 
     # Test 3: TeacherForcingConfig

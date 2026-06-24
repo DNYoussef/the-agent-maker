@@ -17,7 +17,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -69,13 +69,11 @@ class PhilosophicalArchetype(ABC):
     @abstractmethod
     def archetype_type(self) -> ArchetypeType:
         """Return the archetype type."""
-        pass
 
     @property
     @abstractmethod
     def weight_vector(self) -> Dict[str, float]:
         """Return the archetype's characteristic weight vector."""
-        pass
 
     @abstractmethod
     def provide_guidance(
@@ -92,7 +90,6 @@ class PhilosophicalArchetype(ABC):
         Returns:
             ArchetypeGuidance with recommendations and vectors
         """
-        pass
 
 
 class ChristArchetype(PhilosophicalArchetype):
@@ -496,7 +493,7 @@ class ArchetypeCouncil:
         virtues = [g.key_virtue for g in guidances]
 
         # Build synthesis statement
-        perspectives = [g.perspective for g in guidances]
+        [g.perspective for g in guidances]
         synthesis_parts = []
 
         if "compassion" in common_themes or "love" in common_themes:
@@ -654,7 +651,7 @@ class ArchetypeWeightLearner:
             # Gini-like coefficient
             weights_sorted = np.sort(weights)
             n = len(weights_sorted)
-            cumulative = np.cumsum(weights_sorted)
+            np.cumsum(weights_sorted)
             gini = (
                 2 * np.sum((np.arange(1, n + 1) * weights_sorted)) / (n * np.sum(weights_sorted))
             ) - (n + 1) / n

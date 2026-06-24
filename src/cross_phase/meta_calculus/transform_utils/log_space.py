@@ -11,10 +11,9 @@ Phase Applications:
 
 import math
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Optional
 
 # Layer 1 imports only
-from ..bigeometric import from_log_space, to_log_space
 
 
 @dataclass

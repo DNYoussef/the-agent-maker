@@ -10,9 +10,6 @@ Tests:
 Target: >=90% coverage for EMAModel class
 """
 
-import sys
-from copy import deepcopy
-from pathlib import Path
 
 import pytest
 import torch
@@ -307,7 +304,7 @@ class TestEMAIntegration:
         # Evaluation with EMA
         ema.apply_shadow()
         with torch.no_grad():
-            eval_output = model(torch.randn(4, 10))
+            model(torch.randn(4, 10))
         ema.restore()
 
         # Training continues

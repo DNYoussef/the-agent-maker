@@ -13,9 +13,8 @@ M4 TIER 1: W&B logging for A/B cycle metrics.
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
-import torch
 import torch.nn as nn
 
 from src.cross_phase.monitoring.wandb_integration import WandBIntegration
@@ -298,7 +297,7 @@ class BakingEngine:
 
                     # Check for plateau
                     if plateau_detector.check(score, "a_cycle"):
-                        print(f"  Plateau detected in A-cycle, switching to B-cycle")
+                        print("  Plateau detected in A-cycle, switching to B-cycle")
                         self.metrics["plateau_detections"].append(("a_cycle", total_iterations))
                         current_cycle = BakingCycleType.B_CYCLE
 
@@ -332,7 +331,7 @@ class BakingEngine:
 
                     # Check for plateau
                     if plateau_detector.check(score, "b_cycle"):
-                        print(f"  Plateau detected in B-cycle, switching to A-cycle")
+                        print("  Plateau detected in B-cycle, switching to A-cycle")
                         self.metrics["plateau_detections"].append(("b_cycle", total_iterations))
                         current_cycle = BakingCycleType.A_CYCLE
 
@@ -365,7 +364,7 @@ class BakingEngine:
 
             total_time = time.time() - start_time
 
-            print(f"\nPhase 6 Complete:")
+            print("\nPhase 6 Complete:")
             print(f"  Total iterations: {total_iterations}")
             print(f"  A-cycle iterations: {a_cycle_count}")
             print(f"  B-cycle iterations: {b_cycle_count}")

@@ -3,7 +3,7 @@ Compressed Model Wrapper
 STE-enabled wrapper for quantized models with BitLinear support
 """
 
-from typing import Dict, Optional
+from typing import Dict
 
 import torch
 import torch.nn as nn

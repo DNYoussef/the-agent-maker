@@ -15,20 +15,19 @@ Audit Methodology:
 - Error handling verification
 """
 
-import json
 import sys
 import traceback
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-import numpy as np
-import pytest
-import torch
-import torch.nn as nn
+import numpy as np  # noqa: E402
+import pytest  # noqa: E402
+import torch  # noqa: E402
+import torch.nn as nn  # noqa: E402
 
 
 class FunctionalityAuditReport:

@@ -69,7 +69,7 @@ class TestCompressionRatio:
         model = BenchmarkModel(num_params_millions=25)
 
         # Get original size
-        original_size = calculate_model_size_mb(model)
+        calculate_model_size_mb(model)
 
         # Compress
         quantizer = BitNetQuantizer(config)

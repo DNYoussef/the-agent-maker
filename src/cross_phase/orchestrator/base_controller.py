@@ -9,16 +9,19 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-# ISS-015/ISS-022: Import constants and validation thresholds
-from src.cross_phase.constants import (
+# ISS-015/ISS-022: Import constants and validation thresholds. Re-exported here
+# for the phase controllers (e.g. phase2 imports ValidationThresholds from this
+# module); kept despite being unused locally.
+from src.cross_phase.constants import (  # noqa: F401
     CURRICULUM_LEVELS,
     EVOMERGE_GENERATIONS,
     MIN_EXPERTS,
     ValidationThresholds,
 )
 
-# ISS-016: Import unified tokenizer utility
-from src.cross_phase.utils import MockTokenizer, get_tokenizer
+# ISS-016: Import unified tokenizer utility. Re-exported for the phase
+# controllers (phase3/5/6/7/8 import get_tokenizer from this module).
+from src.cross_phase.utils import MockTokenizer, get_tokenizer  # noqa: F401
 
 
 @dataclass
@@ -65,7 +68,6 @@ class PhaseController(ABC):
         Returns:
             PhaseResult with success flag, model, metrics
         """
-        pass
 
     @abstractmethod
     def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
@@ -78,7 +80,6 @@ class PhaseController(ABC):
         Returns:
             True if valid, raises error otherwise
         """
-        pass
 
     @abstractmethod
     def validate_output(self, result: PhaseResult) -> bool:
@@ -91,7 +92,6 @@ class PhaseController(ABC):
         Returns:
             True if valid, raises error otherwise
         """
-        pass
 
     def get_metrics_config(self) -> Dict:
         """Get W&B metrics configuration for this phase"""
@@ -99,4 +99,3 @@ class PhaseController(ABC):
 
     def cleanup(self) -> None:
         """Cleanup resources after phase completion"""
-        pass

@@ -3,7 +3,6 @@ pytest configuration and fixtures
 Shared fixtures for all tests
 """
 
-import sys
 import tempfile
 from pathlib import Path
 

@@ -1,14 +1,13 @@
-import os
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # Add src to path
 src_path = str(Path(__file__).parents[1] / "src")
 sys.path.insert(0, src_path)
 
-from cross_phase.orchestrator.phase_controller import Phase1Controller, PhaseResult
+from cross_phase.orchestrator.phase_controller import Phase1Controller, PhaseResult  # noqa: E402
 
 
 class TestPhase1Orchestration(unittest.TestCase):

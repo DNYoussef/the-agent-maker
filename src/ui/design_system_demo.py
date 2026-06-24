@@ -10,7 +10,6 @@ from design_system import (
     TYPOGRAPHY,
     css_dict_to_string,
     get_badge_styles,
-    get_button_styles,
     get_card_styles,
     get_color_with_alpha,
     get_custom_css,
@@ -190,11 +189,11 @@ def main() -> None:
 
     # Custom metric display
     st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-    metric_styles = get_metric_styles("large")
-    st.markdown(f'<div class="metric-label">Total Parameters</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="metric-value">25M</div>', unsafe_allow_html=True)
+    get_metric_styles("large")
+    st.markdown('<div class="metric-label">Total Parameters</div>', unsafe_allow_html=True)
+    st.markdown('<div class="metric-value">25M</div>', unsafe_allow_html=True)
     st.markdown(
-        f'<div class="metric-delta-positive">+5% from baseline</div>', unsafe_allow_html=True
+        '<div class="metric-delta-positive">+5% from baseline</div>', unsafe_allow_html=True
     )
     st.markdown("</div>", unsafe_allow_html=True)
 

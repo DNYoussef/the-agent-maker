@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Callable, Dict, Optional
 
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -154,7 +153,7 @@ class FineTuner:
         self.model.train()
 
         print(f"Fine-tuning for {self.config.fine_tune_epochs} epochs")
-        print(f"Optimizer: MuGrokfast (STE mode enabled)")
+        print("Optimizer: MuGrokfast (STE mode enabled)")
         print(f"Learning rate: {self.config.fine_tune_lr}")
         print(f"Grokfast lambda: {self.config.grokfast_lambda}")
 
@@ -323,9 +322,7 @@ class FineTuner:
         with torch.no_grad():
             for batch in dataloader:
                 input_ids = batch["input_ids"].to(self.device)
-                attention_mask = batch.get("attention_mask", torch.ones_like(input_ids)).to(
-                    self.device
-                )
+                attention_mask = batch.get("attention_mask", torch.ones_like(input_ids)).to()
 
                 # Forward pass
                 outputs = self.model(

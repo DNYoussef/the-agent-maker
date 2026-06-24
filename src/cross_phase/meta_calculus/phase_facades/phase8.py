@@ -25,8 +25,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from ..bigeometric import BigeometricTransform, from_log_space, to_log_space
-from ..gap_utils.gates import CompressionQualityResult, GateDecision, QualityGateConfig
+from ..bigeometric import from_log_space, to_log_space
+from ..gap_utils.gates import CompressionQualityResult, QualityGateConfig
 from ..gap_utils.gates import check_compression_quality as _check_compression_quality
 from ..gap_utils.monitoring import PhaseGapMonitor
 
@@ -39,8 +39,8 @@ from ..k_utils.layer_ratios import (
 
 # Layer 1 imports (core)
 from ..meta_grokfast import GrokfastConfig, MetaGrokfast
-from ..transform_utils.log_space import LogSpaceConfig, log_space_normalize, safe_exp, safe_log
-from ..transform_utils.weights import WeightMergeConfig, compute_reconstruction_error
+from ..transform_utils.log_space import safe_exp
+from ..transform_utils.weights import compute_reconstruction_error
 from ..transform_utils.weights import fit_weights_log_space as _fit_weights_log_space
 
 # Phase 8 specific defaults
@@ -138,9 +138,7 @@ def get_stage_ratios(
     total_ratio = get_layer_compression_ratio(layer_idx, total_layers)
 
     # Distribute across stages (proportional to base ratios)
-    base_total = (
-        COMPRESSION_STAGES["seedlm"] * COMPRESSION_STAGES["vptq"] * COMPRESSION_STAGES["hyper"]
-    )
+    _ = COMPRESSION_STAGES["seedlm"] * COMPRESSION_STAGES["vptq"] * COMPRESSION_STAGES["hyper"]
     scale = total_ratio / COMPRESSION_STAGES["total"]
 
     return {

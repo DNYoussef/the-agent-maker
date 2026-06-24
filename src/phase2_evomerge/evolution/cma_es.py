@@ -207,7 +207,7 @@ class CMAESOptimizer:
             self.best_fitness = best_trial.value
 
         if verbose:
-            logger.info(f"\nOptimization complete!")
+            logger.info("\nOptimization complete!")
             logger.info(f"  Best fitness: {self.best_fitness:.4f}")
             logger.info(f"  Best coefficients: {self.best_params.round(3)}")
             logger.info(f"  Total generations: {self.generation_count}")

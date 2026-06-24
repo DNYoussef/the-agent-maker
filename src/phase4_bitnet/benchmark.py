@@ -253,20 +253,20 @@ def print_benchmark_report(result: BenchmarkResult) -> None:
     print("BITNET INFERENCE BENCHMARK REPORT")
     print("=" * 60)
 
-    print(f"\nConfiguration:")
+    print("\nConfiguration:")
     print(f"  Device: {result.device}")
     print(f"  Batch size: {result.batch_size}")
     print(f"  Sequence length: {result.sequence_length}")
     print(f"  Warmup runs: {result.num_warmup_runs}")
     print(f"  Benchmark runs: {result.num_benchmark_runs}")
 
-    print(f"\nLatency:")
+    print("\nLatency:")
     print(f"  FP32:      {result.fp32_latency_ms:.3f} ms")
     print(f"  Quantized: {result.quantized_latency_ms:.3f} ms")
     print(f"  Speedup:   {result.speedup_ratio:.2f}x")
 
     # Evaluate speedup against target
-    target_min, target_max = 2.0, 4.0
+    target_min, _ = 2.0, 4.0  # upper bound (4.0) currently unused
     if result.speedup_ratio >= target_min:
         speedup_status = "PASS"
     elif result.speedup_ratio >= 1.0:
@@ -275,12 +275,12 @@ def print_benchmark_report(result: BenchmarkResult) -> None:
         speedup_status = "FAIL (slower than FP32)"
     print(f"  Target (2-4x): {speedup_status}")
 
-    print(f"\nMemory:")
+    print("\nMemory:")
     print(f"  FP32:      {result.fp32_memory_mb:.2f} MB")
     print(f"  Quantized: {result.quantized_memory_mb:.2f} MB")
     print(f"  Reduction: {result.memory_reduction_ratio:.2f}x")
 
-    print(f"\nThroughput:")
+    print("\nThroughput:")
     print(f"  FP32:      {result.fp32_throughput:.0f} tokens/sec")
     print(f"  Quantized: {result.quantized_throughput:.0f} tokens/sec")
 

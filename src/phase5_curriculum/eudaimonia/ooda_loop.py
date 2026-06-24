@@ -33,7 +33,7 @@ from .rules import EudaimoniaRuleSystem, EudaimoniaScore
 
 # Import MOO for Pareto-optimal action selection
 try:
-    from src.cross_phase.meta_calculus.moo_utils import HybridMOORunner
+    pass
 
     MOO_AVAILABLE = True
 except ImportError:
@@ -351,7 +351,7 @@ class OODALoop:
         alignment_score = min(1.0, 0.5 + alignment * 0.15)
 
         # Determine expected outcome
-        expected_outcome = f"User engagement increases; progress toward mutual understanding"
+        expected_outcome = "User engagement increases; progress toward mutual understanding"
 
         return SmallestMeasurableAction(
             description=action_desc,
