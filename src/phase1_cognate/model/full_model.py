@@ -133,7 +133,9 @@ class TRMTitansMAGModel(nn.Module):
         logits = step_logits[-1]
 
         # 6. Compute loss with optional deep supervision
-        output = {"logits": logits}
+        # G1: expose last_hidden_state (the final-step features behind `logits`) so the
+        # QuietSTaR wrapper (which reads outputs.last_hidden_state) can consume this model.
+        output = {"logits": logits, "last_hidden_state": y_history[-1]}
         if labels is not None:
             output.update(self._supervised_loss(step_logits, step_q, labels, loss_gate))
 
@@ -147,6 +149,10 @@ class TRMTitansMAGModel(nn.Module):
 
         # F0: wrap so consumers can use output.logits (HF-style) AND output["logits"].
         return ModelOutput(output)
+
+    def get_input_embeddings(self) -> nn.Module:
+        """G1: HF-style accessor so the QuietSTaR wrapper can read the token embedding."""
+        return self.backbone.token_emb
 
     @torch.no_grad()
     def generate(

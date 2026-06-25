@@ -120,6 +120,12 @@ class Phase1Config:
     trm_config: TRMConfig = field(default_factory=TRMConfig)
     act_config: ACTConfig = field(default_factory=ACTConfig)
 
+    @property
+    def hidden_size(self) -> int:
+        """G1: HF-style alias for the model width, so the QuietSTaR wrapper can read
+        model.config.hidden_size."""
+        return self.titans_config.d_model
+
     # Model specialization (for 3 models)
     specialization: Literal["reasoning", "memory", "speed"] = "reasoning"
 
