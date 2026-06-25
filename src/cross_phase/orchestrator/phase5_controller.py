@@ -104,9 +104,12 @@ class Phase5Controller(PhaseController):
             specialization=spec_type,
         )
 
-        # Initialize OpenRouter and Docker sandbox
+        # Initialize OpenRouter; the Docker sandbox is OPT-IN. By default coding_env is
+        # None so the curriculum uses the deterministic heuristic validator. The sandbox
+        # path (coding_env.execute/.check) is currently broken (async called sync, missing
+        # .check) and walls every question at level 1 - enable only once E6 fixes it.
         frontier_client = OpenRouterClient()
-        coding_env = DockerSandbox()
+        coding_env = DockerSandbox() if (self.config or {}).get("use_docker_sandbox") else None
 
         # Create and run engine
         engine = CurriculumEngine(
