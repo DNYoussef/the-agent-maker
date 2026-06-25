@@ -397,6 +397,15 @@ class Phase4Controller:
 
         return passed, error
 
+    @staticmethod
+    def _serialize_scales(scale_factors: Dict) -> Dict:
+        """E5: per-channel scales are multi-element tensors; float(v) raised ("only one
+        element tensors can be converted"). Serialize each to a JSON-able list."""
+        return {
+            k: (v.detach().cpu().tolist() if hasattr(v, "tolist") else v)
+            for k, v in scale_factors.items()
+        }
+
     def _save_outputs(self) -> Dict[str, str]:
         """Save dual model outputs using secure SafeTensors format (ISS-004)"""
         output_dir = Path(self.config.output_path)
@@ -418,9 +427,7 @@ class Phase4Controller:
 
             # Save scale factors and config as JSON (secure)
             quantized_metadata = {
-                "scale_factors": {
-                    k: float(v) if hasattr(v, "item") else v for k, v in scale_factors.items()
-                },
+                "scale_factors": self._serialize_scales(scale_factors),
                 "config": self.config.to_dict(),
             }
             with open(quantized_json_path, "w", encoding="utf-8") as f:

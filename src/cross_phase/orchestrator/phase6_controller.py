@@ -104,7 +104,10 @@ class Phase6Controller(PhaseController):
         return engine.run(model=specialized_model, tokenizer=tokenizer)
 
     def _get_tokenizer(self) -> Any:
-        """Get tokenizer using unified utility (ISS-016)."""
+        """Use the tokenizer threaded from the prior phase (E0/E2); fall back to gpt2 only
+        when run standalone with no upstream tokenizer."""
+        if self.input_tokenizer is not None:
+            return self.input_tokenizer
         return get_tokenizer("gpt2")
 
     def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
@@ -116,8 +119,9 @@ class Phase6Controller(PhaseController):
         return True
 
     def validate_output(self, result: PhaseResult) -> bool:
-        """Validate Phase 6 output (baking iterations completed)."""
-        if result.metrics:
-            iterations = result.metrics.get("total_iterations", 0)
-            return bool(iterations >= 1)
-        return True
+        """Validate Phase 6 output. E7: gate on result.success too - a failed bake with
+        total_iterations>=1 used to ship green."""
+        if not result.success:
+            return False
+        iterations = result.metrics.get("total_iterations", 0) if result.metrics else 0
+        return bool(iterations >= 1)

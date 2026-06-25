@@ -40,6 +40,9 @@ class PhaseResult:
     artifacts: Dict  # e.g., {'checkpoint_path': str, 'logs': str}
     config: Dict
     error: Optional[str] = None
+    # E0 handoff contract: the tokenizer that goes WITH this model. The orchestrator
+    # carries it to the next phase so phases stop fabricating their own gpt2 tokenizer.
+    tokenizer: object = None
 
 
 class PhaseController(ABC):
@@ -56,6 +59,9 @@ class PhaseController(ABC):
         self.config = config
         self.session_id = session_id
         self.phase_name = self.__class__.__name__.replace("Controller", "").lower()
+        # E0 handoff contract: the orchestrator injects the prior phase's tokenizer here
+        # before execute(). Phases should consume this instead of hardcoding gpt2 (E2).
+        self.input_tokenizer = None
 
     @abstractmethod
     def execute(self, input_models: Optional[List[Any]] = None) -> PhaseResult:

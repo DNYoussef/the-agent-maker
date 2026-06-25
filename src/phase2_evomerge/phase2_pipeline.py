@@ -162,12 +162,14 @@ class Phase2Pipeline:
         Raises:
             ValueError: If not exactly 3 input models
         """
-        if len(input_models) != 3:
-            raise ValueError(f"Phase 2 requires 3 input models, got {len(input_models)}")
-
-        # Store for _evaluate_population so the standard path can honor
-        # use_real_fitness (previously only the hybrid path used it).
+        self._validate_run_inputs(input_models, tokenizer)
+        # Store for _evaluate_population so the standard path can honor use_real_fitness.
         self.tokenizer = tokenizer
+        # E3: reset per-run state so a REUSED pipeline can't report/return a prior run's
+        # champion (final_fitness now mirrors best_fitness, which would make that a visible lie).
+        self.best_fitness = 0.0
+        self.champion = None
+        self.fitness_history = []
 
         print("\n" + "=" * 60)
         print("PHASE 2: EVOMERGE - EVOLUTIONARY OPTIMIZATION")
@@ -181,7 +183,11 @@ class Phase2Pipeline:
             print("Mode: HYBRID PS+DFS (Paper's best approach)")
             print(f"PS candidates: {len(input_models) * self.config.ps_candidates_multiplier}")
         elif self.config.use_cmaes:
-            print("Mode: CMA-ES Parameter Space Optimization")
+            # E3: this was theater - it printed "CMA-ES" then ran standard evolution. Fail
+            # loud rather than pretend a CMA-ES optimizer exists.
+            raise NotImplementedError(
+                "use_cmaes is not implemented; use the standard or hybrid PS+DFS path."
+            )
         else:
             print("Mode: Standard Evolutionary Search")
 
@@ -203,32 +209,24 @@ class Phase2Pipeline:
         initial_fitness = self._evaluate_population()
         print(f"Initial best fitness: {initial_fitness:.4f}")
 
-        # Step 2: Evolutionary loop
+        # Step 2: Evolutionary loop, then Step 3: consistent champion/metrics.
+        self._evolve(initial_fitness)
+        return self._finalize_run(initial_fitness, start_time)
+
+    def _evolve(self, initial_fitness: float) -> None:
+        """Run the generational loop: evaluate, track champion, select/crossover/mutate/replace."""
         for gen in range(self.config.num_generations):
-            # Evaluate fitness
             gen_best_fitness = self._evaluate_population()
-
-            # Track history
             self.fitness_history.append(gen_best_fitness)
-
-            # Update champion if improved
             if gen_best_fitness > self.best_fitness:
                 self.best_fitness = gen_best_fitness
                 self.champion = copy.deepcopy(self.population[0])
 
-            # Selection
             parents = self._tournament_selection()
-
-            # Crossover (merge)
             offspring = self._crossover(parents)
-
-            # Mutation
             offspring = self._mutate(offspring)
-
-            # Elitism + new population
             self.population = self._elitism_replacement(offspring)
 
-            # Progress update
             if (gen + 1) % 10 == 0 or gen == 0:
                 gain = (gen_best_fitness / initial_fitness - 1) * 100 if initial_fitness > 0 else 0
                 print(
@@ -236,17 +234,25 @@ class Phase2Pipeline:
                     f"fitness={gen_best_fitness:.4f} (+{gain:.1f}%)"
                 )
 
-        # Step 3: Final evaluation and metrics
-        final_fitness = self._evaluate_population()
+    def _finalize_run(self, initial_fitness: float, start_time: float) -> nn.Module:
+        """E3: keep champion/metrics consistent - fold the final population's best into the
+        champion, then REPORT the champion's fitness (the model we return) and the ACTUAL
+        population size, not a last-population number / nominal size that could disagree."""
+        final_pop_best = self._evaluate_population()
+        if final_pop_best > self.best_fitness:
+            self.best_fitness = final_pop_best
+            self.champion = copy.deepcopy(self.population[0])
+        final_fitness = self.best_fitness
         fitness_gain = (final_fitness / initial_fitness - 1) if initial_fitness > 0 else 0
 
         elapsed = time.time() - start_time
         self.metrics = {
             "initial_fitness": initial_fitness,
             "final_fitness": final_fitness,
+            "champion_fitness": self.best_fitness,
             "fitness_gain": fitness_gain,
             "generations": self.config.num_generations,
-            "population_size": self.config.population_size,
+            "population_size": len(self.population),  # E3: actual, not the nominal config value
             "duration_seconds": elapsed,
             "merge_techniques_used": list(self._mergers.keys()),
         }
@@ -254,8 +260,18 @@ class Phase2Pipeline:
         print("\nPhase 2 Complete!")
         print(f"  Fitness gain: {fitness_gain * 100:.1f}%")
         print(f"  Duration: {elapsed:.1f}s")
-
         return self.champion if self.champion else self.population[0]
+
+    def _validate_run_inputs(self, input_models: List[nn.Module], tokenizer: Optional[Any]) -> None:
+        """E3: reject bad run inputs up front. Real fitness must NOT silently degrade to the
+        parameter proxy - fail loud if requested without a tokenizer (matches hybrid path)."""
+        if len(input_models) != 3:
+            raise ValueError(f"Phase 2 requires 3 input models, got {len(input_models)}")
+        if self.config.use_real_fitness and tokenizer is None:
+            raise ValueError(
+                "use_real_fitness=True requires a tokenizer; refusing to silently fall "
+                "back to the parameter-statistics proxy."
+            )
 
     def _init_population(self, input_models: List[nn.Module]) -> None:
         """Initialize population from 3 input models."""
@@ -314,7 +330,12 @@ class Phase2Pipeline:
         accuracy = min(
             0.9, 0.3 + (1.0 / (1.0 + param_variance))
         )  # Higher variance = lower accuracy
-        speed = 1000.0 + random.uniform(-100, 100)  # Tokens/sec (approx)
+        # ponytail: deterministic proxy. Smaller model -> higher tokens/sec; NO random term
+        # (the old random.uniform made the same model score differently each call, which
+        # randomized champion selection). 1e12 numerator keeps the score above the floor and
+        # still differentiating at LLM scale (222M -> ~4.5k). This is a parameter proxy, not a
+        # real benchmark - set use_real_fitness=True (with a tokenizer) for actual task fitness.
+        speed = 1.0e12 / max(1.0, float(total_params))  # Tokens/sec (deterministic proxy)
         memory = total_params * 4 / (1024 * 1024)  # MB
 
         return compute_composite_fitness(
@@ -369,6 +390,15 @@ class Phase2Pipeline:
 
         # Add offspring
         new_population = elite + offspring
+
+        # E3: refill to the configured size. Crossover yields only ~population_size/2
+        # offspring, so elite+offspring kept shrinking the population each generation (it
+        # stabilized below the nominal size while metrics still reported the nominal value).
+        # Pad with deepcopies of the best members so the population stays constant.
+        i = 0
+        while len(new_population) < self.config.population_size and self.population:
+            new_population.append(copy.deepcopy(self.population[i % len(self.population)]))
+            i += 1
 
         # Trim to population size
         return new_population[: self.config.population_size]

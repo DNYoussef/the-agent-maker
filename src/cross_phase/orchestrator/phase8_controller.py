@@ -93,7 +93,10 @@ class Phase8Controller(PhaseController):
         return engine.run(model=expert_model, tokenizer=tokenizer)
 
     def _get_tokenizer(self) -> Any:
-        """Get tokenizer using unified utility (ISS-016)."""
+        """Use the tokenizer threaded from the prior phase (E0/E2); fall back to gpt2 only
+        when run standalone with no upstream tokenizer."""
+        if self.input_tokenizer is not None:
+            return self.input_tokenizer
         return get_tokenizer("gpt2")
 
     def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
@@ -105,9 +108,11 @@ class Phase8Controller(PhaseController):
         return True
 
     def validate_output(self, result: PhaseResult) -> bool:
-        """Validate Phase 8 output (compression achieved)."""
-        if result.metrics:
-            compression = result.metrics.get("total_compression", 0)
-            retention = result.metrics.get("retention_score", 0)
-            return bool(compression >= 1.0 and retention >= 0.5)
-        return True
+        """Validate Phase 8 output. E9: require a REAL compression (>1.0x, not the old
+        >=1.0 which greened a no-op) AND result.success (a rolled-back/corrupted run used to
+        pass), and reject empty metrics (used to return True)."""
+        if not result.success or not result.metrics:
+            return False
+        compression = result.metrics.get("total_compression", 0)
+        retention = result.metrics.get("retention_score", 0)
+        return bool(compression > 1.0 and retention >= 0.5)
