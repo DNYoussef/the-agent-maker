@@ -60,23 +60,28 @@ class FrankenMerge:
         """
         self.pattern = pattern
 
-    def merge(self, model_target: nn.Module, models_ref: List[nn.Module]) -> nn.Module:
+    def merge(self, models: List[nn.Module]) -> nn.Module:
         """
         Merge models using layer-wise selection.
 
+        Canonical signature: models[0] is the target (used only for the
+        compatibility check), models[1:] are the candidates that layers are
+        selected from.
+
         Args:
-            model_target: Target model (for reference, not used in selection)
-            models_ref: Reference models to select layers from (typically 3)
+            models: List of models to merge (at least 2)
 
         Returns:
             New model with selected layers
 
         Raises:
-            ValueError: If models have incompatible architectures
-            ValueError: If models_ref is empty
+            ValueError: If fewer than 2 models, or incompatible architectures
         """
-        if not models_ref:
-            raise ValueError("models_ref cannot be empty")
+        if len(models) < 2:
+            raise ValueError("FrankenMerge requires at least 2 models")
+
+        model_target = models[0]
+        models_ref = models[1:]
 
         # Verify all models have same architecture
         for i, model in enumerate(models_ref):

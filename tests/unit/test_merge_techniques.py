@@ -281,10 +281,10 @@ class TestDAREMerge:
 
         # Merge twice with different random states
         torch.manual_seed(42)
-        result1 = merger.merge(model_finetuned, model_base)
+        result1 = merger.merge([model_finetuned, model_base])
 
         torch.manual_seed(123)
-        result2 = merger.merge(model_finetuned, model_base)
+        result2 = merger.merge([model_finetuned, model_base])
 
         # Results should be different due to random masking
         for param_name in dict(result1.named_parameters()).keys():
@@ -306,7 +306,7 @@ class TestDAREMerge:
 
         torch.manual_seed(42)
         merger = DAREMerge(drop_rate=0.9)
-        result = merger.merge(model_finetuned, model_base)
+        result = merger.merge([model_finetuned, model_base])
 
         # Count non-zero deltas
         for param_name, base_param in model_base.named_parameters():
@@ -334,7 +334,7 @@ class TestDAREMerge:
 
         torch.manual_seed(42)
         merger = DAREMerge(drop_rate=0.9, rescale_factor=10.0)
-        result = merger.merge(model_finetuned, model_base)
+        result = merger.merge([model_finetuned, model_base])
 
         # Check that non-zero deltas are approximately 10× original
         for param_name, base_param in model_base.named_parameters():
@@ -363,7 +363,7 @@ class TestDAREMerge:
 
         merger = DAREMerge()
         with pytest.raises(ValueError, match="same architecture"):
-            merger.merge(model_finetuned, model_base)
+            merger.merge([model_finetuned, model_base])
 
 
 # ============================================================================
@@ -391,7 +391,7 @@ class TestTIESMerge:
             models_ref.append(model_ref)
 
         merger = TIESMerge(trim_percent=1.0)  # Keep all for testing
-        result = merger.merge(model_target, models_ref)
+        result = merger.merge([model_target] + models_ref)
 
         # Result should have positive deltas (2 votes positive, 1 negative)
         for param_name, target_param in model_target.named_parameters():
@@ -419,7 +419,7 @@ class TestTIESMerge:
             models_ref.append(model_ref)
 
         merger = TIESMerge(trim_percent=0.2)  # Keep top 20%
-        result = merger.merge(model_target, models_ref)
+        result = merger.merge([model_target] + models_ref)
 
         # Count non-zero deltas
         for param_name, target_param in model_target.named_parameters():
@@ -453,7 +453,7 @@ class TestTIESMerge:
             models_ref.append(model_ref)
 
         merger = TIESMerge(trim_percent=1.0)  # Keep all for testing
-        result = merger.merge(model_target, models_ref)
+        result = merger.merge([model_target] + models_ref)
 
         # Result should exist without errors
         assert result is not None
@@ -470,8 +470,8 @@ class TestTIESMerge:
     def test_ties_empty_models_raises(self, simple_model):
         """TIES raises ValueError for empty models_ref."""
         merger = TIESMerge()
-        with pytest.raises(ValueError, match="cannot be empty"):
-            merger.merge(simple_model, [])
+        with pytest.raises(ValueError, match="at least 2 models"):
+            merger.merge([simple_model])
 
     def test_ties_incompatible_models_raises(self, simple_model):
         """TIES raises ValueError for incompatible models."""
@@ -486,7 +486,7 @@ class TestTIESMerge:
 
         merger = TIESMerge()
         with pytest.raises(ValueError, match="same architecture"):
-            merger.merge(model_target, models_ref)
+            merger.merge([model_target] + models_ref)
 
 
 # ============================================================================
@@ -511,7 +511,7 @@ class TestFrankenMerge:
 
         # Test ABC pattern
         merger = FrankenMerge(pattern="abc")
-        result = merger.merge(model_target, models_ref)
+        result = merger.merge([model_target] + models_ref)
 
         # Result should exist
         assert result is not None
@@ -533,7 +533,7 @@ class TestFrankenMerge:
         models_ref = [copy.deepcopy(simple_model) for _ in range(3)]
 
         merger = FrankenMerge(pattern="abc")
-        result = merger.merge(model_target, models_ref)
+        result = merger.merge([model_target] + models_ref)
 
         # Check result has same architecture
         for param_name in dict(simple_model.named_parameters()).keys():
@@ -548,7 +548,7 @@ class TestFrankenMerge:
 
         random.seed(42)
         merger = FrankenMerge(pattern="abc")
-        result = merger.merge(model_target, models_ref)
+        result = merger.merge([model_target] + models_ref)
 
         # Just verify it completes without error
         assert result is not None
@@ -565,10 +565,10 @@ class TestFrankenMerge:
 
         random.seed(42)
         merger = FrankenMerge(pattern="random")
-        result1 = merger.merge(model_target, models_ref)
+        result1 = merger.merge([model_target] + models_ref)
 
         random.seed(123)
-        result2 = merger.merge(model_target, models_ref)
+        result2 = merger.merge([model_target] + models_ref)
 
         # Results should differ due to random selection
         differs = False
@@ -583,8 +583,8 @@ class TestFrankenMerge:
     def test_frankenmerge_empty_models_raises(self, simple_model):
         """FrankenMerge raises ValueError for empty models_ref."""
         merger = FrankenMerge()
-        with pytest.raises(ValueError, match="cannot be empty"):
-            merger.merge(simple_model, [])
+        with pytest.raises(ValueError, match="at least 2 models"):
+            merger.merge([simple_model])
 
     def test_frankenmerge_incompatible_models_raises(self, simple_model):
         """FrankenMerge raises ValueError for incompatible models."""
@@ -599,7 +599,7 @@ class TestFrankenMerge:
 
         merger = FrankenMerge()
         with pytest.raises(ValueError, match="same architecture"):
-            merger.merge(model_target, models_ref)
+            merger.merge([model_target] + models_ref)
 
     def test_frankenmerge_abba_pattern(self, simple_model):
         """FrankenMerge ABBA pattern produces symmetric selection."""
@@ -612,7 +612,7 @@ class TestFrankenMerge:
                 param.data += i * 0.1
 
         merger = FrankenMerge(pattern="abba")
-        result = merger.merge(model_target, models_ref)
+        result = merger.merge([model_target] + models_ref)
 
         # Just verify it completes without error
         assert result is not None
@@ -623,7 +623,7 @@ class TestFrankenMerge:
         models_ref = [copy.deepcopy(simple_model) for _ in range(3)]
 
         merger = FrankenMerge(pattern="fitness")
-        result = merger.merge(model_target, models_ref)
+        result = merger.merge([model_target] + models_ref)
 
         # Just verify it completes without error
         assert result is not None
@@ -635,7 +635,7 @@ class TestFrankenMerge:
 
         merger = FrankenMerge(pattern="unknown")  # type: ignore
         with pytest.raises(ValueError, match="Unknown pattern"):
-            merger.merge(model_target, models_ref)
+            merger.merge([model_target] + models_ref)
 
 
 # ============================================================================
@@ -659,7 +659,7 @@ class TestDFSMerge:
             models_ref.append(model)
 
         merger = DFSMerge()
-        result = merger.merge(model_target, models_ref)
+        result = merger.merge([model_target] + models_ref)
 
         # Result should exist and be valid
         assert result is not None
@@ -690,7 +690,7 @@ class TestDFSMerge:
             models_ref.append(model)
 
         merger = DFSMerge()
-        result = merger.merge(model_target, models_ref)
+        result = merger.merge([model_target] + models_ref)
 
         # Check that first parameter (stable) is close to 1.0
         first_param_name = list(dict(result.named_parameters()).keys())[0]
@@ -710,7 +710,7 @@ class TestDFSMerge:
                 param.data += i * 0.01
 
         merger = DFSMerge(epsilon=1e-8)
-        result = merger.merge(model_target, models_ref)
+        result = merger.merge([model_target] + models_ref)
 
         # Check result is valid
         assert result is not None
@@ -721,8 +721,8 @@ class TestDFSMerge:
     def test_dfs_empty_models_raises(self, simple_model):
         """DFS raises ValueError for empty models_ref."""
         merger = DFSMerge()
-        with pytest.raises(ValueError, match="cannot be empty"):
-            merger.merge(simple_model, [])
+        with pytest.raises(ValueError, match="at least 2 models"):
+            merger.merge([simple_model])
 
     def test_dfs_incompatible_models_raises(self, simple_model):
         """DFS raises ValueError for incompatible models."""
@@ -737,12 +737,12 @@ class TestDFSMerge:
 
         merger = DFSMerge()
         with pytest.raises(ValueError, match="same architecture"):
-            merger.merge(model_target, models_ref)
+            merger.merge([model_target] + models_ref)
 
     def test_dfs_identical_models(self, identical_models):
         """DFS handles identical models gracefully."""
         merger = DFSMerge()
-        result = merger.merge(identical_models[0], identical_models[1:])
+        result = merger.merge(identical_models)
 
         # Result should be identical to inputs (variance is zero, uniform weights used)
         # All models are identical, so weighted average = any individual model

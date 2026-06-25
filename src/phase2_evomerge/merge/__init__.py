@@ -80,10 +80,18 @@ class MergeTechniques:
 
         # Stage 2: Task Arithmetic (refines merged model)
         base_model = models[0]  # Use first model as base
-        stage2 = self.ties.merge(stage1, models) if bit1 else self.dare.merge(stage1, base_model)
+        stage2 = (
+            self.ties.merge([stage1] + models)
+            if bit1
+            else self.dare.merge([stage1, base_model])
+        )
 
         # Stage 3: Selection (final refinement)
-        stage3 = self.dfs.merge(stage2, models) if bit2 else self.frankenmerge.merge(stage2, models)
+        stage3 = (
+            self.dfs.merge([stage2] + models)
+            if bit2
+            else self.frankenmerge.merge([stage2] + models)
+        )
 
         # Tag with combo_id for tracking
         stage3.combo_id = combo_id
