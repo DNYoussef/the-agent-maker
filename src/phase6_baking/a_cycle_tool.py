@@ -233,22 +233,32 @@ class ACycleOptimizer:
         swe_bench_data_path: Optional[str] = None,
         max_eval_tasks: int = 20,
         allow_synthetic_eval: bool = False,
+        use_lora: bool = False,
     ):
         """
         Initialize A-cycle optimizer.
 
         Args:
             tool_prompts: Prompts to bake for tool use
-            lora_r: LoRA rank
-            lora_alpha: LoRA alpha
+            lora_r: accepted for API compat but UNUSED (full-parameter AdamW; no PEFT)
+            lora_alpha: accepted for API compat but UNUSED (full-parameter AdamW; no PEFT)
             num_epochs: Baking epochs
             learning_rate: Learning rate
             swe_bench_data_path: SWE-Bench data (None = synthetic tasks)
             max_eval_tasks: Tasks per default SWE-Bench evaluation
         """
         self.tool_prompts = tool_prompts
-        self.lora_r = lora_r
+        # P6 HONESTY: this optimizer does FULL-parameter AdamW fine-tuning - LoRA/PEFT is NOT
+        # wired (lora_r/lora_alpha were stored but never used). Fail loud if a caller expects
+        # LoRA rather than silently running full fine-tuning under a LoRA label.
+        if use_lora:
+            raise NotImplementedError(
+                "LoRA/PEFT is not wired in A-cycle baking; it does full-parameter AdamW. "
+                "Set use_lora=False (the default)."
+            )
+        self.lora_r = lora_r  # accepted for API compat but UNUSED (no PEFT)
         self.lora_alpha = lora_alpha
+        self.uses_lora = False
         self.num_epochs = num_epochs
         self.learning_rate = learning_rate
         self.swe_bench_data_path = swe_bench_data_path
