@@ -125,8 +125,9 @@ def calculate_accuracy(
             if input_ids.numel() == 0:
                 continue
 
-            # Forward pass
-            logits = model(input_ids)
+            # Forward pass. P2: model may return a ModelOutput/HF object (.logits) or tensor.
+            out = model(input_ids)
+            logits = getattr(out, "logits", out)
 
             # Calculate predictions
             predictions = torch.argmax(logits, dim=-1)
