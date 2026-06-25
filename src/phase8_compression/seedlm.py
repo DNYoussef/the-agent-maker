@@ -22,7 +22,9 @@ class SeedLMConfig:
 
     seed_bits: int = 8  # Bits per seed
     block_size: int = 64  # Weight block size
-    num_iterations: int = 100  # Seed search iterations
+    # P8: seed-search count. The least-squares fit does the work, so a few seeds suffice;
+    # 100 made compressing a large embedding take ~an hour (100 lstsq solves per block).
+    num_iterations: int = 16  # Seed search iterations
     latent_dim: int = (
         4  # P8: least-squares coefficients per block (k << block_size = real compression)
     )
@@ -67,7 +69,10 @@ class SeedLMCompressor:
         """
         self.config = config or SeedLMConfig()
         if self.config.preserve_layers is None:
-            self.config.preserve_layers = ["embed", "norm", "ln_", "layernorm", "bias"]
+            # P8: "emb" (not just "embed") so the big tied token_emb/lm_head weight is
+            # PRESERVED, not lossily seed-compressed - embeddings are sensitive lookup
+            # tables that compress poorly and dominated the runtime.
+            self.config.preserve_layers = ["emb", "norm", "ln_", "layernorm", "bias"]
 
     def compress(
         self, model: nn.Module, calibration_data: List[Any] = None, tokenizer: Any = None
