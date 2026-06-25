@@ -7,7 +7,10 @@ Simplifies W&B logging for Phase 3 (Step 1 & Step 2).
 from pathlib import Path
 from typing import Dict, Optional
 
-from cross_phase.monitoring.wandb_integration import WandBIntegration
+try:  # dual-mode import (top-level phase3_quietstar vs src.phase3_quietstar)
+    from cross_phase.monitoring.wandb_integration import WandBIntegration
+except ImportError:  # pragma: no cover - import-mode fallback
+    from ..cross_phase.monitoring.wandb_integration import WandBIntegration
 
 
 class WandBLogger:

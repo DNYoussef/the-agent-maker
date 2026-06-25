@@ -39,6 +39,18 @@ def test_seedlm_actually_compresses():
     assert ratio > 1.0, f"compression ratio must be > 1.0 (real compression); got {ratio:.2f}"
 
 
+def test_seedlm_compression_is_reproducible_across_instances():
+    # Codex-final: the seed SEARCH must be deterministic (was global RNG -> different seeds
+    # each run). Two fresh compressors with the same config must pick the same seeds/coeffs.
+    weight = torch.randn(4, 64)
+    a = SeedLMCompressor(SeedLMConfig(block_size=64, latent_dim=8, num_iterations=10))
+    b = SeedLMCompressor(SeedLMConfig(block_size=64, latent_dim=8, num_iterations=10))
+    sa, ca, _, _ = a._compress_tensor(weight)
+    sb, cb, _, _ = b._compress_tensor(weight)
+    assert torch.equal(sa, sb), "compression seed search must be reproducible"
+    assert torch.allclose(ca, cb), "compression coefficients must be reproducible"
+
+
 def test_seedlm_reconstruction_is_deterministic():
     torch.manual_seed(0)
     comp = SeedLMCompressor(SeedLMConfig(block_size=64, latent_dim=8, num_iterations=10))

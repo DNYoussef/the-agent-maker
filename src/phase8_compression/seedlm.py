@@ -28,6 +28,7 @@ class SeedLMConfig:
     latent_dim: int = (
         4  # P8: least-squares coefficients per block (k << block_size = real compression)
     )
+    search_seed: int = 1234  # deterministic seed for the seed-search RNG (reproducible compression)
     target_retention: float = 0.95  # Quality retention target
     preserve_layers: List[str] = None  # Layers to preserve
 
@@ -68,6 +69,8 @@ class SeedLMCompressor:
             config: SeedLM configuration
         """
         self.config = config or SeedLMConfig()
+        # Codex-final: deterministic RNG for the seed search so compression is reproducible.
+        self._rng = torch.Generator().manual_seed(int(self.config.search_seed))
         if self.config.preserve_layers is None:
             # P8: "emb" (not just "embed") so the big tied token_emb/lm_head weight is
             # PRESERVED, not lossily seed-compressed - embeddings are sensitive lookup
@@ -207,13 +210,20 @@ class SeedLMCompressor:
     def _fit_block(self, block: torch.Tensor) -> Tuple[int, torch.Tensor]:
         """P8: search seeds; for each, least-squares fit block ~ basis(seed) @ coeffs. Keep
         the (seed, coeffs) with the lowest residual. This is real compression+reconstruction,
-        replacing the old 'closest random vector' noise match."""
+        replacing the old 'closest random vector' noise match.
+
+        Codex-final: the fit runs on CPU (the seed RNG/basis are CPU; moving a CUDA block here
+        avoids a device mismatch in lstsq), and the seed SEARCH uses a deterministic per-
+        compressor generator so compression is reproducible (reconstruction always was)."""
+        block = block.detach().to("cpu")
         k = min(self.config.latent_dim, len(block))
         best_seed, best_coeffs, best_err = 0, torch.zeros(k), float("inf")
         target = block.unsqueeze(1)  # [B, 1]
         for _ in range(self.config.num_iterations):
-            seed = torch.randint(0, 2**self.config.seed_bits, (1,)).item()
-            basis = self._basis(seed, len(block), k)  # [B, k]
+            seed = int(
+                torch.randint(0, 2**self.config.seed_bits, (1,), generator=self._rng).item()
+            )
+            basis = self._basis(seed, len(block), k)  # [B, k] on CPU
             coeffs = torch.linalg.lstsq(basis, target).solution.squeeze(1)  # [k]
             err = (basis @ coeffs - block).pow(2).mean().item()
             if err < best_err:
@@ -364,13 +374,15 @@ class SeedLMCompressor:
             block_len = min(block_size, remaining)
             if block_len <= 0:
                 break
-            c = coeffs[i] if coeffs is not None else torch.zeros(self.config.latent_dim)
+            # Codex-final: keep the basis/coeffs math on CPU (the seed RNG is CPU); a CUDA
+            # scale would otherwise device-mismatch. Move to the target device at the end.
+            c = coeffs[i].cpu() if coeffs is not None else torch.zeros(self.config.latent_dim)
             k = min(c.numel(), block_len)
-            basis = self._basis(int(seed.item()), block_len, k)  # [block_len, k]
+            basis = self._basis(int(seed.item()), block_len, k)  # [block_len, k] on CPU
             blocks.append(basis @ c[:k])
 
         flat = torch.cat(blocks)[:flat_size] if blocks else torch.zeros(flat_size)
-        return (flat * scale).reshape(shape)
+        return (flat.to(scale.device) * scale).reshape(shape)
 
 
 __all__ = ["SeedLMCompressor", "SeedLMConfig", "SeedLMResult"]

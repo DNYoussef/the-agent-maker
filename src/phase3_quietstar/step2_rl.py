@@ -29,11 +29,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 
-# P3: absolute import (was `from ..cross_phase...` which fails when phase3_quietstar is
-# imported as a top-level package - the orchestrator does `from phase3_quietstar.step2_rl
-# import REINFORCETrainer`, so the relative-beyond-package import made RL un-importable and
-# the controller silently fell back).
-from cross_phase.mugrokfast import MuGrokConfig, MuonGrokfast
+# P3/Codex-final: dual-mode import. Absolute works when phase3_quietstar is top-level (the
+# orchestrator does `from phase3_quietstar.step2_rl import ...`); the relative fallback works
+# when imported as src.phase3_quietstar. The old `from ..cross_phase` only did the latter, so
+# RL was un-importable from the orchestrator and silently fell back.
+try:
+    from cross_phase.mugrokfast import MuGrokConfig, MuonGrokfast
+except ImportError:  # pragma: no cover - import-mode fallback
+    from ..cross_phase.mugrokfast import MuGrokConfig, MuonGrokfast
 from .architecture import QuietSTaRModel
 from .architecture.parallel_thought_generator import ParallelThoughtGenerator
 from .config import QuietSTaRConfig
