@@ -138,7 +138,10 @@ class Phase5Controller(PhaseController):
         )
 
     def _get_tokenizer(self) -> Any:
-        """Get tokenizer using unified utility (ISS-016)."""
+        """Use the tokenizer threaded from the prior phase (E0/E2); fall back to gpt2 only
+        when run standalone with no upstream tokenizer."""
+        if self.input_tokenizer is not None:
+            return self.input_tokenizer
         return get_tokenizer("gpt2")
 
     def validate_input(self, input_models: Optional[List[Any]] = None) -> bool:
