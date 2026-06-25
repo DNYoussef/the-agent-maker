@@ -33,9 +33,12 @@ class Phase2Controller(PhaseController):
                 EvolutionConfig.from_dict(self.config) if self.config else EvolutionConfig()
             )
 
-            # Create and run pipeline
+            # Create and run pipeline. E3: thread the tokenizer (E0 contract) so real-fitness
+            # evaluation is reachable; previously the controller never passed one.
             pipeline = Phase2Pipeline(config=evo_config)
-            champion = pipeline.run(input_models, session_id=self.session_id)
+            champion = pipeline.run(
+                input_models, session_id=self.session_id, tokenizer=self.input_tokenizer
+            )
 
             duration = time.time() - start_time
 
