@@ -78,6 +78,10 @@ class MuonGrokfast(Optimizer):
         self.config = config
 
         defaults = dict(
+            # G1: expose the standard 'lr' key so torch LR schedulers (CosineAnnealingLR/
+            # LinearLR) can read param_groups['lr'] instead of raising KeyError. The Muon
+            # step still uses muon_lr; 'lr' mirrors it for scheduler compatibility.
+            lr=muon_lr,
             muon_lr=muon_lr,
             fallback_lr=fallback_lr,
             grokfast_alpha=grokfast_alpha,

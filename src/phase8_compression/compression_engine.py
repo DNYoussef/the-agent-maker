@@ -11,6 +11,7 @@ Total: ~280x compression (100MB -> 0.4MB)
 Research: SeedLM, VPTQ, Hyper-Compression papers
 """
 
+import os
 import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
@@ -47,6 +48,9 @@ class CompressionConfig:
     run_benchmarks: bool = True
     benchmark_samples: int = 100
 
+    # G2: where to write the real compressed artifact (None = don't serialize, in-memory only)
+    artifacts_dir: Optional[str] = None
+
 
 @dataclass
 class Phase8Result:
@@ -63,6 +67,7 @@ class Phase8Result:
     duration: float
     error: Optional[str] = None
     rollback_stage: Optional[str] = None
+    artifact_path: Optional[str] = None  # G2: path to the serialized compressed state (if written)
 
 
 class CompressionEngine:
@@ -178,6 +183,7 @@ class CompressionEngine:
             "compression_ratio": result.compression_ratio,
             "retention": result.retention_score,
             "size_mb": result.compressed_size_mb,
+            "compressed_state": getattr(result, "compressed_state", None),  # G2: real encoded state
         }
 
         # Quality gate
@@ -205,6 +211,7 @@ class CompressionEngine:
             "compression_ratio": result.compression_ratio,
             "retention": result.retention_score,
             "size_mb": result.compressed_size_mb,
+            "compressed_state": getattr(result, "compressed_state", None),  # G2: real encoded state
         }
 
         # Quality gate
@@ -233,6 +240,7 @@ class CompressionEngine:
             "compression_ratio": result.compression_ratio,
             "retention": result.retention_score,
             "size_mb": result.compressed_size_mb,
+            "compressed_state": getattr(result, "compressed_state", None),  # G2: real encoded state
         }
 
         self.metrics["hyper"] = stage_results["hyper"]
@@ -249,9 +257,14 @@ class CompressionEngine:
         start_time,
     ) -> Phase8Result:
         """Compute final metrics, run benchmarks, and build the success result."""
-        # Calculate final metrics
-        final_size = self._get_model_size(current_model)
-        total_compression = original_size / max(final_size, 0.01)
+        # G2: measure the REAL compressed size from the kept stages' encoded byte counts, NOT
+        # _get_model_size(current_model) - current_model is the DEQUANTIZED reconstruction
+        # (~original size), so the old code always reported ~1.0x. Serialize the best kept
+        # state to disk so a real, smaller artifact exists.
+        final_size, artifact_path = self._real_compressed_size(
+            original_size, stage_results, rollback_stage
+        )
+        total_compression = original_size / max(final_size, 1e-6)
 
         # Calculate cumulative retention
         cumulative_retention = 1.0
@@ -298,7 +311,36 @@ class CompressionEngine:
             benchmark_results=benchmark_results,
             duration=duration,
             rollback_stage=rollback_stage,
+            artifact_path=artifact_path,
         )
+
+    def _real_compressed_size(self, original_size, stage_results, rollback_stage):
+        """G2: the real compressed size is the smallest ENCODED size among stages that PASSED
+        their retention gate (the kept compression), not the dequantized module. Serialize the
+        best kept compressed_state to disk (artifacts_dir) so a real, smaller artifact exists.
+        Returns (final_size_mb, artifact_path)."""
+        thresh = {
+            "seedlm": self.config.min_retention_seedlm,
+            "vptq": self.config.min_retention_vptq,
+            "hyper": 0.0,
+        }
+        best_size, best_state = original_size, None
+        for stage in ("seedlm", "vptq", "hyper"):
+            s = stage_results.get(stage)
+            if not s or stage == rollback_stage:
+                continue
+            if s.get("retention", 0.0) >= thresh.get(stage, 0.0) and s.get("size_mb", 0) > 0:
+                if s["size_mb"] < best_size:
+                    best_size = s["size_mb"]
+                    if s.get("compressed_state") is not None:
+                        best_state = s["compressed_state"]
+
+        artifact_path = None
+        if self.config.artifacts_dir and best_state is not None:
+            os.makedirs(self.config.artifacts_dir, exist_ok=True)
+            artifact_path = os.path.join(self.config.artifacts_dir, "phase8_compressed.pt")
+            torch.save(best_state, artifact_path)
+        return best_size, artifact_path
 
     def _get_model_size(self, model: nn.Module) -> float:
         """Calculate model size in MB."""
