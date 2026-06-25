@@ -108,6 +108,17 @@ class CompressedModel(nn.Module):
 
         self.is_compressed = True
 
+    @torch.no_grad()
+    def generate(self, *args, **kwargs):
+        """Usability: delegate generation to the wrapped base model (it runs with the
+        quantized weights). Without this the compressed model can't be used for inference."""
+        return self.base_model.generate(*args, **kwargs)
+
+    def get_input_embeddings(self):
+        """Delegate the HF-style embedding accessor (lets a CompressedModel flow into
+        downstream phases that read it, e.g. QuietSTaR)."""
+        return self.base_model.get_input_embeddings()
+
     def forward(self, *args, **kwargs):
         """
         Forward pass with quantized weights
