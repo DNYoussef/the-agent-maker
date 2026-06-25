@@ -723,6 +723,18 @@ rather than giving direct answers. Be encouraging and specific."""
 
         return None
 
+    @staticmethod
+    def _lm_loss(logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        """Next-token CE loss with ignore_index=-100 (the standard mask). E6: the old code
+        used ignore_index=0, which dropped token id 0 ('!' in gpt2) and trained on padding."""
+        shift_logits = logits[..., :-1, :].contiguous()
+        shift_labels = labels[..., 1:].contiguous()
+        return F.cross_entropy(
+            shift_logits.view(-1, shift_logits.size(-1)),
+            shift_labels.view(-1),
+            ignore_index=-100,
+        )
+
     def _train_step(
         self,
         model: nn.Module,
@@ -741,11 +753,16 @@ rather than giving direct answers. Be encouraging and specific."""
             hints_text = "\n".join(f"Hint: {h}" for h in question.hints)
             prompt = f"{prompt}\n{hints_text}"
 
+        # E6: train on prompt + the (successful) response, not the question alone - otherwise
+        # the model never sees the answer it is supposed to produce.
+        answer = result.get("response", "") if isinstance(result, dict) else ""
+        text = f"{prompt}\n{answer}" if answer else prompt
+
         try:
             # Tokenize
             if hasattr(tokenizer, "__call__"):
                 inputs = tokenizer(
-                    prompt, return_tensors="pt", max_length=512, truncation=True, padding=True
+                    text, return_tensors="pt", max_length=512, truncation=True, padding=True
                 )
             else:
                 inputs = {"input_ids": torch.tensor([[1, 2, 3, 4, 5]])}
@@ -765,14 +782,13 @@ rather than giving direct answers. Be encouraging and specific."""
 
                 # Compute loss if not provided
                 if "loss" not in dir():
-                    # Simple language modeling loss
-                    shift_logits = logits[..., :-1, :].contiguous()
-                    shift_labels = inputs["input_ids"][..., 1:].contiguous()
-                    loss = F.cross_entropy(
-                        shift_logits.view(-1, shift_logits.size(-1)),
-                        shift_labels.view(-1),
-                        ignore_index=0,
-                    )
+                    # E6: mask PADDING (via attention_mask) with -100, not token id 0 - the
+                    # old ignore_index=0 masked '!' (gpt2 id 0) and trained on pad tokens.
+                    labels = inputs["input_ids"].clone()
+                    attn = inputs.get("attention_mask")
+                    if attn is not None:
+                        labels[attn == 0] = -100
+                    loss = self._lm_loss(logits, labels)
             else:
                 return 0.0
 
