@@ -472,15 +472,23 @@ class SVFTrainer:
         """Extract and parameterize singular values from model."""
         self.sv_params = {}
         self.original_svs = {}
+        eligible = 0
+        last_err = None
 
         for name, module in model.named_modules():
             if isinstance(module, nn.Linear):
                 weight = module.weight.data
 
                 if weight.dim() == 2 and min(weight.shape) >= self.config.num_singular_values:
+                    eligible += 1
                     try:
-                        # SVD decomposition
-                        U, S, Vh = torch.linalg.svd(weight, full_matrices=False)
+                        # E8: SVD in fp32 - torch.linalg.svd raises on fp16/bf16 weights, and
+                        # the old bare except:continue silently skipped EVERY such layer (SVF
+                        # then reported success with nothing parameterized). Cast back after.
+                        orig_dtype = weight.dtype
+                        U, S, Vh = torch.linalg.svd(weight.float(), full_matrices=False)
+                        if orig_dtype != torch.float32:
+                            U, S, Vh = U.to(orig_dtype), S.to(orig_dtype), Vh.to(orig_dtype)
 
                         # Keep top singular values
                         num_sv = min(self.config.num_singular_values, len(S))
@@ -499,8 +507,16 @@ class SVFTrainer:
                         module._svf_U_rest = U[:, num_sv:] if num_sv < U.shape[1] else None
                         module._svf_Vh_rest = Vh[num_sv:, :] if num_sv < Vh.shape[0] else None
 
-                    except Exception:
+                    except Exception as e:
+                        last_err = e
                         continue
+
+        # E8: fail loud if SVF parameterized NOTHING - the old silent-skip let SVF "succeed"
+        # with zero trainable layers (e.g. every SVD failing on fp16).
+        if eligible > 0 and not self.sv_params:
+            raise RuntimeError(
+                f"SVF parameterized 0/{eligible} eligible Linear layers; last SVD error: {last_err}"
+            )
 
     def _svf_forward_step(  # noqa: C901
         self, model: nn.Module, batch: List[Dict], tokenizer: Any, device: torch.device
