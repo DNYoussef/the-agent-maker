@@ -215,7 +215,9 @@ class SeedLMCompressor:
         Codex-final: the fit runs on CPU (the seed RNG/basis are CPU; moving a CUDA block here
         avoids a device mismatch in lstsq), and the seed SEARCH uses a deterministic per-
         compressor generator so compression is reproducible (reconstruction always was)."""
-        block = block.detach().to("cpu")
+        # Codex-final: cast to fp32 too (not just CPU) - _basis is fp32, so an fp16/bf16
+        # block would dtype-mismatch in lstsq.
+        block = block.detach().to(device="cpu", dtype=torch.float32)
         k = min(self.config.latent_dim, len(block))
         best_seed, best_coeffs, best_err = 0, torch.zeros(k), float("inf")
         target = block.unsqueeze(1)  # [B, 1]
@@ -376,13 +378,18 @@ class SeedLMCompressor:
                 break
             # Codex-final: keep the basis/coeffs math on CPU (the seed RNG is CPU); a CUDA
             # scale would otherwise device-mismatch. Move to the target device at the end.
-            c = coeffs[i].cpu() if coeffs is not None else torch.zeros(self.config.latent_dim)
+            # fp32 on CPU to match _basis (avoids fp16/bf16 dtype mismatch in the matmul).
+            if coeffs is not None:
+                c = coeffs[i].to(device="cpu", dtype=torch.float32)
+            else:
+                c = torch.zeros(self.config.latent_dim)
             k = min(c.numel(), block_len)
-            basis = self._basis(int(seed.item()), block_len, k)  # [block_len, k] on CPU
+            basis = self._basis(int(seed.item()), block_len, k)  # [block_len, k] fp32 CPU
             blocks.append(basis @ c[:k])
 
         flat = torch.cat(blocks)[:flat_size] if blocks else torch.zeros(flat_size)
-        return (flat.to(scale.device) * scale).reshape(shape)
+        # restore the original device AND dtype (the weight may be fp16/bf16).
+        return (flat.to(scale.device) * scale).reshape(shape).to(scale.dtype)
 
 
 __all__ = ["SeedLMCompressor", "SeedLMConfig", "SeedLMResult"]

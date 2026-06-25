@@ -51,6 +51,17 @@ def test_seedlm_compression_is_reproducible_across_instances():
     assert torch.allclose(ca, cb), "compression coefficients must be reproducible"
 
 
+def test_seedlm_handles_fp16_weights():
+    # Codex re-verify: fp16/bf16 weights must not dtype-mismatch in lstsq (basis is fp32).
+    torch.manual_seed(0)
+    comp = SeedLMCompressor(SeedLMConfig(block_size=64, latent_dim=4, num_iterations=4))
+    weight = torch.randn(4, 64).half()
+    seeds, coeffs, scale, retention = comp._compress_tensor(weight)
+    recon = comp._reconstruct_from_seeds(seeds, scale, weight.shape, 64, coeffs)
+    assert recon.dtype == weight.dtype, "reconstruction must restore the original dtype"
+    assert torch.isfinite(recon.float()).all()
+
+
 def test_seedlm_reconstruction_is_deterministic():
     torch.manual_seed(0)
     comp = SeedLMCompressor(SeedLMConfig(block_size=64, latent_dim=8, num_iterations=10))
