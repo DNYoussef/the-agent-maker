@@ -98,7 +98,10 @@ class Phase3Controller(PhaseController):
         return enhanced_model, baked_model, rl_completed, anti_theater_results
 
     def _get_tokenizer(self) -> Any:
-        """Get tokenizer using unified utility (ISS-016)."""
+        """Use the tokenizer threaded from the prior phase (E0/E2); fall back to gpt2 only
+        when run standalone with no upstream tokenizer."""
+        if self.input_tokenizer is not None:
+            return self.input_tokenizer
         return get_tokenizer("gpt2")
 
     def _run_prompt_baking(self, model, tokenizer) -> None:
@@ -193,53 +196,35 @@ class Phase3Controller(PhaseController):
             return baked_model, False
 
     def _validate_anti_theater(self, model, tokenizer) -> Any:
-        """Validate model outputs are genuine, not theatrical."""
+        """Validate model outputs are genuine, not theatrical. E4: divergence + consistency
+        are REAL probes now (were hardcoded True / fake-hash); the unimplemented ablation
+        test is no longer reported as a pass; a model that cannot generate fails honestly
+        (we cannot prove genuineness, so we do not claim it)."""
         import torch
 
         print("  Running anti-theater validation...")
+        results = {"divergence_test": False, "consistency_test": False, "all_passed": False}
 
-        results = {
-            "divergence_test": True,
-            "ablation_test": True,
-            "consistency_test": True,
-            "all_passed": True,
-        }
+        if not hasattr(model, "generate"):
+            print("  Anti-theater validation: FAILED (model has no generate())")
+            return results
+
+        def _gen(text):
+            enc = tokenizer(text, return_tensors="pt", max_length=64, truncation=True, padding=True)
+            return model.generate(**enc, max_new_tokens=10, do_sample=False)[0].tolist()
 
         try:
-            # Test 1: Divergence - outputs should vary for different inputs
-            test_inputs = ["Hello", "Goodbye", "What is 2+2?", "Tell me a story"]
-            outputs = []
-
             model.eval()
             with torch.no_grad():
-                for text in test_inputs:
-                    enc = tokenizer(
-                        text, return_tensors="pt", max_length=64, truncation=True, padding=True
-                    )
-                    # Simple forward pass check
-                    if hasattr(model, "generate"):
-                        out = model.generate(**enc, max_new_tokens=10, do_sample=False)
-                        outputs.append(out[0].tolist())
-                    else:
-                        outputs.append([hash(text) % 1000])  # Fallback
+                test_inputs = ["Hello", "Goodbye", "What is 2+2?", "Tell me a story"]
+                outputs = [_gen(t) for t in test_inputs]
+                # Divergence: different inputs must produce different outputs.
+                results["divergence_test"] = len(set(str(o) for o in outputs)) > 1
+                # Consistency: the same input (greedy) must reproduce its output.
+                results["consistency_test"] = _gen(test_inputs[0]) == outputs[0]
 
-            # Check outputs are different
-            unique_outputs = len(set(str(o) for o in outputs))
-            results["divergence_test"] = unique_outputs > 1
-
-            # Test 2: Consistency - same input should give similar output
-            results["consistency_test"] = True  # Simplified
-
-            # Test 3: Ablation - model should degrade gracefully
-            results["ablation_test"] = True  # Simplified
-
-            results["all_passed"] = all(
-                [results["divergence_test"], results["ablation_test"], results["consistency_test"]]
-            )
-
-            status = "PASSED" if results["all_passed"] else "FAILED"
-            print(f"  Anti-theater validation: {status}")
-
+            results["all_passed"] = results["divergence_test"] and results["consistency_test"]
+            print(f"  Anti-theater validation: {'PASSED' if results['all_passed'] else 'FAILED'}")
         except Exception as e:
             print(f"  Anti-theater validation error: {e}")
             results["all_passed"] = False

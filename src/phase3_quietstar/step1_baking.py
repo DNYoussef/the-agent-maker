@@ -17,6 +17,7 @@ Training Flow:
 Duration: ~5 hours (5 epochs × 1 hour/epoch)
 """
 
+import copy
 import json
 
 # ISS-004: Secure checkpoint utilities
@@ -419,7 +420,9 @@ class PromptBakingTrainer:
             # Save best model
             if val_acc > best_acc:
                 best_acc = val_acc
-                best_model_state = self.model.state_dict()
+                # E4: deepcopy - raw state_dict() aliases live tensors, so later training
+                # corrupts the saved "best" and restore-best restores the latest weights.
+                best_model_state = copy.deepcopy(self.model.state_dict())
 
             # Check convergence
             if self.check_convergence(val_acc, strategy_accs):

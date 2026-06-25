@@ -526,7 +526,10 @@ class REINFORCETrainer:
                 if improvement > self.config.rl.min_improvement:
                     print(f"✅ Improvement: {improvement:.4f} (saving checkpoint)")
                     self.best_reward = avg_reward
-                    self.best_model_state = self.model.state_dict()
+                    # E4: deepcopy - state_dict() returns live tensor refs, so without a copy
+                    # later in-place training mutates the saved "best" and restore-best restores
+                    # the LATEST weights.
+                    self.best_model_state = copy.deepcopy(self.model.state_dict())
                     self.patience_counter = 0
                 else:
                     self.patience_counter += 1
