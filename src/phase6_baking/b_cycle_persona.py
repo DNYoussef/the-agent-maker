@@ -263,8 +263,12 @@ class BCycleOptimizer:
 
                     if hasattr(model, "generate"):
                         outputs = model.generate(**inputs, max_new_tokens=64, do_sample=False)
+                        # E7: score only the CONTINUATION, not prompt+completion. Decoding the
+                        # full sequence let trait words IN THE PROMPT fake-pass the persona test.
+                        prompt_len = inputs["input_ids"].shape[1]
+                        new_tokens = outputs[0][prompt_len:]
                         output_text = (
-                            tokenizer.decode(outputs[0], skip_special_tokens=True)
+                            tokenizer.decode(new_tokens, skip_special_tokens=True)
                             if hasattr(tokenizer, "decode")
                             else ""
                         )

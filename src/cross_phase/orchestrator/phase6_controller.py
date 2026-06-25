@@ -119,8 +119,9 @@ class Phase6Controller(PhaseController):
         return True
 
     def validate_output(self, result: PhaseResult) -> bool:
-        """Validate Phase 6 output (baking iterations completed)."""
-        if result.metrics:
-            iterations = result.metrics.get("total_iterations", 0)
-            return bool(iterations >= 1)
-        return True
+        """Validate Phase 6 output. E7: gate on result.success too - a failed bake with
+        total_iterations>=1 used to ship green."""
+        if not result.success:
+            return False
+        iterations = result.metrics.get("total_iterations", 0) if result.metrics else 0
+        return bool(iterations >= 1)
