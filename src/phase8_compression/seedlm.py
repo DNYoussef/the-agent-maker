@@ -22,7 +22,13 @@ class SeedLMConfig:
 
     seed_bits: int = 8  # Bits per seed
     block_size: int = 64  # Weight block size
-    num_iterations: int = 100  # Seed search iterations
+    # P8: seed-search count. The least-squares fit does the work, so a few seeds suffice;
+    # 100 made compressing a large embedding take ~an hour (100 lstsq solves per block).
+    num_iterations: int = 16  # Seed search iterations
+    latent_dim: int = (
+        4  # P8: least-squares coefficients per block (k << block_size = real compression)
+    )
+    search_seed: int = 1234  # deterministic seed for the seed-search RNG (reproducible compression)
     target_retention: float = 0.95  # Quality retention target
     preserve_layers: List[str] = None  # Layers to preserve
 
@@ -63,8 +69,13 @@ class SeedLMCompressor:
             config: SeedLM configuration
         """
         self.config = config or SeedLMConfig()
+        # Codex-final: deterministic RNG for the seed search so compression is reproducible.
+        self._rng = torch.Generator().manual_seed(int(self.config.search_seed))
         if self.config.preserve_layers is None:
-            self.config.preserve_layers = ["embed", "norm", "ln_", "layernorm", "bias"]
+            # P8: "emb" (not just "embed") so the big tied token_emb/lm_head weight is
+            # PRESERVED, not lossily seed-compressed - embeddings are sensitive lookup
+            # tables that compress poorly and dominated the runtime.
+            self.config.preserve_layers = ["emb", "norm", "ln_", "layernorm", "bias"]
 
     def compress(
         self, model: nn.Module, calibration_data: List[Any] = None, tokenizer: Any = None
@@ -99,17 +110,18 @@ class SeedLMCompressor:
                 compressed_state[name] = {"type": "preserved", "data": param.half()}
                 layer_stats[name] = {"compression": 1.0, "preserved": True}
             else:
-                # Compress via seed projection
-                seeds, scale, retention = self._compress_tensor(param)
+                # Compress via least-squares seed projection
+                seeds, coeffs, scale, retention = self._compress_tensor(param)
                 compressed_state[name] = {
                     "type": "seedlm",
                     "seeds": seeds,
+                    "coeffs": coeffs,
                     "scale": scale,
                     "shape": param.shape,
                     "block_size": self.config.block_size,
                 }
                 layer_stats[name] = {
-                    "compression": self._calculate_compression(param, seeds),
+                    "compression": self._calculate_compression(param, seeds, coeffs),
                     "retention": retention,
                     "preserved": False,
                 }
@@ -162,50 +174,63 @@ class SeedLMCompressor:
         num_blocks = (len(flat) + block_size - 1) // block_size
 
         seeds = []
+        coeffs = []
+        k = self.config.latent_dim
         for i in range(num_blocks):
             start = i * block_size
             end = min(start + block_size, len(flat))
             block = normalized[start:end]
 
-            # Find best seed for this block
-            best_seed, _best_error = self._find_best_seed(block)
+            # P8: fit the block by LEAST-SQUARES onto a seed-generated basis (real SeedLM),
+            # not the old random-noise nearest-match.
+            best_seed, best_coeffs = self._fit_block(block)
             seeds.append(best_seed)
+            # pad coeffs to k so they stack into a uniform [num_blocks, k] tensor
+            padded = torch.zeros(k)
+            padded[: best_coeffs.numel()] = best_coeffs
+            coeffs.append(padded)
 
         seeds_tensor = torch.tensor(seeds, dtype=torch.int64)
+        coeffs_tensor = torch.stack(coeffs) if coeffs else torch.zeros(0, k)
 
-        # Retention is reconstruction fidelity against the original tensor,
-        # not the internal normalized MAE proxy used during seed search.
-        reconstructed = self._reconstruct_from_seeds(seeds_tensor, scale, original_shape)
+        # Retention is reconstruction fidelity against the original tensor.
+        reconstructed = self._reconstruct_from_seeds(
+            seeds_tensor, scale, original_shape, block_size, coeffs_tensor
+        )
         retention = self._calculate_reconstruction_fidelity(tensor, reconstructed)
 
-        return seeds_tensor, scale, retention
+        return seeds_tensor, coeffs_tensor, scale, retention
 
-    def _find_best_seed(self, block: torch.Tensor) -> Tuple[int, float]:
-        """Find the best seed to approximate a block."""
-        best_seed = 0
-        best_error = float("inf")
+    def _basis(self, seed: int, block_len: int, k: int) -> torch.Tensor:
+        """Deterministic pseudo-random basis [block_len, k] generated from an integer seed."""
+        generator = torch.Generator()
+        generator.manual_seed(int(seed))
+        return torch.randn(block_len, k, generator=generator)
 
+    def _fit_block(self, block: torch.Tensor) -> Tuple[int, torch.Tensor]:
+        """P8: search seeds; for each, least-squares fit block ~ basis(seed) @ coeffs. Keep
+        the (seed, coeffs) with the lowest residual. This is real compression+reconstruction,
+        replacing the old 'closest random vector' noise match.
+
+        Codex-final: the fit runs on CPU (the seed RNG/basis are CPU; moving a CUDA block here
+        avoids a device mismatch in lstsq), and the seed SEARCH uses a deterministic per-
+        compressor generator so compression is reproducible (reconstruction always was)."""
+        # Codex-final: cast to fp32 too (not just CPU) - _basis is fp32, so an fp16/bf16
+        # block would dtype-mismatch in lstsq.
+        block = block.detach().to(device="cpu", dtype=torch.float32)
+        k = min(self.config.latent_dim, len(block))
+        best_seed, best_coeffs, best_err = 0, torch.zeros(k), float("inf")
+        target = block.unsqueeze(1)  # [B, 1]
         for _ in range(self.config.num_iterations):
-            # Try random seed
-            seed = torch.randint(0, 2**self.config.seed_bits, (1,)).item()
-
-            # Generate pseudo-random block from seed
-            generator = torch.Generator()
-            generator.manual_seed(seed)
-            generated = torch.randn(len(block), generator=generator)
-
-            # Normalize generated
-            if generated.abs().max() > 0:
-                generated = generated / generated.abs().max()
-
-            # Calculate error
-            error = (block - generated).abs().mean().item()
-
-            if error < best_error:
-                best_error = error
-                best_seed = seed
-
-        return best_seed, best_error
+            seed = int(
+                torch.randint(0, 2**self.config.seed_bits, (1,), generator=self._rng).item()
+            )
+            basis = self._basis(seed, len(block), k)  # [B, k] on CPU
+            coeffs = torch.linalg.lstsq(basis, target).solution.squeeze(1)  # [k]
+            err = (basis @ coeffs - block).pow(2).mean().item()
+            if err < best_err:
+                best_err, best_seed, best_coeffs = err, seed, coeffs
+        return best_seed, best_coeffs
 
     def _calculate_size(self, state_dict: Dict) -> float:
         """Calculate size of state dict in MB."""
@@ -240,15 +265,21 @@ class SeedLMCompressor:
                 # aspirational packed seed_bits size unless a packer exists.
                 seeds = data["seeds"]
                 total_bytes += self._seed_storage_bytes(seeds)
+                coeffs = data.get("coeffs")
+                if coeffs is not None:
+                    total_bytes += coeffs.numel() * 4  # fp32 least-squares coefficients
                 total_bytes += 4  # scale
                 total_bytes += 32  # shape metadata
 
         return total_bytes / (1024 * 1024)
 
-    def _calculate_compression(self, original: torch.Tensor, seeds: torch.Tensor) -> float:
-        """Calculate compression ratio for a layer."""
+    def _calculate_compression(
+        self, original: torch.Tensor, seeds: torch.Tensor, coeffs: Optional[torch.Tensor] = None
+    ) -> float:
+        """Calculate compression ratio for a layer: original fp32 vs (seeds + coeffs)."""
         original_bytes = original.numel() * 4  # FP32
-        compressed_bytes = self._seed_storage_bytes(seeds) + 36  # seeds + metadata
+        coeff_bytes = coeffs.numel() * 4 if coeffs is not None else 0  # fp32 coefficients
+        compressed_bytes = self._seed_storage_bytes(seeds) + coeff_bytes + 36  # + metadata
         return original_bytes / max(compressed_bytes, 1)
 
     def _seed_storage_bytes(self, seeds: torch.Tensor) -> int:
@@ -305,6 +336,7 @@ class SeedLMCompressor:
                     data["scale"],
                     data["shape"],
                     data.get("block_size"),
+                    data.get("coeffs"),
                 )
                 decompressed_state[name] = decompressed
 
@@ -317,9 +349,10 @@ class SeedLMCompressor:
         scale: torch.Tensor,
         shape: torch.Size,
         block_size: Optional[int] = None,
+        coeffs: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        """Decompress tensor from seeds."""
-        return self._reconstruct_from_seeds(seeds, scale, shape, block_size)
+        """Decompress tensor from seeds + least-squares coefficients."""
+        return self._reconstruct_from_seeds(seeds, scale, shape, block_size, coeffs)
 
     def _reconstruct_from_seeds(
         self,
@@ -327,8 +360,10 @@ class SeedLMCompressor:
         scale: torch.Tensor,
         shape: torch.Size,
         block_size: Optional[int] = None,
+        coeffs: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        """Reconstruct tensor data from stored seeds and metadata."""
+        """P8: reconstruct each block as basis(seed) @ coeffs (real seed-projection), not a
+        scaled random vector. coeffs is [num_blocks, k]."""
         flat_size = 1
         for s in shape:
             flat_size *= s
@@ -336,16 +371,25 @@ class SeedLMCompressor:
         block_size = block_size or self.config.block_size
         blocks = []
 
-        for seed in seeds:
-            generator = torch.Generator()
-            generator.manual_seed(seed.item())
-            block = torch.randn(block_size, generator=generator)
-            if block.abs().max() > 0:
-                block = block / block.abs().max()
-            blocks.append(block)
+        for i, seed in enumerate(seeds):
+            remaining = flat_size - i * block_size
+            block_len = min(block_size, remaining)
+            if block_len <= 0:
+                break
+            # Codex-final: keep the basis/coeffs math on CPU (the seed RNG is CPU); a CUDA
+            # scale would otherwise device-mismatch. Move to the target device at the end.
+            # fp32 on CPU to match _basis (avoids fp16/bf16 dtype mismatch in the matmul).
+            if coeffs is not None:
+                c = coeffs[i].to(device="cpu", dtype=torch.float32)
+            else:
+                c = torch.zeros(self.config.latent_dim)
+            k = min(c.numel(), block_len)
+            basis = self._basis(int(seed.item()), block_len, k)  # [block_len, k] fp32 CPU
+            blocks.append(basis @ c[:k])
 
-        flat = torch.cat(blocks)[:flat_size]
-        return (flat * scale).reshape(shape)
+        flat = torch.cat(blocks)[:flat_size] if blocks else torch.zeros(flat_size)
+        # restore the original device AND dtype (the weight may be fp16/bf16).
+        return (flat.to(scale.device) * scale).reshape(shape).to(scale.dtype)
 
 
 __all__ = ["SeedLMCompressor", "SeedLMConfig", "SeedLMResult"]

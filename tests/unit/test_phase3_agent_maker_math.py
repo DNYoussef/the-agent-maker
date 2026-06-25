@@ -51,18 +51,22 @@ def test_seedlm_compressed_size_charges_actual_seed_tensor_storage():
     assert layer_ratio == pytest.approx((40 * 4) / (10 * 8 + 36))
 
 
-def test_seedlm_retention_is_reconstruction_fidelity_not_normalized_mae_proxy(monkeypatch):
-    compressor = SeedLMCompressor(SeedLMConfig(seed_bits=8, block_size=4, num_iterations=1))
-    tensor = torch.tensor([[10.0, -3.0], [2.0, 7.0]])
+def test_seedlm_retention_is_reconstruction_fidelity_not_normalized_mae_proxy():
+    # P8 contract: _compress_tensor returns (seeds, coeffs, scale, retention) and retention is
+    # the real reconstruction fidelity (not a normalized-MAE proxy). Use a LOSSY config
+    # (latent_dim < block_size) so fidelity is genuinely < 1.
+    torch.manual_seed(0)
+    compressor = SeedLMCompressor(
+        SeedLMConfig(seed_bits=8, block_size=16, latent_dim=4, num_iterations=4)
+    )
+    tensor = torch.randn(4, 4)  # 16 elements -> one block of 16, k=4 < 16 (lossy)
 
-    monkeypatch.setattr(compressor, "_find_best_seed", lambda _block: (0, 0.0))
-
-    seeds, scale, retention = compressor._compress_tensor(tensor)
-    reconstructed = compressor._decompress_tensor(seeds, scale, tensor.shape)
+    seeds, coeffs, scale, retention = compressor._compress_tensor(tensor)
+    reconstructed = compressor._decompress_tensor(seeds, scale, tensor.shape, None, coeffs)
     expected = compressor._calculate_reconstruction_fidelity(tensor, reconstructed)
 
     assert retention == pytest.approx(expected)
-    assert retention < 0.99
+    assert retention < 0.99  # lossy: k (4) < block (16)
 
 
 def test_hypercompression_decode_uses_encoded_segment_lengths(monkeypatch):

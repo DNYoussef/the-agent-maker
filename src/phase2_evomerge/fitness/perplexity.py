@@ -70,7 +70,9 @@ def calculate_perplexity(
 
             # Forward pass with optional mixed precision
             with autocast_ctx:
-                logits = model(input_ids)
+                out = model(input_ids)
+                # P2: the model may return a ModelOutput/HF object (.logits) or a raw tensor.
+                logits = getattr(out, "logits", out)
 
                 # Calculate cross-entropy loss
                 loss = _compute_cross_entropy_loss(logits, labels)

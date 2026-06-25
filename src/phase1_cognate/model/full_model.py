@@ -23,6 +23,17 @@ from .titans_mag import TitansMAGBackbone
 from .trm_wrapper import TRMWrapper
 
 
+class ModelOutput(dict):
+    """A dict that also exposes its keys as attributes (HF-style). F0: lets downstream
+    phases use outputs.logits while existing callers keep using outputs["logits"]."""
+
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError as e:
+            raise AttributeError(name) from e
+
+
 class TRMTitansMAGModel(nn.Module):
     """
     Complete Phase 1 Model
@@ -134,7 +145,54 @@ class TRMTitansMAGModel(nn.Module):
             output["all_y"] = y_history
             output["all_z"] = z_history
 
-        return output
+        # F0: wrap so consumers can use output.logits (HF-style) AND output["logits"].
+        return ModelOutput(output)
+
+    @torch.no_grad()
+    def generate(
+        self,
+        input_ids: torch.Tensor,
+        max_new_tokens: int = 20,
+        max_length: Optional[int] = None,
+        do_sample: bool = False,
+        temperature: float = 1.0,
+        eos_token_id: Optional[int] = None,
+        **kwargs,
+    ) -> torch.Tensor:
+        """Autoregressive decoding. F0: gives Phase 2 fitness / Phase 3 anti-theater /
+        Phase 5-7 a real model.generate(). Greedy by default (do_sample=False). Windows the
+        most-recent max_seq_len tokens as context since forward() truncates internally.
+
+        max_length (HF semantics: TOTAL length) overrides max_new_tokens when given - real
+        callers pass it (e.g. benchmarks.py). Unsupported HF kwargs (num_beams, top_p, ...)
+        are ignored. Per-row EOS: a finished row keeps emitting eos and stops advancing."""
+        if do_sample and temperature <= 0:
+            raise ValueError("temperature must be > 0 when do_sample=True")
+        if max_length is not None:
+            max_new_tokens = max(0, max_length - input_ids.shape[1])
+
+        was_training = self.training
+        self.eval()
+        max_len = self.config.titans_config.max_seq_len
+        generated = input_ids
+        finished = torch.zeros(input_ids.shape[0], dtype=torch.bool, device=input_ids.device)
+        try:
+            for _ in range(max_new_tokens):
+                logits = self.forward(generated[:, -max_len:]).logits[:, -1, :]  # [batch, vocab]
+                if do_sample:
+                    probs = torch.softmax(logits / temperature, dim=-1)
+                    next_token = torch.multinomial(probs, num_samples=1)
+                else:
+                    next_token = logits.argmax(dim=-1, keepdim=True)
+                if eos_token_id is not None:
+                    next_token = next_token.masked_fill(finished.unsqueeze(1), eos_token_id)
+                    finished = finished | (next_token.squeeze(1) == eos_token_id)
+                generated = torch.cat([generated, next_token], dim=1)
+                if eos_token_id is not None and bool(finished.all()):
+                    break
+        finally:
+            self.train(was_training)  # exception-safe restore
+        return generated
 
     def _supervised_loss(
         self,

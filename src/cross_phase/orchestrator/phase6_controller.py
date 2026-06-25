@@ -85,6 +85,12 @@ class Phase6Controller(PhaseController):
             b_cycle_iterations=self.config.get("b_cycle_iterations", 5) if self.config else 5,
             half_bake_strength=self.config.get("half_bake_strength", 0.5) if self.config else 0.5,
             max_total_iterations=self.config.get("max_iterations", 20) if self.config else 20,
+            # Codex-final: a default pipeline run has no SWE-Bench data, so enable synthetic
+            # eval by default (else the A-cycle has nothing to evaluate and the phase fails).
+            swe_bench_data_path=self.config.get("swe_bench_data_path") if self.config else None,
+            allow_synthetic_eval=(
+                self.config.get("allow_synthetic_eval", True) if self.config else True
+            ),
         )
 
         # Run baking engine

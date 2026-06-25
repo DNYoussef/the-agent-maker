@@ -88,21 +88,22 @@ def test_gradient_flow(model: nn.Module, device: str = "cuda") -> Tuple[bool, Op
     model.to(device)
 
     try:
-        # Create dummy input
-        dummy_input = torch.randn(1, 512, dtype=torch.float32).to(device)
-        dummy_labels = torch.randint(0, 100, (1,), dtype=torch.long).to(device)
-
-        # Forward pass
-        if hasattr(model, "forward"):
-            output = model(dummy_input)
-        else:
+        if not hasattr(model, "forward"):
             raise ValueError("Model has no forward method")
 
-        # Calculate loss
-        if output.dim() > 1:
-            loss = torch.nn.functional.cross_entropy(output.view(-1, output.size(-1)), dummy_labels)
-        else:
-            loss = output.mean()
+        # P4: real models here are token-embedding LMs (long input_ids); the old float
+        # randn(1,512) crashed the embedding so the gate falsely reported failure for every
+        # LM. Try token ids first, fall back to a float feature vector for models that take
+        # continuous input (e.g. a bare nn.Linear).
+        try:
+            output = model(torch.randint(0, 10, (1, 16), dtype=torch.long).to(device))
+        except Exception:
+            output = model(torch.randn(1, 512, dtype=torch.float32).to(device))
+
+        # output may be a ModelOutput/HF object (.logits) or a raw tensor. Use a generic
+        # differentiable scalar so this works for any LM head.
+        logits = getattr(output, "logits", output)
+        loss = logits.float().mean()
 
         # Backward pass
         loss.backward()
