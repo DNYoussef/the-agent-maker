@@ -7,7 +7,7 @@ Simplifies W&B logging for Phase 3 (Step 1 & Step 2).
 from pathlib import Path
 from typing import Dict, Optional
 
-from ..cross_phase.monitoring.wandb_integration import WandBIntegration
+from cross_phase.monitoring.wandb_integration import WandBIntegration
 
 
 class WandBLogger:

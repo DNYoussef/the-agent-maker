@@ -182,7 +182,12 @@ class Phase3Controller(PhaseController):
                     device=device,
                 )
 
-                enhanced_model = trainer.train()
+                # P3: train() REQUIRES (train_dl, val_dl) and returns METRICS, not a model.
+                # The old `trainer.train()` raised TypeError (no dataloaders) -> silent
+                # fallback, so RL never ran. Build dataloaders and read the in-place model.
+                train_dl, val_dl = self._build_rl_dataloaders(tokenizer)
+                trainer.train(train_dl, val_dl, num_episodes=rl_episodes)
+                enhanced_model = trainer.model  # trained in place (best restored in train())
                 print("  Full RL training complete")
                 return enhanced_model, True
 
@@ -194,6 +199,42 @@ class Phase3Controller(PhaseController):
             print("  RL step skipped (enable_full_rl=False)")
             print("  Using baked model as output (RL training is compute-intensive)")
             return baked_model, False
+
+    def _build_rl_dataloaders(self, tokenizer):
+        """P3: small train/val dataloaders of tokenized reasoning prompts for the RL loop.
+        The controller used to pass none, so train() raised and RL silently fell back. Real
+        reasoning text (not random noise); swap in a real dataset for production runs."""
+        import torch
+        from torch.utils.data import DataLoader, Dataset
+
+        prompts = [
+            "Question: What is 2+2? Answer: Let's think step by step.",
+            "Question: A train goes 60 km in 1 hour; how far in 3 hours? Answer:",
+            "Question: What are the factors of 12? Answer: Step by step,",
+            "Question: Why is the sky blue? Answer: Reasoning:",
+        ]
+        seq_len = 64
+
+        def _ids(text):
+            enc = tokenizer(text, return_tensors="pt", max_length=seq_len, truncation=True)
+            ids = enc["input_ids"][0][:seq_len]
+            if ids.shape[0] < seq_len:  # pad to fixed length so default collate can stack
+                pad = torch.zeros(seq_len - ids.shape[0], dtype=ids.dtype)
+                ids = torch.cat([ids, pad])
+            return ids
+
+        class _DS(Dataset):
+            def __init__(self):
+                self.items = [{"input_ids": (i := _ids(t)), "labels": i.clone()} for t in prompts]
+
+            def __len__(self):
+                return len(self.items)
+
+            def __getitem__(self, idx):
+                return self.items[idx]
+
+        ds = _DS()
+        return DataLoader(ds, batch_size=2), DataLoader(ds, batch_size=2)
 
     def _validate_anti_theater(self, model, tokenizer) -> Any:
         """Validate model outputs are genuine, not theatrical. E4: divergence + consistency

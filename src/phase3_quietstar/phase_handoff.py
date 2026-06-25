@@ -17,7 +17,7 @@ from typing import Dict, Tuple
 # ISS-004: Secure checkpoint validation
 from safetensors.torch import load_file as safe_load_file
 
-from ..cross_phase.storage import ModelRegistry
+from cross_phase.storage import ModelRegistry
 
 
 def _secure_load_checkpoint_metadata(checkpoint_path: Path) -> Tuple[Dict, Dict, Dict]:

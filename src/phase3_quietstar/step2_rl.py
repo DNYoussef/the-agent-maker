@@ -29,7 +29,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 
-from ..cross_phase.mugrokfast import MuGrokConfig, MuonGrokfast
+# P3: absolute import (was `from ..cross_phase...` which fails when phase3_quietstar is
+# imported as a top-level package - the orchestrator does `from phase3_quietstar.step2_rl
+# import REINFORCETrainer`, so the relative-beyond-package import made RL un-importable and
+# the controller silently fell back).
+from cross_phase.mugrokfast import MuGrokConfig, MuonGrokfast
 from .architecture import QuietSTaRModel
 from .architecture.parallel_thought_generator import ParallelThoughtGenerator
 from .config import QuietSTaRConfig

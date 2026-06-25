@@ -37,7 +37,7 @@ from .wandb_logger import WandBLogger
 sys.path.insert(0, str(Path(__file__).parents[2]))
 from src.cross_phase.utils.checkpoint_utils import save_checkpoint as secure_save  # noqa: E402
 
-from ..cross_phase.mugrokfast import MuGrokConfig, MuonGrokfast  # noqa: E402
+from cross_phase.mugrokfast import MuGrokConfig, MuonGrokfast  # noqa: E402
 
 
 class ReasoningDataset(Dataset):
@@ -144,7 +144,7 @@ class PromptBakingTrainer:
 
     def _init_prompt_baker(self):
         """Initialize Prompt Baking system."""
-        from ..cross_phase.prompt_baking import PromptBaker
+        from cross_phase.prompt_baking import PromptBaker
 
         self.prompt_baker = PromptBaker(
             model=self.model,
