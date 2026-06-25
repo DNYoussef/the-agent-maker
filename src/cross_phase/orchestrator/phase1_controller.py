@@ -35,6 +35,7 @@ class Phase1Controller(PhaseController):
             artifacts={"models": [f"model_{s}" for s in self.SPECIALIZATIONS]},
             config=self.config,
             error=None,
+            tokenizer=tokenizer,  # E0: hand the tokenizer downstream (no more per-phase gpt2)
         )
 
     @staticmethod
