@@ -3,6 +3,7 @@ Pipeline Orchestrator
 Coordinates execution of all 8 phases with handoff validation
 """
 
+import os
 import time
 from datetime import datetime
 from typing import Any, List, Optional
@@ -145,12 +146,15 @@ class PipelineOrchestrator:
         return result, duration
 
     def _register_phase_model(self, phase_name: str, result: PhaseResult, duration: float) -> None:
-        """AGM-002: Register a phase's output model in the registry (if any)."""
+        """AGM-002: Register a phase's output model in the registry (only if it is REALLY
+        on disk). E1: previously defaulted to a phantom ./checkpoints/{phase}/model.safetensors
+        that no phase writes, so rollback pointed at a non-existent file. The pipeline is
+        in-memory; a phase must produce a real artifacts['model_path'] to be registered."""
         if result.model is None:
             return
-        model_path = result.artifacts.get(
-            "model_path", f"./checkpoints/{phase_name}/model.safetensors"
-        )
+        model_path = result.artifacts.get("model_path")
+        if not model_path or not os.path.exists(str(model_path)):
+            return  # in-memory handoff: nothing on disk to register (no phantom row)
         try:
             self.registry.register_model(
                 session_id=self.session_id,
@@ -291,9 +295,16 @@ class PipelineOrchestrator:
         """
         print(f"[rollback] Rolling back to Phase {phase_num}...")
 
-        # Load checkpoint from registry
+        # Load checkpoint from registry. get_model raises FileNotFoundError if nothing was
+        # registered (the in-memory pipeline registers only real on-disk checkpoints - E1).
         phase_name = f"phase{phase_num}"
         model_info = self.registry.get_model(session_id=self.session_id, phase_name=phase_name)
+        path = model_info.get("model_path")
+        if not path or not os.path.exists(str(path)):
+            raise FileNotFoundError(
+                f"No on-disk checkpoint for {phase_name}; this pipeline runs in-memory so "
+                f"there is nothing to roll back to (registered path: {path!r})."
+            )
 
         print(f"[OK] Loaded checkpoint from {model_info['created_at']}")
         print(f"   Model: {model_info['model_path']}")
