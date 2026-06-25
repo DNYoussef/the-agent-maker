@@ -21,7 +21,9 @@ class CompressedModel(nn.Module):
     Mode 1 (BitLinear Replacement - Recommended):
     - Replaces nn.Linear layers with BitLinear in-place
     - Automatic quantization during forward pass
-    - True 1.58-bit inference with hardware acceleration
+    - Ternary weights (1.58-bit information content) stored as int8 -
+      no bit-packing yet, so the real on-disk footprint is ~4x smaller
+      (fp32 -> int8 + fp16 scale), NOT the ~20x of packed 1.58-bit
     - Preserves model architecture and gradient flow
 
     Mode 2 (Legacy Quantization):
@@ -266,7 +268,11 @@ class CompressedModel(nn.Module):
                 if isinstance(module, BitLinear):
                     footprint = module.get_memory_footprint()
                     total_original += footprint["original_fp32"]
-                    total_quantized += footprint["quantized_1.58bit"]
+                    # int8 storage (1 byte/weight + fp16 scale) - ternary 1.58-bit
+                    # values are NOT bit-packed, so this is the honest int8 on-disk
+                    # size and the resulting ratio is ~4x, not the ~20x of packed
+                    # 1.58-bit.
+                    total_quantized += footprint["quantized_int8_bytes"]
                     num_bitlinear += 1
                 elif isinstance(module, nn.Module) and list(module.parameters(recurse=False)):
                     # Non-BitLinear modules stored in FP16 for dequantized output
@@ -279,6 +285,10 @@ class CompressedModel(nn.Module):
             return {
                 "is_compressed": True,
                 "mode": "bitlinear",
+                # Honest: ternary weights carry 1.58-bit of information but are
+                # stored as int8 (no bit-packing), so sizes/ratio reflect int8.
+                "storage_dtype": "int8",
+                "bit_packed": False,
                 "num_bitlinear_layers": num_bitlinear,
                 "layers_quantized": num_bitlinear,
                 "layers_preserved": 0,

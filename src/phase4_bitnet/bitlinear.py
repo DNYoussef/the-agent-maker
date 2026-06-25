@@ -230,10 +230,13 @@ class BitLinear(nn.Linear):
         if self.bias is not None:
             bias_size = self.bias.nelement() * 2  # FP16
 
+        # Weights are ternary (1.58 bits of information) but stored as int8 (1
+        # byte each) - there is no bit-packing yet, so the honest footprint is
+        # int8 storage, not packed 1.58-bit storage.
         return {
             "original_fp32": weight_fp32
             + (self.bias.nelement() * 4 if self.bias is not None else 0),
-            "quantized_1.58bit": weight_int8 + scale_fp16 + bias_size,
+            "quantized_int8_bytes": weight_int8 + scale_fp16 + bias_size,
             "compression_ratio": weight_fp32 / (weight_int8 + scale_fp16),
         }
 
