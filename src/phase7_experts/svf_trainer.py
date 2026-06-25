@@ -319,8 +319,11 @@ class SVFTrainer:
     Process:
     1. Decompose weight matrices via SVD
     2. Train only singular values (not vectors)
-    3. Use REINFORCE for optimization
-    4. Fall back to MuonGrokfast if REINFORCE unstable
+    3. Optimize singular values with AdamW (direct optimization) + an EMA reward baseline.
+
+    P7 HONESTY: a learned-policy REINFORCE path (config.use_policy_network) is NOT
+    implemented - it was dead config, so setting it True silently did direct AdamW anyway.
+    It now fails loud. The default (use_policy_network=False) is honest direct optimization.
 
     Benefits:
     - Extremely parameter efficient
@@ -336,6 +339,11 @@ class SVFTrainer:
             config: SVF configuration
         """
         self.config = config or SVFConfig()
+        if self.config.use_policy_network:
+            raise NotImplementedError(
+                "use_policy_network (learned-policy REINFORCE) is not implemented; SVF does "
+                "direct AdamW optimization. Set use_policy_network=False (the default)."
+            )
         self.sv_params: Dict[str, nn.Parameter] = {}
         self.original_svs: Dict[str, torch.Tensor] = {}
 
