@@ -178,14 +178,15 @@ class BitLinear(nn.Linear):
             - scale_factor: FP32 per-channel scales
             - bias: FP16 bias (if present)
         """
-        # Quantize weights
-        w_quant = self.weight_quant(self.weight)
-
         # Calculate scale factors
         alpha = self.weight.abs().mean(dim=-1, keepdim=True).clamp_(min=1e-8)
 
-        # Convert to int8 for storage
-        w_int8 = w_quant.to(torch.int8)
+        # E5: store the ternary CODE {-1,0,+1}, NOT the scaled value. weight_quant returns
+        # alpha*sign (a small float ~0.02); .to(int8) on that truncated EVERY weight to 0
+        # (all-zero quantized weights) and load then double-scaled. sign() recovers the code;
+        # dequant = alpha * code on load.
+        w_scaled = self.weight_quant(self.weight)
+        w_int8 = torch.sign(w_scaled).to(torch.int8)
 
         return {
             "quantized_weight": w_int8,
