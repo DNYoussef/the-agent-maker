@@ -243,29 +243,33 @@ def test_svf_training_fails_closed_when_all_samples_error():
     assert "No SVF training samples" in result.metrics["error"]
 
 
-def test_sliding_window_attention_does_not_materialize_full_score_matrix(monkeypatch):
+def test_sliding_window_attention_is_vectorized_and_matches_per_token_reference():
+    # Wave-2 efficiency CONTRACT CHANGE (was: assert no full [b,h,s,s] matmul / per-token
+    # loop). SWA was vectorized into a single masked softmax: the old per-token loop kept
+    # score memory O(s*w) but built one autograd node per position - the real activation-
+    # memory hog (measured: a 222M b4/s256 train step went 14.4 GB OOM -> 5.0 GB after
+    # vectorizing). The vectorized path materializes a dense [b,h,s,s] score matrix
+    # (O(s^2)); that is a documented ceiling for very long seq, and a banded/flash kernel
+    # is deferred Wave-2 work. This test now guards the property that matters - CORRECTNESS
+    # (vectorised == the per-token windowed-causal reference) - not the old implementation.
     seq_len = 16
-    attention = SlidingWindowAttention(d_model=8, n_heads=2, window=4, dropout=0.0)
-    recorded_result_shapes = []
-    original_matmul = torch.matmul
-
-    def recording_matmul(left, right):
-        result = original_matmul(left, right)
-        if left.dim() == 4 and right.dim() == 4:
-            recorded_result_shapes.append(tuple(result.shape))
-        return result
-
-    monkeypatch.setattr(torch, "matmul", recording_matmul)
-
+    attention = SlidingWindowAttention(d_model=8, n_heads=2, window=4, dropout=0.0).eval()
     q = torch.randn(1, 2, seq_len, 4)
     k = torch.randn(1, 2, seq_len, 4)
     v = torch.randn(1, 2, seq_len, 4)
 
     output = attention._sliding_window_attn(q, k, v, mask=None)
 
+    wh = attention.window // 2
+    ref = torch.zeros_like(q)
+    for pos in range(seq_len):
+        start = max(0, pos - wh)
+        end = pos + 1  # causal default
+        sc = (q[:, :, pos : pos + 1, :] @ k[:, :, start:end, :].transpose(-2, -1)) * attention.scale
+        ref[:, :, pos : pos + 1, :] = sc.softmax(dim=-1) @ v[:, :, start:end, :]
+
     assert output.shape == q.shape
-    assert (1, 2, seq_len, seq_len) not in recorded_result_shapes
-    assert all(shape[-2] == 1 for shape in recorded_result_shapes)
+    assert torch.allclose(output, ref, atol=1e-5), f"max diff {(output - ref).abs().max().item()}"
 
 
 def test_thought_injector_is_reentrant_without_instance_last_injection_state():

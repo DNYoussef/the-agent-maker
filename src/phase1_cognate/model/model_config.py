@@ -46,6 +46,9 @@ class TitansMAGConfig:
     dropout: float = 0.1
     attention_dropout: float = 0.1
 
+    # Recompute layer activations in backward to save memory (set from Phase1Config).
+    gradient_checkpointing: bool = True
+
     def __post_init__(self) -> None:
         """Validate configuration"""
         assert self.d_model % self.n_heads == 0, (
@@ -202,6 +205,10 @@ class Phase1Config:
         if self.specialization:
             # Override ACT threshold (the one specialization knob that is wired).
             self.act_config.halt_threshold = self.act_thresholds[self.specialization]
+        # Propagate the checkpointing flag to the backbone config at construction. (If you
+        # mutate either flag after this, set titans_config.gradient_checkpointing too - the
+        # backbone reads that one.)
+        self.titans_config.gradient_checkpointing = self.gradient_checkpointing
 
     def get_seed(self) -> int:
         """Get random seed for this specialization"""

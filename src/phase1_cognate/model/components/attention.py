@@ -10,7 +10,6 @@ from typing import Optional
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class SlidingWindowAttention(nn.Module):
@@ -90,97 +89,60 @@ class SlidingWindowAttention(nn.Module):
         self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: Optional[torch.Tensor]
     ) -> torch.Tensor:
         """
-        Efficient Sliding Window Attention (ISS-026).
+        Vectorised banded(-causal) attention. Same windowed attention the old per-token
+        Python loop computed, but as a single masked softmax. Position i attends to keys
+        j with i-window_half <= j <= i (causal) or |i-j| <= window_half (bidirectional).
 
-        Creates a band diagonal mask where each position can only attend
-        to positions within the window. O(n*w) effective complexity.
+        HONEST on the win: scores/attn are DENSE [b,h,s,s] (O(s^2) memory), so this is NOT
+        asymptotically O(s*window) - a true banded/flash kernel is future work. The large
+        real-world saving is that the loop built one autograd node per position (the
+        activation-memory hog); one fused op replaces seq of them. Eval outputs match the
+        windowed attention exactly; in training, attention dropout is applied over the
+        dense weights (same rate, different random pattern than the per-slice loop -
+        dropout is random regardless), so equivalence is asserted in eval / dropout=0.
 
         Args:
-            q: Query tensor [batch, n_heads, seq_len, head_dim]
-            k: Key tensor [batch, n_heads, seq_len, head_dim]
-            v: Value tensor [batch, n_heads, seq_len, head_dim]
-            mask: Optional additional mask
+            q, k, v: [batch, n_heads, seq_len, head_dim]
+            mask: optional [seq,seq] / [batch,seq,seq] / [batch,heads,seq,seq]
 
         Returns:
             Attention output [batch, n_heads, seq_len, head_dim]
         """
-        batch, n_heads, seq_len, head_dim = q.shape
-        window_half = self.window // 2
-        output = torch.zeros(batch, n_heads, seq_len, head_dim, device=q.device, dtype=q.dtype)
+        batch, n_heads, seq_len, _ = q.shape
+        wh = self.window // 2
+        scores = torch.matmul(q, k.transpose(-2, -1)) * self.scale  # [b,h,s,s]
 
-        for pos in range(seq_len):
-            start = max(0, pos - window_half)
-            # Causal: attend only up to and including the current position (no future).
-            # Bidirectional: also attend to the next window_half tokens.
-            end = pos + 1 if self.causal else min(seq_len, pos + window_half + 1)
+        i = torch.arange(seq_len, device=q.device)[:, None]
+        j = torch.arange(seq_len, device=q.device)[None, :]
+        allow = (j <= i) & (j >= i - wh) if self.causal else ((j - i).abs() <= wh)
+        allow = allow[None, None]  # [1,1,s,s]
+        if mask is not None:
+            allow = allow & self._mask_allow(mask, batch, n_heads, seq_len)
 
-            q_pos = q[:, :, pos : pos + 1, :]
-            k_local = k[:, :, start:end, :]
-            v_local = v[:, :, start:end, :]
+        scores = scores.masked_fill(~allow, float("-inf"))
+        attn = torch.softmax(scores, dim=-1)
+        attn = torch.nan_to_num(attn, nan=0.0)  # a fully-masked row -> 0 (self is always allowed)
+        attn = self.dropout(attn)
+        return torch.matmul(attn, v)
 
-            scores = torch.matmul(q_pos, k_local.transpose(-2, -1)) * self.scale
-
-            if mask is not None:
-                local_mask = self._slice_attention_mask(mask, pos, start, end, batch, n_heads)
-                scores = scores.masked_fill(local_mask == 0, float("-inf"))
-
-            attn_weights = F.softmax(scores, dim=-1)
-            attn_weights = torch.nan_to_num(attn_weights, nan=0.0)
-            attn_weights = self.dropout(attn_weights)
-
-            output[:, :, pos : pos + 1, :] = torch.matmul(attn_weights, v_local)
-
-        return output
-
-    def _slice_attention_mask(
-        self,
-        mask: torch.Tensor,
-        position: int,
-        start: int,
-        end: int,
-        batch: int,
-        n_heads: int,
+    def _mask_allow(
+        self, mask: torch.Tensor, batch: int, n_heads: int, seq_len: int
     ) -> torch.Tensor:
-        """Return the mask slice for one query position and local key window."""
+        """Boolean 'may attend' tensor broadcastable to [batch, n_heads, seq, seq]."""
         if mask.dim() == 2:
             # A 2-D mask must be [seq, seq]. A non-square 2-D mask is almost certainly a
-            # [batch, seq] key-padding mask, which would be silently mis-sliced here;
-            # reject it with a clear message instead (Codex #1).
+            # [batch, seq] key-padding mask, which would broadcast wrong; reject it (Codex #1).
             if mask.shape[0] != mask.shape[1]:
                 raise ValueError(
                     f"2-D attention mask must be square [seq, seq]; got {tuple(mask.shape)}. "
                     "Supported shapes: [seq, seq], [batch, seq, seq], [batch, heads, seq, seq] "
                     "(a [batch, seq] key-padding mask is not supported - broadcast it to one of these)."
                 )
-            local = mask[position : position + 1, start:end]
-            return local.view(1, 1, 1, end - start)
+            return (mask != 0)[None, None]
         if mask.dim() == 3:
-            local = mask[:, position : position + 1, start:end]
-            return local.view(batch, 1, 1, end - start)
+            return (mask != 0)[:, None]
         if mask.dim() == 4:
-            return mask[:, :, position : position + 1, start:end]
-
+            return mask != 0
         raise ValueError(
             "mask must have shape [seq, seq], [batch, seq, seq], or [batch, heads, seq, seq]"
         )
-
-    def _create_sliding_window_mask(
-        self, seq_len: int, window_half: int, device: torch.device
-    ) -> torch.Tensor:
-        """
-        Create sliding window mask (ISS-026).
-
-        Args:
-            seq_len: Sequence length
-            window_half: Half of the window size
-            device: Device to create tensor on
-
-        Returns:
-            Boolean mask [seq_len, seq_len] where True = can attend
-        """
-        # Create position indices
-        positions = torch.arange(seq_len, device=device)
-        # Distance matrix: |i - j|
-        distance = (positions.unsqueeze(0) - positions.unsqueeze(1)).abs()
-        # Mask: True where distance <= window_half
-        return distance <= window_half
