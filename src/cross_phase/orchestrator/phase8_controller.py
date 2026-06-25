@@ -108,9 +108,11 @@ class Phase8Controller(PhaseController):
         return True
 
     def validate_output(self, result: PhaseResult) -> bool:
-        """Validate Phase 8 output (compression achieved)."""
-        if result.metrics:
-            compression = result.metrics.get("total_compression", 0)
-            retention = result.metrics.get("retention_score", 0)
-            return bool(compression >= 1.0 and retention >= 0.5)
-        return True
+        """Validate Phase 8 output. E9: require a REAL compression (>1.0x, not the old
+        >=1.0 which greened a no-op) AND result.success (a rolled-back/corrupted run used to
+        pass), and reject empty metrics (used to return True)."""
+        if not result.success or not result.metrics:
+            return False
+        compression = result.metrics.get("total_compression", 0)
+        retention = result.metrics.get("retention_score", 0)
+        return bool(compression > 1.0 and retention >= 0.5)
