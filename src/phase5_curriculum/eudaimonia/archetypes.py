@@ -458,14 +458,14 @@ class ArchetypeCouncil:
 
         return guidances
 
-    def _normalized_weights(
-        self, guidances: List[ArchetypeGuidance]
-    ) -> Dict[ArchetypeType, float]:
+    def _normalized_weights(self, guidances: List[ArchetypeGuidance]) -> Dict[ArchetypeType, float]:
         """Weights for the archetypes present, normalized to sum to 1.0.
 
         Falls back to equal voice if no usable weights are configured.
         """
-        raw = {g.archetype: max(0.0, self.archetype_weights.get(g.archetype, 0.0)) for g in guidances}
+        raw = {
+            g.archetype: max(0.0, self.archetype_weights.get(g.archetype, 0.0)) for g in guidances
+        }
         total = sum(raw.values())
         if total <= 0:
             equal = 1.0 / len(guidances) if guidances else 0.0

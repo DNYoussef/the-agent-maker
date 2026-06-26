@@ -18,12 +18,7 @@ halting Linear weight received a real (non-None, non-zero) gradient.
 import torch
 
 from phase1_cognate.model.full_model import TRMTitansMAGModel
-from phase1_cognate.model.model_config import (
-    ACTConfig,
-    Phase1Config,
-    TitansMAGConfig,
-    TRMConfig,
-)
+from phase1_cognate.model.model_config import ACTConfig, Phase1Config, TitansMAGConfig, TRMConfig
 
 
 def _tiny_config() -> Phase1Config:
@@ -67,7 +62,9 @@ def test_act_halting_weight_receives_gradient():
     w = model.act_head.w_halt.weight
     assert w.grad is not None, "act_head.w_halt.weight.grad is None: halting param gets no gradient"
     gnorm = w.grad.abs().sum().item()
-    assert gnorm > 0.0, f"act_head.w_halt.weight.grad is all-zero (sum={gnorm}): halting never learns"
+    assert (
+        gnorm > 0.0
+    ), f"act_head.w_halt.weight.grad is all-zero (sum={gnorm}): halting never learns"
 
 
 def test_act_loss_is_differentiable_and_nonconstant():
@@ -88,6 +85,6 @@ def test_act_loss_is_differentiable_and_nonconstant():
     model.zero_grad(set_to_none=True)
     loss_act.backward()
     g = model.act_head.w_halt.weight.grad
-    assert g is not None and g.abs().sum().item() > 0.0, (
-        "loss_act does not propagate gradient to the halting Linear"
-    )
+    assert (
+        g is not None and g.abs().sum().item() > 0.0
+    ), "loss_act does not propagate gradient to the halting Linear"

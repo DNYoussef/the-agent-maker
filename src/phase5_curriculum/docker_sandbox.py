@@ -149,9 +149,7 @@ class DockerSandbox:
         to the daemon, so a zero exit code means we can actually run containers.
         """
         try:
-            result = subprocess.run(
-                ["docker", "info"], capture_output=True, text=True, timeout=10
-            )
+            result = subprocess.run(["docker", "info"], capture_output=True, text=True, timeout=10)
             if result.returncode != 0:
                 logger.warning("Docker daemon not reachable (docker info failed).")
             return result.returncode == 0

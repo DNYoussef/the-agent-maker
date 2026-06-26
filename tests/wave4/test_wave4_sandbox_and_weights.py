@@ -20,34 +20,24 @@ Finding 2 -- dead learned weights.
     averaged vectors with equal ``1/N`` weight, ignoring any learned weights.
     The fix wires learned weights into both scoring paths.
 """
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
-
-from phase5_curriculum.docker_sandbox import (
-    DockerSandbox,
-    ExecutionResult,
-    Language,
-)
-from phase5_curriculum.training_loop import CurriculumTrainingLoop
-from phase5_curriculum.curriculum_generator import Question
-from phase5_curriculum.eudaimonia.rules import (
-    EudaimoniaRuleSystem,
-    RuleType,
-    VirtueWeightOptimizer,
-)
-from phase5_curriculum.eudaimonia.archetypes import (
+from src.phase5_curriculum.curriculum_generator import Question
+from src.phase5_curriculum.docker_sandbox import DockerSandbox, ExecutionResult
+from src.phase5_curriculum.eudaimonia.archetypes import (
     ArchetypeCouncil,
     ArchetypeType,
     ArchetypeWeightLearner,
 )
-
+from src.phase5_curriculum.eudaimonia.rules import (
+    EudaimoniaRuleSystem,
+    RuleType,
+    VirtueWeightOptimizer,
+)
+from src.phase5_curriculum.training_loop import CurriculumTrainingLoop
 
 # ---------------------------------------------------------------------------
 # Finding 1: DockerSandbox <-> training_loop interface
 # ---------------------------------------------------------------------------
+
 
 def test_sandbox_exposes_sync_interface_with_check():
     """The consumer needs a sync ``run_sync`` returning a result with ``check``.
@@ -111,6 +101,7 @@ def test_training_loop_can_drive_sandbox_interface():
 # Finding 2a: VirtueWeightOptimizer / EudaimoniaRuleSystem weights are live
 # ---------------------------------------------------------------------------
 
+
 def test_rule_weights_affect_overall_score():
     """Custom virtue weights must change the overall eudaimonia score.
 
@@ -133,9 +124,9 @@ def test_rule_weights_affect_overall_score():
     skewed_system = EudaimoniaRuleSystem(weights=skewed)
     skewed_score = skewed_system.assess(action, context).overall_score
 
-    assert abs(skewed_score - default_score) > 1e-6, (
-        "weights had no effect on scoring -- they are still dead"
-    )
+    assert (
+        abs(skewed_score - default_score) > 1e-6
+    ), "weights had no effect on scoring -- they are still dead"
     # Weighting the violated rule heavily must lower the score.
     assert skewed_score < default_score
 
@@ -165,6 +156,7 @@ def test_optimizer_output_feeds_scoring():
 # ---------------------------------------------------------------------------
 # Finding 2b: ArchetypeWeightLearner / ArchetypeCouncil weights are live
 # ---------------------------------------------------------------------------
+
 
 def test_archetype_weights_affect_synthesis():
     """Council weights must change the synthesized averaged_vector.
@@ -215,9 +207,7 @@ def test_check_rejects_substring_and_superset_fakepass():
 
     expected '4' must NOT pass stdout '42'; a solution that prints multiple
     answers must not match any single expected value by containment."""
-    r = ExecutionResult(
-        success=True, stdout="42\n", stderr="", exit_code=0, execution_time_ms=1.0
-    )
+    r = ExecutionResult(success=True, stdout="42\n", stderr="", exit_code=0, execution_time_ms=1.0)
     assert r.check(expected="4") is False, "substring fake-pass ('4' in '42')"
 
     multi = ExecutionResult(

@@ -32,18 +32,10 @@ thought-sampling policy (base_model), and that it scales with the reward /
 advantage -- the defining property the CE-rescaling lacked.
 """
 
-import os
-import sys
 from types import SimpleNamespace
 
-import pytest
 import torch
 import torch.nn as nn
-
-REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-for p in (REPO, os.path.join(REPO, "src")):
-    if p not in sys.path:
-        sys.path.insert(0, p)
 
 from src.phase3_quietstar.architecture import QuietSTaRModel
 from src.phase3_quietstar.config import QuietSTaRConfig
@@ -164,9 +156,9 @@ def test_reward_enters_as_multiplicative_coefficient():
 
     assert g1.abs().sum().item() > 0.0
     # grad(advantage=3) == 3 * grad(advantage=1): pure score-function scaling.
-    assert torch.allclose(g3, 3.0 * g1, rtol=1e-4, atol=1e-6), (
-        "policy gradient does not scale with reward/advantage -> not REINFORCE"
-    )
+    assert torch.allclose(
+        g3, 3.0 * g1, rtol=1e-4, atol=1e-6
+    ), "policy gradient does not scale with reward/advantage -> not REINFORCE"
 
 
 def test_train_episode_wires_real_reinforce(monkeypatch):

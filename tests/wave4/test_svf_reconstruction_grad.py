@@ -23,16 +23,10 @@ Two behavioral guarantees are pinned here:
       and an optimizer step must actually change the singular values.
 """
 
-import sys
-from pathlib import Path
-
 import torch
 import torch.nn as nn
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
-
-from src.phase7_experts.svf_trainer import SVFTrainer, SVFConfig
+from src.phase7_experts.svf_trainer import SVFConfig, SVFTrainer
 
 
 class TinyLM(nn.Module):
@@ -80,9 +74,9 @@ def test_svd_roundtrip_identity_truncated_and_full():
             assert module._svf_S_original is not None, "expected a remainder block"
             rec = _reconstruct(module, t1.sv_params[name])
             assert rec.shape == module.weight.shape
-            assert torch.allclose(rec, module.weight.data, atol=1e-5), (
-                f"{name}: truncated round-trip is not identity"
-            )
+            assert torch.allclose(
+                rec, module.weight.data, atol=1e-5
+            ), f"{name}: truncated round-trip is not identity"
 
     # Full-rank: num_singular_values == min(shape) -> no remainder block.
     full_model = nn.Sequential(nn.Linear(16, 24))
@@ -94,9 +88,9 @@ def test_svd_roundtrip_identity_truncated_and_full():
             assert module._svf_S_original is None, "did not expect a remainder block"
             rec = _reconstruct(module, t2.sv_params[name])
             assert rec.shape == module.weight.shape
-            assert torch.allclose(rec, module.weight.data, atol=1e-5), (
-                f"{name}: full-rank round-trip is not identity"
-            )
+            assert torch.allclose(
+                rec, module.weight.data, atol=1e-5
+            ), f"{name}: full-rank round-trip is not identity"
 
 
 def test_svf_forward_step_propagates_gradient_to_singular_values():
