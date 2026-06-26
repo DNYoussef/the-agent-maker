@@ -506,12 +506,19 @@ class EudaimoniaRuleSystem:
             pass
     """
 
-    def __init__(self, confidence_threshold: float = 0.65):
+    def __init__(
+        self,
+        confidence_threshold: float = 0.65,
+        weights: Optional[Dict[RuleType, float]] = None,
+    ):
         """
         Initialize the rule system.
 
         Args:
             confidence_threshold: Score needed to proceed (default 65%)
+            weights: Optional per-rule weights (RuleType -> float). When given,
+                these LEARNED weights override the rules' hard-coded defaults so
+                that VirtueWeightOptimizer output actually changes scoring.
         """
         self.confidence_threshold = confidence_threshold
         self.rules: List[EthicalRule] = [
@@ -520,6 +527,20 @@ class EudaimoniaRuleSystem:
             EspritDeCorps(),
             LifeValueSelfPreservation(),
         ]
+        # Live weight table, seeded from each rule's default weight property.
+        self.weights: Dict[RuleType, float] = {r.rule_type: r.weight for r in self.rules}
+        if weights is not None:
+            self.set_weights(weights)
+
+    def set_weights(self, weights: Dict[RuleType, float]) -> None:
+        """Install learned per-rule weights (e.g. from VirtueWeightOptimizer).
+
+        Only known rule types are updated; unknown keys are ignored so a partial
+        dict is safe.
+        """
+        for rule_type, weight in weights.items():
+            if rule_type in self.weights:
+                self.weights[rule_type] = float(weight)
 
     def assess(self, action: str, context: Optional[Dict[str, Any]] = None) -> EudaimoniaScore:
         """
@@ -540,10 +561,14 @@ class EudaimoniaRuleSystem:
             assessment = rule.assess(action, context)
             assessments.append(assessment)
 
-        # Calculate weighted overall score
-        total_weight = sum(r.weight for r in self.rules)
+        # Calculate weighted overall score using the live (possibly learned)
+        # weight table rather than the rules' hard-coded weight properties.
+        total_weight = sum(self.weights[r.rule_type] for r in self.rules)
+        if total_weight <= 0:
+            total_weight = 1.0
         weighted_score = (
-            sum(a.score * r.weight for a, r in zip(assessments, self.rules)) / total_weight
+            sum(a.score * self.weights[r.rule_type] for a, r in zip(assessments, self.rules))
+            / total_weight
         )
 
         # Collect all violations and recommendations

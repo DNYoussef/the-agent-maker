@@ -23,6 +23,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import threading
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -50,6 +51,31 @@ class ExecutionResult:
     execution_time_ms: float
     timed_out: bool = False
     error: Optional[str] = None
+    # Honest-degradation flag: True when the docker daemon was unreachable and
+    # the code was never actually executed. Consumers must NOT treat such a
+    # result as a real pass/fail of the code -- it is "unknown / unavailable".
+    docker_unavailable: bool = False
+
+    def check(self, test_input: Any = None, expected: Any = None) -> bool:
+        """Predicate: did this execution produce ``expected`` on stdout?
+
+        Uses an EXACT, stripped equality match -- NOT substring containment.
+        This is the fake-pass canary: expected '4' must not match stdout '42',
+        and a program printing several values ('2\\n4') must not match any one
+        of them by containment.
+
+        ``test_input`` is accepted for call-shape compatibility with the
+        training loop (one test case == one (input, expected) pair); the code
+        has already been executed, so it does not re-drive stdin here.
+
+        A failed or docker-unavailable result can never pass.
+        """
+        if self.docker_unavailable or not self.success:
+            return False
+        if expected is None:
+            # No expectation to check against -> success of execution itself.
+            return bool(self.success)
+        return self.stdout.strip() == str(expected).strip()
 
 
 @dataclass
@@ -115,13 +141,21 @@ class DockerSandbox:
         self._docker_available = self._check_docker()
 
     def _check_docker(self) -> bool:
-        """Check if Docker is available."""
+        """Check if the Docker *daemon* is reachable (not just the client).
+
+        ``docker --version`` succeeds even when the daemon is down, which made
+        the old probe report "available" right before ``docker run`` failed and
+        the failure got misattributed to the model. ``docker info`` round-trips
+        to the daemon, so a zero exit code means we can actually run containers.
+        """
         try:
             result = subprocess.run(
-                ["docker", "--version"], capture_output=True, text=True, timeout=5
+                ["docker", "info"], capture_output=True, text=True, timeout=10
             )
+            if result.returncode != 0:
+                logger.warning("Docker daemon not reachable (docker info failed).")
             return result.returncode == 0
-        except (FileNotFoundError, subprocess.TimeoutExpired):
+        except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
             logger.warning("Docker not available.")
             return False
 
@@ -351,6 +385,56 @@ class DockerSandbox:
     def is_docker_available(self) -> bool:
         """Check if Docker is available for secure execution."""
         return self._docker_available
+
+    def run_sync(
+        self,
+        code: str,
+        timeout: Optional[float] = None,
+        language: Language = Language.PYTHON,
+    ) -> ExecutionResult:
+        """Synchronous execution entry point used by the training loop.
+
+        This is the one agreed interface between the sandbox and its consumer:
+        a blocking call returning an ``ExecutionResult`` (with ``.check``).
+
+        Honest degradation: if the docker daemon is unreachable we do NOT raise
+        an opaque error and do NOT fabricate a plausible success -- we return a
+        result flagged ``docker_unavailable=True`` / ``success=False`` so the
+        caller can fall back to a deterministic heuristic instead of blaming the
+        model for an infrastructure problem.
+        """
+        timeout = timeout or self.config.timeout_seconds
+
+        if not self._docker_available:
+            return ExecutionResult(
+                success=False,
+                stdout="",
+                stderr="",
+                exit_code=-1,
+                execution_time_ms=0.0,
+                error="Docker daemon unavailable; code was not executed in sandbox.",
+                docker_unavailable=True,
+            )
+
+        coro = self._execute_docker(code, language, timeout, None)
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            # No loop running in this thread: the simple, common path.
+            return asyncio.run(coro)
+        # A loop is already running in THIS thread (e.g. called from async code).
+        # You cannot start another loop in the same thread, so run the coroutine
+        # to completion in a separate thread with its own loop, keeping run_sync
+        # synchronous. (R8: the async-context path is a real code path.)
+        box: Dict[str, Any] = {}
+
+        def _runner() -> None:
+            box["result"] = asyncio.run(coro)
+
+        worker = threading.Thread(target=_runner)
+        worker.start()
+        worker.join()
+        return box["result"]
 
 
 # Synchronous wrapper for simple use cases

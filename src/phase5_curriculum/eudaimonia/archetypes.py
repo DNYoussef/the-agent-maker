@@ -424,6 +424,14 @@ class ArchetypeCouncil:
             HarmonyArchetype(),
             StoicArchetype(),
         ]
+        # Per-archetype synthesis weights. Default = equal voice. These are the
+        # weights an ArchetypeWeightLearner installs so its learned output
+        # actually changes the synthesized vector.
+        self.archetype_weights: Dict[ArchetypeType, float] = {
+            ArchetypeType.CHRIST: 1.0 / 3.0,
+            ArchetypeType.HARMONY: 1.0 / 3.0,
+            ArchetypeType.STOIC: 1.0 / 3.0,
+        }
 
     def consult(
         self, situation: str, eudaimonia_score: float, context: Optional[Dict[str, Any]] = None
@@ -450,15 +458,33 @@ class ArchetypeCouncil:
 
         return guidances
 
-    @staticmethod
-    def _average_vectors(guidances: List[ArchetypeGuidance]) -> Dict[str, float]:
-        """Average the philosophical vectors across guidances."""
+    def _normalized_weights(
+        self, guidances: List[ArchetypeGuidance]
+    ) -> Dict[ArchetypeType, float]:
+        """Weights for the archetypes present, normalized to sum to 1.0.
+
+        Falls back to equal voice if no usable weights are configured.
+        """
+        raw = {g.archetype: max(0.0, self.archetype_weights.get(g.archetype, 0.0)) for g in guidances}
+        total = sum(raw.values())
+        if total <= 0:
+            equal = 1.0 / len(guidances) if guidances else 0.0
+            return {g.archetype: equal for g in guidances}
+        return {arch: w / total for arch, w in raw.items()}
+
+    def _average_vectors(self, guidances: List[ArchetypeGuidance]) -> Dict[str, float]:
+        """Weighted average of the philosophical vectors across guidances.
+
+        Uses the council's ``archetype_weights`` (default equal) so learned
+        weights from ArchetypeWeightLearner actually shift the synthesis. Equal
+        weights reproduce the previous 1/N averaging exactly.
+        """
+        weights = self._normalized_weights(guidances)
         averaged_vector: Dict[str, float] = {}
         for guidance in guidances:
+            w = weights[guidance.archetype]
             for key, value in guidance.vector.items():
-                if key not in averaged_vector:
-                    averaged_vector[key] = 0.0
-                averaged_vector[key] += value / len(guidances)
+                averaged_vector[key] = averaged_vector.get(key, 0.0) + value * w
         return averaged_vector
 
     @staticmethod
