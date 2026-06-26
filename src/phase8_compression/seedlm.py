@@ -140,7 +140,10 @@ class SeedLMCompressor:
         print(f"    Retention score: {retention:.2%}")
 
         return compressed_model, SeedLMResult(
-            success=True,
+            # Honest success: only claim success when retention met the target.
+            # Seed-based reconstruction degrades real weights below 0.95, so this
+            # reports False rather than silently passing destroyed weights on.
+            success=retention >= self.config.target_retention,
             compressed_state=compressed_state,
             original_size_mb=original_size,
             compressed_size_mb=compressed_size,

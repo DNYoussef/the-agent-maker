@@ -70,36 +70,123 @@ def test_phase2_every_merger_accepts_a_model_list():
 # --------------------------------------------------------------------------
 
 
-def test_edge_of_chaos_correctness_is_deterministic():
-    """Phase5 assessment: _check_correctness must measure the response, not roll
-    random.random(). Same (question, response) must give the same verdict."""
+def test_edge_of_chaos_grades_correctness_deterministically():
+    """Phase5 assessment: _check_correctness must MEASURE the response against
+    ground truth, not roll random.random(). Behavioral teeth: correct grades
+    True, wrong grades False, missing ground truth fails closed, and the verdict
+    is deterministic. A constant grader fails the True/False split; a random
+    grader fails determinism (the old probe only checked determinism)."""
     from src.phase5_curriculum.assessment import EdgeOfChaosAssessment
 
     a = EdgeOfChaosAssessment.__new__(EdgeOfChaosAssessment)  # skip heavy __init__
-    q = {"level": 30, "question": "2+2", "answer": "4", "expected": "4"}
-    verdicts = {a._check_correctness(q, "4") for _ in range(25)}
-    assert len(verdicts) == 1, "correctness verdict is non-deterministic (random)"
-    # NOTE: a blunt "random.random() not in source" check is a false positive -
-    # assessment legitimately uses random for question GENERATION, not grading.
-    # Determinism of the grading verdict is the real contract.
+    q = {"level": 30, "question": "2+2", "answer": "4"}
+    assert a._check_correctness(q, "4") is True, "correct answer must grade True"
+    assert a._check_correctness(q, "5") is False, "wrong answer must grade False"
+    assert a._check_correctness({}, "4") is False, "no ground truth must fail closed"
+    assert len({a._check_correctness(q, "4") for _ in range(25)}) == 1, "verdict not deterministic"
 
 
 def test_seedlm_does_not_report_success_on_destroyed_weights():
-    """Phase8 SeedLM reconstructs Gaussian noise from a seed (corr ~0.2 on real
-    weights). It must NOT return success=True while retention is low."""
-    from src.phase8_compression.seedlm import SeedLMCompressor
+    """Phase8 SeedLM reconstructs from seeds; retention on real weights is far
+    below the 0.95 target. compress() must NOT hardcode success=True - success
+    must reflect retention vs target. Teeth: the old probe used an arbitrary
+    <0.5 cutoff, so a retention of 0.54 with success=True slipped through; this
+    keys on the actual config target."""
+    from src.phase8_compression.seedlm import SeedLMCompressor, SeedLMConfig
 
+    cfg = SeedLMConfig()
     torch.manual_seed(0)
     model = nn.Linear(64, 64)
-    compressed_model, result = SeedLMCompressor().compress(model)
-    assert not (result.success and result.retention_score < 0.5), (
-        f"claims success with retention={result.retention_score:.3f} " "(silent weight destruction)"
+    compressed_model, result = SeedLMCompressor(config=cfg).compress(model)
+    assert result.retention_score < cfg.target_retention, (
+        f"premise broke: retention {result.retention_score:.3f} >= target "
+        f"{cfg.target_retention} (pick weights that genuinely degrade)"
+    )
+    assert result.success is False, (
+        f"SeedLM claims success at retention={result.retention_score:.3f} "
+        f"< target {cfg.target_retention} (silent weight destruction)"
     )
 
 
-def test_anti_theater_gate_is_not_hardcoded_true():
-    """cross_phase Phase3Controller._validate_anti_theater hardcodes
-    consistency_test and ablation_test to True. The gate must compute them."""
+def test_phase8_reports_original_size_when_final_gate_fails_after_partial_keep():
+    """Phase8 CompressionEngine: when an earlier stage is KEPT (SeedLM passes) but
+    a later stage rolls back (VPTQ fails) AND the cumulative final gate fails, the
+    engine ships the pristine original - so it must report 1.0x / the original
+    size, never the kept stage's compressed size. Teeth: the old guard keyed only
+    on rollback_stage=='final', so this path shipped the original yet reported the
+    SeedLM size (total_compression 2.0x with success False)."""
+    import time as _time
+
+    from src.phase8_compression.compression_engine import CompressionConfig, CompressionEngine
+
+    cfg = CompressionConfig(run_benchmarks=False, artifacts_dir=None)
+    engine = CompressionEngine(config=cfg)
+    original_size = 0.02
+    model = nn.Linear(8, 8)
+    stage_results = {
+        # SeedLM passed its gate (retention >= 0.95) and has a real smaller size...
+        "seedlm": {
+            "compression_ratio": 2.0,
+            "retention": 0.96,
+            "size_mb": original_size / 2,
+            "compressed_state": None,
+        },
+        # ...VPTQ failed its gate, so rollback_stage is "vptq" and cumulative
+        # retention (0.96 * 0.10 = 0.096) is below min_retention_final (0.84).
+        "vptq": {
+            "compression_ratio": 1.0,
+            "retention": 0.10,
+            "size_mb": original_size,
+            "compressed_state": None,
+        },
+    }
+    result = engine._finalize(
+        model, model, original_size, stage_results, "vptq", None, None, _time.time()
+    )
+    assert result.success is False
+    assert result.artifact_path is None
+    assert abs(result.final_size_mb - original_size) < 1e-9, (
+        f"shipped original but reported final_size={result.final_size_mb} "
+        f"(should be original {original_size})"
+    )
+    assert (
+        abs(result.total_compression - 1.0) < 1e-9
+    ), f"shipped original but reported {result.total_compression:.2f}x compression"
+
+
+def test_anti_theater_gate_distinguishes_real_from_constant_model():
+    """cross_phase Phase3Controller._validate_anti_theater must COMPUTE divergence
+    and consistency from real generate() output, not hardcode True. Behavioral
+    teeth: a model that emits a constant for every input must FAIL divergence; a
+    deterministic model that varies with input must PASS. A hardcoded-True gate
+    would pass the constant model."""
+    from src.cross_phase.orchestrator.phase3_controller import Phase3Controller
+
+    class _Tok:
+        def __call__(self, text, **kw):
+            ids = [ord(c) % 50 for c in text][:8] or [0]
+            return {"input_ids": torch.tensor([ids])}
+
+    class _Varying(nn.Module):
+        def eval(self):
+            return self
+
+        def generate(self, input_ids=None, **kw):
+            return input_ids + 1  # output is a deterministic function of the input
+
+    class _Constant(nn.Module):
+        def eval(self):
+            return self
+
+        def generate(self, input_ids=None, **kw):
+            return torch.zeros(1, 5, dtype=torch.long)  # same output for every input
+
+    ctrl = Phase3Controller.__new__(Phase3Controller)  # skip heavy __init__
+    good = ctrl._validate_anti_theater(_Varying(), _Tok())
+    bad = ctrl._validate_anti_theater(_Constant(), _Tok())
+    assert good["all_passed"] is True, "real varying model must pass anti-theater"
+    assert bad["all_passed"] is False, "constant model must fail (gate is not hardcoded True)"
+    # belt-and-suspenders: the original hardcoded literals stay gone
     text = _src("cross_phase/orchestrator/phase3_controller.py")
     assert 'results["consistency_test"] = True' not in text
     assert 'results["ablation_test"] = True' not in text
@@ -149,9 +236,18 @@ def test_phase4_does_not_mislabel_int8_as_1p58bit():
 # --------------------------------------------------------------------------
 
 
-def test_globalmoo_stub_not_on_production_path():
-    """moo_bridge.GlobalMOOAdapter is a NotImplementedError stub; the real client
-    lives in moo_utils. The stub's raises must be gone (deleted or replaced)."""
+def test_globalmoo_cloud_stub_fails_loud_not_fake():
+    """moo_bridge.GlobalMOOAdapter cloud path is NOT implemented. Behavioral teeth:
+    it must fail loudly (raise) rather than return a fabricated job id, even with
+    a key present - a silent fake job id would be the lie. The real backend is
+    local pymoo (MOORunner)."""
+    from src.cross_phase.meta_calculus.moo_bridge import GlobalMOOAdapter
+
+    adapter = GlobalMOOAdapter(api_key="present")
+    assert adapter.is_available() is True
+    with pytest.raises((NotImplementedError, RuntimeError)):
+        adapter.submit_problem(problem=None, config=None)
+    # the specific old "pending" lie must stay gone
     text = _src("cross_phase/meta_calculus/moo_bridge.py")
     assert 'NotImplementedError("GlobalMOO API integration pending")' not in text
 
