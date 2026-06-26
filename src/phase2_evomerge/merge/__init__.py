@@ -81,9 +81,7 @@ class MergeTechniques:
         # Stage 2: Task Arithmetic (refines merged model)
         base_model = models[0]  # Use first model as base
         stage2 = (
-            self.ties.merge([stage1] + models)
-            if bit1
-            else self.dare.merge([stage1, base_model])
+            self.ties.merge([stage1] + models) if bit1 else self.dare.merge([stage1, base_model])
         )
 
         # Stage 3: Selection (final refinement)

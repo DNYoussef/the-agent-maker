@@ -10,7 +10,6 @@ heavy training, fresh objects per test.
 Run:
   PYTHONPATH="<repo>;<repo>/src" python -m pytest tests/test_theater_gate.py -q
 """
-import ast
 import os
 import re
 
@@ -37,6 +36,7 @@ def _tiny_linear(seed):
 # WAVE 1 - Class A: crash / correctness bugs (behavioral, strong)
 # --------------------------------------------------------------------------
 
+
 def test_vptq_residual_path_compresses_without_crash():
     """Phase8 VPTQ: the residual path (use_residual=True, num_codebooks=4) must
     compress a real 2-D weight without the AttributeError on the dict codebook
@@ -59,7 +59,6 @@ def test_phase2_every_merger_accepts_a_model_list():
     from src.phase2_evomerge.phase2_pipeline import Phase2Pipeline
 
     pipeline = Phase2Pipeline()  # default config = all 6 techniques
-    models = [_tiny_linear(1), _tiny_linear(2)]
     for name, merger in pipeline._mergers.items():
         merged = merger.merge([_tiny_linear(1), _tiny_linear(2)])
         assert isinstance(merged, nn.Module), f"{name} did not return a model"
@@ -69,6 +68,7 @@ def test_phase2_every_merger_accepts_a_model_list():
 # --------------------------------------------------------------------------
 # WAVE 2 - Class B: fake evaluation (behavioral) + Class D: honesty (source)
 # --------------------------------------------------------------------------
+
 
 def test_edge_of_chaos_correctness_is_deterministic():
     """Phase5 assessment: _check_correctness must measure the response, not roll
@@ -93,8 +93,7 @@ def test_seedlm_does_not_report_success_on_destroyed_weights():
     model = nn.Linear(64, 64)
     compressed_model, result = SeedLMCompressor().compress(model)
     assert not (result.success and result.retention_score < 0.5), (
-        f"claims success with retention={result.retention_score:.3f} "
-        "(silent weight destruction)"
+        f"claims success with retention={result.retention_score:.3f} " "(silent weight destruction)"
     )
 
 
@@ -135,19 +134,20 @@ def test_phase4_does_not_mislabel_int8_as_1p58bit():
     bad_token = re.compile(r"1\.58 ?bit(?![s-])", re.IGNORECASE)
     for path in glob.glob(os.path.join(SRC, "phase4_bitnet", "*.py")):
         text = open(path, "r", encoding="utf-8").read()
-        assert not bad_token.search(text), (
-            f"{os.path.basename(path)}: a storage quantity is labeled '1.58bit'"
-        )
+        assert not bad_token.search(
+            text
+        ), f"{os.path.basename(path)}: a storage quantity is labeled '1.58bit'"
     # In the stats file, any 1.58-bit prose must acknowledge int8 storage nearby.
     stats = _src("phase4_bitnet/compressed_model.py")
     for m in re.finditer(r"1\.58[ -]?bit", stats, re.IGNORECASE):
-        window = stats[max(0, m.start() - 220): m.end() + 220].lower()
+        window = stats[max(0, m.start() - 220) : m.end() + 220].lower()
         assert "int8" in window, "1.58-bit claim without int8-storage honesty note"
 
 
 # --------------------------------------------------------------------------
 # WAVE 3 - Class C: wire the real twin / delete the broken
 # --------------------------------------------------------------------------
+
 
 def test_globalmoo_stub_not_on_production_path():
     """moo_bridge.GlobalMOOAdapter is a NotImplementedError stub; the real client

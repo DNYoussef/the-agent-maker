@@ -11,7 +11,6 @@ These tests would FAIL if someone re-hardcoded a packed-1.58-bit ratio, or if
 quantized_size_mb were a constant insensitive to model size.
 """
 
-import torch
 import torch.nn as nn
 
 from src.phase4_bitnet.bitlinear import BitLinear
@@ -57,11 +56,11 @@ def test_quantized_size_matches_int8_storage_not_packed():
     compressed = _compress(_make(64, 128, 64))
     stats = compressed.get_compression_stats()
 
-    expected_mb = _expected_int8_bytes(compressed) / (1024 ** 2)
+    expected_mb = _expected_int8_bytes(compressed) / (1024**2)
     assert expected_mb > 0
-    assert abs(stats["quantized_size_mb"] - expected_mb) < 1e-6, (
-        f"quantized_size_mb {stats['quantized_size_mb']} != int8 reality {expected_mb}"
-    )
+    assert (
+        abs(stats["quantized_size_mb"] - expected_mb) < 1e-6
+    ), f"quantized_size_mb {stats['quantized_size_mb']} != int8 reality {expected_mb}"
     # Honest labels present.
     assert stats["storage_dtype"] == "int8"
     assert stats["bit_packed"] is False
@@ -87,6 +86,6 @@ def test_quantized_size_scales_with_model_size():
     small = _compress(_make(64, 128, 64)).get_compression_stats()
     large = _compress(_make(256, 512, 256)).get_compression_stats()
 
-    assert large["quantized_size_mb"] > small["quantized_size_mb"] * 2, (
-        "quantized_size_mb does not scale with model size - likely a constant"
-    )
+    assert (
+        large["quantized_size_mb"] > small["quantized_size_mb"] * 2
+    ), "quantized_size_mb does not scale with model size - likely a constant"

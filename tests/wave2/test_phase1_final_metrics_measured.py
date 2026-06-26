@@ -15,14 +15,6 @@ state and are SENSITIVE to it. They fail if any value is a hardcoded constant
 """
 
 import math
-import os
-import sys
-
-# Ensure repo root and src are importable regardless of how pytest is invoked.
-_REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-for _p in (_REPO, os.path.join(_REPO, "src")):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
 
 import torch.nn as nn
 

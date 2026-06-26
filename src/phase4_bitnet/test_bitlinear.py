@@ -150,7 +150,9 @@ def test_memory_footprint():
     footprint = layer.get_memory_footprint()
 
     print(f"Original FP32: {footprint['original_fp32'] / 1024:.2f} KB")
-    print(f"Quantized (ternary weights, int8 storage): {footprint['quantized_int8_bytes'] / 1024:.2f} KB")
+    print(
+        f"Quantized (ternary weights, int8 storage): {footprint['quantized_int8_bytes'] / 1024:.2f} KB"
+    )
     print(f"Compression ratio: {footprint['compression_ratio']:.2f}x")
 
     # Honest target: ternary weights stored as int8 (no bit-packing) approach 4x
