@@ -12,12 +12,13 @@ from src.phase8_compression.vptq import VPTQCompressor, VPTQConfig
 
 
 def test_default_residual_compress_and_roundtrip():
-    assert VPTQConfig().use_residual is True
-    assert VPTQConfig().num_codebooks == 4
+    # main defaults use_residual=False (it avoided the crash by disabling the
+    # path); this proves the residual path itself is fixed when enabled.
+    cfg = VPTQConfig(use_residual=True, num_codebooks=4)
 
     torch.manual_seed(0)
     model = nn.Linear(64, 64)
-    compressor = VPTQCompressor()  # default residual config
+    compressor = VPTQCompressor(config=cfg)
 
     compressed_model, result = compressor.compress(model)
 
