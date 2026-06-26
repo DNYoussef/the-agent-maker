@@ -736,7 +736,7 @@ class MOOCurriculumGenerator(AdaptiveCurriculumGenerator):
     ) -> List[Question]:
         """Generate placeholder questions for a level."""
         questions = []
-        templates = self._get_question_templates(difficulty)
+        templates = self._get_templates_for_difficulty(difficulty)
 
         for i in range(count):
             template = random.choice(templates)
