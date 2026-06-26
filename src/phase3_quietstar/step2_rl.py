@@ -350,8 +350,18 @@ class REINFORCETrainer:
         thought_log_probs = outputs_with.get("thought_log_probs", None)
         if thought_log_probs is not None:
             policy_loss = -(thought_log_probs * advantages.detach()).mean()
+            # Reported policy log-prob term (mean over the batch's sampled
+            # thoughts). This is the score-function the advantage scales.
+            thought_log_prob_value = thought_log_probs.mean()
         else:
             policy_loss = torch.zeros((), device=advantages.device)
+            thought_log_prob_value = torch.zeros((), device=advantages.device)
+
+        # Supervised cross-entropy on the thought-enhanced logits. The REINFORCE
+        # term trains WHICH thoughts get sampled; the CE term trains the mixing
+        # head / lm_head to actually use them. Both must be in total_loss or the
+        # mixing head never learns (the policy gradient alone does not touch it).
+        ce_loss = outputs_with["loss"]
 
         # ISS-007: Value loss for baseline network
         value_targets = reward  # Target is actual reward
@@ -360,6 +370,7 @@ class REINFORCETrainer:
         # ISS-007: Total loss with all components
         total_loss = (
             policy_loss
+            + ce_loss
             + self.config.rl.value_loss_coefficient * value_loss
             - self.current_entropy_coef * entropy  # Negative because we want to maximize
             + self.config.rl.kl_coefficient * kl_div
@@ -405,6 +416,8 @@ class REINFORCETrainer:
         metrics = {
             "reward": reward.mean().item(),
             "policy_loss": policy_loss.item(),
+            "thought_log_prob": thought_log_prob_value.item(),
+            "ce_loss": ce_loss.item(),
             "value_loss": value_loss.item(),
             "entropy": entropy.item(),
             "entropy_coefficient": self.current_entropy_coef,

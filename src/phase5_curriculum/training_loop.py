@@ -395,13 +395,19 @@ class CurriculumTrainingLoop:
     ) -> Tuple[bool, Optional[str]]:
         """Validate model's response against test cases."""
         if coding_env:
-            # Execute code in sandbox
+            # Execute code in sandbox via the agreed synchronous interface.
             try:
                 # Extract code from response
                 code = self._extract_code(response)
-                result = coding_env.execute(code, timeout=5)
+                result = coding_env.run_sync(code, timeout=5)
 
-                # Run test cases
+                # Honest degradation: if the docker daemon was unreachable the
+                # code never ran, so don't blame the model -- fall back to the
+                # deterministic heuristic validator.
+                if getattr(result, "docker_unavailable", False):
+                    return self._validate_response_heuristic(response, question)
+
+                # Run test cases (exact stripped match, not substring)
                 for test_case in question.test_cases:
                     if not result.check(test_case["input"], test_case["expected"]):
                         return False, f"Failed test: {test_case['description']}"
