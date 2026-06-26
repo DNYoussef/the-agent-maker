@@ -280,10 +280,13 @@ class CompressionEngine:
             if rollback_stage is None:
                 rollback_stage = "final"
 
-        # Size/artifact must describe the model we actually return. When we rolled
-        # all the way back to the original, that is the uncompressed size with no
-        # artifact - never report a compressed size for weights we are not shipping.
-        if rollback_stage == "final":
+        # Size/artifact must describe the model we actually return. We ship the
+        # pristine original exactly when the final cumulative gate failed (set
+        # above, which also rolls current_model back to original). Report the
+        # uncompressed size with no artifact then, regardless of which stage first
+        # triggered rollback - never report a kept stage's compressed size for
+        # weights we are not shipping.
+        if final_gate_failed:
             final_size, artifact_path = original_size, None
         else:
             # G2: real compressed size from the kept stages' encoded byte counts
