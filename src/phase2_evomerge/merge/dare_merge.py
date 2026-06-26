@@ -24,7 +24,7 @@ Research:
 
 import copy
 import logging
-from typing import Optional
+from typing import List, Optional
 
 import torch
 import torch.nn as nn
@@ -54,20 +54,29 @@ class DAREMerge:
         self.keep_rate = 1.0 - drop_rate
         self.rescale_factor = rescale_factor if rescale_factor is not None else 1.0 / self.keep_rate
 
-    def merge(self, model_finetuned: nn.Module, model_base: nn.Module) -> nn.Module:
+    def merge(self, models: List[nn.Module]) -> nn.Module:
         """
         Merge fine-tuned model with base using DARE.
 
+        Canonical signature: models[0] is the fine-tuned model, models[1] is
+        the base model to compute the delta against. Extra models are ignored
+        (DARE is a two-model operation).
+
         Args:
-            model_finetuned: Fine-tuned model (or merged model from Stage 1)
-            model_base: Base model to compute delta against
+            models: List of models; models[0]=finetuned, models[1]=base
 
         Returns:
             New model with sparse delta applied
 
         Raises:
-            ValueError: If models have incompatible architectures
+            ValueError: If fewer than 2 models, or incompatible architectures
         """
+        if len(models) < 2:
+            raise ValueError("DARE merge requires at least 2 models")
+
+        model_finetuned = models[0]
+        model_base = models[1]
+
         # Verify models have same architecture
         if not self._check_compatibility(model_finetuned, model_base):
             raise ValueError("Models must have same architecture for DARE merge")

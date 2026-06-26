@@ -150,10 +150,14 @@ def test_memory_footprint():
     footprint = layer.get_memory_footprint()
 
     print(f"Original FP32: {footprint['original_fp32'] / 1024:.2f} KB")
-    print(f"Quantized 1.58-bit: {footprint['quantized_1.58bit'] / 1024:.2f} KB")
+    print(
+        f"Quantized (ternary weights, int8 storage): {footprint['quantized_int8_bytes'] / 1024:.2f} KB"
+    )
     print(f"Compression ratio: {footprint['compression_ratio']:.2f}x")
 
-    assert footprint["compression_ratio"] > 7.0, "Compression ratio too low!"
+    # Honest target: ternary weights stored as int8 (no bit-packing) approach 4x
+    # (= 4*in/(in+2)), not the ~20x of packed 1.58-bit. Assert the real regime.
+    assert footprint["compression_ratio"] > 3.5, "Compression ratio too low!"
 
     print("✓ Memory footprint test passed")
 

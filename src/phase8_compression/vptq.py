@@ -141,10 +141,14 @@ class VPTQCompressor:
 
                 self.codebooks[name] = codebook
 
+                # codebook is [codebook_size, vector_dim] (single) or
+                # [num_codebooks, codebook_size, vector_dim] (residual); the last
+                # two axes are codebook_size, vector_dim in both cases.
                 codebook_stats[name] = {
-                    "codebook_size": codebook.shape[0],
-                    "vector_dim": codebook.shape[1],
-                    "num_vectors": indices.numel(),
+                    "codebook_size": codebook.shape[-2],
+                    "vector_dim": codebook.shape[-1],
+                    "num_codebooks": codebook.shape[0] if codebook.dim() == 3 else 1,
+                    "num_vectors": indices.shape[-1],
                     "retention": retention,
                 }
 
@@ -370,68 +374,27 @@ class VPTQCompressor:
 
     def _pack_residual_result(
         self, result: ResidualQuantizationResult, original_shape: torch.Size
-    ) -> Tuple[Any, Any, float]:
+    ) -> Tuple[torch.Tensor, torch.Tensor, float]:
         """
-        Pack residual quantization result for compatibility with existing interface.
+        Pack a residual result into the SAME (indices, codebook, retention) tensor
+        shape the single-codebook path returns, so compress(), size accounting and
+        _decompress_tensor handle both with one code path (no dict special case).
+
+        Single codebook: indices [num_vectors], codebook [codebook_size, vector_dim].
+        Residual (K codebooks): indices [K, num_vectors], codebook
+        [K, codebook_size, vector_dim] -- the leading axis is the codebook level,
+        summed at decompress time.
 
         Args:
-            result: ResidualQuantizationResult
-            original_shape: Original tensor shape
+            result: ResidualQuantizationResult (per-level indices and codebooks)
+            original_shape: Original tensor shape (unused; kept for call symmetry)
 
         Returns:
-            Tuple of (packed_indices, packed_codebooks, retention)
+            Tuple of (stacked_indices, stacked_codebooks, final_retention)
         """
-        # Pack indices: concatenate along new dimension
-        packed_indices = {
-            "type": "residual",
-            "indices": result.indices_per_codebook,
-            "num_codebooks": len(result.indices_per_codebook),
-            "shape": original_shape,
-        }
-
-        # Pack codebooks: list of codebooks
-        packed_codebooks = {
-            "type": "residual",
-            "codebooks": result.codebooks,
-            "per_codebook_retention": result.per_codebook_retention,
-        }
-
-        return packed_indices, packed_codebooks, result.final_retention
-
-    def decompress_residual(self, packed_indices: Dict, packed_codebooks: Dict) -> torch.Tensor:
-        """
-        Decompress residual-quantized tensor.
-
-        Args:
-            packed_indices: Packed indices from _pack_residual_result
-            packed_codebooks: Packed codebooks from _pack_residual_result
-
-        Returns:
-            Decompressed tensor
-        """
-        indices_list = packed_indices["indices"]
-        codebooks_list = packed_codebooks["codebooks"]
-        original_shape = packed_indices["shape"]
-
-        # Accumulate reconstructions from all codebooks
-        reconstruction = None
-
-        for indices, codebook in zip(indices_list, codebooks_list):
-            codebook = codebook.float()
-            vectors = codebook[indices.long()]
-
-            if reconstruction is None:
-                reconstruction = vectors
-            else:
-                reconstruction = reconstruction + vectors
-
-        # Flatten and reshape to original shape
-        flat = reconstruction.flatten()
-        original_size = 1
-        for s in original_shape:
-            original_size *= s
-
-        return flat[:original_size].reshape(original_shape)
+        stacked_indices = torch.stack(result.indices_per_codebook)
+        stacked_codebooks = torch.stack(result.codebooks)
+        return stacked_indices, stacked_codebooks, result.final_retention
 
     def _init_codebook(self, vectors: torch.Tensor) -> torch.Tensor:
         """Initialize codebook using k-means++ algorithm."""
@@ -523,8 +486,24 @@ class VPTQCompressor:
     def _decompress_tensor(
         self, indices: torch.Tensor, codebook: torch.Tensor, shape: torch.Size
     ) -> torch.Tensor:
-        """Decompress tensor from indices."""
-        vectors = codebook[indices.long()]
+        """Decompress tensor from indices.
+
+        Handles both layouts uniformly by promoting the single-codebook case to a
+        1-level residual stack: codebook [codebook_size, vector_dim] becomes
+        [1, codebook_size, vector_dim] and indices [N] becomes [1, N]. The final
+        reconstruction is the sum of each level's lookup (one term when single).
+        """
+        codebook = codebook.float()
+        if codebook.dim() == 2:
+            codebook = codebook.unsqueeze(0)
+            indices = indices.unsqueeze(0)
+
+        # codebook: [K, codebook_size, vector_dim]; indices: [K, num_vectors]
+        vectors = None
+        for level in range(codebook.shape[0]):
+            level_vectors = codebook[level][indices[level].long()]
+            vectors = level_vectors if vectors is None else vectors + level_vectors
+
         flat = vectors.flatten()
 
         # Calculate original size

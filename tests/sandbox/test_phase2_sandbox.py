@@ -243,11 +243,9 @@ def test_ties_merge(test_models):
     """Test TIES merge technique."""
     merger = TIESMerge(trim_percent=0.2)  # Keep top 20% of parameters
 
-    # TIES requires target model + reference models
-    target_model = test_models[0]
-
+    # Canonical signature: models[0] is the target, the rest are references
     # Merge
-    merged = merger.merge(target_model, test_models)
+    merged = merger.merge(test_models)
 
     # Verify output is a model
     assert isinstance(merged, nn.Module), "Merged output should be nn.Module"
@@ -277,12 +275,12 @@ def test_dare_merge(test_models):
     """Test DARE merge technique."""
     merger = DAREMerge(drop_rate=0.5)  # rescale_factor auto-calculated
 
-    # DARE requires finetuned model + base model
+    # Canonical signature: models[0] is finetuned, models[1] is base
     finetuned_model = copy.deepcopy(test_models[1])
     base_model = test_models[0]
 
     # Merge
-    merged = merger.merge(finetuned_model, base_model)
+    merged = merger.merge([finetuned_model, base_model])
 
     # Verify output is a model
     assert isinstance(merged, nn.Module), "Merged output should be nn.Module"
@@ -312,11 +310,9 @@ def test_frankenmerge(test_models):
     """Test FrankenMerge technique."""
     merger = FrankenMerge(pattern="abc")
 
-    # FrankenMerge requires target + reference models
-    target_model = test_models[0]
-
+    # Canonical signature: models[0] is the target, the rest are references
     # Merge
-    merged = merger.merge(target_model, test_models)
+    merged = merger.merge(test_models)
 
     # Verify output is a model
     assert isinstance(merged, nn.Module), "Merged output should be nn.Module"

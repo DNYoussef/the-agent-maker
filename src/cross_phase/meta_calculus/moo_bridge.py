@@ -693,10 +693,13 @@ def analyze_pareto_front(pareto_result: dict) -> dict:
 
 class GlobalMOOAdapter:
     """
-    Adapter for GlobalMOO cloud API.
+    Adapter for the GlobalMOO *cloud* API.
 
-    Provides cloud-based hyperparameter optimization when local
-    compute is insufficient.
+    NOTE: the cloud path is NOT implemented in this build. This class only
+    self-reports availability (an API key is present) and fails loudly if you
+    try to use it. For real multi-objective optimization use the local pymoo
+    backend (``MOORunner`` / ``moo_utils.HybridMOORunner``), which is fully
+    implemented. Do not mistake key-present for a working cloud integration.
     """
 
     def __init__(self, api_key: Optional[str] = None, api_url: str = "https://api.globalmoo.com"):
@@ -722,12 +725,20 @@ class GlobalMOOAdapter:
         if not self.is_available():
             raise RuntimeError("GlobalMOO API key not configured")
 
-        # Placeholder for actual API implementation
-        raise NotImplementedError("GlobalMOO API integration pending")
+        # The cloud API is not implemented in this build. Fail loudly and point
+        # at the real, working local backend instead of implying a pending
+        # integration.
+        raise NotImplementedError(
+            "GlobalMOO cloud API is not implemented; use the local pymoo backend "
+            "(MOORunner / moo_utils.HybridMOORunner)."
+        )
 
     def get_results(self, job_id: str) -> dict:
-        """Get results from GlobalMOO cloud job."""
-        raise NotImplementedError("GlobalMOO API integration pending")
+        """Get results from a GlobalMOO cloud job (cloud path not implemented)."""
+        raise NotImplementedError(
+            "GlobalMOO cloud API is not implemented; use the local pymoo backend "
+            "(MOORunner / moo_utils.HybridMOORunner)."
+        )
 
 
 # =============================================================================

@@ -88,9 +88,9 @@ class Phase1WandBLogger:
         loss: float,
         learning_rate: float,
         grad_norm: float,
-        halting_steps: torch.Tensor,
-        ltm_usage: float,
-        gpu_memory_gb: float,
+        halting_steps: Optional[torch.Tensor] = None,
+        ltm_usage: Optional[float] = None,
+        gpu_memory_gb: float = 0.0,
         gpu_util: Optional[float] = None,
         tokens_per_sec: Optional[float] = None,
     ) -> None:
@@ -117,16 +117,19 @@ class Phase1WandBLogger:
             "train/perplexity": torch.exp(torch.tensor(loss)).item(),
             "train/learning_rate": learning_rate,
             "train/gradient_norm": grad_norm,
-            # ACT metrics
-            "act/avg_halting_steps": halting_steps.float().mean().item(),
-            "act/max_halting_steps": halting_steps.max().item(),
-            "act/min_halting_steps": halting_steps.min().item(),
-            "act/halting_variance": halting_steps.float().var().item(),
-            # LTM metrics
-            "ltm/memory_usage": ltm_usage,
             # System metrics
             "system/gpu_memory_used_gb": gpu_memory_gb,
         }
+
+        # ACT and LTM metrics are logged ONLY when actually measured. A missing
+        # value is omitted, never emitted as a constant/NaN dressed as a metric.
+        if halting_steps is not None:
+            metrics["act/avg_halting_steps"] = halting_steps.float().mean().item()
+            metrics["act/max_halting_steps"] = halting_steps.max().item()
+            metrics["act/min_halting_steps"] = halting_steps.min().item()
+            metrics["act/halting_variance"] = halting_steps.float().var().item()
+        if ltm_usage is not None:
+            metrics["ltm/memory_usage"] = ltm_usage
 
         if gpu_util is not None:
             metrics["system/gpu_utilization"] = gpu_util

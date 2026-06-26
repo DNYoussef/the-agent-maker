@@ -51,22 +51,28 @@ class TIESMerge:
         """
         self.trim_percent = trim_percent
 
-    def merge(self, model_target: nn.Module, models_ref: List[nn.Module]) -> nn.Module:
+    def merge(self, models: List[nn.Module]) -> nn.Module:
         """
-        Merge target model with reference models using TIES.
+        Merge models using TIES.
+
+        Canonical signature: models[0] is the target, models[1:] are the
+        reference models whose deltas (ref - target) are trimmed, sign-elected,
+        and merged.
 
         Args:
-            model_target: Target model (from Stage 2, or base model)
-            models_ref: Reference models to merge (typically 3 original models)
+            models: List of models to merge (at least 2)
 
         Returns:
             New model with TIES-merged parameters
 
         Raises:
-            ValueError: If models have incompatible architectures
+            ValueError: If fewer than 2 models, or incompatible architectures
         """
-        if not models_ref:
-            raise ValueError("models_ref cannot be empty")
+        if len(models) < 2:
+            raise ValueError("TIES merge requires at least 2 models")
+
+        model_target = models[0]
+        models_ref = models[1:]
 
         # Verify compatibility
         for model in models_ref:

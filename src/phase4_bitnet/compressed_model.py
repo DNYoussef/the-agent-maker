@@ -21,7 +21,9 @@ class CompressedModel(nn.Module):
     Mode 1 (BitLinear Replacement - Recommended):
     - Replaces nn.Linear layers with BitLinear in-place
     - Automatic quantization during forward pass
-    - True 1.58-bit inference with hardware acceleration
+    - Ternary weights (1.58-bit information content) stored as int8 -
+      no bit-packing yet, so the real on-disk footprint is ~4x smaller
+      (fp32 -> int8 + fp16 scale), NOT the ~20x of packed 1.58-bit
     - Preserves model architecture and gradient flow
 
     Mode 2 (Legacy Quantization):
@@ -242,6 +244,40 @@ class CompressedModel(nn.Module):
 
         return self.scale_factors.copy()
 
+    def _bitlinear_compression_stats(self) -> Dict:
+        """Mode 1 stats from BitLinear layers. Ternary weights carry 1.58-bit of
+        information but are stored as int8 (no bit-packing), so the reported
+        sizes/ratio reflect int8 storage (~4x), not packed 1.58-bit (~20x)."""
+        total_original = 0
+        total_quantized = 0
+        num_bitlinear = 0
+
+        for name, module in self.base_model.named_modules():
+            if isinstance(module, BitLinear):
+                footprint = module.get_memory_footprint()
+                total_original += footprint["original_fp32"]
+                total_quantized += footprint["quantized_int8_bytes"]  # int8, not packed
+                num_bitlinear += 1
+            elif isinstance(module, nn.Module) and list(module.parameters(recurse=False)):
+                # Non-BitLinear modules stored in FP16 for dequantized output
+                for param in module.parameters(recurse=False):
+                    total_original += param.nelement() * 4
+                    total_quantized += param.nelement() * 2
+
+        return {
+            "is_compressed": True,
+            "mode": "bitlinear",
+            "storage_dtype": "int8",
+            "bit_packed": False,
+            "num_bitlinear_layers": num_bitlinear,
+            "layers_quantized": num_bitlinear,
+            "layers_preserved": 0,
+            "original_size_mb": total_original / (1024**2),
+            "quantized_size_mb": total_quantized / (1024**2),
+            "compression_ratio": total_original / total_quantized if total_quantized > 0 else 1.0,
+            "sparsity_ratio": calculate_sparsity_ratio(self.base_model),
+        }
+
     def get_compression_stats(self) -> Dict:
         """
         Get compression statistics
@@ -257,38 +293,7 @@ class CompressedModel(nn.Module):
             }
 
         if self.use_bitlinear:
-            # Mode 1: Calculate from BitLinear layers
-            total_original = 0
-            total_quantized = 0
-            num_bitlinear = 0
-
-            for name, module in self.base_model.named_modules():
-                if isinstance(module, BitLinear):
-                    footprint = module.get_memory_footprint()
-                    total_original += footprint["original_fp32"]
-                    total_quantized += footprint["quantized_1.58bit"]
-                    num_bitlinear += 1
-                elif isinstance(module, nn.Module) and list(module.parameters(recurse=False)):
-                    # Non-BitLinear modules stored in FP16 for dequantized output
-                    for param in module.parameters(recurse=False):
-                        total_original += param.nelement() * 4
-                        total_quantized += param.nelement() * 2
-
-            sparsity_ratio = calculate_sparsity_ratio(self.base_model)
-
-            return {
-                "is_compressed": True,
-                "mode": "bitlinear",
-                "num_bitlinear_layers": num_bitlinear,
-                "layers_quantized": num_bitlinear,
-                "layers_preserved": 0,
-                "original_size_mb": total_original / (1024**2),
-                "quantized_size_mb": total_quantized / (1024**2),
-                "compression_ratio": total_original / total_quantized
-                if total_quantized > 0
-                else 1.0,
-                "sparsity_ratio": sparsity_ratio,
-            }
+            return self._bitlinear_compression_stats()
 
         # Mode 2: Legacy stats
         # Calculate sizes

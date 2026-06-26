@@ -49,26 +49,28 @@ class DFSMerge:
         """
         self.epsilon = epsilon
 
-    def merge(self, model_target: nn.Module, models_ref: List[nn.Module]) -> nn.Module:
+    def merge(self, models: List[nn.Module]) -> nn.Module:
         """
         Merge models using inverse-variance weighting.
 
+        Canonical signature: models[0] is the target (result is seeded from it)
+        and all models in the list participate in the variance weighting.
+
         Args:
-            model_target: Target model (can be used as additional reference)
-            models_ref: Reference models to merge (typically 3)
+            models: List of models to merge (at least 2)
 
         Returns:
             New model with variance-weighted parameters
 
         Raises:
-            ValueError: If models have incompatible architectures
-            ValueError: If models_ref is empty
+            ValueError: If fewer than 2 models, or incompatible architectures
         """
-        if not models_ref:
-            raise ValueError("models_ref cannot be empty")
+        if len(models) < 2:
+            raise ValueError("DFS merge requires at least 2 models")
 
-        # Include target in the set of models to consider
-        all_models = [model_target] + models_ref
+        model_target = models[0]
+        # All models (including the target) participate in the weighting.
+        all_models = list(models)
 
         # Verify all models have same architecture
         for model in all_models:

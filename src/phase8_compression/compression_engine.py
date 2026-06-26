@@ -143,6 +143,7 @@ class CompressionEngine:
 
             return self._finalize(
                 current_model,
+                model,  # pristine original, the safe fallback if the cumulative gate fails
                 original_size,
                 stage_results,
                 rollback_stage,
@@ -186,9 +187,12 @@ class CompressionEngine:
             "compressed_state": getattr(result, "compressed_state", None),  # G2: real encoded state
         }
 
-        # Quality gate
+        # Quality gate. On failure roll the working model back to the last good
+        # one (consistent with _stage_vptq) so a destroyed stage is never carried
+        # forward or shipped.
         if result.retention_score < self.config.min_retention_seedlm:
             print(f"  WARNING: SeedLM retention {result.retention_score:.2%} below threshold")
+            current_model = rollback_model
             rollback_stage = "seedlm"
         else:
             rollback_model = current_model
@@ -249,6 +253,7 @@ class CompressionEngine:
     def _finalize(
         self,
         current_model,
+        original_model,
         original_size,
         stage_results,
         rollback_stage,
@@ -257,29 +262,36 @@ class CompressionEngine:
         start_time,
     ) -> Phase8Result:
         """Compute final metrics, run benchmarks, and build the success result."""
-        # G2: measure the REAL compressed size from the kept stages' encoded byte counts, NOT
-        # _get_model_size(current_model) - current_model is the DEQUANTIZED reconstruction
-        # (~original size), so the old code always reported ~1.0x. Serialize the best kept
-        # state to disk so a real, smaller artifact exists.
-        final_size, artifact_path = self._real_compressed_size(
-            original_size, stage_results, rollback_stage
-        )
-        total_compression = original_size / max(final_size, 1e-6)
-
         # Calculate cumulative retention
         cumulative_retention = 1.0
         for stage, stats in stage_results.items():
             cumulative_retention *= stats.get("retention", 1.0)
 
-        # Final quality gate
-        if cumulative_retention < self.config.min_retention_final:
+        # Final quality gate FIRST (before sizing), so the reported size reflects
+        # the model actually shipped. If the cumulative chain did not meet the
+        # retention target, ship the pristine original model.
+        final_gate_failed = cumulative_retention < self.config.min_retention_final
+        if final_gate_failed:
             print(
                 f"\n  WARNING: Final retention {cumulative_retention:.2%} below {self.config.min_retention_final:.2%}"
             )
-            # Rollback to VPTQ if available
-            if "vptq" in stage_results:
-                print("  Rolling back to VPTQ stage")
-                rollback_stage = "hyper"
+            print("  Rolling back to the original (uncompressed) model")
+            current_model = original_model
+            if rollback_stage is None:
+                rollback_stage = "final"
+
+        # Size/artifact must describe the model we actually return. When we rolled
+        # all the way back to the original, that is the uncompressed size with no
+        # artifact - never report a compressed size for weights we are not shipping.
+        if rollback_stage == "final":
+            final_size, artifact_path = original_size, None
+        else:
+            # G2: real compressed size from the kept stages' encoded byte counts
+            # (current_model is the DEQUANTIZED reconstruction, ~original size).
+            final_size, artifact_path = self._real_compressed_size(
+                original_size, stage_results, rollback_stage
+            )
+        total_compression = original_size / max(final_size, 1e-6)
 
         # Run benchmarks
         benchmark_results = {}
@@ -300,8 +312,13 @@ class CompressionEngine:
         if rollback_stage:
             print(f"  Note: Rolled back from {rollback_stage}")
 
+        # Honest success: a stage (or the final cumulative gate) that failed its
+        # retention threshold means we degraded to the undamaged model rather than
+        # delivering the compression. Do not report success in that case.
+        success = rollback_stage is None
+
         return Phase8Result(
-            success=True,
+            success=success,
             model=current_model,
             original_size_mb=original_size,
             final_size_mb=final_size,

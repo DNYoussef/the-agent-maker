@@ -12,6 +12,7 @@ Complete training pipeline with:
 from __future__ import annotations
 
 # Cross-phase imports
+import math
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -226,6 +227,11 @@ class Phase1Trainer:
         self.best_val_loss = float("inf")
         self.epochs_without_improvement = 0  # For early stopping
 
+        # Last MEASURED losses (None until a real epoch/validation runs).
+        # log_final_metrics reports these instead of a hardcoded constant.
+        self.last_train_loss: Optional[float] = None
+        self.last_val_loss: Optional[float] = None
+
         # EMA model (M4 TIER 1 - for better generalization)
         self.ema = EMAModel(self.model, decay=config.ema_decay) if config.use_ema else None
         if self.ema:
@@ -320,6 +326,7 @@ class Phase1Trainer:
             epoch_start = time.time()
             epoch_loss = self.train_epoch(dataset_names)
             epoch_time = (time.time() - epoch_start) / 60
+            self.last_train_loss = epoch_loss
 
             print(f"\nEpoch {epoch} completed in {epoch_time:.1f} minutes")
             print(f"Average loss: {epoch_loss:.4f}")
@@ -327,6 +334,7 @@ class Phase1Trainer:
             # Validation
             if self.val_datasets:
                 val_loss, val_accs = self.validate()
+                self.last_val_loss = val_loss
                 print(f"Validation loss: {val_loss:.4f}")
 
                 # Log to W&B
@@ -498,11 +506,11 @@ class Phase1Trainer:
         else:
             gpu_mem = 0.0
 
-        # Extract ACT metrics
-        halting_steps = output.get("halting_steps", torch.zeros(1))
-
-        # LTM usage (dummy for now - would need to track in model)
-        ltm_usage = 0.5
+        # ACT halting steps: log ONLY when the model's forward actually emits
+        # them (real measurement). When absent, pass None so nothing is logged
+        # rather than a fabricated zeros tensor. LTM usage is never measured (the
+        # model exposes no occupancy stat), so it is not passed at all.
+        halting_steps = output.get("halting_steps")
 
         self.logger.log_step(
             step=self.global_step,
@@ -511,22 +519,23 @@ class Phase1Trainer:
             learning_rate=lr,
             grad_norm=grad_norm,
             halting_steps=halting_steps,
-            ltm_usage=ltm_usage,
             gpu_memory_gb=gpu_mem,
         )
 
-    def validate(self) -> tuple[float, Dict[str, float]]:
+    def validate(self) -> tuple[Optional[float], Dict[str, float]]:
         """
         Run validation on held-out dataset
 
         Uses EMA weights if available for better generalization.
 
         Returns:
-            tuple: (val_loss, val_accuracies_per_dataset)
+            tuple: (val_loss, val_accuracies_per_dataset). val_loss is None
+            when there is no validation data (no measurement to report).
         """
         if not self.val_datasets:
-            # No validation data, return placeholder
-            return 2.5, {}
+            # No validation data: there is nothing to measure. Report None
+            # rather than a canned loss value.
+            return None, {}
 
         # Apply EMA weights for validation (M4 TIER 1)
         if self.ema is not None:
@@ -568,7 +577,9 @@ class Phase1Trainer:
         # Compute average validation loss
         avg_val_loss = total_loss / max(total_samples, 1)
 
-        # Placeholder accuracies (would need task-specific evaluation)
+        # Per-dataset accuracies require task-specific evaluation that is not
+        # implemented here; we report only the measured loss. Empty dict =
+        # "no accuracies computed", not a fabricated score.
         val_accs: dict[str, float] = {}
 
         print(
@@ -651,17 +662,28 @@ class Phase1Trainer:
             sum(p.numel() * p.element_size() for p in self.model.parameters()) / 1024**2
         )  # MB
 
-        diversity_metrics = {
-            "avg_halting_steps": 7.5,  # Placeholder
-            "ltm_usage": 0.45,
-            "inference_time_ms": 85,
-        }
+        # Report the actual last measured loss: prefer validation loss (held
+        # out) and fall back to the last training-epoch loss. None of these
+        # are fabricated; if neither ran, emit NaN rather than a constant.
+        final_loss = self.last_val_loss if self.last_val_loss is not None else self.last_train_loss
+        if final_loss is None:
+            final_loss = float("nan")
+        # Perplexity is exp(cross-entropy loss); guard against overflow/NaN.
+        if math.isfinite(final_loss) and final_loss < 60.0:
+            final_perplexity = math.exp(final_loss)
+        else:
+            final_perplexity = float("nan")
+
+        # Diversity metrics (LTM occupancy, inference latency, halting-step
+        # summary) are not measured in this pipeline, so we emit nothing rather
+        # than fabricated constants.
+        diversity_metrics: dict[str, float] = {}
 
         self.logger.log_final(
             total_params=param_counts["total"],
             training_time_hours=training_time_hours,
-            final_loss=2.5,  # Placeholder
-            final_perplexity=12.2,
+            final_loss=final_loss,
+            final_perplexity=final_perplexity,
             model_size_mb=model_size,
             diversity_metrics=diversity_metrics,
         )
