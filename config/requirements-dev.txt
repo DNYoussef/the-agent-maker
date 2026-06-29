@@ -29,7 +29,7 @@ sphinx>=7.2.0
 sphinx-rtd-theme>=2.0.0
 
 # Development tools
-ipython>=8.18.0
+ipython>=8.39.0
 jupyter>=1.0.0
 
 # CI/CD
