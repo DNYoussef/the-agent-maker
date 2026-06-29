@@ -21,7 +21,7 @@ mypy>=1.8.0  # Type checker
 pre-commit>=3.6.0
 
 # Type stubs
-types-PyYAML>=6.0.0
+types-PyYAML>=6.0.12.20260518
 types-requests>=2.31.0
 
 # Documentation
