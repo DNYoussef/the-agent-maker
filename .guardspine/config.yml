@@ -1,0 +1,17 @@
+# GuardSpine CodeGuard Configuration
+# Generated during onboarding
+
+api_url: https://api.guardspine.ai/api/v1
+project_id: proj-a854e0e4693e
+
+rubric_packs:
+  - security-baseline
+  - pii-shield
+
+evidence:
+  upload: true
+  format: json
+  sign: true
+
+notifications:
+  slack_channel: 
