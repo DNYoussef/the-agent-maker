@@ -1,0 +1,581 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cross_phase.utils_module &mdash; Agent Forge V2 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Agent Forge V2
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/modules.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Agent Forge V2</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">cross_phase.utils_module</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for cross_phase.utils_module</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Model-Size-Agnostic Utilities</span>
+<span class="sd">Runtime detection and adaptive strategies for any model size</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
+
+<span class="c1"># Parameter-count boundaries for the adaptive size categories (tiny/small/</span>
+<span class="c1"># medium/large). Named so the thresholds are not magic literals at the call site.</span>
+<span class="n">TINY_MODEL_MAX_PARAMS</span> <span class="o">=</span> <span class="mi">50_000_000</span>  <span class="c1"># &lt; 50M -&gt; &quot;tiny&quot;</span>
+<span class="n">SMALL_MODEL_MAX_PARAMS</span> <span class="o">=</span> <span class="mi">500_000_000</span>  <span class="c1"># &lt; 500M -&gt; &quot;small&quot;</span>
+<span class="n">MEDIUM_MODEL_MAX_PARAMS</span> <span class="o">=</span> <span class="mi">2_000_000_000</span>  <span class="c1"># &lt; 2B -&gt; &quot;medium&quot;; else &quot;large&quot;</span>
+
+
+<div class="viewcode-block" id="get_model_size">
+<a class="viewcode-back" href="../../api/modules.html#cross_phase.utils.get_model_size">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_model_size</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Detect model size at runtime</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        {</span>
+<span class="sd">            &#39;params&#39;: total_parameters,</span>
+<span class="sd">            &#39;size_mb&#39;: size_in_megabytes,</span>
+<span class="sd">            &#39;size_category&#39;: &#39;tiny&#39; | &#39;small&#39; | &#39;medium&#39; | &#39;large&#39;</span>
+<span class="sd">        }</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">total_params</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span>
+    <span class="n">size_mb</span> <span class="o">=</span> <span class="n">total_params</span> <span class="o">*</span> <span class="mi">4</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1024</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>  <span class="c1"># FP32</span>
+
+    <span class="c1"># Categorize for adaptive strategies</span>
+    <span class="k">if</span> <span class="n">total_params</span> <span class="o">&lt;</span> <span class="n">TINY_MODEL_MAX_PARAMS</span><span class="p">:</span>
+        <span class="n">size_category</span> <span class="o">=</span> <span class="s2">&quot;tiny&quot;</span>
+    <span class="k">elif</span> <span class="n">total_params</span> <span class="o">&lt;</span> <span class="n">SMALL_MODEL_MAX_PARAMS</span><span class="p">:</span>
+        <span class="n">size_category</span> <span class="o">=</span> <span class="s2">&quot;small&quot;</span>
+    <span class="k">elif</span> <span class="n">total_params</span> <span class="o">&lt;</span> <span class="n">MEDIUM_MODEL_MAX_PARAMS</span><span class="p">:</span>
+        <span class="n">size_category</span> <span class="o">=</span> <span class="s2">&quot;medium&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">size_category</span> <span class="o">=</span> <span class="s2">&quot;large&quot;</span>
+
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;params&quot;</span><span class="p">:</span> <span class="n">total_params</span><span class="p">,</span> <span class="s2">&quot;size_mb&quot;</span><span class="p">:</span> <span class="n">size_mb</span><span class="p">,</span> <span class="s2">&quot;size_category&quot;</span><span class="p">:</span> <span class="n">size_category</span><span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="calculate_safe_batch_size">
+<a class="viewcode-back" href="../../api/modules.html#cross_phase.utils.calculate_safe_batch_size">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">calculate_safe_batch_size</span><span class="p">(</span><span class="n">model_or_size</span><span class="p">,</span> <span class="n">device_vram_gb</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate batch size that fits in VRAM with gradient accumulation</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        model_or_size: nn.Module model OR float model size in MB</span>
+<span class="sd">        device_vram_gb: Available VRAM in GB</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        batch_size (int) - returns just batch size for API compatibility</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Support both model and model_size_mb signatures (ISS-001)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model_or_size</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+        <span class="n">model_size_mb</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">model_or_size</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">model_info</span> <span class="o">=</span> <span class="n">get_model_size</span><span class="p">(</span><span class="n">model_or_size</span><span class="p">)</span>
+        <span class="n">model_size_mb</span> <span class="o">=</span> <span class="n">model_info</span><span class="p">[</span><span class="s2">&quot;size_mb&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Rule of thumb: 4x model size for training (model + optimizer + gradients + activations)</span>
+    <span class="n">required_vram_mb</span> <span class="o">=</span> <span class="n">model_size_mb</span> <span class="o">*</span> <span class="mi">4</span>
+
+    <span class="c1"># Leave 10% headroom</span>
+    <span class="n">available_vram_mb</span> <span class="o">=</span> <span class="n">device_vram_gb</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mf">0.9</span>
+
+    <span class="k">if</span> <span class="n">required_vram_mb</span> <span class="o">&gt;</span> <span class="n">available_vram_mb</span><span class="p">:</span>
+        <span class="c1"># Won&#39;t fit, need gradient accumulation</span>
+        <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">accumulation_steps</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">required_vram_mb</span> <span class="o">/</span> <span class="n">available_vram_mb</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;[WARN] Using gradient accumulation: batch_size=1, &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;accumulation=</span><span class="si">{</span><span class="n">accumulation_steps</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Fits, calculate optimal batch size</span>
+        <span class="n">overhead_per_sample</span> <span class="o">=</span> <span class="n">model_size_mb</span> <span class="o">*</span> <span class="mf">0.1</span>
+        <span class="n">batch_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">available_vram_mb</span> <span class="o">-</span> <span class="n">required_vram_mb</span><span class="p">)</span> <span class="o">/</span> <span class="n">overhead_per_sample</span><span class="p">)</span>
+        <span class="n">batch_size</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span>  <span class="c1"># Cap at 32</span>
+        <span class="n">accumulation_steps</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="c1"># Test it (safety check) - only if CUDA available</span>
+    <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">test_batch</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="mi">512</span><span class="p">,</span> <span class="mi">512</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s2">&quot;cuda&quot;</span><span class="p">)</span>
+            <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+                <span class="n">_</span> <span class="o">=</span> <span class="n">test_batch</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            <span class="k">del</span> <span class="n">test_batch</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">empty_cache</span><span class="p">()</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[OK] Batch size </span><span class="si">{</span><span class="n">batch_size</span><span class="si">}</span><span class="s2"> fits in VRAM&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">OutOfMemoryError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[FAIL] Batch size </span><span class="si">{</span><span class="n">batch_size</span><span class="si">}</span><span class="s2"> too large, reducing...&quot;</span><span class="p">)</span>
+            <span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span> <span class="o">//</span> <span class="mi">2</span>
+
+    <span class="c1"># Return just batch_size for API compatibility (ISS-001)</span>
+    <span class="k">return</span> <span class="n">batch_size</span></div>
+
+
+
+<div class="viewcode-block" id="validate_diversity">
+<a class="viewcode-back" href="../../api/modules.html#cross_phase.utils.validate_diversity">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">validate_diversity</span><span class="p">(</span>
+    <span class="n">model1</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+    <span class="n">model2</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+    <span class="n">model3</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+    <span class="n">min_weight_diversity</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.01</span><span class="p">,</span>
+    <span class="n">min_parameter_delta</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100_000</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Validate diversity across 3 Phase 1 models</span>
+<span class="sd">    Raises AssertionError if diversity too low</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">models</span> <span class="o">=</span> <span class="p">[</span><span class="n">model1</span><span class="p">,</span> <span class="n">model2</span><span class="p">,</span> <span class="n">model3</span><span class="p">]</span>
+    <span class="n">params1</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">model1</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span>
+    <span class="n">params2</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">model2</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span>
+    <span class="n">params3</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">model3</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span>
+
+    <span class="n">param_diversity</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">params1</span><span class="p">,</span> <span class="n">params2</span><span class="p">,</span> <span class="n">params3</span><span class="p">)</span> <span class="o">-</span> <span class="nb">min</span><span class="p">(</span><span class="n">params1</span><span class="p">,</span> <span class="n">params2</span><span class="p">,</span> <span class="n">params3</span><span class="p">)</span>
+    <span class="n">weight_diversity</span> <span class="o">=</span> <span class="n">compute_diversity</span><span class="p">(</span><span class="n">models</span><span class="p">)</span> <span class="k">if</span> <span class="n">param_diversity</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="mf">1.0</span>
+
+    <span class="k">if</span> <span class="n">param_diversity</span> <span class="o">&gt;=</span> <span class="n">min_parameter_delta</span> <span class="ow">or</span> <span class="n">weight_diversity</span> <span class="o">&gt;=</span> <span class="n">min_weight_diversity</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;passed&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="s2">&quot;parameter_delta&quot;</span><span class="p">:</span> <span class="n">param_diversity</span><span class="p">,</span>
+            <span class="s2">&quot;weight_diversity&quot;</span><span class="p">:</span> <span class="n">weight_diversity</span><span class="p">,</span>
+            <span class="s2">&quot;min_parameter_delta&quot;</span><span class="p">:</span> <span class="n">min_parameter_delta</span><span class="p">,</span>
+            <span class="s2">&quot;min_weight_diversity&quot;</span><span class="p">:</span> <span class="n">min_weight_diversity</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[OK] Diversity validated: </span><span class="si">{</span><span class="n">result</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span>
+        <span class="s2">&quot;Model diversity below threshold: &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;parameter_delta=</span><span class="si">{</span><span class="n">param_diversity</span><span class="si">}</span><span class="s2">, weight_diversity=</span><span class="si">{</span><span class="n">weight_diversity</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2">, &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;required parameter_delta&gt;=</span><span class="si">{</span><span class="n">min_parameter_delta</span><span class="si">}</span><span class="s2"> or &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;weight_diversity&gt;=</span><span class="si">{</span><span class="n">min_weight_diversity</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">detect_training_issues</span><span class="p">(</span><span class="n">loss_history</span><span class="p">:</span> <span class="nb">list</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Detect training divergence early</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        RuntimeError: If loss diverging or NaN</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+    <span class="n">last_100</span> <span class="o">=</span> <span class="n">loss_history</span><span class="p">[</span><span class="o">-</span><span class="mi">100</span><span class="p">:]</span>
+
+    <span class="c1"># Issue 1: Divergence (loss increasing)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">last_100</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">10</span><span class="p">:</span>
+        <span class="n">recent_trend</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">last_100</span><span class="p">)),</span> <span class="n">last_100</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">recent_trend</span> <span class="o">&gt;</span> <span class="mf">0.01</span><span class="p">:</span>  <span class="c1"># Loss increasing</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loss diverging: trend=</span><span class="si">{</span><span class="n">recent_trend</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Issue 2: Plateau (no improvement for 50 steps)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">last_100</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">50</span><span class="p">:</span>
+        <span class="n">recent_variance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">last_100</span><span class="p">[</span><span class="o">-</span><span class="mi">50</span><span class="p">:])</span>
+        <span class="k">if</span> <span class="n">recent_variance</span> <span class="o">&lt;</span> <span class="mf">0.001</span><span class="p">:</span>  <span class="c1"># No change</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WARN] Loss plateaued: variance=</span><span class="si">{</span><span class="n">recent_variance</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Issue 3: NaN</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">last_100</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Loss is NaN&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="compute_diversity">
+<a class="viewcode-back" href="../../api/modules.html#cross_phase.utils.compute_diversity">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">compute_diversity</span><span class="p">(</span><span class="n">population</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute average pairwise cosine distance for population diversity</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        population: List of models</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Diversity score (0.0 to 1.0, higher = more diverse)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_weights_flat</span><span class="p">(</span><span class="n">model</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Flatten all model weights into 1D vector&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">p</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">()])</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">cosine_distance</span><span class="p">(</span><span class="n">vec1</span><span class="p">,</span> <span class="n">vec2</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Cosine distance (1 - cosine similarity)&quot;&quot;&quot;</span>
+        <span class="n">dot_product</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">vec1</span><span class="p">,</span> <span class="n">vec2</span><span class="p">)</span>
+        <span class="n">norm1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">vec1</span><span class="p">)</span>
+        <span class="n">norm2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">vec2</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">norm1</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">norm2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mf">0.0</span>
+        <span class="k">if</span> <span class="n">norm1</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">norm2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mf">1.0</span>
+        <span class="n">cosine_sim</span> <span class="o">=</span> <span class="n">dot_product</span> <span class="o">/</span> <span class="p">(</span><span class="n">norm1</span> <span class="o">*</span> <span class="n">norm2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">cosine_sim</span>
+
+    <span class="n">distances</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">model_i</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">population</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">model_j</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">population</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">j</span><span class="p">:</span>
+                <span class="n">vec_i</span> <span class="o">=</span> <span class="n">get_weights_flat</span><span class="p">(</span><span class="n">model_i</span><span class="p">)</span>
+                <span class="n">vec_j</span> <span class="o">=</span> <span class="n">get_weights_flat</span><span class="p">(</span><span class="n">model_j</span><span class="p">)</span>
+                <span class="n">dist</span> <span class="o">=</span> <span class="n">cosine_distance</span><span class="p">(</span><span class="n">vec_i</span><span class="p">,</span> <span class="n">vec_j</span><span class="p">)</span>
+                <span class="n">distances</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dist</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">distances</span><span class="p">))</span></div>
+
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># ISS-016: Unified MockTokenizer Utility</span>
+<span class="c1"># =============================================================================</span>
+
+
+<div class="viewcode-block" id="MockTokenizer">
+<a class="viewcode-back" href="../../api/modules.html#cross_phase.utils.MockTokenizer">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">MockTokenizer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Mock tokenizer for when HuggingFace transformers is unavailable.</span>
+
+<span class="sd">    Provides deterministic hash-based tokenization for testing/fallback.</span>
+<span class="sd">    All phases should use this unified class instead of duplicating.</span>
+
+<span class="sd">    Usage:</span>
+<span class="sd">        tokenizer = get_tokenizer()  # Returns GPT2Tokenizer or MockTokenizer</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Standard token IDs</span>
+    <span class="n">PAD_TOKEN_ID</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">EOS_TOKEN_ID</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">BOS_TOKEN_ID</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">UNK_TOKEN_ID</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">MASK_TOKEN_ID</span> <span class="o">=</span> <span class="mi">4</span>
+
+    <span class="c1"># Vocab size for hash modulo</span>
+    <span class="n">VOCAB_SIZE</span> <span class="o">=</span> <span class="mi">32768</span>
+
+<div class="viewcode-block" id="MockTokenizer.__init__">
+<a class="viewcode-back" href="../../api/modules.html#cross_phase.utils.MockTokenizer.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize mock tokenizer with standard special tokens.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pad_token</span> <span class="o">=</span> <span class="s2">&quot;&lt;pad&gt;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eos_token</span> <span class="o">=</span> <span class="s2">&quot;&lt;eos&gt;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bos_token</span> <span class="o">=</span> <span class="s2">&quot;&lt;bos&gt;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unk_token</span> <span class="o">=</span> <span class="s2">&quot;&lt;unk&gt;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mask_token</span> <span class="o">=</span> <span class="s2">&quot;&lt;mask&gt;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">pad_token_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">PAD_TOKEN_ID</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eos_token_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">EOS_TOKEN_ID</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bos_token_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">BOS_TOKEN_ID</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unk_token_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">UNK_TOKEN_ID</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mask_token_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">MASK_TOKEN_ID</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">vocab_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">VOCAB_SIZE</span>
+
+        <span class="c1"># Build reverse mapping for decode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_id_to_token</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">PAD_TOKEN_ID</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">pad_token</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">EOS_TOKEN_ID</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">eos_token</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">BOS_TOKEN_ID</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bos_token</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">UNK_TOKEN_ID</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">unk_token</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">MASK_TOKEN_ID</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask_token</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="MockTokenizer.__call__">
+<a class="viewcode-back" href="../../api/modules.html#cross_phase.utils.MockTokenizer.__call__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;pt&quot;</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span> <span class="n">truncation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Tokenize text using deterministic hash-based encoding.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            text: Input text to tokenize</span>
+<span class="sd">            return_tensors: Tensor format (&quot;pt&quot; for PyTorch)</span>
+<span class="sd">            max_length: Maximum sequence length</span>
+<span class="sd">            truncation: Whether to truncate to max_length</span>
+<span class="sd">            padding: Whether to pad to max_length</span>
+<span class="sd">            **kwargs: Additional arguments (ignored for compatibility)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dict with input_ids and attention_mask tensors</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Split into tokens (word-level)</span>
+        <span class="n">words</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+
+        <span class="c1"># Apply truncation</span>
+        <span class="k">if</span> <span class="n">truncation</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">words</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">max_length</span><span class="p">:</span>
+            <span class="n">words</span> <span class="o">=</span> <span class="n">words</span><span class="p">[:</span><span class="n">max_length</span><span class="p">]</span>
+
+        <span class="c1"># Hash-based token IDs (deterministic)</span>
+        <span class="n">input_ids</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_hash_token</span><span class="p">(</span><span class="n">word</span><span class="p">)</span> <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">words</span><span class="p">]</span>
+
+        <span class="c1"># Pad if needed</span>
+        <span class="k">if</span> <span class="n">padding</span><span class="p">:</span>
+            <span class="n">padding_length</span> <span class="o">=</span> <span class="n">max_length</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">input_ids</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">padding_length</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">input_ids</span> <span class="o">=</span> <span class="n">input_ids</span> <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">PAD_TOKEN_ID</span><span class="p">]</span> <span class="o">*</span> <span class="n">padding_length</span>
+
+        <span class="c1"># Create attention mask (1 for real tokens, 0 for padding)</span>
+        <span class="n">attention_mask</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">words</span><span class="p">)</span> <span class="o">+</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">input_ids</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">words</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">return_tensors</span> <span class="o">==</span> <span class="s2">&quot;pt&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;input_ids&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="n">input_ids</span><span class="p">]),</span>
+                <span class="s2">&quot;attention_mask&quot;</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="n">attention_mask</span><span class="p">]),</span>
+            <span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;input_ids&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">input_ids</span><span class="p">],</span> <span class="s2">&quot;attention_mask&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">attention_mask</span><span class="p">]}</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_hash_token</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Hash a token to an ID deterministically.&quot;&quot;&quot;</span>
+        <span class="c1"># Skip special token IDs (0-4)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="nb">hash</span><span class="p">(</span><span class="n">token</span><span class="p">))</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">VOCAB_SIZE</span> <span class="o">-</span> <span class="mi">5</span><span class="p">))</span> <span class="o">+</span> <span class="mi">5</span>
+
+<div class="viewcode-block" id="MockTokenizer.decode">
+<a class="viewcode-back" href="../../api/modules.html#cross_phase.utils.MockTokenizer.decode">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token_ids</span><span class="p">,</span> <span class="n">skip_special_tokens</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Decode token IDs back to text.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            token_ids: Token IDs (tensor, list, or single int)</span>
+<span class="sd">            skip_special_tokens: Skip special tokens in output</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Decoded text string</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Handle various input types</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">token_ids</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+            <span class="n">token_ids</span> <span class="o">=</span> <span class="n">token_ids</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">token_ids</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="n">token_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">token_ids</span><span class="p">]</span>
+
+        <span class="c1"># Flatten if nested</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">token_ids</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">token_ids</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">token_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="n">token_ids</span> <span class="o">=</span> <span class="n">token_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Decode tokens</span>
+        <span class="n">tokens</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">tid</span> <span class="ow">in</span> <span class="n">token_ids</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">skip_special_tokens</span> <span class="ow">and</span> <span class="n">tid</span> <span class="o">&lt;=</span> <span class="mi">4</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">tid</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_id_to_token</span><span class="p">:</span>
+                <span class="n">tokens</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_id_to_token</span><span class="p">[</span><span class="n">tid</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">tokens</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">tid</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MockTokenizer.encode">
+<a class="viewcode-back" href="../../api/modules.html#cross_phase.utils.MockTokenizer.encode">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Encode text to token IDs.&quot;&quot;&quot;</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="n">return_tensors</span> <span class="ow">or</span> <span class="s2">&quot;pt&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;input_ids&quot;</span><span class="p">]</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="get_tokenizer">
+<a class="viewcode-back" href="../../api/modules.html#cross_phase.utils.get_tokenizer">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_tokenizer</span><span class="p">(</span><span class="n">model_name</span><span class="o">=</span><span class="s2">&quot;gpt2&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get tokenizer with fallback to MockTokenizer.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        model_name: HuggingFace model name (default: &quot;gpt2&quot;)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        GPT2Tokenizer if available, else MockTokenizer</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">transformers</span><span class="w"> </span><span class="kn">import</span> <span class="n">GPT2Tokenizer</span>
+
+        <span class="n">tokenizer</span> <span class="o">=</span> <span class="n">GPT2Tokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="n">model_name</span><span class="p">)</span>
+        <span class="n">tokenizer</span><span class="o">.</span><span class="n">pad_token</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">eos_token</span>
+        <span class="k">return</span> <span class="n">tokenizer</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Warning: Could not load </span><span class="si">{</span><span class="n">model_name</span><span class="si">}</span><span class="s2"> tokenizer (</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">), using MockTokenizer.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">MockTokenizer</span><span class="p">()</span></div>
+
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># ISS-001: Compatibility aliases for test_utils.py</span>
+<span class="c1"># =============================================================================</span>
+
+
+<div class="viewcode-block" id="validate_model_diversity">
+<a class="viewcode-back" href="../../api/modules.html#cross_phase.utils.validate_model_diversity">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">validate_model_diversity</span><span class="p">(</span><span class="n">models</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">min_diversity</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Validate diversity across models (alias for compute_diversity).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        models: List of nn.Module models</span>
+<span class="sd">        min_diversity: Minimum required diversity score (0.0-1.0)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        True if diversity &gt;= min_diversity, False otherwise</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">models</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span>  <span class="c1"># Single model is trivially diverse</span>
+
+    <span class="n">diversity_score</span> <span class="o">=</span> <span class="n">compute_diversity</span><span class="p">(</span><span class="n">models</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">diversity_score</span> <span class="o">&gt;=</span> <span class="n">min_diversity</span></div>
+
+
+
+<div class="viewcode-block" id="detect_training_divergence">
+<a class="viewcode-back" href="../../api/modules.html#cross_phase.utils.detect_training_divergence">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">detect_training_divergence</span><span class="p">(</span><span class="n">losses</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">window</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Detect if training is diverging (loss increasing).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        losses: List of loss values</span>
+<span class="sd">        window: Number of recent losses to check</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        True if diverging, False otherwise</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">losses</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">window</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="n">recent</span> <span class="o">=</span> <span class="n">losses</span><span class="p">[</span><span class="o">-</span><span class="n">window</span><span class="p">:]</span>
+
+    <span class="c1"># Check if trend is increasing</span>
+    <span class="n">trend</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">recent</span><span class="p">)),</span> <span class="n">recent</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">trend</span> <span class="o">&gt;</span> <span class="mf">0.01</span>  <span class="c1"># Positive slope = diverging</span></div>
+
+
+
+<div class="viewcode-block" id="compute_population_diversity">
+<a class="viewcode-back" href="../../api/modules.html#cross_phase.utils.compute_population_diversity">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">compute_population_diversity</span><span class="p">(</span><span class="n">fitness_scores</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute population diversity from fitness scores.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        fitness_scores: List of fitness values</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Diversity score (0.0-1.0) based on variance</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fitness_scores</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span>
+
+    <span class="c1"># Normalize variance to 0-1 range</span>
+    <span class="n">variance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">fitness_scores</span><span class="p">)</span>
+    <span class="n">mean_val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">fitness_scores</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">mean_val</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span>
+
+    <span class="c1"># Coefficient of variation normalized</span>
+    <span class="n">cv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">variance</span><span class="p">)</span> <span class="o">/</span> <span class="nb">abs</span><span class="p">(</span><span class="n">mean_val</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="n">cv</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>  <span class="c1"># Cap at 1.0</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Agent Forge Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

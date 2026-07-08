@@ -1,0 +1,1547 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Reference &mdash; Agent Forge V2 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Architecture" href="../architecture.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Agent Forge V2
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../architecture.html">Architecture</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-cross_phase">cross_phase</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#cross-phase-storage">cross_phase.storage</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.storage.model_registry.ModelRegistry"><code class="docutils literal notranslate"><span class="pre">ModelRegistry</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#cross-phase-orchestrator">cross_phase.orchestrator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#cross-phase-mugrokfast">cross_phase.mugrokfast</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.mugrokfast.optimizer.MuonGrokfast"><code class="docutils literal notranslate"><span class="pre">MuonGrokfast</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.mugrokfast.optimizer.QKClipHook"><code class="docutils literal notranslate"><span class="pre">QKClipHook</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.mugrokfast.optimizer.apply_qk_clip"><code class="docutils literal notranslate"><span class="pre">apply_qk_clip()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.mugrokfast.optimizer.create_optimizer_from_phase"><code class="docutils literal notranslate"><span class="pre">create_optimizer_from_phase()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.mugrokfast.config.MuGrokConfig"><code class="docutils literal notranslate"><span class="pre">MuGrokConfig</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-cross_phase.prompt_baking.baker">cross_phase.prompt_baking</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.prompt_baking.baker.PromptBakingConfig"><code class="docutils literal notranslate"><span class="pre">PromptBakingConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.prompt_baking.baker.PromptBaker"><code class="docutils literal notranslate"><span class="pre">PromptBaker</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.prompt_baking.baker.bake_prompt"><code class="docutils literal notranslate"><span class="pre">bake_prompt()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.prompt_baking.prompts.PhasePrompts"><code class="docutils literal notranslate"><span class="pre">PhasePrompts</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.prompt_baking.prompts.PromptManager"><code class="docutils literal notranslate"><span class="pre">PromptManager</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#cross-phase-monitoring">cross_phase.monitoring</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.monitoring.wandb_integration.WandBIntegration"><code class="docutils literal notranslate"><span class="pre">WandBIntegration</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.monitoring.wandb_integration.MetricContinuityTracker"><code class="docutils literal notranslate"><span class="pre">MetricContinuityTracker</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#cross-phase-utils">cross_phase.utils</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.utils.save_checkpoint"><code class="docutils literal notranslate"><span class="pre">save_checkpoint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.utils.load_checkpoint"><code class="docutils literal notranslate"><span class="pre">load_checkpoint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.utils.MockTokenizer"><code class="docutils literal notranslate"><span class="pre">MockTokenizer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.utils.get_tokenizer"><code class="docutils literal notranslate"><span class="pre">get_tokenizer()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.utils.get_model_size"><code class="docutils literal notranslate"><span class="pre">get_model_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.utils.calculate_safe_batch_size"><code class="docutils literal notranslate"><span class="pre">calculate_safe_batch_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.utils.validate_diversity"><code class="docutils literal notranslate"><span class="pre">validate_diversity()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.utils.compute_diversity"><code class="docutils literal notranslate"><span class="pre">compute_diversity()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.utils.validate_model_diversity"><code class="docutils literal notranslate"><span class="pre">validate_model_diversity()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.utils.detect_training_divergence"><code class="docutils literal notranslate"><span class="pre">detect_training_divergence()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross_phase.utils.compute_population_diversity"><code class="docutils literal notranslate"><span class="pre">compute_population_diversity()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Agent Forge V2</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">API Reference</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/modules.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="api-reference">
+<h1>API Reference<a class="headerlink" href="#api-reference" title="Link to this heading"></a></h1>
+<div class="toctree-wrapper compound">
+</div>
+<section id="module-cross_phase">
+<span id="cross-phase"></span><h2>cross_phase<a class="headerlink" href="#module-cross_phase" title="Link to this heading"></a></h2>
+<section id="cross-phase-storage">
+<h3>cross_phase.storage<a class="headerlink" href="#cross-phase-storage" title="Link to this heading"></a></h3>
+<p id="module-cross_phase.storage.model_registry">SQLite Model Registry with WAL Mode
+Concurrent read/write access for model metadata and session tracking</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="cross_phase.storage.model_registry.ModelRegistry">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cross_phase.storage.model_registry.</span></span><span class="sig-name descname"><span class="pre">ModelRegistry</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">db_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./storage/registry/model_registry.db'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/storage/model_registry.html#ModelRegistry"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.storage.model_registry.ModelRegistry" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Model Registry with WAL (Write-Ahead Logging) mode for concurrent access</p>
+<p>Features:
+- Concurrent read/write (readers don’t block writers)
+- Session tracking with auto-cleanup
+- Phase handoff validation
+- Model metadata versioning</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.storage.model_registry.ModelRegistry.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">db_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./storage/registry/model_registry.db'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/storage/model_registry.html#ModelRegistry.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.storage.model_registry.ModelRegistry.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="cross_phase.storage.model_registry.ModelRegistry.conn">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">conn</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Connection</span></em><a class="headerlink" href="#cross_phase.storage.model_registry.ModelRegistry.conn" title="Link to this definition"></a></dt>
+<dd><p>Return this thread’s SQLite connection.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.storage.model_registry.ModelRegistry.register_model">
+<span class="sig-name descname"><span class="pre">register_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">session_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phase_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/storage/model_registry.html#ModelRegistry.register_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.storage.model_registry.ModelRegistry.register_model" title="Link to this definition"></a></dt>
+<dd><p>Register a model in the registry</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.storage.model_registry.ModelRegistry.get_model">
+<span class="sig-name descname"><span class="pre">get_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">session_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phase_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/storage/model_registry.html#ModelRegistry.get_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.storage.model_registry.ModelRegistry.get_model" title="Link to this definition"></a></dt>
+<dd><p>Get model info from registry</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.storage.model_registry.ModelRegistry.create_session">
+<span class="sig-name descname"><span class="pre">create_session</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">session_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/storage/model_registry.html#ModelRegistry.create_session"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.storage.model_registry.ModelRegistry.create_session" title="Link to this definition"></a></dt>
+<dd><p>Create new session</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.storage.model_registry.ModelRegistry.update_session_progress">
+<span class="sig-name descname"><span class="pre">update_session_progress</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">session_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">current_phase</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress_percent</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/storage/model_registry.html#ModelRegistry.update_session_progress"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.storage.model_registry.ModelRegistry.update_session_progress" title="Link to this definition"></a></dt>
+<dd><p>Update session progress</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.storage.model_registry.ModelRegistry.checkpoint_wal">
+<span class="sig-name descname"><span class="pre">checkpoint_wal</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/storage/model_registry.html#ModelRegistry.checkpoint_wal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.storage.model_registry.ModelRegistry.checkpoint_wal" title="Link to this definition"></a></dt>
+<dd><p>Manually checkpoint WAL to main database</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.storage.model_registry.ModelRegistry.vacuum_incremental">
+<span class="sig-name descname"><span class="pre">vacuum_incremental</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pages</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/storage/model_registry.html#ModelRegistry.vacuum_incremental"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.storage.model_registry.ModelRegistry.vacuum_incremental" title="Link to this definition"></a></dt>
+<dd><p>Incremental vacuum to reclaim space</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.storage.model_registry.ModelRegistry.get_all_models">
+<span class="sig-name descname"><span class="pre">get_all_models</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">phase_filter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">session_filter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/storage/model_registry.html#ModelRegistry.get_all_models"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.storage.model_registry.ModelRegistry.get_all_models" title="Link to this definition"></a></dt>
+<dd><p>Get all models from registry with optional filters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>phase_filter</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]]</span>) – List of phase names to filter by</p></li>
+<li><p><strong>session_filter</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</span>) – Session ID to filter by</p></li>
+<li><p><strong>limit</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Maximum number of results</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>]</span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List of model dictionaries</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.storage.model_registry.ModelRegistry.get_storage_stats">
+<span class="sig-name descname"><span class="pre">get_storage_stats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/storage/model_registry.html#ModelRegistry.get_storage_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.storage.model_registry.ModelRegistry.get_storage_stats" title="Link to this definition"></a></dt>
+<dd><p>Get storage statistics for all models.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></span></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary with storage breakdown</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.storage.model_registry.ModelRegistry.delete_model">
+<span class="sig-name descname"><span class="pre">delete_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/storage/model_registry.html#ModelRegistry.delete_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.storage.model_registry.ModelRegistry.delete_model" title="Link to this definition"></a></dt>
+<dd><p>Delete a model from the registry.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>model_id</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – ID of model to delete</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>True if deleted, False otherwise</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.storage.model_registry.ModelRegistry.register_phase_handoff">
+<span class="sig-name descname"><span class="pre">register_phase_handoff</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">from_phase</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to_phase</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">session_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_model_metadata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_model_metadata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation_status</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation_metrics</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/storage/model_registry.html#ModelRegistry.register_phase_handoff"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.storage.model_registry.ModelRegistry.register_phase_handoff" title="Link to this definition"></a></dt>
+<dd><p>Register a phase handoff in the registry.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>from_phase</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Source phase number</p></li>
+<li><p><strong>to_phase</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Target phase number</p></li>
+<li><p><strong>session_id</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Session identifier</p></li>
+<li><p><strong>input_model_metadata</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></span>) – Metadata from source model</p></li>
+<li><p><strong>output_model_metadata</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></span>) – Metadata from target model</p></li>
+<li><p><strong>validation_status</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – ‘passed’ or ‘failed’</p></li>
+<li><p><strong>validation_metrics</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></span>) – Validation metrics dictionary</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Handoff ID</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.storage.model_registry.ModelRegistry.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/storage/model_registry.html#ModelRegistry.close"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.storage.model_registry.ModelRegistry.close" title="Link to this definition"></a></dt>
+<dd><p>Close database connection</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="cross-phase-orchestrator">
+<h3>cross_phase.orchestrator<a class="headerlink" href="#cross-phase-orchestrator" title="Link to this heading"></a></h3>
+</section>
+<section id="cross-phase-mugrokfast">
+<h3>cross_phase.mugrokfast<a class="headerlink" href="#cross-phase-mugrokfast" title="Link to this heading"></a></h3>
+<p id="module-cross_phase.mugrokfast.optimizer">MuGrokfast Optimizer (Muon x Grokfast)
+Ported from V1 with phase-specific presets</p>
+<p>Combines 3 complementary techniques:
+- Grokfast: EMA gradient filtering (accelerates grokking)
+- Muon: Newton-Schulz orthogonalization (prevents low-rank collapse)
+- QK-Clip: Attention safety rails (for RL training) - ISS-025</p>
+<p>ISS-025: Added QK-Clip implementation for attention score clipping</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.optimizer.MuonGrokfast">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cross_phase.mugrokfast.optimizer.</span></span><span class="sig-name descname"><span class="pre">MuonGrokfast</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">muon_lr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fallback_lr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grokfast_alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.98</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grokfast_lambda</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qk_clip_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kl_coefficient</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">muon_ste_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">momentum</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.95</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nesterov</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ns_steps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adamw_beta1</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.9</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adamw_beta2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.999</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adamw_eps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_decay</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/optimizer.html#MuonGrokfast"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.optimizer.MuonGrokfast" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Optimizer</span></code></p>
+<p>Unified optimizer combining Grokfast + Muon + QK-Clip</p>
+<p>Features:
+- Parameter routing: 2-D params -&gt; Muon, 1-D params -&gt; fallback (AdamW)
+- Phase-specific presets
+- STE compatibility (for Phase 5 BitNet)
+- QK-Clip for RL stability (Phases 3, 6)</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.optimizer.MuonGrokfast.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">muon_lr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fallback_lr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grokfast_alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.98</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grokfast_lambda</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qk_clip_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kl_coefficient</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">muon_ste_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">momentum</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.95</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nesterov</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ns_steps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adamw_beta1</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.9</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adamw_beta2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.999</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adamw_eps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-08</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_decay</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/optimizer.html#MuonGrokfast.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.optimizer.MuonGrokfast.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.optimizer.MuonGrokfast.step">
+<span class="sig-name descname"><span class="pre">step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">closure</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/optimizer.html#MuonGrokfast.step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.optimizer.MuonGrokfast.step" title="Link to this definition"></a></dt>
+<dd><p>Perform single optimization step</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.optimizer.MuonGrokfast.get_muon_lr">
+<span class="sig-name descname"><span class="pre">get_muon_lr</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/optimizer.html#MuonGrokfast.get_muon_lr"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.optimizer.MuonGrokfast.get_muon_lr" title="Link to this definition"></a></dt>
+<dd><p>Get current Muon learning rate</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.optimizer.MuonGrokfast.get_mu_norm">
+<span class="sig-name descname"><span class="pre">get_mu_norm</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/optimizer.html#MuonGrokfast.get_mu_norm"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.optimizer.MuonGrokfast.get_mu_norm" title="Link to this definition"></a></dt>
+<dd><p>Get EMA gradient norm (for logging)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.optimizer.MuonGrokfast.get_qk_clip_count">
+<span class="sig-name descname"><span class="pre">get_qk_clip_count</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/optimizer.html#MuonGrokfast.get_qk_clip_count"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.optimizer.MuonGrokfast.get_qk_clip_count" title="Link to this definition"></a></dt>
+<dd><p>Get QK-Clip activation count (for logging) - ISS-025.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.optimizer.MuonGrokfast.reset_qk_clip_count">
+<span class="sig-name descname"><span class="pre">reset_qk_clip_count</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/optimizer.html#MuonGrokfast.reset_qk_clip_count"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.optimizer.MuonGrokfast.reset_qk_clip_count" title="Link to this definition"></a></dt>
+<dd><p>Reset QK-Clip counter (call at start of each epoch).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.optimizer.QKClipHook">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cross_phase.mugrokfast.optimizer.</span></span><span class="sig-name descname"><span class="pre">QKClipHook</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">25.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/optimizer.html#QKClipHook"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.optimizer.QKClipHook" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>QK-Clip: Attention Score MONITOR (ISS-025)</p>
+<p>Honesty: this is a forward hook, which runs AFTER the module computes its
+output, so it cannot modify pre-softmax attention scores. It only COUNTS how
+often a module output exceeds the threshold (get_clip_count). It does not
+clip and does not prevent gradient explosions.</p>
+<p>Real QK-Clip requires clipping pre-softmax scores INSIDE the attention
+forward via apply_qk_clip(); wiring that into each attention implementation
+is a Wave-2 model change. Use this hook only as a diagnostic.</p>
+<dl class="simple">
+<dt>Usage:</dt><dd><p>monitor = QKClipHook(threshold=25.0)
+monitor.register(model)  # counts threshold exceedances per attention module</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.optimizer.QKClipHook.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">25.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/optimizer.html#QKClipHook.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.optimizer.QKClipHook.__init__" title="Link to this definition"></a></dt>
+<dd><p>Initialize QK-Clip hook.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>threshold</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span>) – Maximum absolute attention score (before softmax)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.optimizer.QKClipHook.register">
+<span class="sig-name descname"><span class="pre">register</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/optimizer.html#QKClipHook.register"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.optimizer.QKClipHook.register" title="Link to this definition"></a></dt>
+<dd><p>Register QK-Clip hooks on all attention modules.</p>
+<p>Automatically finds modules with ‘attention’ or ‘attn’ in name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.optimizer.QKClipHook.remove">
+<span class="sig-name descname"><span class="pre">remove</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/optimizer.html#QKClipHook.remove"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.optimizer.QKClipHook.remove" title="Link to this definition"></a></dt>
+<dd><p>Remove all registered hooks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.optimizer.QKClipHook.get_clip_count">
+<span class="sig-name descname"><span class="pre">get_clip_count</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/optimizer.html#QKClipHook.get_clip_count"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.optimizer.QKClipHook.get_clip_count" title="Link to this definition"></a></dt>
+<dd><p>Get number of times clipping threshold was exceeded.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.optimizer.QKClipHook.reset_count">
+<span class="sig-name descname"><span class="pre">reset_count</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/optimizer.html#QKClipHook.reset_count"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.optimizer.QKClipHook.reset_count" title="Link to this definition"></a></dt>
+<dd><p>Reset clip counter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.optimizer.apply_qk_clip">
+<span class="sig-prename descclassname"><span class="pre">cross_phase.mugrokfast.optimizer.</span></span><span class="sig-name descname"><span class="pre">apply_qk_clip</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">attention_scores</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">25.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/optimizer.html#apply_qk_clip"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.optimizer.apply_qk_clip" title="Link to this definition"></a></dt>
+<dd><p>Apply QK-Clip to attention scores (ISS-025).</p>
+<p>Use this function inside attention modules before softmax:</p>
+<blockquote>
+<div><p>scores = torch.matmul(q, k.transpose(-2, -1)) * scale
+scores, clip_count = apply_qk_clip(scores, threshold=25.0)
+attn_weights = F.softmax(scores, dim=-1)</p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>attention_scores</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code></span>) – Pre-softmax attention scores [batch, heads, seq, seq]</p></li>
+<li><p><strong>threshold</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span>) – Clipping threshold (default: 25.0)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple of (clipped_scores, num_clipped_values)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.optimizer.create_optimizer_from_phase">
+<span class="sig-prename descclassname"><span class="pre">cross_phase.mugrokfast.optimizer.</span></span><span class="sig-name descname"><span class="pre">create_optimizer_from_phase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phase_num</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/optimizer.html#create_optimizer_from_phase"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.optimizer.create_optimizer_from_phase" title="Link to this definition"></a></dt>
+<dd><p>Create MuGrokfast optimizer with phase-specific preset</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></span>) – Model to optimize</p></li>
+<li><p><strong>phase_num</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Phase number (1, 3, 5, 6, 7)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#cross_phase.mugrokfast.optimizer.MuonGrokfast" title="cross_phase.mugrokfast.optimizer.MuonGrokfast"><code class="xref py py-class docutils literal notranslate"><span class="pre">MuonGrokfast</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>MuonGrokfast optimizer</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p id="module-cross_phase.mugrokfast.config">MuGrokfast Configuration
+Phase-specific presets for optimal performance</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cross_phase.mugrokfast.config.</span></span><span class="sig-name descname"><span class="pre">MuGrokConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">muon_lr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fallback_lr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grokfast_alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.98</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grokfast_lambda</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qk_clip_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kl_coefficient</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">muon_ste_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">momentum</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.95</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nesterov</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ns_steps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_decay</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adamw_beta1</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.9</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adamw_beta2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.999</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adamw_eps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-08</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/config.html#MuGrokConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>MuGrokfast optimizer configuration</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig.muon_lr">
+<span class="sig-name descname"><span class="pre">muon_lr</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig.muon_lr" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig.fallback_lr">
+<span class="sig-name descname"><span class="pre">fallback_lr</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.001</span></em><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig.fallback_lr" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig.grokfast_alpha">
+<span class="sig-name descname"><span class="pre">grokfast_alpha</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.98</span></em><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig.grokfast_alpha" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig.grokfast_lambda">
+<span class="sig-name descname"><span class="pre">grokfast_lambda</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2.0</span></em><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig.grokfast_lambda" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig.qk_clip_threshold">
+<span class="sig-name descname"><span class="pre">qk_clip_threshold</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">30.0</span></em><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig.qk_clip_threshold" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig.kl_coefficient">
+<span class="sig-name descname"><span class="pre">kl_coefficient</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig.kl_coefficient" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig.muon_ste_mode">
+<span class="sig-name descname"><span class="pre">muon_ste_mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig.muon_ste_mode" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig.momentum">
+<span class="sig-name descname"><span class="pre">momentum</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.95</span></em><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig.momentum" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig.nesterov">
+<span class="sig-name descname"><span class="pre">nesterov</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig.nesterov" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig.ns_steps">
+<span class="sig-name descname"><span class="pre">ns_steps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">5</span></em><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig.ns_steps" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig.weight_decay">
+<span class="sig-name descname"><span class="pre">weight_decay</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig.weight_decay" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig.adamw_beta1">
+<span class="sig-name descname"><span class="pre">adamw_beta1</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.9</span></em><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig.adamw_beta1" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig.adamw_beta2">
+<span class="sig-name descname"><span class="pre">adamw_beta2</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.999</span></em><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig.adamw_beta2" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig.adamw_eps">
+<span class="sig-name descname"><span class="pre">adamw_eps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1e-08</span></em><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig.adamw_eps" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig.from_phase">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_phase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">phase_num</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/config.html#MuGrokConfig.from_phase"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig.from_phase" title="Link to this definition"></a></dt>
+<dd><p>Get phase-specific preset configuration</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>phase_num</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Phase number (1, 3, 5, 6, 7)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#cross_phase.mugrokfast.config.MuGrokConfig" title="cross_phase.mugrokfast.config.MuGrokConfig"><code class="xref py py-class docutils literal notranslate"><span class="pre">MuGrokConfig</span></code></a></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>MuGrokConfig with optimal settings for that phase</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig.custom">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">custom</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">muon_lr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fallback_lr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grokfast_alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.98</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grokfast_lambda</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qk_clip_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kl_coefficient</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">muon_ste_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">momentum</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.95</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nesterov</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ns_steps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_decay</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/mugrokfast/config.html#MuGrokConfig.custom"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig.custom" title="Link to this definition"></a></dt>
+<dd><p>Create custom configuration</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#cross_phase.mugrokfast.config.MuGrokConfig" title="cross_phase.mugrokfast.config.MuGrokConfig"><code class="xref py py-class docutils literal notranslate"><span class="pre">MuGrokConfig</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.mugrokfast.config.MuGrokConfig.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">muon_lr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fallback_lr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grokfast_alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.98</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grokfast_lambda</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qk_clip_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kl_coefficient</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">muon_ste_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">momentum</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.95</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nesterov</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ns_steps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_decay</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adamw_beta1</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.9</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adamw_beta2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.999</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adamw_eps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-08</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cross_phase.mugrokfast.config.MuGrokConfig.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-cross_phase.prompt_baking.baker">
+<span id="cross-phase-prompt-baking"></span><h3>cross_phase.prompt_baking<a class="headerlink" href="#module-cross_phase.prompt_baking.baker" title="Link to this heading"></a></h3>
+<p>Prompt Baking System
+Converts prompts into weight updates via KL divergence minimization</p>
+<p>Based on: Prompt Baking paper (arXiv:2409.13697v1)
+Core Algorithm: θ_u = argmin D_KL(P_θ(·<a href="#id1"><span class="problematic" id="id2">|u) ||</span></a> P_θu(·))</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.baker.PromptBakingConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cross_phase.prompt_baking.baker.</span></span><span class="sig-name descname"><span class="pre">PromptBakingConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lora_r</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lora_alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_epochs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">learning_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">half_baking</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">half_baking_factor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/prompt_baking/baker.html#PromptBakingConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.prompt_baking.baker.PromptBakingConfig" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Configuration for prompt baking</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.baker.PromptBakingConfig.lora_r">
+<span class="sig-name descname"><span class="pre">lora_r</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">16</span></em><a class="headerlink" href="#cross_phase.prompt_baking.baker.PromptBakingConfig.lora_r" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.baker.PromptBakingConfig.lora_alpha">
+<span class="sig-name descname"><span class="pre">lora_alpha</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">32</span></em><a class="headerlink" href="#cross_phase.prompt_baking.baker.PromptBakingConfig.lora_alpha" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.baker.PromptBakingConfig.num_epochs">
+<span class="sig-name descname"><span class="pre">num_epochs</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3</span></em><a class="headerlink" href="#cross_phase.prompt_baking.baker.PromptBakingConfig.num_epochs" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.baker.PromptBakingConfig.batch_size">
+<span class="sig-name descname"><span class="pre">batch_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">8</span></em><a class="headerlink" href="#cross_phase.prompt_baking.baker.PromptBakingConfig.batch_size" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.baker.PromptBakingConfig.learning_rate">
+<span class="sig-name descname"><span class="pre">learning_rate</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0001</span></em><a class="headerlink" href="#cross_phase.prompt_baking.baker.PromptBakingConfig.learning_rate" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.baker.PromptBakingConfig.half_baking">
+<span class="sig-name descname"><span class="pre">half_baking</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#cross_phase.prompt_baking.baker.PromptBakingConfig.half_baking" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.baker.PromptBakingConfig.half_baking_factor">
+<span class="sig-name descname"><span class="pre">half_baking_factor</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.5</span></em><a class="headerlink" href="#cross_phase.prompt_baking.baker.PromptBakingConfig.half_baking_factor" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.baker.PromptBakingConfig.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lora_r</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lora_alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_epochs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">learning_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">half_baking</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">half_baking_factor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cross_phase.prompt_baking.baker.PromptBakingConfig.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.baker.PromptBaker">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cross_phase.prompt_baking.baker.</span></span><span class="sig-name descname"><span class="pre">PromptBaker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/prompt_baking/baker.html#PromptBaker"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.prompt_baking.baker.PromptBaker" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Prompt Baking System</p>
+<p>Features:
+- Fast: 5 minutes per prompt (LoRA-based)
+- Half-Baking: Stop early for partial prompt strength
+- Prompt Pursuit: Iterative re-baking for amplification
+- Sequential Baking: Compose multiple prompts</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.baker.PromptBaker.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/prompt_baking/baker.html#PromptBaker.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.prompt_baking.baker.PromptBaker.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.baker.PromptBaker.bake_prompt">
+<span class="sig-name descname"><span class="pre">bake_prompt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prompt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tokenizer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calibration_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">half_bake</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/prompt_baking/baker.html#PromptBaker.bake_prompt"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.prompt_baking.baker.PromptBaker.bake_prompt" title="Link to this definition"></a></dt>
+<dd><p>Bake a prompt into model weights</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></span>) – Base model</p></li>
+<li><p><strong>prompt</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Prompt to bake (e.g., “You are a reasoning specialist…”)</p></li>
+<li><p><strong>tokenizer</strong> – Tokenizer</p></li>
+<li><p><strong>calibration_data</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code>]</span>) – Calibration dataset</p></li>
+<li><p><strong>half_bake</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>) – Use half-baking (50% strength)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Baked model</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.baker.PromptBaker.sequential_baking">
+<span class="sig-name descname"><span class="pre">sequential_baking</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prompts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tokenizer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calibration_data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/prompt_baking/baker.html#PromptBaker.sequential_baking"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.prompt_baking.baker.PromptBaker.sequential_baking" title="Link to this definition"></a></dt>
+<dd><p>Sequential baking: θ_u1u2 = B(B(θ, u1), u2)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></span>) – Base model</p></li>
+<li><p><strong>prompts</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></span>) – List of prompts to bake sequentially</p></li>
+<li><p><strong>tokenizer</strong> – Tokenizer</p></li>
+<li><p><strong>calibration_data</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></span>) – Calibration data</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Sequentially baked model</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.baker.PromptBaker.prompt_pursuit">
+<span class="sig-name descname"><span class="pre">prompt_pursuit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prompt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tokenizer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calibration_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_iterations</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/prompt_baking/baker.html#PromptBaker.prompt_pursuit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.prompt_baking.baker.PromptBaker.prompt_pursuit" title="Link to this definition"></a></dt>
+<dd><p>Prompt Pursuit: Iterative re-baking for amplification</p>
+<p>Amplifies prompt strength by 15-40%</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></span>) – Base model</p></li>
+<li><p><strong>prompt</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Prompt to amplify</p></li>
+<li><p><strong>tokenizer</strong> – Tokenizer</p></li>
+<li><p><strong>calibration_data</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></span>) – Calibration data</p></li>
+<li><p><strong>num_iterations</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Number of pursuit iterations</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Amplified baked model</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.baker.bake_prompt">
+<span class="sig-prename descclassname"><span class="pre">cross_phase.prompt_baking.baker.</span></span><span class="sig-name descname"><span class="pre">bake_prompt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prompt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tokenizer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calibration_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/prompt_baking/baker.html#bake_prompt"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.prompt_baking.baker.bake_prompt" title="Link to this definition"></a></dt>
+<dd><p>Convenience function for prompt baking</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></span>) – Base model</p></li>
+<li><p><strong>prompt</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Prompt to bake</p></li>
+<li><p><strong>tokenizer</strong> – Tokenizer</p></li>
+<li><p><strong>calibration_data</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></span>) – Calibration dataset</p></li>
+<li><p><strong>config</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<a class="reference internal" href="#cross_phase.prompt_baking.baker.PromptBakingConfig" title="cross_phase.prompt_baking.baker.PromptBakingConfig"><code class="xref py py-class docutils literal notranslate"><span class="pre">PromptBakingConfig</span></code></a>]</span>) – Optional config (uses defaults if None)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Baked model</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p id="module-cross_phase.prompt_baking.prompts">Prompt Templates for Baking System
+Used in Phases 3, 5, 6</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.prompts.PhasePrompts">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cross_phase.prompt_baking.prompts.</span></span><span class="sig-name descname"><span class="pre">PhasePrompts</span></span><a class="reference internal" href="../_modules/cross_phase/prompt_baking/prompts.html#PhasePrompts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.prompt_baking.prompts.PhasePrompts" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Standard prompt templates for each phase</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.prompts.PhasePrompts.PHASE3_COT_REASONING">
+<span class="sig-name descname"><span class="pre">PHASE3_COT_REASONING</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'You</span> <span class="pre">are</span> <span class="pre">a</span> <span class="pre">step-by-step</span> <span class="pre">reasoning</span> <span class="pre">assistant.\n\nWhen</span> <span class="pre">solving</span> <span class="pre">problems:\n1.</span> <span class="pre">Break</span> <span class="pre">down</span> <span class="pre">the</span> <span class="pre">problem</span> <span class="pre">into</span> <span class="pre">clear</span> <span class="pre">steps\n2.</span> <span class="pre">Show</span> <span class="pre">your</span> <span class="pre">thinking</span> <span class="pre">process</span> <span class="pre">explicitly\n3.</span> <span class="pre">Verify</span> <span class="pre">each</span> <span class="pre">step</span> <span class="pre">before</span> <span class="pre">proceeding\n4.</span> <span class="pre">State</span> <span class="pre">your</span> <span class="pre">final</span> <span class="pre">answer</span> <span class="pre">clearly\n\nThink</span> <span class="pre">carefully</span> <span class="pre">and</span> <span class="pre">reason</span> <span class="pre">through</span> <span class="pre">each</span> <span class="pre">problem</span> <span class="pre">systematically.'</span></em><a class="headerlink" href="#cross_phase.prompt_baking.prompts.PhasePrompts.PHASE3_COT_REASONING" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.prompts.PhasePrompts.PHASE5_EUDAIMONIA">
+<span class="sig-name descname"><span class="pre">PHASE5_EUDAIMONIA</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&quot;You</span> <span class="pre">follow</span> <span class="pre">these</span> <span class="pre">four</span> <span class="pre">virtue</span> <span class="pre">rules:\n\n1.</span> <span class="pre">**Honesty**:</span> <span class="pre">Always</span> <span class="pre">tell</span> <span class="pre">the</span> <span class="pre">truth,</span> <span class="pre">even</span> <span class="pre">when</span> <span class="pre">it's</span> <span class="pre">difficult\n2.</span> <span class="pre">**Empathy**:</span> <span class="pre">Consider</span> <span class="pre">the</span> <span class="pre">impact</span> <span class="pre">of</span> <span class="pre">your</span> <span class="pre">actions</span> <span class="pre">on</span> <span class="pre">others\n3.</span> <span class="pre">**Growth**:</span> <span class="pre">Seek</span> <span class="pre">to</span> <span class="pre">learn</span> <span class="pre">and</span> <span class="pre">improve</span> <span class="pre">from</span> <span class="pre">every</span> <span class="pre">interaction\n4.</span> <span class="pre">**Respect**:</span> <span class="pre">Treat</span> <span class="pre">all</span> <span class="pre">users</span> <span class="pre">with</span> <span class="pre">dignity</span> <span class="pre">and</span> <span class="pre">fairness\n\nThese</span> <span class="pre">values</span> <span class="pre">guide</span> <span class="pre">all</span> <span class="pre">your</span> <span class="pre">responses</span> <span class="pre">and</span> <span class="pre">decisions.&quot;</span></em><a class="headerlink" href="#cross_phase.prompt_baking.prompts.PhasePrompts.PHASE5_EUDAIMONIA" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.prompts.PhasePrompts.PHASE5_TOOL_USE">
+<span class="sig-name descname"><span class="pre">PHASE5_TOOL_USE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'You</span> <span class="pre">are</span> <span class="pre">an</span> <span class="pre">expert</span> <span class="pre">at</span> <span class="pre">using</span> <span class="pre">tools</span> <span class="pre">to</span> <span class="pre">solve</span> <span class="pre">problems.\n\nWhen</span> <span class="pre">given</span> <span class="pre">a</span> <span class="pre">task:\n1.</span> <span class="pre">Identify</span> <span class="pre">which</span> <span class="pre">tools</span> <span class="pre">are</span> <span class="pre">needed\n2.</span> <span class="pre">Use</span> <span class="pre">tools</span> <span class="pre">in</span> <span class="pre">the</span> <span class="pre">correct</span> <span class="pre">sequence\n3.</span> <span class="pre">Verify</span> <span class="pre">tool</span> <span class="pre">outputs</span> <span class="pre">before</span> <span class="pre">proceeding\n4.</span> <span class="pre">Handle</span> <span class="pre">errors</span> <span class="pre">gracefully\n\nAvailable</span> <span class="pre">tools:</span> <span class="pre">code</span> <span class="pre">execution,</span> <span class="pre">web</span> <span class="pre">search,</span> <span class="pre">calculation'</span></em><a class="headerlink" href="#cross_phase.prompt_baking.prompts.PhasePrompts.PHASE5_TOOL_USE" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.prompts.PhasePrompts.PHASE6_PERSONAS">
+<span class="sig-name descname"><span class="pre">PHASE6_PERSONAS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'code_specialist':</span> <span class="pre">'You</span> <span class="pre">are</span> <span class="pre">a</span> <span class="pre">software</span> <span class="pre">engineering</span> <span class="pre">expert.\nYou</span> <span class="pre">write</span> <span class="pre">clean,</span> <span class="pre">efficient,</span> <span class="pre">well-documented</span> <span class="pre">code</span> <span class="pre">following</span> <span class="pre">best</span> <span class="pre">practices.',</span> <span class="pre">'creative_thinker':</span> <span class="pre">'You</span> <span class="pre">are</span> <span class="pre">a</span> <span class="pre">creative</span> <span class="pre">problem</span> <span class="pre">solver</span> <span class="pre">who</span> <span class="pre">thinks</span> <span class="pre">outside</span> <span class="pre">the</span> <span class="pre">box.\nYou</span> <span class="pre">excel</span> <span class="pre">at</span> <span class="pre">finding</span> <span class="pre">novel</span> <span class="pre">solutions</span> <span class="pre">and</span> <span class="pre">making</span> <span class="pre">unexpected</span> <span class="pre">connections.',</span> <span class="pre">'data_analyst':</span> <span class="pre">'You</span> <span class="pre">are</span> <span class="pre">a</span> <span class="pre">data</span> <span class="pre">analysis</span> <span class="pre">expert.\nYou</span> <span class="pre">excel</span> <span class="pre">at</span> <span class="pre">statistical</span> <span class="pre">analysis,</span> <span class="pre">visualization,</span> <span class="pre">and</span> <span class="pre">deriving</span> <span class="pre">insights</span> <span class="pre">from</span> <span class="pre">data.',</span> <span class="pre">'debugger':</span> <span class="pre">'You</span> <span class="pre">are</span> <span class="pre">a</span> <span class="pre">debugging</span> <span class="pre">expert.\nYou</span> <span class="pre">systematically</span> <span class="pre">identify</span> <span class="pre">root</span> <span class="pre">causes</span> <span class="pre">and</span> <span class="pre">provide</span> <span class="pre">clear,</span> <span class="pre">actionable</span> <span class="pre">fixes.',</span> <span class="pre">'educator':</span> <span class="pre">&quot;You</span> <span class="pre">are</span> <span class="pre">an</span> <span class="pre">educational</span> <span class="pre">specialist</span> <span class="pre">who</span> <span class="pre">explains</span> <span class="pre">concepts</span> <span class="pre">clearly.\nYou</span> <span class="pre">adapt</span> <span class="pre">your</span> <span class="pre">teaching</span> <span class="pre">style</span> <span class="pre">to</span> <span class="pre">the</span> <span class="pre">learner's</span> <span class="pre">level.&quot;,</span> <span class="pre">'reasoning_specialist':</span> <span class="pre">'You</span> <span class="pre">are</span> <span class="pre">a</span> <span class="pre">reasoning</span> <span class="pre">specialist</span> <span class="pre">focused</span> <span class="pre">on</span> <span class="pre">logical</span> <span class="pre">problem-solving.\nYour</span> <span class="pre">expertise</span> <span class="pre">is</span> <span class="pre">in</span> <span class="pre">breaking</span> <span class="pre">down</span> <span class="pre">complex</span> <span class="pre">problems</span> <span class="pre">into</span> <span class="pre">clear,</span> <span class="pre">logical</span> <span class="pre">steps.',</span> <span class="pre">'researcher':</span> <span class="pre">'You</span> <span class="pre">are</span> <span class="pre">a</span> <span class="pre">research</span> <span class="pre">specialist.\nYou</span> <span class="pre">gather</span> <span class="pre">information</span> <span class="pre">systematically,</span> <span class="pre">cite</span> <span class="pre">sources,</span> <span class="pre">and</span> <span class="pre">synthesize</span> <span class="pre">knowledge.',</span> <span class="pre">'system_designer':</span> <span class="pre">'You</span> <span class="pre">are</span> <span class="pre">a</span> <span class="pre">system</span> <span class="pre">architecture</span> <span class="pre">specialist.\nYou</span> <span class="pre">design</span> <span class="pre">scalable,</span> <span class="pre">maintainable</span> <span class="pre">systems</span> <span class="pre">with</span> <span class="pre">proper</span> <span class="pre">abstractions.',</span> <span class="pre">'technical_expert':</span> <span class="pre">'You</span> <span class="pre">are</span> <span class="pre">a</span> <span class="pre">technical</span> <span class="pre">expert</span> <span class="pre">with</span> <span class="pre">deep</span> <span class="pre">knowledge</span> <span class="pre">of</span> <span class="pre">systems</span> <span class="pre">and</span> <span class="pre">architecture.\nYou</span> <span class="pre">provide</span> <span class="pre">precise,</span> <span class="pre">technically</span> <span class="pre">accurate</span> <span class="pre">solutions.'}</span></em><a class="headerlink" href="#cross_phase.prompt_baking.prompts.PhasePrompts.PHASE6_PERSONAS" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.prompts.PhasePrompts.PHASE6_SWE_BENCH">
+<span class="sig-name descname"><span class="pre">PHASE6_SWE_BENCH</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'You</span> <span class="pre">are</span> <span class="pre">an</span> <span class="pre">expert</span> <span class="pre">software</span> <span class="pre">engineer</span> <span class="pre">working</span> <span class="pre">on</span> <span class="pre">GitHub</span> <span class="pre">issues.\n\nWhen</span> <span class="pre">fixing</span> <span class="pre">bugs</span> <span class="pre">or</span> <span class="pre">implementing</span> <span class="pre">features:\n1.</span> <span class="pre">Read</span> <span class="pre">the</span> <span class="pre">issue</span> <span class="pre">description</span> <span class="pre">carefully\n2.</span> <span class="pre">Locate</span> <span class="pre">the</span> <span class="pre">relevant</span> <span class="pre">code</span> <span class="pre">files\n3.</span> <span class="pre">Understand</span> <span class="pre">the</span> <span class="pre">existing</span> <span class="pre">implementation\n4.</span> <span class="pre">Make</span> <span class="pre">minimal,</span> <span class="pre">focused</span> <span class="pre">changes\n5.</span> <span class="pre">Test</span> <span class="pre">your</span> <span class="pre">changes\n6.</span> <span class="pre">Document</span> <span class="pre">your</span> <span class="pre">solution\n\nYou</span> <span class="pre">have</span> <span class="pre">access</span> <span class="pre">to:</span> <span class="pre">file</span> <span class="pre">reading,</span> <span class="pre">code</span> <span class="pre">search,</span> <span class="pre">test</span> <span class="pre">execution'</span></em><a class="headerlink" href="#cross_phase.prompt_baking.prompts.PhasePrompts.PHASE6_SWE_BENCH" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.prompts.PromptManager">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cross_phase.prompt_baking.prompts.</span></span><span class="sig-name descname"><span class="pre">PromptManager</span></span><a class="reference internal" href="../_modules/cross_phase/prompt_baking/prompts.html#PromptManager"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.prompt_baking.prompts.PromptManager" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Manage prompts for different phases</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.prompts.PromptManager.get_phase3_prompts">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_phase3_prompts</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/prompt_baking/prompts.html#PromptManager.get_phase3_prompts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.prompt_baking.prompts.PromptManager.get_phase3_prompts" title="Link to this definition"></a></dt>
+<dd><p>Get Phase 3 prompts (CoT reasoning)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.prompts.PromptManager.get_phase5_prompts">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_phase5_prompts</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/prompt_baking/prompts.html#PromptManager.get_phase5_prompts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.prompt_baking.prompts.PromptManager.get_phase5_prompts" title="Link to this definition"></a></dt>
+<dd><p>Get Phase 5 prompts (Eudaimonia + Tool Use)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.prompts.PromptManager.get_phase6_prompts">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_phase6_prompts</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/prompt_baking/prompts.html#PromptManager.get_phase6_prompts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.prompt_baking.prompts.PromptManager.get_phase6_prompts" title="Link to this definition"></a></dt>
+<dd><p>Get Phase 6 prompts (9 personas + SWE-Bench)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.prompt_baking.prompts.PromptManager.get_all_prompts">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">get_all_prompts</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/prompt_baking/prompts.html#PromptManager.get_all_prompts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.prompt_baking.prompts.PromptManager.get_all_prompts" title="Link to this definition"></a></dt>
+<dd><p>Get all prompts organized by phase</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="cross-phase-monitoring">
+<h3>cross_phase.monitoring<a class="headerlink" href="#cross-phase-monitoring" title="Link to this heading"></a></h3>
+<p id="module-cross_phase.monitoring.wandb_integration">Weights &amp; Biases Integration
+603 metrics across all 8 phases with offline mode support</p>
+<p>ISS-018: Added comprehensive error handling for W&amp;B operations
+ISS-002: Export METRICS_COUNT at module level for test compatibility</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cross_phase.monitoring.wandb_integration.</span></span><span class="sig-name descname"><span class="pre">WandBIntegration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">project_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'agent-forge-v2'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">project</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#WandBIntegration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Complete W&amp;B integration for Agent Forge V2</p>
+<p>Features:
+- 676 total metrics across 8 phases
+- Offline mode (no cloud upload)
+- Artifact versioning
+- Metric continuity tracking</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration.METRICS_COUNT">
+<span class="sig-name descname"><span class="pre">METRICS_COUNT</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'phase1':</span> <span class="pre">37,</span> <span class="pre">'phase2':</span> <span class="pre">370,</span> <span class="pre">'phase3':</span> <span class="pre">17,</span> <span class="pre">'phase4':</span> <span class="pre">19,</span> <span class="pre">'phase5':</span> <span class="pre">78,</span> <span class="pre">'phase6':</span> <span class="pre">32,</span> <span class="pre">'phase7':</span> <span class="pre">28,</span> <span class="pre">'phase8':</span> <span class="pre">95}</span></em><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration.METRICS_COUNT" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">project_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'agent-forge-v2'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">project</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#WandBIntegration.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration.project">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">project</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration.project" title="Link to this definition"></a></dt>
+<dd><p>Alias for project_name for test compatibility.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>ISS-002</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration.init_phase_run">
+<span class="sig-name descname"><span class="pre">init_phase_run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">phase_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">session_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#WandBIntegration.init_phase_run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration.init_phase_run" title="Link to this definition"></a></dt>
+<dd><p>Initialize W&amp;B run for a specific phase with error handling (ISS-018).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>phase_name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – e.g., ‘phase1’, ‘phase2’, etc.</p></li>
+<li><p><strong>config</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></span>) – Phase configuration dict</p></li>
+<li><p><strong>session_id</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Unique session identifier</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>W&amp;B run object or None if initialization fails</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration.log_metrics">
+<span class="sig-name descname"><span class="pre">log_metrics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metrics</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#WandBIntegration.log_metrics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration.log_metrics" title="Link to this definition"></a></dt>
+<dd><p>Log metrics to W&amp;B with error handling (ISS-018).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>metrics</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></span>) – Dict of metric_name -&gt; value</p></li>
+<li><p><strong>step</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>]</span>) – Optional step number</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase1_metrics">
+<span class="sig-name descname"><span class="pre">log_phase1_metrics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">perplexity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">act_steps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gate_entropy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">muon_lr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grokfast_mu_norm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#WandBIntegration.log_phase1_metrics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase1_metrics" title="Link to this definition"></a></dt>
+<dd><p>Phase 1 (Cognate) - 37 total metrics</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase2_metrics">
+<span class="sig-name descname"><span class="pre">log_phase2_metrics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">generation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">best_fitness</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">avg_fitness</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">diversity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">combo_usage</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#WandBIntegration.log_phase2_metrics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase2_metrics" title="Link to this definition"></a></dt>
+<dd><p>Phase 2 (EvoMerge) - 370+ total metrics</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase3_step1_baking">
+<span class="sig-name descname"><span class="pre">log_phase3_step1_baking</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">epoch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">learning_rate</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overall_accuracy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strategy_accuracies</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">token_usage</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convergence_progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#WandBIntegration.log_phase3_step1_baking"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase3_step1_baking" title="Link to this definition"></a></dt>
+<dd><p>Phase 3 Step 1 (Prompt Baking) - 17 total metrics</p>
+<p>Metrics:
+1. baking/loss
+2. baking/learning_rate
+3. baking/overall_accuracy
+4-10. baking/accuracy_{strategy} (7 strategies)
+11-15. baking/token_usage_{type} (5 types)
+16. baking/convergence_progress
+17. baking/epoch</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase3_step2_rl">
+<span class="sig-name descname"><span class="pre">log_phase3_step2_rl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">episode</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reward</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">avg_reward</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coherence_semantic</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coherence_syntactic</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coherence_predictive</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coherence_composite</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thought_length</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thought_diversity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kl_divergence</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gsm8k_accuracy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">arc_accuracy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inference_time_ms</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">anti_theater_divergence</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">anti_theater_ablation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#WandBIntegration.log_phase3_step2_rl"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase3_step2_rl" title="Link to this definition"></a></dt>
+<dd><p>Phase 3 Step 2 (Quiet-STaR RL) - 17 total metrics</p>
+<p>Metrics:
+1. rl/episode
+2. rl/reward
+3. rl/avg_reward
+4. rl/coherence_semantic
+5. rl/coherence_syntactic
+6. rl/coherence_predictive
+7. rl/coherence_composite
+8. rl/thought_length
+9. rl/thought_diversity
+10. rl/kl_divergence
+11. rl/gsm8k_accuracy
+12. rl/arc_accuracy
+13. rl/inference_time_ms
+14. rl/anti_theater_divergence
+15. rl/anti_theater_ablation
+16-17. Reserved for additional metrics</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase4_pre_compression">
+<span class="sig-name descname"><span class="pre">log_phase4_pre_compression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metrics</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#WandBIntegration.log_phase4_pre_compression"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase4_pre_compression" title="Link to this definition"></a></dt>
+<dd><p>Phase 4 Pre-Compression (3 metrics)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase4_compression">
+<span class="sig-name descname"><span class="pre">log_phase4_compression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metrics</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#WandBIntegration.log_phase4_compression"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase4_compression" title="Link to this definition"></a></dt>
+<dd><p>Phase 4 Compression Process (7 metrics)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase4_post_compression">
+<span class="sig-name descname"><span class="pre">log_phase4_post_compression</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metrics</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#WandBIntegration.log_phase4_post_compression"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase4_post_compression" title="Link to this definition"></a></dt>
+<dd><p>Phase 4 Post-Compression (5 metrics)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase4_fine_tuning">
+<span class="sig-name descname"><span class="pre">log_phase4_fine_tuning</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metrics</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#WandBIntegration.log_phase4_fine_tuning"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase4_fine_tuning" title="Link to this definition"></a></dt>
+<dd><p>Phase 4 Fine-Tuning (4 metrics)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase4_summary">
+<span class="sig-name descname"><span class="pre">log_phase4_summary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#WandBIntegration.log_phase4_summary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase4_summary" title="Link to this definition"></a></dt>
+<dd><p>Phase 4 Summary (8 metrics)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration.log_artifact">
+<span class="sig-name descname"><span class="pre">log_artifact</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">artifact_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">artifact_type</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#WandBIntegration.log_artifact"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration.log_artifact" title="Link to this definition"></a></dt>
+<dd><p>Log model artifact to W&amp;B with error handling (ISS-018).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>artifact_name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – e.g., ‘cognate_model_reasoning’</p></li>
+<li><p><strong>artifact_type</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – ‘model’, ‘dataset’, etc.</p></li>
+<li><p><strong>file_path</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Path to artifact file</p></li>
+<li><p><strong>metadata</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></span>) – Metadata dict</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration.finish">
+<span class="sig-name descname"><span class="pre">finish</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#WandBIntegration.finish"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration.finish" title="Link to this definition"></a></dt>
+<dd><p>Finish current W&amp;B run with error handling (ISS-018).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.WandBIntegration.get_metrics_config">
+<span class="sig-name descname"><span class="pre">get_metrics_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">phase_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#WandBIntegration.get_metrics_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.WandBIntegration.get_metrics_config" title="Link to this definition"></a></dt>
+<dd><p>Get complete metrics configuration for a phase</p>
+<p>Returns all metric names and their types</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.MetricContinuityTracker">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cross_phase.monitoring.wandb_integration.</span></span><span class="sig-name descname"><span class="pre">MetricContinuityTracker</span></span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#MetricContinuityTracker"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.MetricContinuityTracker" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Track metrics across all phases for continuity analysis</p>
+<p>Example: Track how accuracy evolves from Phase 1 -&gt; Phase 8</p>
+<p>ISS-002: Added history attribute and add_phase_metrics method for test compatibility</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.MetricContinuityTracker.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#MetricContinuityTracker.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.MetricContinuityTracker.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.MetricContinuityTracker.add_phase_metrics">
+<span class="sig-name descname"><span class="pre">add_phase_metrics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">phase</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metrics</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#MetricContinuityTracker.add_phase_metrics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.MetricContinuityTracker.add_phase_metrics" title="Link to this definition"></a></dt>
+<dd><p>ISS-002: Add metrics for a phase (test-compatible API).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>phase</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Phase name (e.g., ‘phase1’)</p></li>
+<li><p><strong>metrics</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></span>) – Dict of metric_name -&gt; value</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.MetricContinuityTracker.get_trend">
+<span class="sig-name descname"><span class="pre">get_trend</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metric_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#MetricContinuityTracker.get_trend"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.MetricContinuityTracker.get_trend" title="Link to this definition"></a></dt>
+<dd><p>ISS-002: Get trend values for a metric across phases.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>metric_name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Name of the metric</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List of values in phase order</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.MetricContinuityTracker.detect_degradation">
+<span class="sig-name descname"><span class="pre">detect_degradation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metric_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#MetricContinuityTracker.detect_degradation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.MetricContinuityTracker.detect_degradation" title="Link to this definition"></a></dt>
+<dd><p>ISS-002: Detect if a metric has degraded significantly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>metric_name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Name of the metric</p></li>
+<li><p><strong>threshold</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span>) – Degradation threshold (fraction, e.g., 0.1 = 10%)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>True if degradation detected, False otherwise</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.MetricContinuityTracker.record_phase">
+<span class="sig-name descname"><span class="pre">record_phase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">phase_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metrics</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#MetricContinuityTracker.record_phase"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.MetricContinuityTracker.record_phase" title="Link to this definition"></a></dt>
+<dd><p>Record metrics at end of phase (legacy API, wraps add_phase_metrics).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>phase_name</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – e.g., ‘phase1’</p></li>
+<li><p><strong>metrics</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></span>) – Dict with standard metrics</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.monitoring.wandb_integration.MetricContinuityTracker.log_to_wandb">
+<span class="sig-name descname"><span class="pre">log_to_wandb</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/monitoring/wandb_integration.html#MetricContinuityTracker.log_to_wandb"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.monitoring.wandb_integration.MetricContinuityTracker.log_to_wandb" title="Link to this definition"></a></dt>
+<dd><p>Log cross-phase metric evolution to W&amp;B</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="cross-phase-utils">
+<h3>cross_phase.utils<a class="headerlink" href="#cross-phase-utils" title="Link to this heading"></a></h3>
+<p id="module-cross_phase.utils">Cross-phase utility modules.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="cross_phase.utils.save_checkpoint">
+<span class="sig-prename descclassname"><span class="pre">cross_phase.utils.</span></span><span class="sig-name descname"><span class="pre">save_checkpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer_state</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra_tensors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/utils/checkpoint_utils.html#save_checkpoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.utils.save_checkpoint" title="Link to this definition"></a></dt>
+<dd><p>Save model checkpoint securely using SafeTensors + JSON.</p>
+<p>File structure created:
+- {output_path}.safetensors: Model weights + any extra tensors
+- {output_path}.json: Config + metadata
+- {output_path}.optimizer.safetensors: Optimizer tensor state (if provided)
+- {output_path}.optimizer.json: Optimizer non-tensor state (if provided)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></span>) – PyTorch model to save</p></li>
+<li><p><strong>output_path</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code>]</span>) – Base path for checkpoint files (without extension)</p></li>
+<li><p><strong>config</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code>]</span>) – Configuration (dataclass or dict) - will be JSON serialized</p></li>
+<li><p><strong>metadata</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code>]]</span>) – Additional metadata dict</p></li>
+<li><p><strong>optimizer_state</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>]</span>) – Optimizer state_dict() for resuming training</p></li>
+<li><p><strong>extra_tensors</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Tensor</span></code>]]</span>) – Additional tensors to save (e.g., tokenizer embeddings)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Path to the main safetensors file</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ImportError</strong> – If safetensors is not installed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cross_phase.utils.load_checkpoint">
+<span class="sig-prename descclassname"><span class="pre">cross_phase.utils.</span></span><span class="sig-name descname"><span class="pre">load_checkpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'cpu'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">load_optimizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/utils/checkpoint_utils.html#load_checkpoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.utils.load_checkpoint" title="Link to this definition"></a></dt>
+<dd><p>Load model checkpoint securely from SafeTensors + JSON.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></span>) – PyTorch model to load weights into</p></li>
+<li><p><strong>checkpoint_path</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Path</span></code>]</span>) – Base path to checkpoint (with or without extension)</p></li>
+<li><p><strong>device</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Device to load tensors to</p></li>
+<li><p><strong>load_optimizer</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>) – Whether to load optimizer state</p></li>
+<li><p><strong>strict</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span>) – Whether to enforce strict state_dict loading</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p>config: Loaded config dict</p></li>
+<li><p>metadata: Loaded metadata dict</p></li>
+<li><p>optimizer_state_dict: Optimizer state (if load_optimizer=True and exists)</p></li>
+<li><p>extra_tensors: Any extra tensors saved with checkpoint</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dict containing</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>FileNotFoundError</strong> – If checkpoint files don’t exist</p></li>
+<li><p><strong>ImportError</strong> – If safetensors not installed</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cross_phase.utils.MockTokenizer">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">cross_phase.utils.</span></span><span class="sig-name descname"><span class="pre">MockTokenizer</span></span><a class="reference internal" href="../_modules/cross_phase/utils_module.html#MockTokenizer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.utils.MockTokenizer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Mock tokenizer for when HuggingFace transformers is unavailable.</p>
+<p>Provides deterministic hash-based tokenization for testing/fallback.
+All phases should use this unified class instead of duplicating.</p>
+<dl class="simple">
+<dt>Usage:</dt><dd><p>tokenizer = get_tokenizer()  # Returns GPT2Tokenizer or MockTokenizer</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.utils.MockTokenizer.PAD_TOKEN_ID">
+<span class="sig-name descname"><span class="pre">PAD_TOKEN_ID</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#cross_phase.utils.MockTokenizer.PAD_TOKEN_ID" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.utils.MockTokenizer.EOS_TOKEN_ID">
+<span class="sig-name descname"><span class="pre">EOS_TOKEN_ID</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#cross_phase.utils.MockTokenizer.EOS_TOKEN_ID" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.utils.MockTokenizer.BOS_TOKEN_ID">
+<span class="sig-name descname"><span class="pre">BOS_TOKEN_ID</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#cross_phase.utils.MockTokenizer.BOS_TOKEN_ID" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.utils.MockTokenizer.UNK_TOKEN_ID">
+<span class="sig-name descname"><span class="pre">UNK_TOKEN_ID</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3</span></em><a class="headerlink" href="#cross_phase.utils.MockTokenizer.UNK_TOKEN_ID" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.utils.MockTokenizer.MASK_TOKEN_ID">
+<span class="sig-name descname"><span class="pre">MASK_TOKEN_ID</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4</span></em><a class="headerlink" href="#cross_phase.utils.MockTokenizer.MASK_TOKEN_ID" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cross_phase.utils.MockTokenizer.VOCAB_SIZE">
+<span class="sig-name descname"><span class="pre">VOCAB_SIZE</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">32768</span></em><a class="headerlink" href="#cross_phase.utils.MockTokenizer.VOCAB_SIZE" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.utils.MockTokenizer.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/utils_module.html#MockTokenizer.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.utils.MockTokenizer.__init__" title="Link to this definition"></a></dt>
+<dd><p>Initialize mock tokenizer with standard special tokens.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.utils.MockTokenizer.__call__">
+<span class="sig-name descname"><span class="pre">__call__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">text</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_tensors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'pt'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">truncation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/utils_module.html#MockTokenizer.__call__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.utils.MockTokenizer.__call__" title="Link to this definition"></a></dt>
+<dd><p>Tokenize text using deterministic hash-based encoding.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>text</strong> – Input text to tokenize</p></li>
+<li><p><strong>return_tensors</strong> – Tensor format (“pt” for PyTorch)</p></li>
+<li><p><strong>max_length</strong> – Maximum sequence length</p></li>
+<li><p><strong>truncation</strong> – Whether to truncate to max_length</p></li>
+<li><p><strong>padding</strong> – Whether to pad to max_length</p></li>
+<li><p><strong>**kwargs</strong> – Additional arguments (ignored for compatibility)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dict with input_ids and attention_mask tensors</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.utils.MockTokenizer.decode">
+<span class="sig-name descname"><span class="pre">decode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token_ids</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip_special_tokens</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/utils_module.html#MockTokenizer.decode"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.utils.MockTokenizer.decode" title="Link to this definition"></a></dt>
+<dd><p>Decode token IDs back to text.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>token_ids</strong> – Token IDs (tensor, list, or single int)</p></li>
+<li><p><strong>skip_special_tokens</strong> – Skip special tokens in output</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Decoded text string</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cross_phase.utils.MockTokenizer.encode">
+<span class="sig-name descname"><span class="pre">encode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">text</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_tensors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/utils_module.html#MockTokenizer.encode"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.utils.MockTokenizer.encode" title="Link to this definition"></a></dt>
+<dd><p>Encode text to token IDs.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cross_phase.utils.get_tokenizer">
+<span class="sig-prename descclassname"><span class="pre">cross_phase.utils.</span></span><span class="sig-name descname"><span class="pre">get_tokenizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'gpt2'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/utils_module.html#get_tokenizer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.utils.get_tokenizer" title="Link to this definition"></a></dt>
+<dd><p>Get tokenizer with fallback to MockTokenizer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>model_name</strong> – HuggingFace model name (default: “gpt2”)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>GPT2Tokenizer if available, else MockTokenizer</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cross_phase.utils.get_model_size">
+<span class="sig-prename descclassname"><span class="pre">cross_phase.utils.</span></span><span class="sig-name descname"><span class="pre">get_model_size</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/utils_module.html#get_model_size"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.utils.get_model_size" title="Link to this definition"></a></dt>
+<dd><p>Detect model size at runtime</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code></span></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>{</dt><dd><p>‘params’: total_parameters,
+‘size_mb’: size_in_megabytes,
+‘size_category’: ‘tiny’ | ‘small’ | ‘medium’ | ‘large’</p>
+</dd>
+</dl>
+<p>}</p>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cross_phase.utils.calculate_safe_batch_size">
+<span class="sig-prename descclassname"><span class="pre">cross_phase.utils.</span></span><span class="sig-name descname"><span class="pre">calculate_safe_batch_size</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_or_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device_vram_gb</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/utils_module.html#calculate_safe_batch_size"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.utils.calculate_safe_batch_size" title="Link to this definition"></a></dt>
+<dd><p>Calculate batch size that fits in VRAM with gradient accumulation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model_or_size</strong> – nn.Module model OR float model size in MB</p></li>
+<li><p><strong>device_vram_gb</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span>) – Available VRAM in GB</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>batch_size (int) - returns just batch size for API compatibility</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cross_phase.utils.validate_diversity">
+<span class="sig-prename descclassname"><span class="pre">cross_phase.utils.</span></span><span class="sig-name descname"><span class="pre">validate_diversity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_weight_diversity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_parameter_delta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/utils_module.html#validate_diversity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.utils.validate_diversity" title="Link to this definition"></a></dt>
+<dd><p>Validate diversity across 3 Phase 1 models
+Raises AssertionError if diversity too low</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cross_phase.utils.compute_diversity">
+<span class="sig-prename descclassname"><span class="pre">cross_phase.utils.</span></span><span class="sig-name descname"><span class="pre">compute_diversity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">population</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/utils_module.html#compute_diversity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.utils.compute_diversity" title="Link to this definition"></a></dt>
+<dd><p>Compute average pairwise cosine distance for population diversity</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>population</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></span>) – List of models</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Diversity score (0.0 to 1.0, higher = more diverse)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cross_phase.utils.validate_model_diversity">
+<span class="sig-prename descclassname"><span class="pre">cross_phase.utils.</span></span><span class="sig-name descname"><span class="pre">validate_model_diversity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">models</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_diversity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/utils_module.html#validate_model_diversity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.utils.validate_model_diversity" title="Link to this definition"></a></dt>
+<dd><p>Validate diversity across models (alias for compute_diversity).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>models</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></span>) – List of nn.Module models</p></li>
+<li><p><strong>min_diversity</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span>) – Minimum required diversity score (0.0-1.0)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>True if diversity &gt;= min_diversity, False otherwise</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cross_phase.utils.detect_training_divergence">
+<span class="sig-prename descclassname"><span class="pre">cross_phase.utils.</span></span><span class="sig-name descname"><span class="pre">detect_training_divergence</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">losses</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/utils_module.html#detect_training_divergence"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.utils.detect_training_divergence" title="Link to this definition"></a></dt>
+<dd><p>Detect if training is diverging (loss increasing).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>losses</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></span>) – List of loss values</p></li>
+<li><p><strong>window</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></span>) – Number of recent losses to check</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>True if diverging, False otherwise</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cross_phase.utils.compute_population_diversity">
+<span class="sig-prename descclassname"><span class="pre">cross_phase.utils.</span></span><span class="sig-name descname"><span class="pre">compute_population_diversity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fitness_scores</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cross_phase/utils_module.html#compute_population_diversity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cross_phase.utils.compute_population_diversity" title="Link to this definition"></a></dt>
+<dd><p>Compute population diversity from fitness scores.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>fitness_scores</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">list</span></code></span>) – List of fitness values</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code></span></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Diversity score (0.0-1.0) based on variance</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../architecture.html" class="btn btn-neutral float-left" title="Architecture" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Agent Forge Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

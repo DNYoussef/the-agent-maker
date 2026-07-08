@@ -1,0 +1,403 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Architecture &mdash; Agent Forge V2 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=8d563738"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="API Reference" href="api/modules.html" />
+    <link rel="prev" title="Getting Started" href="getting_started.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Agent Forge V2
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Architecture</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#phase-pipeline">8-Phase Pipeline</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#phase-1-cognate-trm-titans-mag">Phase 1: Cognate (TRM × Titans-MAG)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#phase-2-evomerge">Phase 2: EvoMerge</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#phase-3-quiet-star">Phase 3: Quiet-STaR</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#phase-4-bitnet">Phase 4: BitNet</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#phase-5-curriculum-learning">Phase 5: Curriculum Learning</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#phase-6-tool-persona-baking">Phase 6: Tool &amp; Persona Baking</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#phase-7-self-guided-experts">Phase 7: Self-Guided Experts</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#phase-8-final-compression">Phase 8: Final Compression</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#core-systems">Core Systems</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sqlite-model-registry">SQLite Model Registry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mugrokfast-optimizer">MuGrokfast Optimizer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#prompt-baking-system">Prompt Baking System</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#w-b-integration">W&amp;B Integration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pipeline-orchestrator">Pipeline Orchestrator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#model-size-agnostic-utilities">Model-Size-Agnostic Utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#data-flow">Data Flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#quality-assurance">Quality Assurance</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#nasa-pot10-compliance">NASA POT10 Compliance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#testing">Testing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pre-commit-hooks">Pre-Commit Hooks</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#performance">Performance</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#training-times-local-gtx-1660-6gb-vram">Training Times (Local GTX 1660, 6GB VRAM)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#model-sizes">Model Sizes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#memory-requirements">Memory Requirements</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api/modules.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Agent Forge V2</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Architecture</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/architecture.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="architecture">
+<h1>Architecture<a class="headerlink" href="#architecture" title="Link to this heading"></a></h1>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>Agent Forge V2 implements an 8-phase pipeline for creating small, efficient AI agents.</p>
+<img alt="Pipeline Overview" class="align-center" src="_static/pipeline_overview.png" />
+</section>
+<section id="phase-pipeline">
+<h2>8-Phase Pipeline<a class="headerlink" href="#phase-pipeline" title="Link to this heading"></a></h2>
+<section id="phase-1-cognate-trm-titans-mag">
+<h3>Phase 1: Cognate (TRM × Titans-MAG)<a class="headerlink" href="#phase-1-cognate-trm-titans-mag" title="Link to this heading"></a></h3>
+<p>Creates 3 specialized 25M parameter models:</p>
+<ul class="simple">
+<li><p><strong>Model 1</strong>: Reasoning specialist</p></li>
+<li><p><strong>Model 2</strong>: Memory specialist</p></li>
+<li><p><strong>Model 3</strong>: General purpose</p></li>
+</ul>
+<p><strong>Architecture</strong>: TRM (Transformer with Routing Mechanism) × Titans-MAG</p>
+<p><strong>Duration</strong>: ~6 hours (3 models × 2 hours each)</p>
+</section>
+<section id="phase-2-evomerge">
+<h3>Phase 2: EvoMerge<a class="headerlink" href="#phase-2-evomerge" title="Link to this heading"></a></h3>
+<p>50-generation evolutionary optimization using 6 merge techniques:</p>
+<ul class="simple">
+<li><p>Linear interpolation</p></li>
+<li><p>SLERP (Spherical Linear Interpolation)</p></li>
+<li><p>TIES (Trim, Elect, Sign, Merge)</p></li>
+<li><p>DARE (Drop And REscale)</p></li>
+<li><p>FrankenMerge (Layer stacking)</p></li>
+<li><p>DFS (Depth-First Search)</p></li>
+</ul>
+<p><strong>Population</strong>: 8 models per generation
+<strong>Fitness</strong>: Task performance + diversity metrics
+<strong>Duration</strong>: ~90 minutes</p>
+</section>
+<section id="phase-3-quiet-star">
+<h3>Phase 3: Quiet-STaR<a class="headerlink" href="#phase-3-quiet-star" title="Link to this heading"></a></h3>
+<p>Reasoning enhancement via thought generation:</p>
+<ol class="arabic simple">
+<li><p><strong>Prompt Baking</strong> (5 min): Bake CoT reasoning prompt</p></li>
+<li><p><strong>RL Training</strong>: Token-wise parallel thought sampling</p></li>
+<li><p><strong>Coherence Scoring</strong>: Semantic, syntactic, predictive</p></li>
+<li><p><strong>Anti-Theater Detection</strong>: Validate genuine reasoning</p></li>
+</ol>
+<p><strong>Duration</strong>: 5-10 hours</p>
+</section>
+<section id="phase-4-bitnet">
+<h3>Phase 4: BitNet<a class="headerlink" href="#phase-4-bitnet" title="Link to this heading"></a></h3>
+<p>1.58-bit quantization for 8.2× compression:</p>
+<ul class="simple">
+<li><p><strong>STE (Straight-Through Estimator)</strong>: Quantized forward, full-precision gradients</p></li>
+<li><p><strong>Target</strong>: 8.2× compression, 3.8× speedup</p></li>
+<li><p><strong>Model size</strong>: 95.4 MB → 11.8 MB</p></li>
+</ul>
+<p><strong>Duration</strong>: 3-5 hours</p>
+</section>
+<section id="phase-5-curriculum-learning">
+<h3>Phase 5: Curriculum Learning<a class="headerlink" href="#phase-5-curriculum-learning" title="Link to this heading"></a></h3>
+<p>7-stage adaptive curriculum:</p>
+<ul class="simple">
+<li><p>Edge-of-chaos assessment (75% accuracy threshold)</p></li>
+<li><p>20,000 questions across 10 difficulty levels</p></li>
+<li><p>Tool use training with validation</p></li>
+<li><p>Eudaimonia baking (4-rule moral system)</p></li>
+<li><p>Dream consolidation (prevents catastrophic forgetting)</p></li>
+</ul>
+<p><strong>Duration</strong>: 120-240 hours</p>
+</section>
+<section id="phase-6-tool-persona-baking">
+<h3>Phase 6: Tool &amp; Persona Baking<a class="headerlink" href="#phase-6-tool-persona-baking" title="Link to this heading"></a></h3>
+<p>A/B optimization loops:</p>
+<ul class="simple">
+<li><p><strong>A-Cycle</strong>: Tool use via SWE-Bench</p></li>
+<li><p><strong>B-Cycle</strong>: Self-guided persona generation (9 agents)</p></li>
+<li><p><strong>Half-Baking</strong>: 50% strength per iteration</p></li>
+<li><p><strong>Plateau Detection</strong>: Automatic cycle switching</p></li>
+</ul>
+<p><strong>Duration</strong>: 15-30 hours</p>
+</section>
+<section id="phase-7-self-guided-experts">
+<h3>Phase 7: Self-Guided Experts<a class="headerlink" href="#phase-7-self-guided-experts" title="Link to this heading"></a></h3>
+<p>Model-driven expert discovery:</p>
+<ol class="arabic simple">
+<li><p>Model analyzes own capabilities</p></li>
+<li><p>Transformer² SVF training</p></li>
+<li><p>Model-guided NSGA-II ADAS (5000 evaluations)</p></li>
+</ol>
+<p><strong>Duration</strong>: 78 hours</p>
+</section>
+<section id="phase-8-final-compression">
+<h3>Phase 8: Final Compression<a class="headerlink" href="#phase-8-final-compression" title="Link to this heading"></a></h3>
+<p>Triple compression pipeline:</p>
+<ul class="simple">
+<li><p><strong>SeedLM</strong>: 2× compression</p></li>
+<li><p><strong>VPTQ</strong>: 20× compression</p></li>
+<li><p><strong>Hypercompression</strong>: 6.25× compression</p></li>
+<li><p><strong>Total</strong>: 280× compression (100MB → 0.4MB)</p></li>
+</ul>
+<p><strong>Quality Gates</strong>: ≥95% retention per stage, ≥84% cumulative</p>
+</section>
+</section>
+<section id="core-systems">
+<h2>Core Systems<a class="headerlink" href="#core-systems" title="Link to this heading"></a></h2>
+<section id="sqlite-model-registry">
+<h3>SQLite Model Registry<a class="headerlink" href="#sqlite-model-registry" title="Link to this heading"></a></h3>
+<p><strong>WAL Mode</strong>: Concurrent read/write support</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">registry</span> <span class="o">=</span> <span class="n">ModelRegistry</span><span class="p">()</span>
+<span class="n">registry</span><span class="o">.</span><span class="n">create_session</span><span class="p">(</span><span class="s2">&quot;session_001&quot;</span><span class="p">,</span> <span class="p">{</span><span class="o">...</span><span class="p">})</span>
+<span class="n">registry</span><span class="o">.</span><span class="n">register_model</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">registry</span><span class="o">.</span><span class="n">update_session_progress</span><span class="p">(</span><span class="s2">&quot;session_001&quot;</span><span class="p">,</span> <span class="s2">&quot;phase1&quot;</span><span class="p">,</span> <span class="mf">25.0</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="mugrokfast-optimizer">
+<h3>MuGrokfast Optimizer<a class="headerlink" href="#mugrokfast-optimizer" title="Link to this heading"></a></h3>
+<p>Combines 3 techniques:</p>
+<ul class="simple">
+<li><p><strong>Grokfast</strong>: EMA gradient filtering (α=0.98, λ varies by phase)</p></li>
+<li><p><strong>Muon</strong>: Newton-Schulz orthogonalization (k=5 iterations)</p></li>
+<li><p><strong>QK-Clip</strong>: Attention safety rails (τ=30.0)</p></li>
+</ul>
+<p><strong>Phase-Specific Presets</strong>:</p>
+<ul class="simple">
+<li><p>Phase 1: muon_lr=1e-3, grokfast_lambda=0.3</p></li>
+<li><p>Phase 3: muon_lr=5e-4, kl_coefficient=0.1 (RL stability)</p></li>
+<li><p>Phase 5: muon_ste_mode=True, grokfast_lambda=2.0 (BitNet STE)</p></li>
+</ul>
+</section>
+<section id="prompt-baking-system">
+<h3>Prompt Baking System<a class="headerlink" href="#prompt-baking-system" title="Link to this heading"></a></h3>
+<p>KL divergence minimization:</p>
+<div class="math notranslate nohighlight">
+\[θ_u = \arg\min D_{KL}(P_θ(·|u) || P_{θu}(·))\]</div>
+<p><strong>Features</strong>:</p>
+<ul class="simple">
+<li><p>Half-baking (50% strength)</p></li>
+<li><p>Sequential baking (compose prompts)</p></li>
+<li><p>Prompt pursuit (iterative amplification)</p></li>
+</ul>
+</section>
+<section id="w-b-integration">
+<h3>W&amp;B Integration<a class="headerlink" href="#w-b-integration" title="Link to this heading"></a></h3>
+<p><strong>676 Total Metrics</strong> across 8 phases:</p>
+<ul class="simple">
+<li><p>Phase 1: 37 metrics</p></li>
+<li><p>Phase 2: 370 metrics</p></li>
+<li><p>Phase 3: 17 metrics</p></li>
+<li><p>Phase 4: 19 metrics</p></li>
+<li><p>Phase 5: 78 metrics</p></li>
+<li><p>Phase 6: 32 metrics</p></li>
+<li><p>Phase 7: 28 metrics</p></li>
+<li><p>Phase 8: 95 metrics</p></li>
+</ul>
+</section>
+<section id="pipeline-orchestrator">
+<h3>Pipeline Orchestrator<a class="headerlink" href="#pipeline-orchestrator" title="Link to this heading"></a></h3>
+<p><strong>Phase Sequencing</strong>: 1 → 2 → 3 → … → 8</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">PipelineOrchestrator</span><span class="p">(</span><span class="n">config</span><span class="p">)</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
+    <span class="c1"># Run all phases</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">run_full_pipeline</span><span class="p">()</span>
+
+    <span class="c1"># Or single phase</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">run_single_phase</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="model-size-agnostic-utilities">
+<h3>Model-Size-Agnostic Utilities<a class="headerlink" href="#model-size-agnostic-utilities" title="Link to this heading"></a></h3>
+<p>Runtime adaptation:</p>
+<ul class="simple">
+<li><p><strong>Size Detection</strong>: Categorize as tiny/small/medium/large</p></li>
+<li><p><strong>Adaptive Batching</strong>: VRAM-based batch size calculation</p></li>
+<li><p><strong>Diversity Validation</strong>: Ensure model population diversity</p></li>
+<li><p><strong>Divergence Detection</strong>: Training stability monitoring</p></li>
+</ul>
+</section>
+</section>
+<section id="data-flow">
+<h2>Data Flow<a class="headerlink" href="#data-flow" title="Link to this heading"></a></h2>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Phase 1 → [3 Models] → Phase 2 → [Champion Model] → Phase 3
+   ↓
+[Reasoning-Enhanced] → Phase 4 → [Compressed Model] → Phase 5
+   ↓
+[Curriculum-Trained] → Phase 6 → [Tool + Persona] → Phase 7
+   ↓
+[Expert System] → Phase 8 → [Final Compressed Agent]
+</pre></div>
+</div>
+</section>
+<section id="quality-assurance">
+<h2>Quality Assurance<a class="headerlink" href="#quality-assurance" title="Link to this heading"></a></h2>
+<section id="nasa-pot10-compliance">
+<h3>NASA POT10 Compliance<a class="headerlink" href="#nasa-pot10-compliance" title="Link to this heading"></a></h3>
+<p>All functions ≤60 lines of code (excluding docstrings)</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>.github/hooks/nasa_pot10_check.py<span class="w"> </span>src/**/*.py
+</pre></div>
+</div>
+</section>
+<section id="testing">
+<h3>Testing<a class="headerlink" href="#testing" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>47 tests</strong>: 33 unit + 14 integration</p></li>
+<li><p><strong>Coverage target</strong>: ≥90%</p></li>
+<li><p><strong>Fixtures</strong>: temp_dir, sample_config, mock_model, mock_tokenizer</p></li>
+</ul>
+</section>
+<section id="pre-commit-hooks">
+<h3>Pre-Commit Hooks<a class="headerlink" href="#pre-commit-hooks" title="Link to this heading"></a></h3>
+<p>10 automated quality checks:</p>
+<ol class="arabic simple">
+<li><p>NASA POT10 enforcement</p></li>
+<li><p>Black auto-formatter</p></li>
+<li><p>isort import sorter</p></li>
+<li><p>flake8 linter</p></li>
+<li><p>mypy type checker</p></li>
+<li><p>pylint advanced linter</p></li>
+<li><p>YAML/TOML/JSON validation</p></li>
+<li><p>File fixers</p></li>
+<li><p>Security checks</p></li>
+<li><p>pytest quick tests (on push)</p></li>
+</ol>
+</section>
+</section>
+<section id="performance">
+<h2>Performance<a class="headerlink" href="#performance" title="Link to this heading"></a></h2>
+<section id="training-times-local-gtx-1660-6gb-vram">
+<h3>Training Times (Local GTX 1660, 6GB VRAM)<a class="headerlink" href="#training-times-local-gtx-1660-6gb-vram" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Phase 1: ~6 hours</p></li>
+<li><p>Phase 2: ~1.5 hours</p></li>
+<li><p>Phase 3: ~8 hours</p></li>
+<li><p>Phase 4: ~4 hours</p></li>
+<li><p>Phase 5: ~200 hours</p></li>
+<li><p>Phase 6: ~20 hours</p></li>
+<li><p>Phase 7: ~78 hours</p></li>
+<li><p>Phase 8: ~45 hours</p></li>
+</ul>
+<p><strong>Total</strong>: ~362 hours (~15 days continuous)</p>
+</section>
+<section id="model-sizes">
+<h3>Model Sizes<a class="headerlink" href="#model-sizes" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Phase 1 output: 3 × 95.4 MB = 286.2 MB</p></li>
+<li><p>Phase 2 output: 95.4 MB</p></li>
+<li><p>Phase 4 output: 11.8 MB (8.2× compression)</p></li>
+<li><p>Phase 8 output: 0.4 MB (280× compression)</p></li>
+</ul>
+</section>
+<section id="memory-requirements">
+<h3>Memory Requirements<a class="headerlink" href="#memory-requirements" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p><strong>VRAM</strong>: 6GB minimum (GPU)</p></li>
+<li><p><strong>RAM</strong>: 16GB minimum (system)</p></li>
+<li><p><strong>Disk</strong>: 50GB (models + checkpoints + datasets)</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="getting_started.html" class="btn btn-neutral float-left" title="Getting Started" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="api/modules.html" class="btn btn-neutral float-right" title="API Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Agent Forge Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
