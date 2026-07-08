@@ -169,5 +169,17 @@ def test_phase2_quick_fitness_is_deterministic():
     assert f1 == f2, f"non-deterministic fitness: {f1} != {f2}"
 
 
+def test_phase2_quick_fitness_is_labeled_proxy():
+    """The default _quick_fitness perplexity/accuracy are a parameter-variance
+    PROXY, not measured task fitness. It must be labeled so a champion selected on
+    it cannot be mistaken for one selected on a real benchmark (research-ready =
+    every number measured OR labeled proxy)."""
+    from src.phase2_evomerge.phase2_pipeline import Phase2Pipeline
+
+    result = Phase2Pipeline()._quick_fitness(_tiny_linear(7))
+    assert result.get("is_proxy") is True, "proxy fitness is not labeled is_proxy"
+    assert result.get("fitness_method") == "proxy_param_variance"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

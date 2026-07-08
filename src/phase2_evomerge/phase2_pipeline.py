@@ -338,13 +338,20 @@ class Phase2Pipeline:
         speed = 1.0e12 / max(1.0, float(total_params))  # Tokens/sec (deterministic proxy)
         memory = total_params * 4 / (1024 * 1024)  # MB
 
-        return compute_composite_fitness(
+        result = compute_composite_fitness(
             perplexity=max(1.0, perplexity),
             accuracy=max(0.0, min(1.0, accuracy)),
             speed=max(100.0, speed),
             memory=max(1.0, memory),
             weights=self.config.fitness_weights,
         )
+        # Label the numbers honestly: perplexity/accuracy here are a parameter-
+        # variance PROXY, not measured task fitness. A consumer (or the champion
+        # selector) must be able to tell this apart from a real benchmark eval.
+        # Set use_real_fitness=True (with a tokenizer) for measured GSM8K/MGSM.
+        result["fitness_method"] = "proxy_param_variance"
+        result["is_proxy"] = True
+        return result
 
     def _tournament_selection(self, k: int = 3) -> List[nn.Module]:
         """Tournament selection for parent selection."""
