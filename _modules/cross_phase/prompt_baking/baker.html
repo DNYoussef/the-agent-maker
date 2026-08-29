@@ -1,0 +1,431 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cross_phase.prompt_baking.baker &mdash; Agent Forge V2 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Agent Forge V2
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/modules.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Agent Forge V2</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">cross_phase.prompt_baking.baker</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for cross_phase.prompt_baking.baker</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""</span>
+<span class="sd">Prompt Baking System</span>
+<span class="sd">Converts prompts into weight updates via KL divergence minimization</span>
+
+<span class="sd">Based on: Prompt Baking paper (arXiv:2409.13697v1)</span>
+<span class="sd">Core Algorithm: θ_u = argmin D_KL(P_θ(·|u) || P_θu(·))</span>
+<span class="sd">"""</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">contextlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn.functional</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">F</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="PromptBakingConfig">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.prompt_baking.baker.PromptBakingConfig">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">PromptBakingConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Configuration for prompt baking"""</span>
+
+    <span class="n">lora_r</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span>  <span class="c1"># LoRA rank (16 or 32)</span>
+    <span class="n">lora_alpha</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span>
+    <span class="n">num_epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span>
+    <span class="n">learning_rate</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-4</span>
+    <span class="n">half_baking</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>  <span class="c1"># Stop early for partial strength</span>
+    <span class="n">half_baking_factor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span>  <span class="c1"># 50% strength</span></div>
+
+
+
+<div class="viewcode-block" id="PromptBaker">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.prompt_baking.baker.PromptBaker">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PromptBaker</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Prompt Baking System</span>
+
+<span class="sd">    Features:</span>
+<span class="sd">    - Fast: 5 minutes per prompt (LoRA-based)</span>
+<span class="sd">    - Half-Baking: Stop early for partial prompt strength</span>
+<span class="sd">    - Prompt Pursuit: Iterative re-baking for amplification</span>
+<span class="sd">    - Sequential Baking: Compose multiple prompts</span>
+<span class="sd">    """</span>
+
+<div class="viewcode-block" id="PromptBaker.__init__">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.prompt_baking.baker.PromptBaker.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">PromptBakingConfig</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span></div>
+
+
+<div class="viewcode-block" id="PromptBaker.bake_prompt">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.prompt_baking.baker.PromptBaker.bake_prompt">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">bake_prompt</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">tokenizer</span><span class="p">,</span>
+        <span class="n">calibration_data</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">half_bake</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Bake a prompt into model weights</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            model: Base model</span>
+<span class="sd">            prompt: Prompt to bake (e.g., "You are a reasoning specialist...")</span>
+<span class="sd">            tokenizer: Tokenizer</span>
+<span class="sd">            calibration_data: Calibration dataset</span>
+<span class="sd">            half_bake: Use half-baking (50% strength)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Baked model</span>
+<span class="sd">        """</span>
+        <span class="c1"># Wave-0: callers (phase5 curriculum_engine) invoked this without</span>
+        <span class="c1"># calibration_data, raising an opaque TypeError. Fail honestly instead:</span>
+        <span class="c1"># without calibration data there is nothing to bake, so warn loudly and</span>
+        <span class="c1"># return the model unchanged. (The KL objective itself is fixed in Wave 1.)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">calibration_data</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">"bake_prompt called without calibration_data; skipping bake and "</span>
+                <span class="s2">"returning model unchanged (Wave-0 honest no-op)."</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">model</span>
+
+        <span class="c1"># Add LoRA adapters</span>
+        <span class="n">model_with_lora</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_add_lora_adapters</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+
+        <span class="c1"># Each calibration text tokenized twice: with the prompt (teacher</span>
+        <span class="c1"># context) and without it (student context).</span>
+        <span class="n">device</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">model_with_lora</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span><span class="o">.</span><span class="n">device</span>
+        <span class="n">batches</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepare_calibration_batches</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">calibration_data</span><span class="p">,</span> <span class="n">device</span><span class="p">)</span>
+
+        <span class="c1"># Train LoRA to match prompted behavior</span>
+        <span class="n">optimizer</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">AdamW</span><span class="p">(</span><span class="n">model_with_lora</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">learning_rate</span><span class="p">)</span>
+
+        <span class="n">num_epochs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">num_epochs</span>
+        <span class="k">if</span> <span class="n">half_bake</span><span class="p">:</span>
+            <span class="n">num_epochs</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">num_epochs</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">half_baking_factor</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_epochs</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">batches</span><span class="p">:</span>
+                <span class="n">kl_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_bake_loss</span><span class="p">(</span>
+                    <span class="n">model_with_lora</span><span class="p">,</span>
+                    <span class="n">batch</span><span class="p">[</span><span class="s2">"prompted_input_ids"</span><span class="p">],</span>
+                    <span class="n">batch</span><span class="p">[</span><span class="s2">"unprompted_input_ids"</span><span class="p">],</span>
+                <span class="p">)</span>
+                <span class="n">kl_loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+                <span class="n">optimizer</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+                <span class="n">optimizer</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+
+        <span class="c1"># Merge LoRA into base model</span>
+        <span class="n">baked_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_merge_lora</span><span class="p">(</span><span class="n">model_with_lora</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">baked_model</span></div>
+
+
+<div class="viewcode-block" id="PromptBaker.sequential_baking">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.prompt_baking.baker.PromptBaker.sequential_baking">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sequential_baking</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">prompts</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">calibration_data</span><span class="p">:</span> <span class="nb">list</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Sequential baking: θ_u1u2 = B(B(θ, u1), u2)</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            model: Base model</span>
+<span class="sd">            prompts: List of prompts to bake sequentially</span>
+<span class="sd">            tokenizer: Tokenizer</span>
+<span class="sd">            calibration_data: Calibration data</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Sequentially baked model</span>
+<span class="sd">        """</span>
+        <span class="n">baked_model</span> <span class="o">=</span> <span class="n">model</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">prompt</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">prompts</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Baking prompt </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">prompts</span><span class="p">)</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">prompt</span><span class="p">[:</span><span class="mi">50</span><span class="p">]</span><span class="si">}</span><span class="s2">..."</span><span class="p">)</span>
+            <span class="n">baked_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bake_prompt</span><span class="p">(</span><span class="n">baked_model</span><span class="p">,</span> <span class="n">prompt</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">calibration_data</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">baked_model</span></div>
+
+
+<div class="viewcode-block" id="PromptBaker.prompt_pursuit">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.prompt_baking.baker.PromptBaker.prompt_pursuit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">prompt_pursuit</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">tokenizer</span><span class="p">,</span>
+        <span class="n">calibration_data</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+        <span class="n">num_iterations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Prompt Pursuit: Iterative re-baking for amplification</span>
+
+<span class="sd">        Amplifies prompt strength by 15-40%</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            model: Base model</span>
+<span class="sd">            prompt: Prompt to amplify</span>
+<span class="sd">            tokenizer: Tokenizer</span>
+<span class="sd">            calibration_data: Calibration data</span>
+<span class="sd">            num_iterations: Number of pursuit iterations</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Amplified baked model</span>
+<span class="sd">        """</span>
+        <span class="n">baked_model</span> <span class="o">=</span> <span class="n">model</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_iterations</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Prompt pursuit iteration </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">num_iterations</span><span class="si">}</span><span class="s2">..."</span><span class="p">)</span>
+            <span class="n">baked_model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bake_prompt</span><span class="p">(</span><span class="n">baked_model</span><span class="p">,</span> <span class="n">prompt</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">calibration_data</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">baked_model</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_add_lora_adapters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Add LoRA adapters to model for efficient fine-tuning.</span>
+
+<span class="sd">        Uses PEFT library to inject LoRA adapters into attention layers.</span>
+<span class="sd">        Target modules: q_proj, v_proj, k_proj, o_proj (standard transformer attention)</span>
+<span class="sd">        """</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">peft</span><span class="w"> </span><span class="kn">import</span> <span class="n">LoraConfig</span><span class="p">,</span> <span class="n">TaskType</span><span class="p">,</span> <span class="n">get_peft_model</span>
+        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">"Warning: peft not installed. Run: pip install peft"</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">model</span>
+
+        <span class="n">lora_config</span> <span class="o">=</span> <span class="n">LoraConfig</span><span class="p">(</span>
+            <span class="n">r</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">lora_r</span><span class="p">,</span>
+            <span class="n">lora_alpha</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">lora_alpha</span><span class="p">,</span>
+            <span class="n">target_modules</span><span class="o">=</span><span class="p">[</span><span class="s2">"q_proj"</span><span class="p">,</span> <span class="s2">"v_proj"</span><span class="p">,</span> <span class="s2">"k_proj"</span><span class="p">,</span> <span class="s2">"o_proj"</span><span class="p">],</span>
+            <span class="n">lora_dropout</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>
+            <span class="n">bias</span><span class="o">=</span><span class="s2">"none"</span><span class="p">,</span>
+            <span class="n">task_type</span><span class="o">=</span><span class="n">TaskType</span><span class="o">.</span><span class="n">CAUSAL_LM</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">get_peft_model</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">lora_config</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_prepare_calibration_batches</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">calibration_data</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">device</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Tokenize each calibration text twice: with the prompt prepended (the</span>
+<span class="sd">        teacher's context, P_theta(.|u)) and without it (the student's context,</span>
+<span class="sd">        P_theta_u(.)). The KL is taken over the next-token distribution at the</span>
+<span class="sd">        final position, so no generation is needed - one example per batch keeps</span>
+<span class="sd">        the two contexts' differing lengths trivially aligned.</span>
+<span class="sd">        """</span>
+        <span class="c1"># Tokenize the prompt prefix once, then reuse the SAME text tokens in</span>
+        <span class="c1"># both contexts: unprompted = text_ids, prompted = [prompt_ids, text_ids].</span>
+        <span class="c1"># Both therefore end with identical text tokens, so the final-position</span>
+        <span class="c1"># next-token distributions are aligned. (Tokenizing prompt+text and text</span>
+        <span class="c1"># independently would truncate text differently once the prompt eats the</span>
+        <span class="c1"># length budget, misaligning teacher and student.)</span>
+        <span class="n">prompt_ids</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prompt</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">"</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">"pt"</span><span class="p">,</span> <span class="n">truncation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">256</span>
+        <span class="p">)[</span><span class="s2">"input_ids"</span><span class="p">]</span>
+        <span class="n">text_budget</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">512</span> <span class="o">-</span> <span class="n">prompt_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="n">batches</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">text</span> <span class="ow">in</span> <span class="n">calibration_data</span><span class="p">:</span>
+            <span class="n">text_ids</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="p">(</span>
+                <span class="n">text</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">"pt"</span><span class="p">,</span> <span class="n">truncation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="n">text_budget</span>
+            <span class="p">)[</span><span class="s2">"input_ids"</span><span class="p">]</span>
+            <span class="n">prompted_input_ids</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">prompt_ids</span><span class="p">,</span> <span class="n">text_ids</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">batches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">"prompted_input_ids"</span><span class="p">:</span> <span class="n">prompted_input_ids</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">),</span>
+                    <span class="s2">"unprompted_input_ids"</span><span class="p">:</span> <span class="n">text_ids</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">),</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">batches</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_extract_logits</span><span class="p">(</span><span class="n">output</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Models may return a tensor or a ModelOutput with .logits."""</span>
+        <span class="k">return</span> <span class="n">output</span><span class="o">.</span><span class="n">logits</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">"logits"</span><span class="p">)</span> <span class="k">else</span> <span class="n">output</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_bake_loss</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">model_with_lora</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">prompted_input_ids</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">unprompted_input_ids</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Prompt-baking KL: D_KL(P_theta(.|u) || P_theta_u(.)).</span>
+
+<span class="sd">        Teacher = the ORIGINAL model with the prompt in context (LoRA adapter</span>
+<span class="sd">        disabled), detached so no gradient leaks into the shared base weights.</span>
+<span class="sd">        Student = the LoRA weights WITHOUT the prompt. Minimizing this KL pushes</span>
+<span class="sd">        the unprompted student to behave as if the prompt were present, i.e.</span>
+<span class="sd">        bakes the prompt into the weights. KL is over the next-token distribution</span>
+<span class="sd">        at the final position.</span>
+<span class="sd">        """</span>
+        <span class="n">disable</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model_with_lora</span><span class="p">,</span> <span class="s2">"disable_adapter"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">teacher_ctx</span> <span class="o">=</span> <span class="n">disable</span><span class="p">()</span> <span class="k">if</span> <span class="nb">callable</span><span class="p">(</span><span class="n">disable</span><span class="p">)</span> <span class="k">else</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">nullcontext</span><span class="p">()</span>
+        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">(),</span> <span class="n">teacher_ctx</span><span class="p">:</span>
+            <span class="n">teacher_logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_logits</span><span class="p">(</span><span class="n">model_with_lora</span><span class="p">(</span><span class="n">prompted_input_ids</span><span class="p">))[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
+
+        <span class="n">student_logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_logits</span><span class="p">(</span><span class="n">model_with_lora</span><span class="p">(</span><span class="n">unprompted_input_ids</span><span class="p">))[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
+
+        <span class="k">return</span> <span class="n">F</span><span class="o">.</span><span class="n">kl_div</span><span class="p">(</span>
+            <span class="n">F</span><span class="o">.</span><span class="n">log_softmax</span><span class="p">(</span><span class="n">student_logits</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">),</span>
+            <span class="n">F</span><span class="o">.</span><span class="n">softmax</span><span class="p">(</span><span class="n">teacher_logits</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">),</span>
+            <span class="n">reduction</span><span class="o">=</span><span class="s2">"batchmean"</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_merge_lora</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_with_lora</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Merge LoRA adapters into base model weights.</span>
+
+<span class="sd">        Uses PEFT's merge_and_unload() to fold LoRA weights into base model.</span>
+<span class="sd">        After merging, the model no longer needs LoRA overhead at inference.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            model_with_lora: PEFT model with trained LoRA adapters</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Merged base model with LoRA weights incorporated</span>
+<span class="sd">        """</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">peft</span><span class="w"> </span><span class="kn">import</span> <span class="n">PeftModel</span>
+        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">"Warning: peft not installed. Returning model as-is."</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">model_with_lora</span>
+
+        <span class="c1"># Check if model is a PEFT model</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model_with_lora</span><span class="p">,</span> <span class="n">PeftModel</span><span class="p">):</span>
+            <span class="c1"># merge_and_unload folds LoRA weights into base model</span>
+            <span class="n">merged_model</span> <span class="o">=</span> <span class="n">model_with_lora</span><span class="o">.</span><span class="n">merge_and_unload</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">merged_model</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Model doesn't have LoRA adapters, return as-is</span>
+            <span class="k">return</span> <span class="n">model_with_lora</span></div>
+
+
+
+<div class="viewcode-block" id="bake_prompt">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.prompt_baking.baker.bake_prompt">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">bake_prompt</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+    <span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">tokenizer</span><span class="p">,</span>
+    <span class="n">calibration_data</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+    <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">PromptBakingConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Convenience function for prompt baking</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        model: Base model</span>
+<span class="sd">        prompt: Prompt to bake</span>
+<span class="sd">        tokenizer: Tokenizer</span>
+<span class="sd">        calibration_data: Calibration dataset</span>
+<span class="sd">        config: Optional config (uses defaults if None)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Baked model</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">PromptBakingConfig</span><span class="p">()</span>
+
+    <span class="n">baker</span> <span class="o">=</span> <span class="n">PromptBaker</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">baker</span><span class="o">.</span><span class="n">bake_prompt</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">prompt</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">calibration_data</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Agent Forge Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,724 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cross_phase.monitoring.wandb_integration &mdash; Agent Forge V2 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Agent Forge V2
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/modules.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Agent Forge V2</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">cross_phase.monitoring.wandb_integration</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for cross_phase.monitoring.wandb_integration</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""</span>
+<span class="sd">Weights &amp; Biases Integration</span>
+<span class="sd">603 metrics across all 8 phases with offline mode support</span>
+
+<span class="sd">ISS-018: Added comprehensive error handling for W&amp;B operations</span>
+<span class="sd">ISS-002: Export METRICS_COUNT at module level for test compatibility</span>
+<span class="sd">"""</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">wandb</span>
+
+<span class="c1"># Setup logger for W&amp;B operations</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="c1"># =============================================================================</span>
+<span class="c1"># ISS-002: Module-level METRICS_COUNT export for test compatibility</span>
+<span class="c1"># =============================================================================</span>
+<span class="n">METRICS_COUNT</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"phase1"</span><span class="p">:</span> <span class="mi">37</span><span class="p">,</span>  <span class="c1"># Cognate</span>
+    <span class="s2">"phase2"</span><span class="p">:</span> <span class="mi">370</span><span class="p">,</span>  <span class="c1"># EvoMerge (50 generations x ~7 metrics)</span>
+    <span class="s2">"phase3"</span><span class="p">:</span> <span class="mi">17</span><span class="p">,</span>  <span class="c1"># Quiet-STaR</span>
+    <span class="s2">"phase4"</span><span class="p">:</span> <span class="mi">19</span><span class="p">,</span>  <span class="c1"># BitNet</span>
+    <span class="s2">"phase5"</span><span class="p">:</span> <span class="mi">78</span><span class="p">,</span>  <span class="c1"># Curriculum Learning</span>
+    <span class="s2">"phase6"</span><span class="p">:</span> <span class="mi">32</span><span class="p">,</span>  <span class="c1"># Tool &amp; Persona Baking</span>
+    <span class="s2">"phase7"</span><span class="p">:</span> <span class="mi">28</span><span class="p">,</span>  <span class="c1"># Self-Guided Experts</span>
+    <span class="s2">"phase8"</span><span class="p">:</span> <span class="mi">95</span><span class="p">,</span>  <span class="c1"># Final Compression</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="WandBIntegration">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.WandBIntegration">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">WandBIntegration</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Complete W&amp;B integration for Agent Forge V2</span>
+
+<span class="sd">    Features:</span>
+<span class="sd">    - 676 total metrics across 8 phases</span>
+<span class="sd">    - Offline mode (no cloud upload)</span>
+<span class="sd">    - Artifact versioning</span>
+<span class="sd">    - Metric continuity tracking</span>
+<span class="sd">    """</span>
+
+    <span class="c1"># Total metrics per phase (from specification)</span>
+    <span class="n">METRICS_COUNT</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"phase1"</span><span class="p">:</span> <span class="mi">37</span><span class="p">,</span>  <span class="c1"># Cognate</span>
+        <span class="s2">"phase2"</span><span class="p">:</span> <span class="mi">370</span><span class="p">,</span>  <span class="c1"># EvoMerge (50 generations × ~7 metrics)</span>
+        <span class="s2">"phase3"</span><span class="p">:</span> <span class="mi">17</span><span class="p">,</span>  <span class="c1"># Quiet-STaR</span>
+        <span class="s2">"phase4"</span><span class="p">:</span> <span class="mi">19</span><span class="p">,</span>  <span class="c1"># BitNet</span>
+        <span class="s2">"phase5"</span><span class="p">:</span> <span class="mi">78</span><span class="p">,</span>  <span class="c1"># Curriculum Learning</span>
+        <span class="s2">"phase6"</span><span class="p">:</span> <span class="mi">32</span><span class="p">,</span>  <span class="c1"># Tool &amp; Persona Baking</span>
+        <span class="s2">"phase7"</span><span class="p">:</span> <span class="mi">28</span><span class="p">,</span>  <span class="c1"># Self-Guided Experts</span>
+        <span class="s2">"phase8"</span><span class="p">:</span> <span class="mi">95</span><span class="p">,</span>  <span class="c1"># Final Compression</span>
+    <span class="p">}</span>
+
+<div class="viewcode-block" id="WandBIntegration.__init__">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.WandBIntegration.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">project_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"agent-forge-v2"</span><span class="p">,</span>
+        <span class="n">mode</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"auto"</span><span class="p">,</span>
+        <span class="n">entity</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">project</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># ISS-002: Alias for project_name</span>
+    <span class="p">):</span>
+        <span class="c1"># ISS-002: Support both project_name and project parameter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">project_name</span> <span class="o">=</span> <span class="n">project</span> <span class="k">if</span> <span class="n">project</span> <span class="k">else</span> <span class="n">project_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_mode</span><span class="p">(</span><span class="n">mode</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">entity</span> <span class="o">=</span> <span class="n">entity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_run</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_resolve_mode</span><span class="p">(</span><span class="n">mode</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Resolve W&amp;B mode with offline-first default."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">mode</span> <span class="ow">or</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">"auto"</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">"online"</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">"WANDB_API_KEY"</span><span class="p">)</span> <span class="k">else</span> <span class="s2">"offline"</span>
+        <span class="k">return</span> <span class="n">mode</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">project</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""ISS-002: Alias for project_name for test compatibility."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">project_name</span>
+
+<div class="viewcode-block" id="WandBIntegration.init_phase_run">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.WandBIntegration.init_phase_run">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">init_phase_run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phase_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">session_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Initialize W&amp;B run for a specific phase with error handling (ISS-018).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            phase_name: e.g., 'phase1', 'phase2', etc.</span>
+<span class="sd">            config: Phase configuration dict</span>
+<span class="sd">            session_id: Unique session identifier</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            W&amp;B run object or None if initialization fails</span>
+<span class="sd">        """</span>
+        <span class="n">run_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">phase_name</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">"</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">current_run</span> <span class="o">=</span> <span class="n">wandb</span><span class="o">.</span><span class="n">init</span><span class="p">(</span>
+                <span class="n">project</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">project_name</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">run_name</span><span class="p">,</span>
+                <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+                <span class="n">tags</span><span class="o">=</span><span class="p">[</span><span class="n">phase_name</span><span class="p">,</span> <span class="n">session_id</span><span class="p">],</span>
+                <span class="n">mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span>
+                <span class="n">entity</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">entity</span><span class="p">,</span>
+                <span class="nb">dir</span><span class="o">=</span><span class="sa">f</span><span class="s2">"./storage/wandb/</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"W&amp;B run initialized: </span><span class="si">{</span><span class="n">run_name</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_run</span>
+        <span class="k">except</span> <span class="n">wandb</span><span class="o">.</span><span class="n">Error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"W&amp;B initialization failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">current_run</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unexpected error initializing W&amp;B: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">current_run</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="WandBIntegration.log_metrics">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.WandBIntegration.log_metrics">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metrics</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">step</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Log metrics to W&amp;B with error handling (ISS-018).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            metrics: Dict of metric_name -&gt; value</span>
+<span class="sd">            step: Optional step number</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_run</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">"W&amp;B run not initialized, skipping metrics"</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">wandb</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">metrics</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="n">step</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">wandb</span><span class="o">.</span><span class="n">Error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"W&amp;B logging failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unexpected error logging to W&amp;B: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WandBIntegration.log_phase1_metrics">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase1_metrics">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_phase1_metrics</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">model_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">loss</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">perplexity</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">act_steps</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">gate_entropy</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">muon_lr</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">grokfast_mu_norm</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Phase 1 (Cognate) - 37 total metrics"""</span>
+        <span class="n">metrics</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="sa">f</span><span class="s2">"model</span><span class="si">{</span><span class="n">model_id</span><span class="si">}</span><span class="s2">/train/loss"</span><span class="p">:</span> <span class="n">loss</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">"model</span><span class="si">{</span><span class="n">model_id</span><span class="si">}</span><span class="s2">/train/perplexity"</span><span class="p">:</span> <span class="n">perplexity</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">"model</span><span class="si">{</span><span class="n">model_id</span><span class="si">}</span><span class="s2">/act/avg_steps"</span><span class="p">:</span> <span class="n">act_steps</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">"model</span><span class="si">{</span><span class="n">model_id</span><span class="si">}</span><span class="s2">/gate/entropy"</span><span class="p">:</span> <span class="n">gate_entropy</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">"model</span><span class="si">{</span><span class="n">model_id</span><span class="si">}</span><span class="s2">/optim/muon_lr"</span><span class="p">:</span> <span class="n">muon_lr</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">"model</span><span class="si">{</span><span class="n">model_id</span><span class="si">}</span><span class="s2">/optim/grokfast_mu_norm"</span><span class="p">:</span> <span class="n">grokfast_mu_norm</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_metrics</span><span class="p">(</span><span class="n">metrics</span><span class="p">,</span> <span class="n">step</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WandBIntegration.log_phase2_metrics">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase2_metrics">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_phase2_metrics</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">generation</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">best_fitness</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">avg_fitness</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">diversity</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">combo_usage</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span>
+        <span class="n">step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Phase 2 (EvoMerge) - 370+ total metrics"""</span>
+        <span class="n">metrics</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"generation/number"</span><span class="p">:</span> <span class="n">generation</span><span class="p">,</span>
+            <span class="s2">"generation/best_fitness"</span><span class="p">:</span> <span class="n">best_fitness</span><span class="p">,</span>
+            <span class="s2">"generation/avg_fitness"</span><span class="p">:</span> <span class="n">avg_fitness</span><span class="p">,</span>
+            <span class="s2">"generation/diversity_score"</span><span class="p">:</span> <span class="n">diversity</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Add combo usage metrics</span>
+        <span class="k">for</span> <span class="n">combo_id</span><span class="p">,</span> <span class="n">usage_count</span> <span class="ow">in</span> <span class="n">combo_usage</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">metrics</span><span class="p">[</span><span class="sa">f</span><span class="s2">"combos/usage_</span><span class="si">{</span><span class="n">combo_id</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">usage_count</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_metrics</span><span class="p">(</span><span class="n">metrics</span><span class="p">,</span> <span class="n">step</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WandBIntegration.log_phase3_step1_baking">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase3_step1_baking">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_phase3_step1_baking</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">epoch</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">loss</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">learning_rate</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">overall_accuracy</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">strategy_accuracies</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+        <span class="n">token_usage</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">convergence_progress</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">step</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Phase 3 Step 1 (Prompt Baking) - 17 total metrics</span>
+
+<span class="sd">        Metrics:</span>
+<span class="sd">        1. baking/loss</span>
+<span class="sd">        2. baking/learning_rate</span>
+<span class="sd">        3. baking/overall_accuracy</span>
+<span class="sd">        4-10. baking/accuracy_{strategy} (7 strategies)</span>
+<span class="sd">        11-15. baking/token_usage_{type} (5 types)</span>
+<span class="sd">        16. baking/convergence_progress</span>
+<span class="sd">        17. baking/epoch</span>
+<span class="sd">        """</span>
+        <span class="n">metrics</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"baking/epoch"</span><span class="p">:</span> <span class="n">epoch</span><span class="p">,</span>
+            <span class="s2">"baking/loss"</span><span class="p">:</span> <span class="n">loss</span><span class="p">,</span>
+            <span class="s2">"baking/learning_rate"</span><span class="p">:</span> <span class="n">learning_rate</span><span class="p">,</span>
+            <span class="s2">"baking/accuracy_overall"</span><span class="p">:</span> <span class="n">overall_accuracy</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Strategy-specific accuracies (7 metrics)</span>
+        <span class="k">for</span> <span class="n">strategy</span><span class="p">,</span> <span class="n">acc</span> <span class="ow">in</span> <span class="n">strategy_accuracies</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">metrics</span><span class="p">[</span><span class="sa">f</span><span class="s2">"baking/accuracy_</span><span class="si">{</span><span class="n">strategy</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">acc</span>
+
+        <span class="c1"># Token usage metrics (5 metrics)</span>
+        <span class="k">if</span> <span class="n">token_usage</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">token_type</span><span class="p">,</span> <span class="n">usage</span> <span class="ow">in</span> <span class="n">token_usage</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">metrics</span><span class="p">[</span><span class="sa">f</span><span class="s2">"baking/</span><span class="si">{</span><span class="n">token_type</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">usage</span>
+
+        <span class="c1"># Convergence progress</span>
+        <span class="k">if</span> <span class="n">convergence_progress</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">metrics</span><span class="p">[</span><span class="s2">"baking/convergence_progress"</span><span class="p">]</span> <span class="o">=</span> <span class="n">convergence_progress</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_metrics</span><span class="p">(</span><span class="n">metrics</span><span class="p">,</span> <span class="n">step</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WandBIntegration.log_phase3_step2_rl">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase3_step2_rl">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_phase3_step2_rl</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">episode</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">reward</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">avg_reward</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">coherence_semantic</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">coherence_syntactic</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">coherence_predictive</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">coherence_composite</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">thought_length</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">thought_diversity</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">kl_divergence</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">gsm8k_accuracy</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">arc_accuracy</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">inference_time_ms</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">anti_theater_divergence</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">anti_theater_ablation</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">step</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Phase 3 Step 2 (Quiet-STaR RL) - 17 total metrics</span>
+
+<span class="sd">        Metrics:</span>
+<span class="sd">        1. rl/episode</span>
+<span class="sd">        2. rl/reward</span>
+<span class="sd">        3. rl/avg_reward</span>
+<span class="sd">        4. rl/coherence_semantic</span>
+<span class="sd">        5. rl/coherence_syntactic</span>
+<span class="sd">        6. rl/coherence_predictive</span>
+<span class="sd">        7. rl/coherence_composite</span>
+<span class="sd">        8. rl/thought_length</span>
+<span class="sd">        9. rl/thought_diversity</span>
+<span class="sd">        10. rl/kl_divergence</span>
+<span class="sd">        11. rl/gsm8k_accuracy</span>
+<span class="sd">        12. rl/arc_accuracy</span>
+<span class="sd">        13. rl/inference_time_ms</span>
+<span class="sd">        14. rl/anti_theater_divergence</span>
+<span class="sd">        15. rl/anti_theater_ablation</span>
+<span class="sd">        16-17. Reserved for additional metrics</span>
+<span class="sd">        """</span>
+        <span class="n">metrics</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"rl/episode"</span><span class="p">:</span> <span class="n">episode</span><span class="p">,</span>
+            <span class="s2">"rl/reward"</span><span class="p">:</span> <span class="n">reward</span><span class="p">,</span>
+            <span class="s2">"rl/avg_reward"</span><span class="p">:</span> <span class="n">avg_reward</span><span class="p">,</span>
+            <span class="s2">"rl/coherence_semantic"</span><span class="p">:</span> <span class="n">coherence_semantic</span><span class="p">,</span>
+            <span class="s2">"rl/coherence_syntactic"</span><span class="p">:</span> <span class="n">coherence_syntactic</span><span class="p">,</span>
+            <span class="s2">"rl/coherence_predictive"</span><span class="p">:</span> <span class="n">coherence_predictive</span><span class="p">,</span>
+            <span class="s2">"rl/coherence_composite"</span><span class="p">:</span> <span class="n">coherence_composite</span><span class="p">,</span>
+            <span class="s2">"rl/thought_length"</span><span class="p">:</span> <span class="n">thought_length</span><span class="p">,</span>
+            <span class="s2">"rl/thought_diversity"</span><span class="p">:</span> <span class="n">thought_diversity</span><span class="p">,</span>
+            <span class="s2">"rl/kl_divergence"</span><span class="p">:</span> <span class="n">kl_divergence</span><span class="p">,</span>
+            <span class="s2">"rl/gsm8k_accuracy"</span><span class="p">:</span> <span class="n">gsm8k_accuracy</span><span class="p">,</span>
+            <span class="s2">"rl/arc_accuracy"</span><span class="p">:</span> <span class="n">arc_accuracy</span><span class="p">,</span>
+            <span class="s2">"rl/inference_time_ms"</span><span class="p">:</span> <span class="n">inference_time_ms</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Anti-theater metrics (tested every 1000 steps)</span>
+        <span class="k">if</span> <span class="n">anti_theater_divergence</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">metrics</span><span class="p">[</span><span class="s2">"rl/anti_theater_divergence"</span><span class="p">]</span> <span class="o">=</span> <span class="n">anti_theater_divergence</span>
+
+        <span class="k">if</span> <span class="n">anti_theater_ablation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">metrics</span><span class="p">[</span><span class="s2">"rl/anti_theater_ablation"</span><span class="p">]</span> <span class="o">=</span> <span class="n">anti_theater_ablation</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_metrics</span><span class="p">(</span><span class="n">metrics</span><span class="p">,</span> <span class="n">step</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WandBIntegration.log_phase4_pre_compression">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase4_pre_compression">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_phase4_pre_compression</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metrics</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Phase 4 Pre-Compression (3 metrics)"""</span>
+        <span class="n">wandb_metrics</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"compression/original_size_mb"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"original_size_mb"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+            <span class="s2">"compression/pre_perplexity"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"pre_perplexity"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+            <span class="s2">"compression/pre_eval_loss"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"pre_eval_loss"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_metrics</span><span class="p">(</span><span class="n">wandb_metrics</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WandBIntegration.log_phase4_compression">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase4_compression">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_phase4_compression</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metrics</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Phase 4 Compression Process (7 metrics)"""</span>
+        <span class="n">wandb_metrics</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"compression/compressed_size_mb"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"compressed_size_mb"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+            <span class="s2">"compression/ratio"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"compression_ratio"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+            <span class="s2">"compression/layers_compressed"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"layers_quantized"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="s2">"compression/sparsity_ratio"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"sparsity_ratio"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+            <span class="s2">"compression/quantized_params"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"quantized_params"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="s2">"compression/total_params"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"total_params"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="s2">"compression/layers_quantized"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"layers_quantized"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_metrics</span><span class="p">(</span><span class="n">wandb_metrics</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WandBIntegration.log_phase4_post_compression">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase4_post_compression">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_phase4_post_compression</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metrics</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Phase 4 Post-Compression (5 metrics)"""</span>
+        <span class="n">wandb_metrics</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"compression/post_perplexity"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"post_perplexity"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+            <span class="s2">"compression/perplexity_degradation"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"perplexity_degradation"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+            <span class="s2">"compression/accuracy_preserved"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"accuracy_preserved"</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+            <span class="s2">"compression/dequantization_accuracy"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"dequantization_accuracy"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+            <span class="s2">"compression/gradient_flow_test_passed"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"gradient_flow_passed"</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_metrics</span><span class="p">(</span><span class="n">wandb_metrics</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WandBIntegration.log_phase4_fine_tuning">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase4_fine_tuning">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_phase4_fine_tuning</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metrics</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Phase 4 Fine-Tuning (4 metrics)"""</span>
+        <span class="k">if</span> <span class="n">metrics</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">wandb_metrics</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"compression/post_finetune_perplexity"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"best_perplexity"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+            <span class="s2">"compression/perplexity_recovery"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"improvement"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+            <span class="s2">"compression/fine_tune_epochs"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"epochs"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="s2">"compression/fine_tune_time_hours"</span><span class="p">:</span> <span class="n">metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"time_hours"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_metrics</span><span class="p">(</span><span class="n">wandb_metrics</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WandBIntegration.log_phase4_summary">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.WandBIntegration.log_phase4_summary">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_phase4_summary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">results</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Phase 4 Summary (8 metrics)"""</span>
+        <span class="n">post_metrics</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"post_compression"</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">fine_tune</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"fine_tuning"</span><span class="p">,</span> <span class="p">{})</span>
+
+        <span class="c1"># Determine final perplexity</span>
+        <span class="k">if</span> <span class="n">fine_tune</span><span class="p">:</span>
+            <span class="n">final_perplexity</span> <span class="o">=</span> <span class="n">fine_tune</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"best_perplexity"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">final_perplexity</span> <span class="o">=</span> <span class="n">post_metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"post_perplexity"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+
+        <span class="n">wandb_metrics</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"phase/compression_ratio"</span><span class="p">:</span> <span class="n">post_metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"compression_ratio"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+            <span class="s2">"phase/original_size_mb"</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"pre_compression"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="s2">"original_size_mb"</span><span class="p">,</span> <span class="mf">0.0</span>
+            <span class="p">),</span>
+            <span class="s2">"phase/compressed_size_mb"</span><span class="p">:</span> <span class="n">post_metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"compressed_size_mb"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+            <span class="s2">"phase/final_perplexity"</span><span class="p">:</span> <span class="n">final_perplexity</span><span class="p">,</span>
+            <span class="s2">"phase/accuracy_preserved"</span><span class="p">:</span> <span class="n">post_metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"accuracy_preserved"</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+            <span class="s2">"phase/success"</span><span class="p">:</span> <span class="n">results</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"success"</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+            <span class="s2">"phase/quantization_method"</span><span class="p">:</span> <span class="s2">"BitNet-1.58"</span><span class="p">,</span>
+            <span class="s2">"phase/sparsity_ratio"</span><span class="p">:</span> <span class="n">post_metrics</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"sparsity_ratio"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_metrics</span><span class="p">(</span><span class="n">wandb_metrics</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WandBIntegration.log_artifact">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.WandBIntegration.log_artifact">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_artifact</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">artifact_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">artifact_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="n">Dict</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Log model artifact to W&amp;B with error handling (ISS-018).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            artifact_name: e.g., 'cognate_model_reasoning'</span>
+<span class="sd">            artifact_type: 'model', 'dataset', etc.</span>
+<span class="sd">            file_path: Path to artifact file</span>
+<span class="sd">            metadata: Metadata dict</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_run</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">"W&amp;B run not initialized, skipping artifact"</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">artifact</span> <span class="o">=</span> <span class="n">wandb</span><span class="o">.</span><span class="n">Artifact</span><span class="p">(</span>
+                <span class="n">name</span><span class="o">=</span><span class="n">artifact_name</span><span class="p">,</span>
+                <span class="nb">type</span><span class="o">=</span><span class="n">artifact_type</span><span class="p">,</span>
+                <span class="n">description</span><span class="o">=</span><span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"description"</span><span class="p">,</span> <span class="s2">""</span><span class="p">),</span>
+                <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">artifact</span><span class="o">.</span><span class="n">add_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+            <span class="n">wandb</span><span class="o">.</span><span class="n">log_artifact</span><span class="p">(</span><span class="n">artifact</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"W&amp;B artifact logged: </span><span class="si">{</span><span class="n">artifact_name</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Artifact file not found: </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">wandb</span><span class="o">.</span><span class="n">Error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"W&amp;B artifact logging failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unexpected error logging artifact: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WandBIntegration.finish">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.WandBIntegration.finish">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">finish</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Finish current W&amp;B run with error handling (ISS-018)."""</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_run</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">wandb</span><span class="o">.</span><span class="n">finish</span><span class="p">()</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"W&amp;B run finished successfully"</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">wandb</span><span class="o">.</span><span class="n">Error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Error finishing W&amp;B run: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unexpected error finishing W&amp;B run: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">current_run</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="WandBIntegration.get_metrics_config">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.WandBIntegration.get_metrics_config">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_metrics_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phase_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Get complete metrics configuration for a phase</span>
+
+<span class="sd">        Returns all metric names and their types</span>
+<span class="sd">        """</span>
+        <span class="n">configs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"phase1"</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">"train/loss"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+                <span class="s2">"train/perplexity"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+                <span class="s2">"act/avg_steps"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+                <span class="s2">"act/halt_probability"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+                <span class="s2">"gate/entropy"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+                <span class="s2">"gate/avg_blend"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+                <span class="s2">"optim/muon_lr"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+                <span class="s2">"optim/grokfast_mu_norm"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+                <span class="s2">"optim/qk_clip_activations"</span><span class="p">:</span> <span class="s2">"int"</span><span class="p">,</span>
+                <span class="c1"># ... (37 total)</span>
+            <span class="p">},</span>
+            <span class="s2">"phase2"</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">"generation/number"</span><span class="p">:</span> <span class="s2">"int"</span><span class="p">,</span>
+                <span class="s2">"generation/best_fitness"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+                <span class="s2">"generation/avg_fitness"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+                <span class="s2">"generation/min_fitness"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+                <span class="s2">"generation/max_fitness"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+                <span class="s2">"generation/diversity_score"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+                <span class="s2">"generation/fitness_std"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+                <span class="c1"># ... (370+ total across 50 generations)</span>
+            <span class="p">},</span>
+            <span class="c1"># ... (Phase 3-8 configs)</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">configs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">phase_name</span><span class="p">,</span> <span class="p">{})</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="MetricContinuityTracker">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.MetricContinuityTracker">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">MetricContinuityTracker</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Track metrics across all phases for continuity analysis</span>
+
+<span class="sd">    Example: Track how accuracy evolves from Phase 1 -&gt; Phase 8</span>
+
+<span class="sd">    ISS-002: Added history attribute and add_phase_metrics method for test compatibility</span>
+<span class="sd">    """</span>
+
+<div class="viewcode-block" id="MetricContinuityTracker.__init__">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.MetricContinuityTracker.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"accuracy"</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s2">"perplexity"</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s2">"model_size_mb"</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s2">"inference_latency_ms"</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">phase_names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># ISS-002: History dict for test compatibility</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span></div>
+
+
+<div class="viewcode-block" id="MetricContinuityTracker.add_phase_metrics">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.MetricContinuityTracker.add_phase_metrics">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_phase_metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phase</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">metrics</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        ISS-002: Add metrics for a phase (test-compatible API).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            phase: Phase name (e.g., 'phase1')</span>
+<span class="sd">            metrics: Dict of metric_name -&gt; value</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="n">phase</span><span class="p">]</span> <span class="o">=</span> <span class="n">metrics</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">phase_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">phase</span><span class="p">)</span>
+
+        <span class="c1"># Also add to the flat metrics lists for backward compat</span>
+        <span class="k">for</span> <span class="n">metric_name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">metrics</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">metric_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">[</span><span class="n">metric_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">[</span><span class="n">metric_name</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MetricContinuityTracker.get_trend">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.MetricContinuityTracker.get_trend">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_trend</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metric_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        ISS-002: Get trend values for a metric across phases.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            metric_name: Name of the metric</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of values in phase order</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="n">metric_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">[</span><span class="n">metric_name</span><span class="p">]</span>
+
+        <span class="c1"># Try to extract from history</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">phase</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">phase_names</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">phase</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span> <span class="ow">and</span> <span class="n">metric_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="n">phase</span><span class="p">]:</span>
+                <span class="n">values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="n">phase</span><span class="p">][</span><span class="n">metric_name</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">values</span></div>
+
+
+<div class="viewcode-block" id="MetricContinuityTracker.detect_degradation">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.MetricContinuityTracker.detect_degradation">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">detect_degradation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metric_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        ISS-002: Detect if a metric has degraded significantly.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            metric_name: Name of the metric</span>
+<span class="sd">            threshold: Degradation threshold (fraction, e.g., 0.1 = 10%)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            True if degradation detected, False otherwise</span>
+<span class="sd">        """</span>
+        <span class="n">trend</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_trend</span><span class="p">(</span><span class="n">metric_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">trend</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="c1"># Check if latest value dropped significantly from max</span>
+        <span class="n">max_val</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">trend</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">trend</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">trend</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">latest</span> <span class="o">=</span> <span class="n">trend</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">max_val</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="n">drop</span> <span class="o">=</span> <span class="p">(</span><span class="n">max_val</span> <span class="o">-</span> <span class="n">latest</span><span class="p">)</span> <span class="o">/</span> <span class="n">max_val</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">drop</span> <span class="o">&gt;</span> <span class="n">threshold</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MetricContinuityTracker.record_phase">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.MetricContinuityTracker.record_phase">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">record_phase</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phase_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">metrics</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Record metrics at end of phase (legacy API, wraps add_phase_metrics).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            phase_name: e.g., 'phase1'</span>
+<span class="sd">            metrics: Dict with standard metrics</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_phase_metrics</span><span class="p">(</span><span class="n">phase_name</span><span class="p">,</span> <span class="n">metrics</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MetricContinuityTracker.log_to_wandb">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.monitoring.wandb_integration.MetricContinuityTracker.log_to_wandb">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_to_wandb</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Log cross-phase metric evolution to W&amp;B"""</span>
+        <span class="c1"># Create continuity table</span>
+        <span class="n">continuity_table</span> <span class="o">=</span> <span class="n">wandb</span><span class="o">.</span><span class="n">Table</span><span class="p">(</span>
+            <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">"phase"</span><span class="p">,</span> <span class="s2">"accuracy"</span><span class="p">,</span> <span class="s2">"perplexity"</span><span class="p">,</span> <span class="s2">"size_mb"</span><span class="p">,</span> <span class="s2">"latency_ms"</span><span class="p">],</span>
+            <span class="n">data</span><span class="o">=</span><span class="p">[</span>
+                <span class="p">[</span><span class="n">phase</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">ppl</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">lat</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">phase</span><span class="p">,</span> <span class="n">acc</span><span class="p">,</span> <span class="n">ppl</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">lat</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">phase_names</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">[</span><span class="s2">"accuracy"</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">[</span><span class="s2">"perplexity"</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">[</span><span class="s2">"model_size_mb"</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span><span class="p">[</span><span class="s2">"inference_latency_ms"</span><span class="p">],</span>
+                <span class="p">)</span>
+            <span class="p">],</span>
+        <span class="p">)</span>
+
+        <span class="n">wandb</span><span class="o">.</span><span class="n">log</span><span class="p">({</span><span class="s2">"metric_continuity"</span><span class="p">:</span> <span class="n">continuity_table</span><span class="p">})</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Agent Forge Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

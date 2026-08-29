@@ -1,0 +1,566 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cross_phase.storage.model_registry &mdash; Agent Forge V2 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Agent Forge V2
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/modules.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Agent Forge V2</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">cross_phase.storage.model_registry</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for cross_phase.storage.model_registry</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""</span>
+<span class="sd">SQLite Model Registry with WAL Mode</span>
+<span class="sd">Concurrent read/write access for model metadata and session tracking</span>
+<span class="sd">"""</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sqlite3</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">threading</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+
+
+<div class="viewcode-block" id="ModelRegistry">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.storage.model_registry.ModelRegistry">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ModelRegistry</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Model Registry with WAL (Write-Ahead Logging) mode for concurrent access</span>
+
+<span class="sd">    Features:</span>
+<span class="sd">    - Concurrent read/write (readers don't block writers)</span>
+<span class="sd">    - Session tracking with auto-cleanup</span>
+<span class="sd">    - Phase handoff validation</span>
+<span class="sd">    - Model metadata versioning</span>
+<span class="sd">    """</span>
+
+<div class="viewcode-block" id="ModelRegistry.__init__">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.storage.model_registry.ModelRegistry.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">db_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"./storage/registry/model_registry.db"</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">db_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">db_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_local</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">local</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_closed</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># Create schema using the current thread's connection. Other threads</span>
+        <span class="c1"># lazily open their own SQLite connections instead of sharing one</span>
+        <span class="c1"># check_same_thread=False handle.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_create_schema</span><span class="p">()</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">conn</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">Connection</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return this thread's SQLite connection."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_connection</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">Connection</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Create or return the current thread's configured connection."""</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_closed</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"ModelRegistry is closed"</span><span class="p">)</span>
+
+        <span class="n">conn</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">,</span> <span class="s2">"conn"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">conn</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">conn</span> <span class="o">=</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">db_path</span><span class="p">),</span> <span class="n">timeout</span><span class="o">=</span><span class="mf">30.0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_configure_connection</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="n">conn</span>
+        <span class="k">return</span> <span class="n">conn</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_configure_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">conn</span><span class="p">:</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">Connection</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Apply WAL/concurrency PRAGMAs to a single connection."""</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">"PRAGMA journal_mode=WAL;"</span><span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">"PRAGMA synchronous=NORMAL;"</span><span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">"PRAGMA cache_size=10000;"</span><span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">"PRAGMA temp_store=MEMORY;"</span><span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">"PRAGMA mmap_size=30000000000;"</span><span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">"PRAGMA page_size=4096;"</span><span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">"PRAGMA auto_vacuum=INCREMENTAL;"</span><span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">"PRAGMA busy_timeout=5000;"</span><span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_enable_wal_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Enable WAL mode and optimize for concurrent access"""</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_configure_connection</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Create database schema"""</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">executescript</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">"""</span>
+<span class="sd">            CREATE TABLE IF NOT EXISTS models (</span>
+<span class="sd">                model_id TEXT PRIMARY KEY,</span>
+<span class="sd">                session_id TEXT NOT NULL,</span>
+<span class="sd">                phase_name TEXT NOT NULL,</span>
+<span class="sd">                model_name TEXT NOT NULL,</span>
+<span class="sd">                model_path TEXT NOT NULL,</span>
+<span class="sd">                size_mb REAL,</span>
+<span class="sd">                parameters INTEGER,</span>
+<span class="sd">                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,</span>
+<span class="sd">                metadata_json TEXT,</span>
+<span class="sd">                tags TEXT</span>
+<span class="sd">            );</span>
+<span class="sd">            CREATE INDEX IF NOT EXISTS idx_session ON models(session_id);</span>
+<span class="sd">            CREATE INDEX IF NOT EXISTS idx_phase ON models(phase_name);</span>
+<span class="sd">            CREATE INDEX IF NOT EXISTS idx_created ON models(created_at);</span>
+
+<span class="sd">            CREATE TABLE IF NOT EXISTS phase_handoffs (</span>
+<span class="sd">                handoff_id TEXT PRIMARY KEY,</span>
+<span class="sd">                source_phase TEXT NOT NULL,</span>
+<span class="sd">                target_phase TEXT NOT NULL,</span>
+<span class="sd">                source_model_id TEXT NOT NULL,</span>
+<span class="sd">                target_model_id TEXT NOT NULL,</span>
+<span class="sd">                handoff_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,</span>
+<span class="sd">                validation_status TEXT,</span>
+<span class="sd">                validation_metrics_json TEXT,</span>
+<span class="sd">                FOREIGN KEY (source_model_id) REFERENCES models(model_id),</span>
+<span class="sd">                FOREIGN KEY (target_model_id) REFERENCES models(model_id)</span>
+<span class="sd">            );</span>
+
+<span class="sd">            CREATE TABLE IF NOT EXISTS sessions (</span>
+<span class="sd">                session_id TEXT PRIMARY KEY,</span>
+<span class="sd">                pipeline_config_json TEXT,</span>
+<span class="sd">                start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,</span>
+<span class="sd">                end_time TIMESTAMP,</span>
+<span class="sd">                status TEXT,</span>
+<span class="sd">                current_phase TEXT,</span>
+<span class="sd">                progress_percent REAL</span>
+<span class="sd">            );</span>
+<span class="sd">        """</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+<div class="viewcode-block" id="ModelRegistry.register_model">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.storage.model_registry.ModelRegistry.register_model">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">register_model</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">session_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">phase_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">model_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="n">Dict</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Register a model in the registry"""</span>
+        <span class="n">model_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">phase_name</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">model_name</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">"</span>
+
+        <span class="c1"># Prefer real file size when the artifact exists. Some pipeline stages</span>
+        <span class="c1"># register metadata before the artifact is materialized; those use the</span>
+        <span class="c1"># supplied metadata size and otherwise remain unknown instead of raising.</span>
+        <span class="n">size_mb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_model_size_mb</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">metadata</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">"""</span>
+<span class="sd">            INSERT INTO models (</span>
+<span class="sd">                model_id, session_id, phase_name, model_name,</span>
+<span class="sd">                model_path, size_mb, parameters, metadata_json</span>
+<span class="sd">            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)</span>
+<span class="sd">        """</span><span class="p">,</span>
+            <span class="p">(</span>
+                <span class="n">model_id</span><span class="p">,</span>
+                <span class="n">session_id</span><span class="p">,</span>
+                <span class="n">phase_name</span><span class="p">,</span>
+                <span class="n">model_name</span><span class="p">,</span>
+                <span class="n">model_path</span><span class="p">,</span>
+                <span class="n">size_mb</span><span class="p">,</span>
+                <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"parameters"</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">metadata</span><span class="p">),</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">model_id</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_resolve_model_size_mb</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">metadata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Resolve model size without requiring the artifact to exist yet."""</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">model_path</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">model_path</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1024</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"size_mb"</span><span class="p">,</span> <span class="s2">"model_size_mb"</span><span class="p">,</span> <span class="s2">"artifact_size_mb"</span><span class="p">):</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="ModelRegistry.get_model">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.storage.model_registry.ModelRegistry.get_model">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_model</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">model_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">session_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">phase_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Get model info from registry"""</span>
+        <span class="k">if</span> <span class="n">model_id</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="s2">"SELECT * FROM models WHERE model_id = ?"</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="p">(</span><span class="n">model_id</span><span class="p">,)</span>
+        <span class="k">elif</span> <span class="n">session_id</span> <span class="ow">and</span> <span class="n">phase_name</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="s2">"""</span>
+<span class="s2">                SELECT * FROM models</span>
+<span class="s2">                WHERE session_id = ? AND phase_name = ?</span>
+<span class="s2">                ORDER BY created_at DESC LIMIT 1</span>
+<span class="s2">            """</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="p">(</span><span class="n">session_id</span><span class="p">,</span> <span class="n">phase_name</span><span class="p">)</span>  <span class="c1"># type: ignore[assignment]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Must provide model_id or (session_id, phase_name)"</span><span class="p">)</span>
+
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">row</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Model not found: </span><span class="si">{</span><span class="n">model_id</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="p">(</span><span class="n">session_id</span><span class="p">,</span><span class="w"> </span><span class="n">phase_name</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"model_id"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="s2">"session_id"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+            <span class="s2">"phase_name"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+            <span class="s2">"model_name"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+            <span class="s2">"model_path"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+            <span class="s2">"size_mb"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span>
+            <span class="s2">"parameters"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">6</span><span class="p">],</span>
+            <span class="s2">"created_at"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">7</span><span class="p">],</span>
+            <span class="s2">"metadata"</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">8</span><span class="p">])</span> <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span> <span class="k">else</span> <span class="p">{},</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="ModelRegistry.create_session">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.storage.model_registry.ModelRegistry.create_session">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create_session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Create new session"""</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">"""</span>
+<span class="sd">            INSERT OR IGNORE INTO sessions (</span>
+<span class="sd">                session_id, pipeline_config_json, status, current_phase, progress_percent</span>
+<span class="sd">            ) VALUES (?, ?, 'running', 'phase1', 0.0)</span>
+<span class="sd">        """</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">session_id</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">config</span><span class="p">)),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">"""</span>
+<span class="sd">            UPDATE sessions</span>
+<span class="sd">            SET pipeline_config_json = ?, status = 'running', current_phase = 'phase1',</span>
+<span class="sd">                progress_percent = 0.0</span>
+<span class="sd">            WHERE session_id = ?</span>
+<span class="sd">        """</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">config</span><span class="p">),</span> <span class="n">session_id</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="ModelRegistry.update_session_progress">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.storage.model_registry.ModelRegistry.update_session_progress">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update_session_progress</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">session_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">current_phase</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">progress_percent</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Update session progress"""</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">"""</span>
+<span class="sd">            UPDATE sessions</span>
+<span class="sd">            SET current_phase = ?, progress_percent = ?</span>
+<span class="sd">            WHERE session_id = ?</span>
+<span class="sd">        """</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">current_phase</span><span class="p">,</span> <span class="n">progress_percent</span><span class="p">,</span> <span class="n">session_id</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="ModelRegistry.checkpoint_wal">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.storage.model_registry.ModelRegistry.checkpoint_wal">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">checkpoint_wal</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Manually checkpoint WAL to main database"""</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">"PRAGMA wal_checkpoint(RESTART);"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="ModelRegistry.vacuum_incremental">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.storage.model_registry.ModelRegistry.vacuum_incremental">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">vacuum_incremental</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pages</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Incremental vacuum to reclaim space"""</span>
+        <span class="n">pages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_coerce_vacuum_pages</span><span class="p">(</span><span class="n">pages</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="sa">f</span><span class="s2">"PRAGMA incremental_vacuum(</span><span class="si">{</span><span class="n">pages</span><span class="si">}</span><span class="s2">);"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_coerce_vacuum_pages</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pages</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return a bounded integer page count for PRAGMA interpolation."""</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pages</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Vacuum pages must be an integer"</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">coerced</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">pages</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Vacuum pages must be an integer"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="k">if</span> <span class="n">coerced</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">coerced</span> <span class="o">&gt;</span> <span class="mi">1_000_000</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Vacuum pages must be between 0 and 1000000"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">coerced</span>
+
+<div class="viewcode-block" id="ModelRegistry.get_all_models">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.storage.model_registry.ModelRegistry.get_all_models">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_all_models</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">phase_filter</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">session_filter</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Get all models from registry with optional filters.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            phase_filter: List of phase names to filter by</span>
+<span class="sd">            session_filter: Session ID to filter by</span>
+<span class="sd">            limit: Maximum number of results</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of model dictionaries</span>
+<span class="sd">        """</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="s2">"SELECT * FROM models WHERE 1=1"</span>
+        <span class="n">params</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="n">phase_filter</span><span class="p">:</span>
+            <span class="n">placeholders</span> <span class="o">=</span> <span class="s2">","</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">"?"</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">phase_filter</span><span class="p">))</span>
+            <span class="n">query</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">" AND phase_name IN (</span><span class="si">{</span><span class="n">placeholders</span><span class="si">}</span><span class="s2">)"</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">phase_filter</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">session_filter</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">+=</span> <span class="s2">" AND session_id = ?"</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">session_filter</span><span class="p">)</span>
+
+        <span class="n">query</span> <span class="o">+=</span> <span class="s2">" ORDER BY created_at DESC LIMIT ?"</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">limit</span><span class="p">)</span>
+
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+        <span class="n">models</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+            <span class="n">metadata</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">8</span><span class="p">])</span> <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span> <span class="k">else</span> <span class="p">{}</span>
+            <span class="n">models</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">"model_id"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="s2">"session_id"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                    <span class="s2">"phase"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+                    <span class="s2">"name"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+                    <span class="s2">"model_path"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+                    <span class="s2">"size_mb"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s2">"params"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s2">"created"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">7</span><span class="p">],</span>
+                    <span class="s2">"status"</span><span class="p">:</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"status"</span><span class="p">,</span> <span class="s2">"complete"</span><span class="p">),</span>
+                    <span class="s2">"loss"</span><span class="p">:</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"loss"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                    <span class="s2">"accuracy"</span><span class="p">:</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"accuracy"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                    <span class="s2">"perplexity"</span><span class="p">:</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"perplexity"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+                    <span class="s2">"metadata"</span><span class="p">:</span> <span class="n">metadata</span><span class="p">,</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">models</span></div>
+
+
+<div class="viewcode-block" id="ModelRegistry.get_storage_stats">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.storage.model_registry.ModelRegistry.get_storage_stats">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_storage_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Get storage statistics for all models.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Dictionary with storage breakdown</span>
+<span class="sd">        """</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">"""</span>
+<span class="sd">            SELECT</span>
+<span class="sd">                COUNT(*) as model_count,</span>
+<span class="sd">                COALESCE(SUM(size_mb), 0) as total_size_mb,</span>
+<span class="sd">                COUNT(DISTINCT session_id) as session_count,</span>
+<span class="sd">                COUNT(DISTINCT phase_name) as phase_count</span>
+<span class="sd">            FROM models</span>
+<span class="sd">        """</span>
+        <span class="p">)</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+
+        <span class="c1"># Count checkpoints by checking for checkpoint-related models</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">"""</span>
+<span class="sd">            SELECT COUNT(*) FROM models</span>
+<span class="sd">            WHERE model_name LIKE '%checkpoint%' OR model_name LIKE '%ckpt%'</span>
+<span class="sd">        """</span>
+        <span class="p">)</span>
+        <span class="n">checkpoint_count</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"model_count"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="s2">"total_size_mb"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+            <span class="s2">"session_count"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+            <span class="s2">"phase_count"</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+            <span class="s2">"checkpoint_count"</span><span class="p">:</span> <span class="n">checkpoint_count</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="ModelRegistry.delete_model">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.storage.model_registry.ModelRegistry.delete_model">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">delete_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Delete a model from the registry.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            model_id: ID of model to delete</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            True if deleted, False otherwise</span>
+<span class="sd">        """</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">cursor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">"DELETE FROM models WHERE model_id = ?"</span><span class="p">,</span> <span class="p">(</span><span class="n">model_id</span><span class="p">,))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">cursor</span><span class="o">.</span><span class="n">rowcount</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="ModelRegistry.register_phase_handoff">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.storage.model_registry.ModelRegistry.register_phase_handoff">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">register_phase_handoff</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">from_phase</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">to_phase</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">session_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">input_model_metadata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span>
+        <span class="n">output_model_metadata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span>
+        <span class="n">validation_status</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">validation_metrics</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Register a phase handoff in the registry.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            from_phase: Source phase number</span>
+<span class="sd">            to_phase: Target phase number</span>
+<span class="sd">            session_id: Session identifier</span>
+<span class="sd">            input_model_metadata: Metadata from source model</span>
+<span class="sd">            output_model_metadata: Metadata from target model</span>
+<span class="sd">            validation_status: 'passed' or 'failed'</span>
+<span class="sd">            validation_metrics: Validation metrics dictionary</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Handoff ID</span>
+<span class="sd">        """</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
+
+        <span class="n">handoff_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"handoff_</span><span class="si">{</span><span class="n">from_phase</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">to_phase</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="p">[:</span><span class="mi">8</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span>
+
+        <span class="n">source_model_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"phase</span><span class="si">{</span><span class="n">from_phase</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">"</span>
+        <span class="n">target_model_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"phase</span><span class="si">{</span><span class="n">to_phase</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">session_id</span><span class="si">}</span><span class="s2">"</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">            </span><span class="sd">"""</span>
+<span class="sd">            INSERT INTO phase_handoffs (</span>
+<span class="sd">                handoff_id, source_phase, target_phase,</span>
+<span class="sd">                source_model_id, target_model_id,</span>
+<span class="sd">                validation_status, validation_metrics_json</span>
+<span class="sd">            ) VALUES (?, ?, ?, ?, ?, ?, ?)</span>
+<span class="sd">        """</span><span class="p">,</span>
+            <span class="p">(</span>
+                <span class="n">handoff_id</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">"phase</span><span class="si">{</span><span class="n">from_phase</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">"phase</span><span class="si">{</span><span class="n">to_phase</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                <span class="n">source_model_id</span><span class="p">,</span>
+                <span class="n">target_model_id</span><span class="p">,</span>
+                <span class="n">validation_status</span><span class="p">,</span>
+                <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">validation_metrics</span><span class="p">),</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">handoff_id</span></div>
+
+
+<div class="viewcode-block" id="ModelRegistry.close">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.storage.model_registry.ModelRegistry.close">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Close database connection"""</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="p">,</span> <span class="s2">"conn"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">conn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_wal</span><span class="p">()</span>  <span class="c1"># Final checkpoint for this thread</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_local</span><span class="o">.</span><span class="n">conn</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_closed</span> <span class="o">=</span> <span class="kc">True</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Agent Forge Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

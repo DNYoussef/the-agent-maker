@@ -1,0 +1,534 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cross_phase.utils.checkpoint_utils &mdash; Agent Forge V2 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Agent Forge V2
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/modules.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Agent Forge V2</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">cross_phase.utils.checkpoint_utils</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for cross_phase.utils.checkpoint_utils</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""</span>
+<span class="sd">Secure Checkpoint Utilities using SafeTensors + JSON.</span>
+
+<span class="sd">ISS-004 REMEDIATION: This module provides secure checkpoint save/load</span>
+<span class="sd">that eliminates pickle-based arbitrary code execution vulnerabilities.</span>
+
+<span class="sd">Architecture:</span>
+<span class="sd">- Model weights: SafeTensors format (binary, no code execution)</span>
+<span class="sd">- Config/metadata: JSON format (human-readable, no code execution)</span>
+<span class="sd">- Optimizer state: SafeTensors for tensor values + JSON for non-tensor metadata</span>
+
+<span class="sd">Security Guarantee:</span>
+<span class="sd">- NO torch.load() with weights_only=False</span>
+<span class="sd">- NO pickle deserialization of untrusted data</span>
+<span class="sd">- All checkpoint loading is safe against malicious files</span>
+<span class="sd">"""</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">asdict</span><span class="p">,</span> <span class="n">is_dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">safetensors.torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_file</span><span class="p">,</span> <span class="n">save_file</span>
+
+    <span class="n">SAFETENSORS_AVAILABLE</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">SAFETENSORS_AVAILABLE</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+        <span class="s2">"safetensors not installed. Run: pip install safetensors&gt;=0.4.0</span><span class="se">\n</span><span class="s2">"</span>
+        <span class="s2">"Checkpoint operations will fail until safetensors is installed."</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_serialize_config</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Convert config (dataclass or dict) to JSON-serializable dict."""</span>
+    <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="n">is_dataclass</span><span class="p">(</span><span class="n">config</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>
+        <span class="c1"># Recursively convert nested dataclasses</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">asdict</span><span class="p">(</span><span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s2">"__dict__"</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">_serialize_config</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">return</span> <span class="n">result</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">config</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">is_dataclass</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">type</span><span class="p">):</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">_serialize_config</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">return</span> <span class="n">result</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">"value"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">config</span><span class="p">)}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_extract_optimizer_tensors</span><span class="p">(</span>
+    <span class="n">optimizer_state</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Separate optimizer state into tensors (for SafeTensors) and metadata (for JSON).</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        (tensors_dict, metadata_dict)</span>
+<span class="sd">    """</span>
+    <span class="n">tensors</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"state"</span><span class="p">:</span> <span class="p">{},</span> <span class="s2">"param_groups"</span><span class="p">:</span> <span class="n">optimizer_state</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"param_groups"</span><span class="p">,</span> <span class="p">[])}</span>
+
+    <span class="k">for</span> <span class="n">param_id</span><span class="p">,</span> <span class="n">param_state</span> <span class="ow">in</span> <span class="n">optimizer_state</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"state"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">param_key</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">param_id</span><span class="p">)</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s2">"state"</span><span class="p">][</span><span class="n">param_key</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">param_state</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                <span class="n">tensor_key</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"opt_state_</span><span class="si">{</span><span class="n">param_key</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span>
+                <span class="n">tensors</span><span class="p">[</span><span class="n">tensor_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+                <span class="n">metadata</span><span class="p">[</span><span class="s2">"state"</span><span class="p">][</span><span class="n">param_key</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"_tensor_ref"</span><span class="p">:</span> <span class="n">tensor_key</span><span class="p">}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Scalar or other serializable value</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">bool</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">))):</span>
+                    <span class="n">metadata</span><span class="p">[</span><span class="s2">"state"</span><span class="p">][</span><span class="n">param_key</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">metadata</span><span class="p">[</span><span class="s2">"state"</span><span class="p">][</span><span class="n">param_key</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">tensors</span><span class="p">,</span> <span class="n">metadata</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_reconstruct_optimizer_state</span><span class="p">(</span>
+    <span class="n">tensors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">metadata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Reconstruct optimizer state from tensors and metadata."""</span>
+    <span class="n">state</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">for</span> <span class="n">param_key</span><span class="p">,</span> <span class="n">param_state</span> <span class="ow">in</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"state"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">param_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">param_key</span><span class="p">)</span> <span class="k">if</span> <span class="n">param_key</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span> <span class="k">else</span> <span class="n">param_key</span>
+        <span class="n">state</span><span class="p">[</span><span class="n">param_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">param_state</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="s2">"_tensor_ref"</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+                <span class="n">tensor_key</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="s2">"_tensor_ref"</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">tensor_key</span> <span class="ow">in</span> <span class="n">tensors</span><span class="p">:</span>
+                    <span class="n">state</span><span class="p">[</span><span class="n">param_id</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">tensors</span><span class="p">[</span><span class="n">tensor_key</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">state</span><span class="p">[</span><span class="n">param_id</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+    <span class="k">return</span> <span class="p">{</span><span class="s2">"state"</span><span class="p">:</span> <span class="n">state</span><span class="p">,</span> <span class="s2">"param_groups"</span><span class="p">:</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"param_groups"</span><span class="p">,</span> <span class="p">[])}</span>
+
+
+<div class="viewcode-block" id="save_checkpoint">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.utils.save_checkpoint">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">save_checkpoint</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+    <span class="n">output_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="n">config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">metadata</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">optimizer_state</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">extra_tensors</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Save model checkpoint securely using SafeTensors + JSON.</span>
+
+<span class="sd">    File structure created:</span>
+<span class="sd">    - {output_path}.safetensors: Model weights + any extra tensors</span>
+<span class="sd">    - {output_path}.json: Config + metadata</span>
+<span class="sd">    - {output_path}.optimizer.safetensors: Optimizer tensor state (if provided)</span>
+<span class="sd">    - {output_path}.optimizer.json: Optimizer non-tensor state (if provided)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        model: PyTorch model to save</span>
+<span class="sd">        output_path: Base path for checkpoint files (without extension)</span>
+<span class="sd">        config: Configuration (dataclass or dict) - will be JSON serialized</span>
+<span class="sd">        metadata: Additional metadata dict</span>
+<span class="sd">        optimizer_state: Optimizer state_dict() for resuming training</span>
+<span class="sd">        extra_tensors: Additional tensors to save (e.g., tokenizer embeddings)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Path to the main safetensors file</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ImportError: If safetensors is not installed</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">SAFETENSORS_AVAILABLE</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+            <span class="s2">"safetensors required for secure checkpointing. "</span>
+            <span class="s2">"Install with: pip install safetensors&gt;=0.4.0"</span>
+        <span class="p">)</span>
+
+    <span class="n">output_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span>
+    <span class="n">output_path</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Prepare model state dict (clone to handle tied weights like embed/lm_head)</span>
+    <span class="n">tensors</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">state_dict</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+    <span class="c1"># Add extra tensors if provided</span>
+    <span class="k">if</span> <span class="n">extra_tensors</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">tensor</span> <span class="ow">in</span> <span class="n">extra_tensors</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">tensors</span><span class="p">[</span><span class="sa">f</span><span class="s2">"extra_</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="o">=</span> <span class="n">tensor</span>
+
+    <span class="c1"># Save model weights with SafeTensors</span>
+    <span class="n">safetensors_path</span> <span class="o">=</span> <span class="n">output_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">".safetensors"</span><span class="p">)</span>
+    <span class="n">save_file</span><span class="p">(</span><span class="n">tensors</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">safetensors_path</span><span class="p">))</span>
+
+    <span class="c1"># Save config + metadata as JSON</span>
+    <span class="n">json_data</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"config"</span><span class="p">:</span> <span class="n">_serialize_config</span><span class="p">(</span><span class="n">config</span><span class="p">),</span>
+        <span class="s2">"metadata"</span><span class="p">:</span> <span class="n">metadata</span> <span class="ow">or</span> <span class="p">{},</span>
+        <span class="s2">"has_optimizer"</span><span class="p">:</span> <span class="n">optimizer_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">"has_extra_tensors"</span><span class="p">:</span> <span class="n">extra_tensors</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">"extra_tensor_keys"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">extra_tensors</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">if</span> <span class="n">extra_tensors</span> <span class="k">else</span> <span class="p">[],</span>
+    <span class="p">}</span>
+
+    <span class="n">json_path</span> <span class="o">=</span> <span class="n">output_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">".json"</span><span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">json_path</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">json_data</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+
+    <span class="c1"># Save optimizer state if provided</span>
+    <span class="k">if</span> <span class="n">optimizer_state</span><span class="p">:</span>
+        <span class="n">opt_tensors</span><span class="p">,</span> <span class="n">opt_metadata</span> <span class="o">=</span> <span class="n">_extract_optimizer_tensors</span><span class="p">(</span><span class="n">optimizer_state</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">opt_tensors</span><span class="p">:</span>
+            <span class="n">opt_tensors_path</span> <span class="o">=</span> <span class="n">output_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">".optimizer.safetensors"</span><span class="p">)</span>
+            <span class="n">save_file</span><span class="p">(</span><span class="n">opt_tensors</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">opt_tensors_path</span><span class="p">))</span>
+
+        <span class="n">opt_json_path</span> <span class="o">=</span> <span class="n">output_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">".optimizer.json"</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">opt_json_path</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">opt_metadata</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">safetensors_path</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_resolve_checkpoint_base</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Strip a known checkpoint suffix to get the base path."""</span>
+    <span class="c1"># Handle extension variations</span>
+    <span class="k">if</span> <span class="n">checkpoint_path</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">".safetensors"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">checkpoint_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">""</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">checkpoint_path</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">".json"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">checkpoint_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">""</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">checkpoint_path</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_split_loaded_tensors</span><span class="p">(</span>
+    <span class="n">all_tensors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]"</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Separate model weights from extra tensors by key prefix."""</span>
+    <span class="n">model_state</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">extra_tensors</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">tensor</span> <span class="ow">in</span> <span class="n">all_tensors</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"extra_"</span><span class="p">):</span>
+            <span class="n">extra_tensors</span><span class="p">[</span><span class="n">key</span><span class="p">[</span><span class="mi">6</span><span class="p">:]]</span> <span class="o">=</span> <span class="n">tensor</span>  <span class="c1"># Remove "extra_" prefix</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">model_state</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">tensor</span>
+
+    <span class="k">return</span> <span class="n">model_state</span><span class="p">,</span> <span class="n">extra_tensors</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_load_checkpoint_json</span><span class="p">(</span><span class="n">json_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"tuple[Dict[str, Any], Dict[str, Any], bool]"</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Load config/metadata/has_optimizer flag from the JSON sidecar."""</span>
+    <span class="n">config</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">metadata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">has_optimizer</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">if</span> <span class="n">json_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">json_path</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">json_data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"config"</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"metadata"</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">has_optimizer</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"has_optimizer"</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">config</span><span class="p">,</span> <span class="n">metadata</span><span class="p">,</span> <span class="n">has_optimizer</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_load_optimizer_state</span><span class="p">(</span><span class="n">base_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Load and reconstruct optimizer state from its sidecar files."""</span>
+    <span class="n">opt_tensors_path</span> <span class="o">=</span> <span class="n">base_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">".optimizer.safetensors"</span><span class="p">)</span>
+    <span class="n">opt_json_path</span> <span class="o">=</span> <span class="n">base_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">".optimizer.json"</span><span class="p">)</span>
+
+    <span class="n">opt_tensors</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">opt_metadata</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">if</span> <span class="n">opt_tensors_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">opt_tensors</span> <span class="o">=</span> <span class="n">load_file</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">opt_tensors_path</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">opt_json_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">opt_json_path</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">opt_metadata</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">_reconstruct_optimizer_state</span><span class="p">(</span><span class="n">opt_tensors</span><span class="p">,</span> <span class="n">opt_metadata</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="load_checkpoint">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.utils.load_checkpoint">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_checkpoint</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+    <span class="n">checkpoint_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"cpu"</span><span class="p">,</span>
+    <span class="n">load_optimizer</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">strict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Load model checkpoint securely from SafeTensors + JSON.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        model: PyTorch model to load weights into</span>
+<span class="sd">        checkpoint_path: Base path to checkpoint (with or without extension)</span>
+<span class="sd">        device: Device to load tensors to</span>
+<span class="sd">        load_optimizer: Whether to load optimizer state</span>
+<span class="sd">        strict: Whether to enforce strict state_dict loading</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Dict containing:</span>
+<span class="sd">        - config: Loaded config dict</span>
+<span class="sd">        - metadata: Loaded metadata dict</span>
+<span class="sd">        - optimizer_state_dict: Optimizer state (if load_optimizer=True and exists)</span>
+<span class="sd">        - extra_tensors: Any extra tensors saved with checkpoint</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        FileNotFoundError: If checkpoint files don't exist</span>
+<span class="sd">        ImportError: If safetensors not installed</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">SAFETENSORS_AVAILABLE</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span>
+            <span class="s2">"safetensors required for secure checkpointing. "</span>
+            <span class="s2">"Install with: pip install safetensors&gt;=0.4.0"</span>
+        <span class="p">)</span>
+
+    <span class="n">checkpoint_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">)</span>
+    <span class="n">base_path</span> <span class="o">=</span> <span class="n">_resolve_checkpoint_base</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">)</span>
+
+    <span class="n">safetensors_path</span> <span class="o">=</span> <span class="n">base_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">".safetensors"</span><span class="p">)</span>
+    <span class="n">json_path</span> <span class="o">=</span> <span class="n">base_path</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s2">".json"</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">safetensors_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Checkpoint not found: </span><span class="si">{</span><span class="n">safetensors_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="c1"># Load model weights</span>
+    <span class="n">all_tensors</span> <span class="o">=</span> <span class="n">load_file</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">safetensors_path</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+    <span class="n">model_state</span><span class="p">,</span> <span class="n">extra_tensors</span> <span class="o">=</span> <span class="n">_split_loaded_tensors</span><span class="p">(</span><span class="n">all_tensors</span><span class="p">)</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">model_state</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="n">strict</span><span class="p">)</span>
+
+    <span class="c1"># Load JSON metadata</span>
+    <span class="n">config</span><span class="p">,</span> <span class="n">metadata</span><span class="p">,</span> <span class="n">has_optimizer</span> <span class="o">=</span> <span class="n">_load_checkpoint_json</span><span class="p">(</span><span class="n">json_path</span><span class="p">)</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"config"</span><span class="p">:</span> <span class="n">config</span><span class="p">,</span>
+        <span class="s2">"metadata"</span><span class="p">:</span> <span class="n">metadata</span><span class="p">,</span>
+        <span class="s2">"extra_tensors"</span><span class="p">:</span> <span class="n">extra_tensors</span> <span class="k">if</span> <span class="n">extra_tensors</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="c1"># Load optimizer state if requested</span>
+    <span class="k">if</span> <span class="n">load_optimizer</span> <span class="ow">and</span> <span class="n">has_optimizer</span><span class="p">:</span>
+        <span class="n">result</span><span class="p">[</span><span class="s2">"optimizer_state_dict"</span><span class="p">]</span> <span class="o">=</span> <span class="n">_load_optimizer_state</span><span class="p">(</span><span class="n">base_path</span><span class="p">,</span> <span class="n">device</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_extract_legacy_components</span><span class="p">(</span>
+    <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"tuple[Any, Dict[str, Any], Dict[str, Any], Optional[Dict[str, Any]]]"</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Extract (model_state, config, metadata, optimizer_state) from a legacy load."""</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="n">model_state</span> <span class="o">=</span> <span class="n">checkpoint</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"model_state_dict"</span><span class="p">,</span> <span class="n">checkpoint</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"state_dict"</span><span class="p">))</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">checkpoint</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"config"</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="n">checkpoint</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"metadata"</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">optimizer_state</span> <span class="o">=</span> <span class="n">checkpoint</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"optimizer_state_dict"</span><span class="p">)</span>
+
+        <span class="c1"># Handle case where checkpoint IS the state dict</span>
+        <span class="k">if</span> <span class="n">model_state</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">k</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">".weight"</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">checkpoint</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="n">model_state</span> <span class="o">=</span> <span class="n">checkpoint</span>
+            <span class="n">config</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">metadata</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">optimizer_state</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Checkpoint is just a state dict</span>
+        <span class="n">model_state</span> <span class="o">=</span> <span class="n">checkpoint</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">optimizer_state</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">return</span> <span class="n">model_state</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">metadata</span><span class="p">,</span> <span class="n">optimizer_state</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">migrate_legacy_checkpoint</span><span class="p">(</span>
+    <span class="n">legacy_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="n">output_path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Migrate a legacy torch.save checkpoint to secure SafeTensors format.</span>
+
+<span class="sd">    WARNING: This function uses torch.load with weights_only=False ONCE</span>
+<span class="sd">    to read the legacy checkpoint. Only use this on TRUSTED checkpoints</span>
+<span class="sd">    that you created yourself.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        legacy_path: Path to legacy .pt/.pth checkpoint</span>
+<span class="sd">        output_path: Path for new secure checkpoint</span>
+<span class="sd">        model: Optional model to validate state dict compatibility</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Path to new safetensors file</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">SAFETENSORS_AVAILABLE</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s2">"safetensors required for migration"</span><span class="p">)</span>
+
+    <span class="n">legacy_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">legacy_path</span><span class="p">)</span>
+    <span class="n">output_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span>
+
+    <span class="c1"># Load legacy checkpoint (TRUSTED sources only)</span>
+    <span class="c1"># ISS-004: This is the ONLY place weights_only=False is acceptable,</span>
+    <span class="c1"># and only for migrating YOUR OWN legacy checkpoints</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"WARNING: Loading legacy checkpoint from </span><span class="si">{</span><span class="n">legacy_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"Only proceed if this is a checkpoint YOU created."</span><span class="p">)</span>
+
+    <span class="n">checkpoint</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">legacy_path</span><span class="p">,</span> <span class="n">map_location</span><span class="o">=</span><span class="s2">"cpu"</span><span class="p">,</span> <span class="n">weights_only</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="n">model_state</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">metadata</span><span class="p">,</span> <span class="n">optimizer_state</span> <span class="o">=</span> <span class="n">_extract_legacy_components</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span>
+
+    <span class="c1"># Validate against model if provided</span>
+    <span class="k">if</span> <span class="n">model</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">model_state</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">"State dict validated against model"</span><span class="p">)</span>
+
+    <span class="c1"># Create a temporary module to save</span>
+    <span class="k">class</span><span class="w"> </span><span class="nc">TempModule</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+        <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">state_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="c1"># Register as buffer (not parameter) to preserve exact structure</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"."</span><span class="p">,</span> <span class="s2">"__DOT__"</span><span class="p">),</span> <span class="n">param</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+            <span class="c1"># Return original keys</span>
+            <span class="k">return</span> <span class="p">{</span><span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"__DOT__"</span><span class="p">,</span> <span class="s2">"."</span><span class="p">):</span> <span class="n">buf</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">buf</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_buffers</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+    <span class="n">temp_module</span> <span class="o">=</span> <span class="n">TempModule</span><span class="p">(</span><span class="n">model_state</span><span class="p">)</span>
+
+    <span class="c1"># Save in new secure format</span>
+    <span class="k">return</span> <span class="n">save_checkpoint</span><span class="p">(</span>
+        <span class="n">model</span><span class="o">=</span><span class="n">temp_module</span><span class="p">,</span>
+        <span class="n">output_path</span><span class="o">=</span><span class="n">output_path</span><span class="p">,</span>
+        <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+        <span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">,</span>
+        <span class="n">optimizer_state</span><span class="o">=</span><span class="n">optimizer_state</span><span class="p">,</span>
+    <span class="p">)</span>
+
+
+<span class="c1"># Convenience functions for common patterns</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">save_model_only</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Save just model weights without config/optimizer."""</span>
+    <span class="k">return</span> <span class="n">save_checkpoint</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">load_model_only</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span> <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"cpu"</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Load just model weights, return the model."""</span>
+    <span class="n">load_checkpoint</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">model</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Agent Forge Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

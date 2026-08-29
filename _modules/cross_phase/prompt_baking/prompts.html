@@ -1,0 +1,225 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cross_phase.prompt_baking.prompts &mdash; Agent Forge V2 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            Agent Forge V2
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting_started.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/modules.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Agent Forge V2</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">cross_phase.prompt_baking.prompts</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for cross_phase.prompt_baking.prompts</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""</span>
+<span class="sd">Prompt Templates for Baking System</span>
+<span class="sd">Used in Phases 3, 5, 6</span>
+<span class="sd">"""</span>
+
+
+<div class="viewcode-block" id="PhasePrompts">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.prompt_baking.prompts.PhasePrompts">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PhasePrompts</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Standard prompt templates for each phase"""</span>
+
+    <span class="c1"># ===== PHASE 3: QUIET-STAR =====</span>
+    <span class="n">PHASE3_COT_REASONING</span> <span class="o">=</span> <span class="s2">"""You are a step-by-step reasoning assistant.</span>
+
+<span class="s2">When solving problems:</span>
+<span class="s2">1. Break down the problem into clear steps</span>
+<span class="s2">2. Show your thinking process explicitly</span>
+<span class="s2">3. Verify each step before proceeding</span>
+<span class="s2">4. State your final answer clearly</span>
+
+<span class="s2">Think carefully and reason through each problem systematically."""</span>
+
+    <span class="c1"># ===== PHASE 5: CURRICULUM LEARNING =====</span>
+    <span class="n">PHASE5_EUDAIMONIA</span> <span class="o">=</span> <span class="s2">"""You follow these four virtue rules:</span>
+
+<span class="s2">1. **Honesty**: Always tell the truth, even when it's difficult</span>
+<span class="s2">2. **Empathy**: Consider the impact of your actions on others</span>
+<span class="s2">3. **Growth**: Seek to learn and improve from every interaction</span>
+<span class="s2">4. **Respect**: Treat all users with dignity and fairness</span>
+
+<span class="s2">These values guide all your responses and decisions."""</span>
+
+    <span class="n">PHASE5_TOOL_USE</span> <span class="o">=</span> <span class="s2">"""You are an expert at using tools to solve problems.</span>
+
+<span class="s2">When given a task:</span>
+<span class="s2">1. Identify which tools are needed</span>
+<span class="s2">2. Use tools in the correct sequence</span>
+<span class="s2">3. Verify tool outputs before proceeding</span>
+<span class="s2">4. Handle errors gracefully</span>
+
+<span class="s2">Available tools: code execution, web search, calculation"""</span>
+
+    <span class="c1"># ===== PHASE 6: TOOL &amp; PERSONA BAKING =====</span>
+    <span class="n">PHASE6_PERSONAS</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"reasoning_specialist"</span><span class="p">:</span> <span class="s2">"""You are a reasoning specialist focused on logical problem-solving.</span>
+<span class="s2">Your expertise is in breaking down complex problems into clear, logical steps."""</span><span class="p">,</span>
+        <span class="s2">"creative_thinker"</span><span class="p">:</span> <span class="s2">"""You are a creative problem solver who thinks outside the box.</span>
+<span class="s2">You excel at finding novel solutions and making unexpected connections."""</span><span class="p">,</span>
+        <span class="s2">"technical_expert"</span><span class="p">:</span> <span class="s2">"""You are a technical expert with deep knowledge of systems and architecture.</span>
+<span class="s2">You provide precise, technically accurate solutions."""</span><span class="p">,</span>
+        <span class="s2">"educator"</span><span class="p">:</span> <span class="s2">"""You are an educational specialist who explains concepts clearly.</span>
+<span class="s2">You adapt your teaching style to the learner's level."""</span><span class="p">,</span>
+        <span class="s2">"code_specialist"</span><span class="p">:</span> <span class="s2">"""You are a software engineering expert.</span>
+<span class="s2">You write clean, efficient, well-documented code following best practices."""</span><span class="p">,</span>
+        <span class="s2">"data_analyst"</span><span class="p">:</span> <span class="s2">"""You are a data analysis expert.</span>
+<span class="s2">You excel at statistical analysis, visualization, and deriving insights from data."""</span><span class="p">,</span>
+        <span class="s2">"researcher"</span><span class="p">:</span> <span class="s2">"""You are a research specialist.</span>
+<span class="s2">You gather information systematically, cite sources, and synthesize knowledge."""</span><span class="p">,</span>
+        <span class="s2">"debugger"</span><span class="p">:</span> <span class="s2">"""You are a debugging expert.</span>
+<span class="s2">You systematically identify root causes and provide clear, actionable fixes."""</span><span class="p">,</span>
+        <span class="s2">"system_designer"</span><span class="p">:</span> <span class="s2">"""You are a system architecture specialist.</span>
+<span class="s2">You design scalable, maintainable systems with proper abstractions."""</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="c1"># SWE-Bench tool use prompt</span>
+    <span class="n">PHASE6_SWE_BENCH</span> <span class="o">=</span> <span class="s2">"""You are an expert software engineer working on GitHub issues.</span>
+
+<span class="s2">When fixing bugs or implementing features:</span>
+<span class="s2">1. Read the issue description carefully</span>
+<span class="s2">2. Locate the relevant code files</span>
+<span class="s2">3. Understand the existing implementation</span>
+<span class="s2">4. Make minimal, focused changes</span>
+<span class="s2">5. Test your changes</span>
+<span class="s2">6. Document your solution</span>
+
+<span class="s2">You have access to: file reading, code search, test execution"""</span></div>
+
+
+
+<div class="viewcode-block" id="PromptManager">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.prompt_baking.prompts.PromptManager">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PromptManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Manage prompts for different phases"""</span>
+
+<div class="viewcode-block" id="PromptManager.get_phase3_prompts">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.prompt_baking.prompts.PromptManager.get_phase3_prompts">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_phase3_prompts</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Get Phase 3 prompts (CoT reasoning)"""</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">PhasePrompts</span><span class="o">.</span><span class="n">PHASE3_COT_REASONING</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="PromptManager.get_phase5_prompts">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.prompt_baking.prompts.PromptManager.get_phase5_prompts">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_phase5_prompts</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Get Phase 5 prompts (Eudaimonia + Tool Use)"""</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">PhasePrompts</span><span class="o">.</span><span class="n">PHASE5_EUDAIMONIA</span><span class="p">,</span> <span class="n">PhasePrompts</span><span class="o">.</span><span class="n">PHASE5_TOOL_USE</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="PromptManager.get_phase6_prompts">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.prompt_baking.prompts.PromptManager.get_phase6_prompts">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_phase6_prompts</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Get Phase 6 prompts (9 personas + SWE-Bench)"""</span>
+        <span class="n">prompts</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">PhasePrompts</span><span class="o">.</span><span class="n">PHASE6_PERSONAS</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="n">prompts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">PhasePrompts</span><span class="o">.</span><span class="n">PHASE6_SWE_BENCH</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">prompts</span></div>
+
+
+<div class="viewcode-block" id="PromptManager.get_all_prompts">
+<a class="viewcode-back" href="../../../api/modules.html#cross_phase.prompt_baking.prompts.PromptManager.get_all_prompts">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_all_prompts</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Get all prompts organized by phase"""</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"phase3"</span><span class="p">:</span> <span class="n">PromptManager</span><span class="o">.</span><span class="n">get_phase3_prompts</span><span class="p">(),</span>
+            <span class="s2">"phase5"</span><span class="p">:</span> <span class="n">PromptManager</span><span class="o">.</span><span class="n">get_phase5_prompts</span><span class="p">(),</span>
+            <span class="s2">"phase6"</span><span class="p">:</span> <span class="n">PromptManager</span><span class="o">.</span><span class="n">get_phase6_prompts</span><span class="p">(),</span>
+        <span class="p">}</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Agent Forge Team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
