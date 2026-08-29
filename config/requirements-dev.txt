@@ -13,7 +13,7 @@ pytest-asyncio==0.23.8  # Required: phase3 data_generator tests are genuinely as
 # verified locally; a floating isort picked a version that reordered one __init__.
 black==26.5.1  # Auto-formatter - pinned
 isort==5.13.2  # Import sorter - pinned
-flake8==7.0.0  # Linter - pinned
+flake8==7.3.0  # Linter - pinned
 pylint>=3.0.0  # Advanced linter
 mypy>=1.8.0  # Type checker
 
