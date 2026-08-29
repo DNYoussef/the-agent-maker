@@ -12,11 +12,11 @@ jobs:
     name: GuardSpine CodeGuard
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: DNYoussef/codeguard-action@v2
+      - uses: DNYoussef/codeguard-action@v1
         with:
           risk_threshold: L3
           rubric: default
