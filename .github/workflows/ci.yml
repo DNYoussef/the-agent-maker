@@ -137,7 +137,7 @@ jobs:
       run: PYTHONPATH=$PWD:$PWD/src pytest tests/test_theater_gate.py tests/wave2 tests/pipeline/test_phase3_antitheater.py -v --no-cov
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v7
       with:
         file: ./coverage.xml
         flags: unittests
