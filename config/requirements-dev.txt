@@ -30,7 +30,7 @@ sphinx-rtd-theme>=2.0.0
 
 # Development tools
 ipython>=8.39.0
-jupyter>=1.0.0
+jupyter>=1.1.1
 
 # CI/CD
 coverage>=7.4.0
