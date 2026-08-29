@@ -11,7 +11,7 @@ pytest-asyncio==0.23.8  # Required: phase3 data_generator tests are genuinely as
 # Code Quality
 # isort/flake8 pinned (not floating >=) so CI matches the formatting/lint results
 # verified locally; a floating isort picked a version that reordered one __init__.
-black==26.5.1  # Auto-formatter - pinned
+black==23.12.1  # Auto-formatter - pinned
 isort==5.13.2  # Import sorter - pinned
 flake8==7.3.0  # Linter - pinned
 pylint>=3.0.0  # Advanced linter
