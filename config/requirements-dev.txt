@@ -6,7 +6,7 @@ pytest-cov>=4.1.0
 pytest-xdist>=3.3.0  # Parallel testing
 pytest-timeout>=2.2.0
 pytest-mock>=3.15.1
-pytest-asyncio==0.23.8  # Required: phase3 data_generator tests are genuinely async
+pytest-asyncio==1.4.0  # Required: phase3 data_generator tests are genuinely async
 
 # Code Quality
 # isort/flake8 pinned (not floating >=) so CI matches the formatting/lint results
