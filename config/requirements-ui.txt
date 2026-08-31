@@ -14,7 +14,7 @@ pyyaml>=6.0
 psutil>=5.9.0
 
 # Visualization
-plotly>=5.17.0  # Optional: Enhanced charts
+plotly>=7.0.0  # Optional: Enhanced charts
 
 # Optional: GPU Monitoring
 # torch>=2.0.0  # Uncomment if GPU monitoring needed
